@@ -8,7 +8,16 @@ import pytest
 from mcp import Client
 from starlette.responses import Response
 
-from intel_mcp.models import AppAnalysis, AppAnalysisLimits, AppStartAnalysisResponse
+from intel_mcp.models import (
+    AppAnalysis,
+    AppAnalysisLimits,
+    AppFilterAccess,
+    AppFilterAccessResponse,
+    AppStartAnalysisResponse,
+    EngineFilterResponse,
+    FilterCoverage,
+    FilterTrialItem,
+)
 from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 
 
@@ -36,6 +45,45 @@ class StubControlPlane:
             )
         )
 
+    async def authorize_filter_results(
+        self, analysis_id: str, trial_ids: list[str]
+    ) -> AppFilterAccessResponse:
+        assert analysis_id == "ana_123456789012345678901234"
+        return AppFilterAccessResponse(
+            access=AppFilterAccess(
+                allowed_trial_ids=trial_ids,
+                limit=1000,
+                used=len(trial_ids),
+                remaining=1000 - len(trial_ids),
+                exhausted=False,
+            )
+        )
+
+
+class StubEngine:
+    async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
+        return EngineFilterResponse(
+            data=[
+                FilterTrialItem(
+                    eu_number="2024-500001-00-00",
+                    trial_title="Phase 2 head and neck study",
+                    sponsor_name="Example Sponsor",
+                    phase=[2],
+                    latest_country_submission_or_approval_date="2026-08-01",
+                    available_extracted_document_types=["protocol"],
+                    available_extracted_document_names=["Protocol v2"],
+                )
+            ],
+            applied_filters={"phase": {"operator": "contains_any", "values": [2]}},
+            coverage=FilterCoverage(approved_profiles_considered=7, total_matches=1),
+            warnings=[],
+            returned=1,
+            applied_limit=20,
+            has_more=False,
+            next_cursor=None,
+            schema_version="1.0.0",
+        )
+
 
 @pytest.mark.anyio
 async def test_start_analysis_tool_contract(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -53,6 +101,54 @@ async def test_start_analysis_tool_contract(monkeypatch: pytest.MonkeyPatch) -> 
         assert result.structured_content is not None
         assert result.structured_content["analysis_id"].startswith("ana_")
         assert result.structured_content["report_run_id"] == "run-123"
+
+
+@pytest.mark.anyio
+async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+        tool = next(item for item in tools.tools if item.name == "filter_trials")
+        schema_text = str(tool.input_schema)
+        assert "profile_contains" not in schema_text
+        assert "sponsor_name" in schema_text
+        assert tool.annotations is not None
+        assert tool.annotations.read_only_hint is True
+
+        result = await client.call_tool(
+            "filter_trials",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "filters": {"phase": {"operator": "contains_any", "values": [2]}},
+            },
+        )
+        assert result.is_error is False
+        assert result.structured_content is not None
+        assert result.structured_content["returned"] == 1
+        assert result.structured_content["data"][0]["eu_number"] == "2024-500001-00-00"
+
+
+def test_controlled_filter_values_accept_any_case_and_normalize() -> None:
+    from intel_mcp.models import TrialFilters
+
+    filters = TrialFilters.model_validate(
+        {
+            "therapeutic_areas": {"values": ["solid tumor oncology"]},
+            "countries": [
+                {
+                    "country_codes": {"values": ["de"]},
+                    "recruitment_statuses": {"values": ["authorised"]},
+                }
+            ],
+        }
+    )
+    assert filters.therapeutic_areas is not None
+    assert filters.therapeutic_areas.values == ["Solid Tumor Oncology"]
+    assert filters.countries[0].country_codes is not None
+    assert filters.countries[0].country_codes.values == ["DE"]
+    assert filters.countries[0].recruitment_statuses is not None
+    assert filters.countries[0].recruitment_statuses.values == ["Authorised"]
 
 
 @pytest.mark.anyio

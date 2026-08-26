@@ -11,6 +11,8 @@ def settings() -> Settings:
     return Settings(
         app_control_url="https://intel.example.test",
         app_service_token="test-service-token",
+        engine_api_url="https://engine.example.test",
+        engine_service_token="test-engine-token",
         mcp_inbound_service_token="test-mcp-service-token",
         allowed_hosts=("localhost",),
         port=8000,
@@ -68,3 +70,29 @@ async def test_start_analysis_preserves_typed_allowance_error() -> None:
         await client.start_analysis("run-123")
     assert captured.value.code == "ANALYSIS_ALLOWANCE_REQUIRED"
     assert captured.value.status_code == 402
+
+
+@pytest.mark.anyio
+async def test_filter_access_is_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-service-token"
+        assert request.url.path == "/api/internal/mcp/filter-access"
+        assert request.content == b'{"analysisId":"ana_123456789012345678901234","trialIds":["2024-500001-00-00"]}'
+        return httpx.Response(
+            200,
+            json={
+                "access": {
+                    "allowedTrialIds": ["2024-500001-00-00"],
+                    "limit": 100,
+                    "used": 1,
+                    "remaining": 99,
+                    "exhausted": False,
+                }
+            },
+        )
+
+    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.authorize_filter_results(
+        "ana_123456789012345678901234", ["2024-500001-00-00"]
+    )
+    assert result.access.remaining == 99
