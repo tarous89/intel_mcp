@@ -2,7 +2,7 @@
 
 Remote Model Context Protocol service for TrialAgents Intel Agent.
 
-The first implemented tool is `start_analysis`. It receives only an app-created `report_run_id`, calls the Intel Agent app's private control-plane endpoint, and returns the existing or newly reserved 60-minute analysis lease. User identity, plan approval, package, enabled tools and allowances are resolved server-side by the app.
+The first implemented tool is `start_analysis`. It receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control-plane endpoint, and returns the existing or newly reserved 60-minute analysis lease. User identity, plan approval, package, enabled tools and allowances are resolved server-side by the app.
 
 ## Local setup
 
@@ -20,7 +20,7 @@ The Streamable HTTP endpoint is `/mcp`; the unauthenticated liveness endpoint is
 
 Required production settings:
 
-- `INTEL_APP_CONTROL_URL`: private Intel Agent app base URL.
+- `INTEL_APP_CONTROL_URL`: service-authenticated Intel Agent app base URL.
 - `INTEL_APP_SERVICE_TOKEN`: shared service credential stored only in Render secrets.
 - `MCP_INBOUND_SERVICE_TOKEN`: bearer credential required on every request to `/mcp`.
 - `MCP_ALLOWED_HOSTS`: comma-separated exact public/private Host allowlist entries.
