@@ -15,7 +15,15 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
-from intel_mcp.models import AnalysisLimits, StartAnalysisOutput
+from intel_mcp.engine import EngineClient, EngineError
+from intel_mcp.models import (
+    AnalysisLimits,
+    FilterBudget,
+    FilterTrialsOutput,
+    StartAnalysisOutput,
+    TrialFilters,
+    TrialSort,
+)
 
 settings = Settings.from_environment()
 mcp = MCPServer(
@@ -29,6 +37,10 @@ mcp = MCPServer(
 
 def control_plane_client() -> ControlPlaneClient:
     return ControlPlaneClient(settings)
+
+
+def engine_client() -> EngineClient:
+    return EngineClient(settings)
 
 
 @mcp.tool(
@@ -70,6 +82,113 @@ async def start_analysis(
         enabled_tools=analysis.enabled_tools,
         limits=AnalysisLimits.model_validate(analysis.limits.model_dump()),
         reused=analysis.reused,
+    )
+
+
+@mcp.tool(
+    title="Filter approved clinical trials",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+)
+async def filter_trials(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    filters: Annotated[
+        TrialFilters,
+        Field(
+            description=(
+                "Structured Trial Profile filters. Text matching is case-insensitive; contains is "
+                "the default and is is exact after case folding. Different fields combine with AND. "
+                "Use one contains_any/contains_all list for multiple values in the same field. Make "
+                "separate calls when OR is required across different fields. Missing values never "
+                "satisfy negative operators."
+            )
+        ),
+    ],
+    sort: Annotated[
+        TrialSort,
+        Field(description="Deterministic sort. The EU trial number is always the stable tie-breaker."),
+    ] = TrialSort(),
+    limit: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=100,
+            description="Maximum trials requested in this page. The hard per-call cap is 100.",
+        ),
+    ] = 20,
+    cursor: Annotated[
+        str | None,
+        Field(
+            default=None,
+            max_length=2000,
+            description="Opaque cursor returned by the immediately preceding compatible filter call.",
+        ),
+    ] = None,
+) -> FilterTrialsOutput:
+    """Deterministically shortlist approved structured Trial Profiles.
+
+    This tool queries only documented structured columns. It does not search the complete profile,
+    run semantic search, classify trials, retrieve full profiles/documents, extract variables, or
+    write a report. Sponsor-name matching is a shortlist aid: the CTIS source can sometimes identify
+    a subsidy/funding source or omit part of the complete legal entity name.
+
+    Results are validated and metered against the app-owned analysis lease. Light analyses may see
+    at most 100 unique filtered trial IDs and Max analyses at most 1,000; retries and revisions do not
+    consume the same trial ID twice. Continue only with next_cursor returned by this tool.
+    """
+    try:
+        engine_result = await engine_client().filter_trials(
+            filters=filters,
+            sort=sort,
+            limit=limit,
+            cursor=cursor,
+        )
+        access_result = await control_plane_client().authorize_filter_results(
+            analysis_id,
+            [item.eu_number for item in engine_result.data],
+        )
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    access = access_result.access
+    allowed = set(access.allowed_trial_ids)
+    data = [item for item in engine_result.data if item.eu_number in allowed]
+    warnings = list(engine_result.warnings)
+    allowance_removed_results = len(data) != len(engine_result.data)
+    if allowance_removed_results:
+        warnings.append(
+            "The analysis filtered-trial allowance was reached; additional new trial IDs were not returned."
+        )
+
+    has_more = engine_result.has_more and not access.exhausted and not allowance_removed_results
+    return FilterTrialsOutput(
+        data=data,
+        applied_filters=engine_result.applied_filters,
+        coverage=engine_result.coverage,
+        warnings=warnings,
+        returned=len(data),
+        requested_limit=limit,
+        applied_limit=engine_result.applied_limit,
+        has_more=has_more,
+        next_cursor=engine_result.next_cursor if has_more else None,
+        analysis_budget=FilterBudget(
+            limit=access.limit,
+            used=access.used,
+            remaining=access.remaining,
+            exhausted=access.exhausted,
+        ),
+        schema_version=engine_result.schema_version,
     )
 
 

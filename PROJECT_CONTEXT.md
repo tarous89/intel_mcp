@@ -682,3 +682,24 @@ The owner rejected and deleted all shared-server or consolidation proposals. The
 - Local contract/security tests pass: 5 tests.
 - The inbound verification bearer was rotated immediately after deployment verification; no client depended on the previous value.
 - Do not reintroduce shared-server or consolidation proposals unless the owner explicitly asks to reconsider this decision.
+
+## `filter_trials` implementation decision — 2026-08-27
+
+This section supersedes the earlier open filter-scope questions.
+
+- `filter_trials` exposes structured Trial Profile fields only. The proposed profile-wide `contains` search is removed from v1.
+- Only approved Trial Profiles are queryable. There is no raw-CTIS fallback in this version.
+- The MCP service remains isolated and has no clinical database credentials. It calls the existing Intel Engine Trial Profile service through `POST /api/internal/mcp/filter-trials` with a dedicated MCP-to-Engine service credential. This credential is separate from the extraction-run token.
+- The Engine endpoint is read-only, strictly allowlisted and parameterized. It rejects unknown fields, operators and controlled values; it never accepts SQL, raw profile JSON paths or arbitrary database column names.
+- Text matching is case-insensitive. `contains` is the standard/default text mode; `is` is the exact case-insensitive mode. Negative modes are `does_not_contain` and `is_not`, and missing values do not satisfy negative filters.
+- Controlled arrays accept `contains_any`, `contains_all` and `contains_none`. Different structured fields combine with AND. OR across different fields requires separate calls.
+- Country conditions are grouped into same-row `EXISTS` clauses so a country code and country status/date/site constraint cannot accidentally match different countries. Multiple country groups combine with AND.
+- Controlled vocabularies are embedded in the MCP JSON Schema. ISO alpha-2 country codes are pattern-constrained. Known normalized CTIS country statuses are advertised explicitly.
+- Sponsor-name documentation must always warn that the CTIS sponsor value may sometimes refer to a subsidy/funding source or omit part of the complete legal entity name. Sponsor matching is shortlist evidence, not definitive legal-entity resolution.
+- Default ordering remains latest country submission/approval date descending, with EU trial number ascending as the stable tie-breaker. Alternate sort fields are allowlisted. Page size is 1–100 and pagination uses an opaque filter/sort-bound cursor.
+- Per-trial output contains EU number, title, sponsor name, phase, latest country submission/approval date, and available extracted document types and names. It does not return per-trial `matched_filters`.
+- Result metadata contains normalized applied filters/sort, approved-profile coverage, total matches, returned count, warnings, cursor state, schema version and remaining filtered-ID budget.
+- Every call requires an active `analysis_id`. After the Engine returns candidate rows internally, MCP calls the app control plane to validate the 60-minute lease, verify `filter_trials` is enabled and atomically meter unique returned trial IDs. Retries/revisions do not charge the same EU trial number twice.
+- The app-owned cumulative limits remain Light 100 and Max 1,000 unique filtered trial IDs per analysis. The MCP per-call cap remains 100.
+- The app stores the bounded seen-ID set inside the existing analysis-lease usage JSON, avoiding a control-database migration while keeping allowance enforcement atomic under an analysis-specific advisory lock.
+- Superseding the earlier generic read-tool annotation: `filter_trials` uses `readOnlyHint: false`. Its Engine query is read-only, but admitting a new unique trial ID changes the caller-visible remaining analysis allowance. It remains non-destructive, idempotent for retries and closed-world.
