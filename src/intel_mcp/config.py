@@ -12,6 +12,7 @@ def _csv(value: str) -> tuple[str, ...]:
 class Settings:
     app_control_url: str
     app_service_token: str
+    mcp_inbound_service_token: str
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
@@ -21,6 +22,7 @@ class Settings:
         return cls(
             app_control_url=os.getenv("INTEL_APP_CONTROL_URL", "").strip().rstrip("/"),
             app_service_token=os.getenv("INTEL_APP_SERVICE_TOKEN", "").strip(),
+            mcp_inbound_service_token=os.getenv("MCP_INBOUND_SERVICE_TOKEN", "").strip(),
             allowed_hosts=_csv(
                 os.getenv(
                     "MCP_ALLOWED_HOSTS",
@@ -36,3 +38,7 @@ class Settings:
             raise RuntimeError("INTEL_APP_CONTROL_URL is not configured")
         if not self.app_service_token:
             raise RuntimeError("INTEL_APP_SERVICE_TOKEN is not configured")
+
+    def validate_inbound_auth(self) -> None:
+        if not self.mcp_inbound_service_token:
+            raise RuntimeError("MCP_INBOUND_SERVICE_TOKEN is not configured")
