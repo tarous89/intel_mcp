@@ -12,6 +12,7 @@ python -m venv .venv
 pip install -e '.[dev]'
 export INTEL_APP_CONTROL_URL=http://localhost:3000
 export INTEL_APP_SERVICE_TOKEN=replace-me
+export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
 intel-mcp
 ```
 
@@ -21,7 +22,8 @@ Required production settings:
 
 - `INTEL_APP_CONTROL_URL`: private Intel Agent app base URL.
 - `INTEL_APP_SERVICE_TOKEN`: shared service credential stored only in Render secrets.
+- `MCP_INBOUND_SERVICE_TOKEN`: bearer credential required on every request to `/mcp`.
 - `MCP_ALLOWED_HOSTS`: comma-separated exact public/private Host allowlist entries.
 - `PORT`: HTTP port assigned by the platform.
 
-The internal app profile must remain private-network-only. Public OAuth is a later profile and must not reuse the internal service credential as end-user authentication.
+The initial free Render deployment is public at the network layer but `/mcp` is closed to callers without the internal service bearer. Public OAuth is a later profile and must not reuse the internal service credential as end-user authentication.

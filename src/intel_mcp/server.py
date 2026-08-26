@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from typing import Annotated
 
 import uvicorn
@@ -10,6 +11,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
@@ -77,7 +79,50 @@ async def health(_request: Request) -> Response:
 
 
 transport_security = TransportSecuritySettings(allowed_hosts=list(settings.allowed_hosts))
-app = mcp.streamable_http_app(transport_security=transport_security)
+
+
+class MCPServiceAuthMiddleware:
+    """Require the internal service bearer on every MCP protocol request."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not scope.get("path", "").startswith("/mcp"):
+            await self.app(scope, receive, send)
+            return
+
+        try:
+            settings.validate_inbound_auth()
+        except RuntimeError:
+            response = JSONResponse(
+                {"error": {"code": "MCP_AUTH_NOT_CONFIGURED", "message": "MCP authentication is not configured."}},
+                status_code=503,
+            )
+            await response(scope, receive, send)
+            return
+
+        headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        authorization = headers.get(b"authorization", b"").decode("latin-1")
+        scheme, separator, token = authorization.partition(" ")
+        valid = (
+            bool(separator)
+            and scheme.lower() == "bearer"
+            and secrets.compare_digest(token, settings.mcp_inbound_service_token)
+        )
+        if not valid:
+            response = JSONResponse(
+                {"error": {"code": "UNAUTHORIZED", "message": "A valid MCP service credential is required."}},
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+
+app = MCPServiceAuthMiddleware(mcp.streamable_http_app(transport_security=transport_security))
 
 
 def main() -> None:
