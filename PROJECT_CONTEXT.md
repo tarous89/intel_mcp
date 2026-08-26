@@ -620,3 +620,23 @@ Required dependency order:
 6. Only then connect the approved-plan SOL background run.
 
 Recommended isolation remains a separate app/MCP control-plane PostgreSQL database, not the Intel Agent clinical-trial warehouse. Final authentication provider, database provisioning and Light/Max allowance rules require owner confirmation before implementation.
+
+
+## Approved implementation foundation (2026-08-26)
+
+The owner confirmed the implementation foundation:
+
+- No parallel reports are supported. Every user, regardless of Light or Max, may have only one active report/`analysis_id` at a time.
+- `start_analysis` is a separate sixth lifecycle tool.
+- The app uses a two-SOL-call flow: plan proposal/revision first, then a background MCP-enabled SOL call only after approval.
+- Unavailable worker tools are hidden from the orchestrator rather than exposed with entitlement errors.
+- The app owns user input, project, plan versions/approval, background response progress, final report and revision history. MCP remains narrow.
+- Analysis ownership is per individual user in v1; organizations/workspaces are deferred.
+- Production app authentication and durable users/sessions must replace the browser-local prototype.
+- Create an isolated app/MCP control-plane PostgreSQL database; never use the clinical-trial warehouse for identity, commerce or analysis leases.
+- Initial allowance policy: one free Light analysis per user; every successful €450 Max Report purchase grants one Max analysis tied to that user/project.
+- System failures before successful report fulfillment restore the reserved allowance.
+- Stripe remains fail-closed/test-mode until its verified webhook creates durable, idempotent user-bound entitlements.
+- Implement the private app-to-MCP identity bridge only after production app authentication exists.
+
+The one-active-analysis rule also provides start idempotency: while a valid lease exists, repeated `start_analysis` calls for that authenticated user return the existing analysis rather than reserving another allowance.
