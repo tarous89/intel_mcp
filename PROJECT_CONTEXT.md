@@ -279,3 +279,66 @@ Do not add client-specific business logic to tools. Platform adapters should rem
 ## Documentation rule
 
 Update this file after every important architectural decision, implementation milestone, production learning or listing-policy change. Keep prior decisions when superseded and mark their replacement explicitly.
+
+
+## Use-case and access-profile architecture (2026-08-26)
+
+This section supersedes the earlier assumption that every consumer uses one public OAuth-protected endpoint. Build one shared MCP codebase and tool implementation, but support distinct access and feature profiles.
+
+### Use case 1 — Intel Agent application backend
+
+- Intel MCP powers report generation inside the Intel Agent application.
+- The user authenticates only once with the Intel Agent application.
+- MCP must run transparently in the backend with no second login, OAuth consent, account-linking screen or user-facing MCP authentication step.
+- The internal MCP surface must not be an unauthenticated public endpoint. Preferred safeguard: a Render private-network endpoint callable only by the Intel Agent backend. A service identity may be used if network topology requires it, but it must not create another user authentication flow.
+- The Intel Agent backend remains responsible for user/session authentication and passes trusted user, tenant and entitlement context needed for authorization, usage attribution and limits.
+- The app orchestrates MCP calls into reports; Intel MCP remains the bounded data/tool layer rather than owning the application UI.
+
+### Use case 2 — external ChatGPT and Claude access
+
+- Expose a public HTTPS Streamable HTTP MCP endpoint for ChatGPT, Claude and API consumers.
+- Reuse the existing Intel Agent/TrialAgents account system and subscriptions.
+- Use native OAuth account linking. Authentication is protocol-level OAuth, not a public `authenticate` MCP tool that accepts credentials.
+- Provide a dedicated connection/consent page, either within the Intel Agent app or on a dedicated MCP route/domain.
+- Validate OAuth token, user/tenant, scopes, subscription entitlement and limits on every request.
+- External API consumers obtain and refresh a bearer token outside the MCP call.
+
+### Feature profiles
+
+Support centrally selectable tool bundles without forking the business logic:
+
+1. **Core / no-worker profile** — deterministic retrieval tools only.
+2. **Worker-enabled profile** — core tools plus approved AI-worker tools.
+
+The exact membership remains pending because `classify_trials` also uses an LLM worker, while the user specifically described the no-worker version as “without basically the extraction tool.” Confirm whether the core profile excludes both `classify_trials` and `extract_variables`, or only `extract_variables`.
+
+Feature availability must be controlled server-side by deployment profile, client registration, tenant/subscription entitlement or an explicit combination. Disabled tools must not be callable even if a client fabricates the request. Prefer one codebase with configuration-driven profiles; decide later whether public profiles use separate endpoints/listings or one OAuth endpoint with entitlement-based tool exposure.
+
+### Centrally controlled limits
+
+Every potentially large operation must accept a bounded requested limit and enforce a server-controlled hard maximum. “All” must never mean an unbounded synchronous request.
+
+Limits must be independently configurable for:
+
+- Trial IDs returned by `filter_trials`.
+- Profiles returned by `get_profiles`.
+- Trials processed by `classify_trials`.
+- Documents returned per request and per trial by `get_documents`.
+- Text chunks/pages/characters returned per document and per call.
+- Trials, documents and variables processed by `extract_variables`.
+- Total output size, worker runtime, concurrent calls, daily/monthly analysis allowance and pagination depth.
+
+Use defaults plus hard caps. The caller may request any value up to its effective cap; the server clamps or rejects larger values and returns the applied limit, truncation state and continuation cursor. Effective limits may vary by internal-app profile, public profile, subscription tier and deployment environment. Store the policy centrally rather than hard-coding values into tool handlers.
+
+“Top N” requires an explicit stable ordering. Deterministic filters should support approved sort keys such as relevance, latest submission/approval date or another defined field, with a deterministic tie-breaker. The ranking and default sort remain to be decided.
+
+### Foundation questions still open
+
+- Which exact report types and workflows will the Intel Agent app generate first?
+- Which tools should the internal app profile expose?
+- Does “no-worker” exclude both LLM-backed tools or only `extract_variables`?
+- Are Core and Worker-enabled public access separate products/listings/endpoints, or one connector whose tools depend on entitlement?
+- What default and hard maximum should apply to each trial, profile, document, text and worker dimension?
+- What defines “top” results when the caller does not specify a sort?
+- Will Intel Agent and Intel MCP run in the same Render private network?
+- Should the connection/consent page live at `intel.trialagents.com/mcp` or a dedicated MCP subdomain?
