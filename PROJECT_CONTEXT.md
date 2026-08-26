@@ -594,3 +594,29 @@ Official OpenAI references:
 - For the Intel Agent app, pass only the entitled tools in the SOL request/allowed-tools configuration.
 - For public ChatGPT/Claude access, return an authenticated entitlement-filtered tool list. Reconnection may be required after a subscription/tool entitlement changes.
 - Do not advertise unavailable tools merely to return entitlement errors in v1.
+
+
+## Implementation discovery: app authentication and allowance prerequisite (2026-08-26)
+
+Inspection of `tarous89/intel_agent_app` before implementing `start_analysis` found:
+
+- The current signup/login/session is an explicit browser-local prototype. Accounts, plaintext prototype passwords and sessions are stored in `localStorage`; no server can trust this identity.
+- The app's Drizzle schema is intentionally empty and there is no durable user, session, project, order, entitlement, analysis or report storage.
+- The ChatGPT-auth header helper belongs to the earlier hosting integration and is not production authentication for the canonical Render app.
+- Stripe Checkout currently sells one €450 Max Report and carries project metadata, but the signed webhook only logs successful checkout.
+- The payment-success page stores a browser-local demo order. A payment does not yet create a durable user-bound report entitlement.
+- Light Report is currently labeled as a free preview; its real allowance has not been defined.
+- Therefore `start_analysis` cannot yet truthfully authenticate a user or atomically consume/check a durable analysis allowance.
+
+Security constraint: never accept user ID, plan, payment status or remaining allowance directly from the browser/localStorage. Never treat an email header or unsigned internal header as app authentication.
+
+Required dependency order:
+
+1. Add production app authentication and durable user/session storage.
+2. Add durable projects, Stripe orders and per-user analysis entitlement/allowance ledger.
+3. Make the Stripe webhook idempotently grant the purchased entitlement to the authenticated user/project.
+4. Add a private app-to-MCP identity assertion or internal entitlement endpoint protected by a service credential and private network.
+5. Implement `start_analysis` with an atomic one-active-analysis-per-user transaction, 60-minute expiry, allowance reservation/activation and idempotent `report_run_id`.
+6. Only then connect the approved-plan SOL background run.
+
+Recommended isolation remains a separate app/MCP control-plane PostgreSQL database, not the Intel Agent clinical-trial warehouse. Final authentication provider, database provisioning and Light/Max allowance rules require owner confirmation before implementation.
