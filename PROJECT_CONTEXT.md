@@ -4,7 +4,7 @@
 
 Last updated: 2026-08-26  
 Repository: `tarous89/intel_mcp`  
-Status: `start_analysis` implemented; app control plane live; isolated free Render Web Service deployment approved.
+Status: `start_analysis` implemented; app control plane live; isolated free Render Web Service deployed.
 
 ## Purpose
 
@@ -665,15 +665,20 @@ Cross-repository dependency:
 - The app migration and protected control-plane endpoint are deployed and verified.
 
 
-## Final isolated Render deployment decision — 2026-08-26
+## Final isolated Render deployment — 2026-08-26
 
 The owner rejected and deleted all shared-server or consolidation proposals. The existing isolated component structure remains unchanged.
 
-- Deploy Intel MCP as its own free public Render Web Service in Frankfurt from `tarous89/intel_mcp`.
+- Intel MCP is live as its own free public Render Web Service in Frankfurt: `intel-mcp` (`srv-da7g4igae00c73bo6oe0`).
+- Current service URL: `https://intel-mcp.onrender.com`; Streamable HTTP endpoint: `https://intel-mcp.onrender.com/mcp`.
+- Source: `tarous89/intel_mcp`, branch `main`, Python runtime, build `pip install .`, start `intel-mcp`, automatic deploy enabled.
 - Do not combine MCP with the Intel Agent app, Intel Engine, TrialFeed, admin services, PostgreSQL or MinIO.
-- Upgrade only the MCP service when its observed usage requires more capacity.
-- The free service is public at the network layer, but every `/mcp` request requires `MCP_INBOUND_SERVICE_TOKEN`. The non-sensitive `/health` route remains public.
-- MCP calls the canonical app HTTPS control-plane endpoint using `INTEL_APP_SERVICE_TOKEN`; the app continues to own authentication, allowances, report runs and analysis leases.
-- The MCP has no database of its own and does not receive control-plane database credentials.
-- Runtime configuration: Python, `pip install .`, start command `intel-mcp`, Frankfurt, automatic deploy from `main`, and a strict `MCP_ALLOWED_HOSTS` allowlist.
+- Upgrade only the MCP service when observed usage requires more capacity.
+- The service is public at the network layer, but every `/mcp` request requires the dedicated `MCP_INBOUND_SERVICE_TOKEN`. The non-sensitive `/health` route remains public.
+- MCP calls the canonical app HTTPS control-plane endpoint with `INTEL_APP_SERVICE_TOKEN`; the app continues to own user authentication, allowances, approved report runs and analysis leases.
+- MCP has no database of its own and receives no control-plane database credentials.
+- The service-authenticated internal app profile is deployed first. Public ChatGPT/Claude OAuth and a custom `mcp.trialagents.com` domain remain separate later work and must not reuse the internal bearer as end-user authentication.
+- Production verification passed: `/health` returned HTTP 200; anonymous `/mcp` returned HTTP 401; authenticated initialization negotiated MCP protocol `2025-11-25`; authenticated discovery exposed only `start_analysis`; a nonexistent-run probe reached the app boundary and returned a model-readable tool failure without creating an analysis.
+- Local contract/security tests pass: 5 tests.
+- The inbound verification bearer was rotated immediately after deployment verification; no client depended on the previous value.
 - Do not reintroduce shared-server or consolidation proposals unless the owner explicitly asks to reconsider this decision.
