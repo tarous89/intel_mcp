@@ -88,7 +88,7 @@ async def start_analysis(
 @mcp.tool(
     title="Filter approved clinical trials",
     annotations=ToolAnnotations(
-        read_only_hint=True,
+        read_only_hint=False,
         destructive_hint=False,
         idempotent_hint=True,
         open_world_hint=False,

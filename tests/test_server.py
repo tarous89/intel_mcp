@@ -114,7 +114,8 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
         assert "profile_contains" not in schema_text
         assert "sponsor_name" in schema_text
         assert tool.annotations is not None
-        assert tool.annotations.read_only_hint is True
+        # The Engine query is read-only, but admission persists observable allowance usage.
+        assert tool.annotations.read_only_hint is False
 
         result = await client.call_tool(
             "filter_trials",

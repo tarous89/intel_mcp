@@ -25,6 +25,7 @@ General behavior:
 - Default order is `latest_country_submission_or_approval_date desc`, with `eu_number asc` as the stable tie-breaker.
 - Pages are capped at 100. Continue only with the opaque `next_cursor` returned for identical filters and sort.
 - Light analyses may receive 100 unique filtered trial IDs; Max analyses may receive 1,000. Repeated IDs in retries or revisions do not consume allowance twice.
+- The MCP annotation uses `readOnlyHint: false`: the Engine query is read-only, but admitting a previously unseen trial ID updates the analysis's observable allowance state.
 
 Exposed structured fields:
 
