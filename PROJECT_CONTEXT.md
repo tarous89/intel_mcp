@@ -342,3 +342,113 @@ Use defaults plus hard caps. The caller may request any value up to its effectiv
 - What defines “top” results when the caller does not specify a sort?
 - Will Intel Agent and Intel MCP run in the same Render private network?
 - Should the connection/consent page live at `intel.trialagents.com/mcp` or a dedicated MCP subdomain?
+
+
+## Confirmed report, packaging and deployment direction (2026-08-26)
+
+### Report workflow and scope
+
+Intel Agent reports are composable multi-tool workflows:
+
+1. Filter trials deterministically using Trial Profile filtering variables.
+2. If deterministic filtering is insufficient, classify only the shortlisted trials.
+3. Retrieve profiles and/or documents and extract requested variables based on the report questions.
+4. Combine the results, evidence and coverage into one report.
+
+High-value examples include:
+
+- All participating EU sites for Phase 2 head-and-neck cancer trials.
+- Endpoint benchmarking.
+- Inclusion/exclusion criteria comparisons.
+- Principal investigators with names and emails.
+- Sites with full contact details.
+- Other specific variables extracted from documents.
+- Multi-factor reports evaluating any combination of fields available in `intel_agent_db`.
+
+Any information in the Intel Agent database may become a report topic. Tool outputs therefore must be composable, consistently identified, evidence-linked and able to share one report/analysis context. The app/report orchestrator, not an individual MCP tool, assembles the final report.
+
+The internal Intel Agent app profile may use all five tools. Package policy (initially Light versus Max) controls the total trials, profiles, documents, variables and worker work available to a report.
+
+### Feature control
+
+Maintain independent server-side feature switches/entitlements rather than only two hard-coded bundles:
+
+- `filter_trials`
+- `get_profiles`
+- `get_documents`
+- `classify_trials`
+- `extract_variables`
+
+This permits at least:
+
+- Core: deterministic tools only.
+- Classification-enabled: core plus `classify_trials`.
+- Full analysis: all five tools.
+
+The user may enable either or both worker tools without maintaining separate implementations. External distribution uses one connector; the server enforces the connected account's tool and usage entitlements.
+
+### Analysis as the commercial unit — proposed
+
+Prefer “analyses per month” for customer-facing pricing, with internal compute metering for margin protection.
+
+One analysis should be a server-side report workspace identified by an `analysis_id` and defined by:
+
+- One report objective/brief.
+- One base trial cohort/search definition.
+- A package-specific maximum scope and compute budget.
+- All filtering, classification, profile/document retrieval and variable extraction needed for that report.
+- Revisions and follow-up questions within the same report workspace and base cohort.
+
+A revision remains part of the same analysis when it refines presentation, filters, variables or questions for the same underlying report/cohort. A new analysis begins when the user starts a new report objective, materially changes the base cohort (for example a different indication, phase or geography), or exhausts the analysis scope/compute budget.
+
+Do not bill each internal MCP call as a separate analysis. Track trials classified, documents processed, variables extracted, model tokens/cost and revisions internally. The exact revision window and package budgets remain to be agreed.
+
+Because MCP hosts do not reliably provide a reusable conversation identifier, tools should accept an optional `analysis_id` and return it. The first report call may create the ID automatically; later calls and revisions must reuse it. Avoid adding a separate public `create_analysis` tool unless testing shows automatic creation is unreliable.
+
+### Default ordering
+
+The default trial order is latest update first, using `latest_country_submission_or_approval_date DESC`, with EU trial number as a stable tie-breaker. Callers may select other approved deterministic sort keys. “Top N” always means the first N records under the declared order.
+
+### Deployment isolation — proposed
+
+Use one repository/codebase deployed as separate Render services in the same workspace:
+
+1. **Private internal MCP service** — reachable only through Render's private network by the Intel Agent app/backend. No second user login or OAuth flow. The app forwards trusted user, tenant, package and `analysis_id` context; a private service identity or signed internal context protects the service without creating user-visible authentication.
+2. **Public MCP gateway/service** — stable public HTTPS endpoint for the single ChatGPT/Claude connector. Performs OAuth, entitlement, rate-limit and public-policy enforcement before invoking the same core tool layer.
+3. **Worker service/queue** — isolated AI classification and extraction execution so expensive or failed worker tasks cannot destabilize retrieval.
+
+Deploy the same image/configurable modules where practical; do not fork the tool implementations. The public service must not expose the private internal endpoint or directly broaden database access.
+
+### Domain direction — proposed hybrid
+
+Use:
+
+- `https://intel.trialagents.com/mcp` for the user-facing product, connection, consent, documentation and account-management page.
+- `https://mcp.trialagents.com/mcp` for the stable machine-facing MCP protocol endpoint.
+
+This preserves Intel Agent discovery and conversion while isolating protocol routing, rate limits, security, logs and availability. The OAuth consent page can return users to Intel Agent. Do not force the machine endpoint to share the application deployment merely for marketing visibility.
+
+### Initial limit proposal for discussion
+
+Use both per-call caps and per-analysis package budgets. The following are starting values, not final decisions:
+
+| Dimension | Per-call hard cap | Light per analysis | Max per analysis |
+|---|---:|---:|---:|
+| Filtered trial IDs returned | 100 | 100 | 1,000 |
+| Profiles returned | 25 | 50 | 500 |
+| Trials classified | 20 | 25 | 200 |
+| Document metadata records | 100 | 100 | 1,000 |
+| Document text returned | 5 documents / 150k characters total | 25 documents | 200 documents |
+| Trials sent to variable extraction | 10 | 20 | 200 |
+| Documents processed by extraction | 25 | 50 | 500 |
+| Requested variables | 20 | 20 | 50 |
+
+All larger work is paginated/batched. Public interactive calls remain bounded; the internal app may orchestrate multiple batches up to the package's analysis budget. Limits must be admin-configurable without redeployment and recorded with every analysis for reproducibility.
+
+### Remaining decisions
+
+- Approve or revise the proposed definition of one analysis and how revisions stay within it.
+- Approve or revise the Light/Max starting limits after cost/performance measurement.
+- Decide whether external users may retrieve investigator/site names and emails, and under which plan/scope.
+- Decide whether analyses expire for revisions after a defined time window.
+- Decide whether limit overages are blocked, require a new analysis, or are offered only through an externally managed add-on.
