@@ -520,3 +520,77 @@ Proposed `start_analysis` behavior:
 - Annotation: `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`.
 
 If approved, the public surface contains five business/data tools plus one lifecycle/control tool. A new analysis begins through `start_analysis`; `filter_trials` never creates or authenticates an analysis.
+
+
+## Confirmed app orchestration, progress and concurrency (2026-08-26)
+
+### Two-call report flow
+
+The Intel Agent app owns the report lifecycle:
+
+1. The user submits the initial report request.
+2. A first SOL call, without report-execution MCP access, proposes a report plan.
+3. The app stores and displays the plan.
+4. The user may edit the plan and explicitly approves it.
+5. The app starts a second SOL call with the approved plan and only the entitled Intel MCP tools.
+6. SOL calls `start_analysis`, orchestrates the required MCP tools and writes the final report.
+7. The app stores the final report and presents it to the user.
+
+The app owns the initial user input, plan versions, approval state, OpenAI response/run identifiers, visible progress, final report and report revision history. Intel MCP owns only its narrow tool operations, analysis lease, usage limits and minimal audit/evidence references. MCP does not own report planning, orchestration, prose generation or final report storage.
+
+### Reliable background SOL execution and visible progress
+
+Run the second SOL request through the OpenAI Responses API with both background execution and event streaming enabled.
+
+- Background execution allows the run to continue if the user's browser disconnects or an HTTP connection times out.
+- The Intel Agent backend stores the OpenAI response ID and latest event sequence number.
+- The browser receives progress from the Intel Agent backend through SSE or WebSocket.
+- If the app-to-OpenAI stream disconnects, resume from the last sequence number; do not restart the whole report.
+- Poll/retrieve the existing response when status is uncertain. Start a replacement response only after the original is definitively failed/cancelled.
+- OpenAI streaming exposes response status and MCP list/call in-progress, completed and failed events. Convert these into concise user-facing stages; never expose hidden reasoning or chain-of-thought.
+
+Initial user-facing stages:
+
+- Preparing analysis
+- Filtering trials
+- Classifying shortlisted trials
+- Retrieving trial profiles
+- Reviewing documents
+- Extracting requested variables
+- Writing report
+- Completed / retrying / failed
+
+Where MCP results provide counts, show factual progress such as “42 trials matched” or “12 of 20 documents reviewed.” Do not fabricate percentage completion when the total work is not yet known.
+
+Retries must be idempotent:
+
+- The app creates a stable `report_run_id` for the approved plan and passes it to SOL.
+- `start_analysis` accepts `report_run_id`.
+- A repeated `start_analysis` for the same user and run returns the existing valid analysis rather than consuming another allowance.
+- Because only one active analysis is allowed per user, an accidental repeated start also returns that active analysis.
+- Read-tool retries must preserve `analysis_id`, cursor and request bounds.
+- Worker retry and usage accounting must avoid double charging the same accepted worker job.
+
+Official OpenAI references:
+
+- https://developers.openai.com/api/docs/guides/background
+- https://developers.openai.com/api/docs/guides/streaming-responses
+- https://developers.openai.com/api/reference/cli/resources/beta/subresources/responses
+
+### Confirmed ownership and concurrency
+
+- Analysis allowances belong to individual users in v1. Company/workspace sharing is out of scope.
+- Every package allows only one active `analysis_id` per user.
+- A second start request while an analysis is valid returns the active analysis instead of creating another.
+- The 60-minute absolute expiry remains.
+- After expiry or blocking, a new start checks the user's remaining analysis allowance.
+- The app persists report content and history; MCP does not.
+
+### Confirmed tool discovery
+
+- `start_analysis` is approved as the sixth, separate lifecycle tool.
+- The five business tools remain narrow and do not orchestrate each other.
+- Worker tools that are disabled for a deployment/profile or unavailable to a user must not be visible to SOL.
+- For the Intel Agent app, pass only the entitled tools in the SOL request/allowed-tools configuration.
+- For public ChatGPT/Claude access, return an authenticated entitlement-filtered tool list. Reconnection may be required after a subscription/tool entitlement changes.
+- Do not advertise unavailable tools merely to return entitlement errors in v1.
