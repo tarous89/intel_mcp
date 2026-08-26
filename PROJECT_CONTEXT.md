@@ -452,3 +452,71 @@ All larger work is paginated/batched. Public interactive calls remain bounded; t
 - Decide whether external users may retrieve investigator/site names and emails, and under which plan/scope.
 - Decide whether analyses expire for revisions after a defined time window.
 - Decide whether limit overages are blocked, require a new analysis, or are offered only through an externally managed add-on.
+
+
+## SOL orchestration and short-lived analysis lease (2026-08-26)
+
+This section supersedes any implication that the Intel Agent application itself manually sequences individual MCP calls.
+
+### Orchestration ownership
+
+- After the user approves the report plan, the Intel Agent app makes one initial call to OpenAI SOL and waits for the completed report.
+- SOL receives the approved report plan plus access to the permitted Intel MCP tools.
+- SOL decides which tools to call, in which order, whether deterministic filtering is sufficient, when classification is needed, whether profiles or documents are required, and which variables must be extracted.
+- SOL may paginate and make repeated calls within the analysis limits.
+- Each MCP tool performs only its narrow declared operation. Tools do not generate the overall report, decide the workflow or silently invoke other public tools.
+- SOL synthesizes the final report from structured tool outputs, coverage and public source references.
+
+Public investigator, site and contact data may be returned within applicable limits and accompanied by the public sources from which it was obtained. Detailed contact-field privacy and presentation rules are deferred.
+
+### Confirmed limits and result behavior
+
+- The previously proposed Light and Max starting limits are accepted for now and remain centrally configurable.
+- The orchestrator chooses how many results to request up to the effective per-call and per-analysis limits.
+- Tools should enable retrieval of as many valid matching results as the entitlement permits through deterministic pagination.
+- When more results exist, return `has_more`, `next_cursor`, the applied limit and remaining analysis budget. Never silently discard valid results or interpret “all” as an unbounded call.
+- The single external connector supports entitlement-controlled Core, classification-enabled and full-analysis capabilities.
+
+### Analysis lease requirements
+
+Use a short-lived `analysis_id` to correlate, meter and constrain all calls belonging to one report execution or revision session.
+
+Confirmed behavior:
+
+- Initial expiry: 60 minutes.
+- The ID may be reused for repeated filtering and revisions while still valid.
+- Every substantive tool after analysis creation requires the same `analysis_id`.
+- The ID is bound server-side to the authenticated user/account, tenant, package, enabled tools, limit snapshot, usage counters, creation time, expiry and status.
+- Expired, blocked or exhausted IDs cannot be revived.
+- On expiry or budget exhaustion, return a typed error instructing SOL to start a new analysis. Creating a replacement must recheck authentication, entitlement and remaining monthly analyses.
+- Already-running calls may finish, but no new call may begin after expiry.
+- Default expiry is absolute from creation, not indefinitely extended by activity, unless this is changed later.
+
+Security boundary:
+
+- `analysis_id` is not the user's authentication token and must never replace OAuth or the trusted internal app/service identity.
+- Treat it as an opaque analysis lease/handle. Validate both the real authenticated principal and the ID binding on every call.
+- Prefer an opaque high-entropy identifier with server-side state over a self-contained JWT so it can be revoked, blocked and atomically metered.
+
+### Recommended lifecycle tool — pending final approval
+
+Add a narrow control-plane tool, proposed name `start_analysis`, rather than making `filter_trials` create IDs.
+
+Reasons:
+
+- Session creation, entitlement reservation and filtering are different operations.
+- Some valid workflows begin with known trial IDs and do not need filtering.
+- Coupling billing/session creation to filtering violates the rule that tools do only their declared task.
+- Expiry and allowance errors can consistently tell SOL to call one lifecycle tool.
+- `filter_trials` remains reusable with an existing valid ID for flexible revisions.
+
+Proposed `start_analysis` behavior:
+
+- Input: concise approved report objective/plan reference and requested capabilities.
+- Authenticates the caller, verifies remaining analyses and creates a 60-minute lease.
+- Output: `analysis_id`, `expires_at`, enabled tools, effective Light/Max limits and analysis status.
+- It performs no filtering or report work.
+- Starting alone should not unfairly consume an analysis if no substantive tool ever succeeds; implement reservation/activation semantics and limit abandoned reservations.
+- Annotation: `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`.
+
+If approved, the public surface contains five business/data tools plus one lifecycle/control tool. A new analysis begins through `start_analysis`; `filter_trials` never creates or authenticates an analysis.
