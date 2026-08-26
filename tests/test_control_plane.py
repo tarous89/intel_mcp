@@ -11,6 +11,7 @@ def settings() -> Settings:
     return Settings(
         app_control_url="https://intel.example.test",
         app_service_token="test-service-token",
+        mcp_inbound_service_token="test-mcp-service-token",
         allowed_hosts=("localhost",),
         port=8000,
         request_timeout_seconds=1,
