@@ -4,7 +4,7 @@
 
 Last updated: 2026-08-26  
 Repository: `tarous89/intel_mcp`  
-Status: Planning complete; implementation not started.
+Status: `start_analysis` implemented on `main`; app control plane live; MCP hosting/authentication topology pending.
 
 ## Purpose
 
@@ -669,10 +669,10 @@ Cross-repository dependency:
 
 - Merged the `start_analysis` implementation to `main` at commit `2c5fe7afb8cfb899945594967043036ed8c566e6`.
 - The Intel Agent app control plane is now live on Render. Its PostgreSQL migration completed successfully, the health endpoint is healthy and unauthenticated calls to the internal start-analysis endpoint are rejected with `401 UNAUTHORIZED`.
-- The MCP service itself is not deployed yet. The selected isolated topology is a Render Private Service, whose minimum Starter instance currently introduces a recurring charge that requires owner confirmation before creation.
-- Render free web services cannot receive private-network inbound traffic. The current app is free, so the remaining topology decision is either:
-  1. upgrade the app and create the private MCP service for fully private service-to-service traffic; or
-  2. create only the private MCP service and have it call the app's public HTTPS control-plane route using the strong shared bearer credential.
-- When the MCP service is created, generate a fresh high-entropy service credential and set the same value as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`. Never expose it to browsers or model tool arguments.
+- The MCP service itself is not deployed yet. Render's official hosted MCP server manages Render infrastructure and is not a hosting product for the TrialAgents MCP. TrialAgents MCP is deployed as an ordinary web or private service, with ordinary instance pricing and no MCP-specific surcharge.
+- The MCP will reuse the existing isolated app/MCP control-plane PostgreSQL database for authentication-derived entitlement, allowance and lease state; it does not need another database. The existing app web service could technically host the protocol too, but that would couple the Node app and Python MCP runtimes, deployments, failures and scaling.
+- The cleaner boundary remains a separate MCP service. During pre-user development it may be a separate free public web service only after inbound service-token authentication is enforced on `/mcp`. Before real production use, move to a paid private service for the internal app profile or retain a separately authenticated public service for external ChatGPT/Claude connections.
+- Render free web services can send private-network requests but cannot receive them. The current free app can therefore receive MCP control-plane calls only through its authenticated public HTTPS endpoint unless it is upgraded.
+- When the MCP service is created, use a fresh high-entropy service credential as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`, and require authenticated inbound MCP requests as well. Never expose either credential to browsers or model tool arguments.
 - Initial MCP deployment configuration remains: Python runtime, `pip install .`, `intel-mcp`, Frankfurt region, automatic deploy from `main`, and a strict `MCP_ALLOWED_HOSTS` allowlist.
 - Before enabling real report execution, verify private/public control-plane connectivity (according to the chosen topology), `/health`, MCP initialization/tool discovery, authenticated `start_analysis`, retry reuse, one-active-analysis enforcement and typed allowance failures.
