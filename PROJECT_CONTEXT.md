@@ -640,3 +640,26 @@ The owner confirmed the implementation foundation:
 - Implement the private app-to-MCP identity bridge only after production app authentication exists.
 
 The one-active-analysis rule also provides start idempotency: while a valid lease exists, repeated `start_analysis` calls for that authenticated user return the existing analysis rather than reserving another allowance.
+
+## start_analysis implementation checkpoint (2026-08-26)
+
+The first MCP implementation now exists on branch `feat/start-analysis`.
+
+- Selected Python to match the extraction/intelligence stack.
+- Selected the official stable MCP Python SDK v2 line, which supports the 2026-07-28 sessionless Streamable HTTP protocol. The previous planning text that assumed the v1 FastMCP API is superseded for new code.
+- Added a tools-only `MCPServer` with Streamable HTTP at `/mcp`, an unauthenticated non-sensitive `/health` route, and explicit DNS-rebinding Host allowlisting through `MCP_ALLOWED_HOSTS`.
+- Implemented `start_analysis(report_run_id)` as the only visible tool in this checkpoint.
+- The tool accepts only the stable app-created `report_run_id`. It does not accept user ID, email, package, payment state, remaining allowance, plan content or requested tool entitlements from the model.
+- The tool calls the private app endpoint `POST /api/internal/mcp/start-analysis` with a shared Render service credential. End users authenticate only with the Intel Agent app; there is no second user login or MCP authentication prompt for the internal app profile.
+- The app resolves the authenticated user, project, approved plan, tier, enabled tools and allowance server-side, then atomically returns or creates the one active 60-minute lease.
+- The typed MCP result contains `analysis_id`, actual `report_run_id`, `active` status, tier, absolute expiry, visible enabled tools, the immutable limit snapshot and whether the lease was reused.
+- `start_analysis` is annotated non-read-only, non-destructive, idempotent and closed-world. It performs no filtering, retrieval, classification, extraction or report writing.
+- Expected allowance and state failures are surfaced as typed, model-readable tool errors without leaking internal HTTP details or service credentials.
+- Tests cover private bearer propagation, response validation, allowance errors, tool discovery annotations and structured output. Current result: 3 passing tests.
+
+Cross-repository dependency:
+
+- App branch `feat/production-auth-start-analysis` owns PostgreSQL users/sessions, one free Light entitlement, paid Max entitlements, approved report runs and the atomic lease endpoint.
+- Both services must receive the same secret as `MCP_INTERNAL_SERVICE_TOKEN` in the app and `INTEL_APP_SERVICE_TOKEN` in MCP.
+- `INTEL_APP_CONTROL_URL` must use the app's Render private-network URL in production.
+- Do not deploy the MCP service until the app migration and private endpoint are deployed and verified.
