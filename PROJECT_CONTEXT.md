@@ -4,7 +4,7 @@
 
 Last updated: 2026-08-26  
 Repository: `tarous89/intel_mcp`  
-Status: `start_analysis` implemented on `main`; app control plane live; MCP hosting/authentication topology pending.
+Status: `start_analysis` implemented; app control plane live; isolated free Render Web Service deployment approved.
 
 ## Purpose
 
@@ -650,29 +650,30 @@ The first MCP implementation now exists on branch `feat/start-analysis`.
 - Added a tools-only `MCPServer` with Streamable HTTP at `/mcp`, an unauthenticated non-sensitive `/health` route, and explicit DNS-rebinding Host allowlisting through `MCP_ALLOWED_HOSTS`.
 - Implemented `start_analysis(report_run_id)` as the only visible tool in this checkpoint.
 - The tool accepts only the stable app-created `report_run_id`. It does not accept user ID, email, package, payment state, remaining allowance, plan content or requested tool entitlements from the model.
-- The tool calls the private app endpoint `POST /api/internal/mcp/start-analysis` with a shared Render service credential. End users authenticate only with the Intel Agent app; there is no second user login or MCP authentication prompt for the internal app profile.
+- The tool calls the service-authenticated app endpoint `POST /api/internal/mcp/start-analysis` with a shared Render service credential. End users authenticate only with the Intel Agent app; there is no second user login or MCP authentication prompt for the internal app profile.
 - The app resolves the authenticated user, project, approved plan, tier, enabled tools and allowance server-side, then atomically returns or creates the one active 60-minute lease.
 - The typed MCP result contains `analysis_id`, actual `report_run_id`, `active` status, tier, absolute expiry, visible enabled tools, the immutable limit snapshot and whether the lease was reused.
 - `start_analysis` is annotated non-read-only, non-destructive, idempotent and closed-world. It performs no filtering, retrieval, classification, extraction or report writing.
 - Expected allowance and state failures are surfaced as typed, model-readable tool errors without leaking internal HTTP details or service credentials.
-- Tests cover private bearer propagation, response validation, allowance errors, tool discovery annotations and structured output. Current result: 3 passing tests.
+- Tests cover control-plane bearer propagation, inbound MCP bearer enforcement, public health access, response validation, allowance errors, tool discovery annotations and structured output. Current result: 5 passing tests.
 
 Cross-repository dependency:
 
 - App branch `feat/production-auth-start-analysis` owns PostgreSQL users/sessions, one free Light entitlement, paid Max entitlements, approved report runs and the atomic lease endpoint.
-- Both services must receive the same secret as `MCP_INTERNAL_SERVICE_TOKEN` in the app and `INTEL_APP_SERVICE_TOKEN` in MCP.
-- `INTEL_APP_CONTROL_URL` must use the app's Render private-network URL in production.
-- Do not deploy the MCP service until the app migration and private endpoint are deployed and verified.
+- Both services receive the same control-plane secret as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`. The MCP also requires `MCP_INBOUND_SERVICE_TOKEN` for authenticated protocol requests from the app.
+- While the app is on a free Render instance, `INTEL_APP_CONTROL_URL` uses the canonical authenticated HTTPS app URL.
+- The app migration and protected control-plane endpoint are deployed and verified.
 
 
-## Production deployment checkpoint — 2026-08-26
+## Final isolated Render deployment decision — 2026-08-26
 
-- Merged the `start_analysis` implementation to `main` at commit `2c5fe7afb8cfb899945594967043036ed8c566e6`.
-- The Intel Agent app control plane is now live on Render. Its PostgreSQL migration completed successfully, the health endpoint is healthy and unauthenticated calls to the internal start-analysis endpoint are rejected with `401 UNAUTHORIZED`.
-- The MCP service itself is not deployed yet. Render's official hosted MCP server manages Render infrastructure and is not a hosting product for the TrialAgents MCP. TrialAgents MCP is deployed as an ordinary web or private service, with ordinary instance pricing and no MCP-specific surcharge.
-- The MCP will reuse the existing isolated app/MCP control-plane PostgreSQL database for authentication-derived entitlement, allowance and lease state; it does not need another database. The existing app web service could technically host the protocol too, but that would couple the Node app and Python MCP runtimes, deployments, failures and scaling.
-- The cleaner boundary remains a separate MCP service. During pre-user development it may be a separate free public web service only after inbound service-token authentication is enforced on `/mcp`. Before real production use, move to a paid private service for the internal app profile or retain a separately authenticated public service for external ChatGPT/Claude connections.
-- Render free web services can send private-network requests but cannot receive them. The current free app can therefore receive MCP control-plane calls only through its authenticated public HTTPS endpoint unless it is upgraded.
-- When the MCP service is created, use a fresh high-entropy service credential as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`, and require authenticated inbound MCP requests as well. Never expose either credential to browsers or model tool arguments.
-- Initial MCP deployment configuration remains: Python runtime, `pip install .`, `intel-mcp`, Frankfurt region, automatic deploy from `main`, and a strict `MCP_ALLOWED_HOSTS` allowlist.
-- Before enabling real report execution, verify private/public control-plane connectivity (according to the chosen topology), `/health`, MCP initialization/tool discovery, authenticated `start_analysis`, retry reuse, one-active-analysis enforcement and typed allowance failures.
+The owner rejected and deleted all shared-server or consolidation proposals. The existing isolated component structure remains unchanged.
+
+- Deploy Intel MCP as its own free public Render Web Service in Frankfurt from `tarous89/intel_mcp`.
+- Do not combine MCP with the Intel Agent app, Intel Engine, TrialFeed, admin services, PostgreSQL or MinIO.
+- Upgrade only the MCP service when its observed usage requires more capacity.
+- The free service is public at the network layer, but every `/mcp` request requires `MCP_INBOUND_SERVICE_TOKEN`. The non-sensitive `/health` route remains public.
+- MCP calls the canonical app HTTPS control-plane endpoint using `INTEL_APP_SERVICE_TOKEN`; the app continues to own authentication, allowances, report runs and analysis leases.
+- The MCP has no database of its own and does not receive control-plane database credentials.
+- Runtime configuration: Python, `pip install .`, start command `intel-mcp`, Frankfurt, automatic deploy from `main`, and a strict `MCP_ALLOWED_HOSTS` allowlist.
+- Do not reintroduce shared-server or consolidation proposals unless the owner explicitly asks to reconsider this decision.
