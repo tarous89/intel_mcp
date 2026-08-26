@@ -663,3 +663,16 @@ Cross-repository dependency:
 - Both services must receive the same secret as `MCP_INTERNAL_SERVICE_TOKEN` in the app and `INTEL_APP_SERVICE_TOKEN` in MCP.
 - `INTEL_APP_CONTROL_URL` must use the app's Render private-network URL in production.
 - Do not deploy the MCP service until the app migration and private endpoint are deployed and verified.
+
+
+## Production deployment checkpoint — 2026-08-26
+
+- Merged the `start_analysis` implementation to `main` at commit `2c5fe7afb8cfb899945594967043036ed8c566e6`.
+- The Intel Agent app control plane is now live on Render. Its PostgreSQL migration completed successfully, the health endpoint is healthy and unauthenticated calls to the internal start-analysis endpoint are rejected with `401 UNAUTHORIZED`.
+- The MCP service itself is not deployed yet. The selected isolated topology is a Render Private Service, whose minimum Starter instance currently introduces a recurring charge that requires owner confirmation before creation.
+- Render free web services cannot receive private-network inbound traffic. The current app is free, so the remaining topology decision is either:
+  1. upgrade the app and create the private MCP service for fully private service-to-service traffic; or
+  2. create only the private MCP service and have it call the app's public HTTPS control-plane route using the strong shared bearer credential.
+- When the MCP service is created, generate a fresh high-entropy service credential and set the same value as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`. Never expose it to browsers or model tool arguments.
+- Initial MCP deployment configuration remains: Python runtime, `pip install .`, `intel-mcp`, Frankfurt region, automatic deploy from `main`, and a strict `MCP_ALLOWED_HOSTS` allowlist.
+- Before enabling real report execution, verify private/public control-plane connectivity (according to the chosen topology), `/health`, MCP initialization/tool discovery, authenticated `start_analysis`, retry reuse, one-active-analysis enforcement and typed allowance failures.
