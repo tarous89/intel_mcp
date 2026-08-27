@@ -403,6 +403,7 @@ class FilterTrialItem(BaseModel):
     eu_number: str
     trial_title: str | None
     sponsor_name: str | None
+    available_extracted_document_names: list[str]
 
 
 class FilterCoverage(BaseModel):
