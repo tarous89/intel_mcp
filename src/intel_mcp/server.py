@@ -32,6 +32,12 @@ from intel_mcp.models import (
     TrialFilters,
     TrialSort,
 )
+from intel_mcp.profiles import (
+    MAX_PROFILES_PER_CALL,
+    GetProfilesOutput,
+    ProfileBudget,
+    select_complete_profile_batch,
+)
 
 settings = Settings.from_environment()
 mcp = MCPServer(
@@ -333,6 +339,96 @@ async def classify_trials(
         eligible_trials=eligible_trials,
         ineligible_trials=ineligible_trials,
         uncertain_trials=uncertain_trials,
+    )
+
+
+@mcp.tool(
+    title="Get complete approved Trial Profiles",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+)
+async def get_profiles(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    trial_ids: Annotated[
+        list[Annotated[str, Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")]],
+        Field(
+            min_length=1,
+            max_length=MAX_PROFILES_PER_CALL,
+            description="One to 10 EU trial numbers. Duplicate values are removed while preserving order.",
+        ),
+    ],
+) -> GetProfilesOutput:
+    """Return complete current approved Trial Profiles for selected EU trial numbers.
+
+    The tool returns the stored structured profile in full, including contacts and document inventory.
+    It does not generate or refresh profiles, retrieve document text, classify trials, search semantically,
+    or write report prose. Candidate and rejected profiles are treated as unavailable; there is no raw-CTIS
+    fallback.
+
+    Up to ten IDs may be requested. To protect the orchestrator context, the normal aggregate response is
+    capped at approximately 500 KB without ever truncating an individual profile. If all complete profiles
+    do not fit, remaining_trial_ids lists the IDs to pass to a later get_profiles call. A single oversized
+    profile is still returned alone. Exact retries or later retrieval of the same profile do not consume the
+    analysis profile allowance twice.
+    """
+    unique_trial_ids = list(dict.fromkeys(trial_ids))
+    try:
+        engine_result = await engine_client().get_profiles(unique_trial_ids)
+        selected, deferred, first_profile_oversized = select_complete_profile_batch(engine_result.data)
+        selected_ids = [item.eu_number for item in selected]
+        access_result = await control_plane_client().authorize_profiles(analysis_id, selected_ids)
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    access = access_result.access
+    allowed = set(access.allowed_trial_ids)
+    if not allowed.issubset(selected_ids) or len(allowed) != len(access.allowed_trial_ids):
+        raise ToolError("PROFILE_ACCESS_FAILED: the control plane returned misaligned profile authorization.")
+
+    profiles = [item for item in selected if item.eu_number in allowed]
+    allowance_excluded = [item.eu_number for item in selected if item.eu_number not in allowed]
+    remaining_trial_ids = [item.eu_number for item in deferred]
+    warnings: list[str] = []
+    if remaining_trial_ids:
+        warnings.append(
+            "The complete profiles exceeded the safe aggregate response size. Call get_profiles again with "
+            "remaining_trial_ids."
+        )
+    if first_profile_oversized:
+        warnings.append(
+            "The first complete profile exceeded the normal aggregate response-size target and was returned alone."
+        )
+    if allowance_excluded:
+        warnings.append(
+            "The analysis profile allowance was reached; some otherwise available profiles were not returned."
+        )
+
+    return GetProfilesOutput(
+        profiles=profiles,
+        unavailable_trial_ids=engine_result.unavailable_trial_ids,
+        remaining_trial_ids=remaining_trial_ids,
+        allowance_excluded_trial_ids=allowance_excluded,
+        requested=len(unique_trial_ids),
+        returned=len(profiles),
+        warnings=warnings,
+        analysis_budget=ProfileBudget(
+            limit=access.limit,
+            used=access.used,
+            remaining=access.remaining,
+            exhausted=access.exhausted,
+        ),
+        schema_version=engine_result.schema_version,
     )
 
 
