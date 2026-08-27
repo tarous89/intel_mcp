@@ -17,9 +17,7 @@ User identity, plan approval, package, enabled tools and allowances remain app-o
 
 Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
 
-Filtering already returns `returned`, the number of shortlist items in the current response. When `has_more` is true, this is a page count rather than the total number of matches.
-
-Each shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`. Phase, dates and normalized document types remain usable as filters but are not repeated in every result item; retrieve the complete selected records with `get_profiles` when needed. The full match count remains available as `coverage.total_matches` independently of page size.
+Each shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`. Phase, dates and normalized document types remain usable as filters but are not repeated in every result item. Output counts contain total approved profiles, total matches and records returned in this call. Analysis allowance separately reports its limit, cumulative unique IDs used and remaining capacity.
 
 General behavior:
 
@@ -31,7 +29,7 @@ General behavior:
 - Different fields combine with AND. Put multiple alternatives for the same field in one condition. If OR is needed across different fields, make separate calls.
 - Conditions within one `countries` group must match the same country row. Multiple country groups combine with AND and may match different rows.
 - Default order is `latest_country_submission_or_approval_date desc`, with `eu_number asc` as the stable tie-breaker.
-- Pages are capped at 100. Continue only with the opaque `next_cursor` returned for identical filters and sort.
+- Pages are capped at 100. Use `offset: 0` first, then increase offset by the prior call's limit while more matches remain.
 - Light analyses may receive 100 unique filtered trial IDs; Max analyses may receive 1,000. Repeated IDs in retries or revisions do not consume allowance twice.
 - The MCP annotation uses `readOnlyHint: false`: the Engine query is read-only, but admitting a previously unseen trial ID updates the analysis's observable allowance state.
 
@@ -62,8 +60,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 - Return the complete stored current approved Trial Profile, including contacts and extracted-document inventory.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
 - Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
-- The normal aggregate response target is 500,000 UTF-8 bytes. Profiles are never truncated: complete profiles that do not fit are listed in `remaining_trial_ids` for a later call, while a single oversized profile is returned alone.
-- `allowance_excluded_trial_ids` distinguishes available profiles that could not be admitted because the analysis profile allowance was exhausted.
+- Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
 
