@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import httpx
 from pydantic import ValidationError
@@ -56,18 +57,25 @@ class ControlPlaneClient:
         raise self._response_error(response, "FILTER_ACCESS_FAILED", "The filter request could not be authorized.")
 
     async def authorize_classifications(
-        self, analysis_id: str, classification_keys: list[str]
+        self,
+        analysis_id: str,
+        classification_keys: list[str],
+        operation: Literal["reserve", "commit", "release"] = "reserve",
     ) -> AppClassificationAccessResponse:
-        """Validate classify_trials access and atomically meter trial+criteria work.
+        """Reserve, commit or release trial+criteria classification allowance.
 
-        Exact retries reuse the same SHA-256 keys and do not consume another classified-trial
-        allowance unit. Changing the criteria creates a new key and therefore new classification work.
+        Exact retries reuse the same stable SHA-256 keys. Changed criteria create new keys.
+        Reservations protect the allowance under concurrency; only successful Terra work is committed.
         """
         self._settings.validate_control_plane()
         url = f"{self._settings.app_control_url}/api/internal/mcp/classification-access"
         response = await self._post(
             url,
-            {"analysisId": analysis_id, "classificationKeys": classification_keys},
+            {
+                "analysisId": analysis_id,
+                "classificationKeys": classification_keys,
+                "operation": operation,
+            },
         )
         if response.is_success:
             try:
