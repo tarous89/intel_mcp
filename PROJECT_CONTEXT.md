@@ -38,7 +38,7 @@ transport: Streamable HTTP
 
 `/mcp` requires the dedicated inbound service bearer for the current internal-app profile. `/health` is public and non-sensitive.
 
-The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
+The production health result exposes only configuration booleans for the classifier and extractor; it never exposes the shared credential itself.
 
 Therapeutic-area alignment commit
 `62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd` reached production in Render
@@ -472,6 +472,8 @@ app classification-access deployment: LIVE
 ```
 
 This verifies configuration and contracts. It does not constitute a paid end-to-end Terra classification of a real analysis lease.
+
+`extract_variables` shipped in MCP PR #9 / merge `daea4af7c8f296565f1231c6e4c6bda4e1ce2db8` and is live in Render deploy `dep-da8b2c2jnfac73diltj0`. PR validation passed all 28 unit/contract tests. The public `/health` response is `status=ok` with both `classifier_configured=true` and `extractor_configured=true`. No paid extraction call was run during deployment verification.
 
 ## Immediate next implementation work
 
