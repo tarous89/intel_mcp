@@ -40,7 +40,11 @@ transport: Streamable HTTP
 
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
-On 2026-08-27, after the OpenAI/Terra API key was added to Intel MCP, Render performed a fresh manual deploy of commit `3a6502c54261777c7a776058e0fefdb71a0a2c57`; deploy `dep-da80emc9v7es739cfb7g` reached `live`. The MCP CI re-run then passed both the unit/contract test job and the live assertion that `classifier_configured=true`.
+Current production commit is
+`62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd`; Render deploy
+`dep-da81goks728c73ajeud0` is live. It aligns the MCP therapeutic-area
+allowlist with Trial Profile contract 8.4.0. Main CI passed the unit/contract
+suite and the live `classifier_configured=true` assertion.
 
 ## Current MCP tool surface
 
