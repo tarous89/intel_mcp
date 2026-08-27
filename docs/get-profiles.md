@@ -28,14 +28,7 @@ POST /api/internal/mcp/profiles
 
 Engine returns only current `approval_status = approved` profile JSON plus the public profile schema version and approval timestamp. Missing, candidate and rejected records are indistinguishable to the MCP caller and appear only as unavailable. Contacts and extracted-document inventory remain part of the complete stored profile.
 
-## Complete-profile batching
-
-The normal aggregate MCP response target is 500,000 UTF-8 bytes.
-
-- An individual profile is never cut or partially returned.
-- MCP returns the largest ordered prefix of complete profiles that fits.
-- Deferred complete profiles appear in `remaining_trial_ids`; call `get_profiles` again with those IDs.
-- A first profile larger than the target is returned alone so it is not made permanently inaccessible.
+Every approved profile admitted by the analysis allowance is returned complete. The tool never truncates individual profiles.
 
 ## Allowance
 
@@ -53,18 +46,18 @@ Current per-analysis limits are Light 50 and Max 500. Repeated IDs, including la
 {
   "profiles": [],
   "unavailable_trial_ids": [],
-  "remaining_trial_ids": [],
-  "allowance_excluded_trial_ids": [],
-  "requested": 1,
-  "returned": 0,
-  "warnings": [],
-  "analysis_budget": {
+  "allowance_reached_trial_ids": [],
+  "counts": {
+    "requested": 1,
+    "returned": 0,
+    "unavailable": 1,
+    "allowance_reached": 0
+  },
+  "analysis_allowance": {
     "limit": 50,
     "used": 0,
-    "remaining": 50,
-    "exhausted": false
-  },
-  "schema_version": "1.0.0"
+    "remaining": 50
+  }
 }
 ```
 
