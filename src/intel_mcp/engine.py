@@ -29,7 +29,7 @@ class EngineClient:
         filters: TrialFilters,
         sort: TrialSort,
         limit: int,
-        cursor: str | None,
+        offset: int,
     ) -> EngineFilterResponse:
         self._settings.validate_engine()
         url = f"{self._settings.engine_api_url}/api/internal/mcp/filter-trials"
@@ -37,7 +37,7 @@ class EngineClient:
             "filters": filters.model_dump(mode="json", exclude_none=True),
             "sort": sort.model_dump(mode="json"),
             "limit": limit,
-            "cursor": cursor,
+            "offset": offset,
         }
         response = await self._post(url, payload, timeout_message="The trial filter timed out; retry this call.")
 
