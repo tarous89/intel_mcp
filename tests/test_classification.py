@@ -17,15 +17,19 @@ from intel_mcp.server import mcp
 
 
 class StubClassificationControlPlane:
+    def __init__(self) -> None:
+        self.operations: list[str] = []
+
     async def authorize_classifications(
-        self, analysis_id: str, classification_keys: list[str]
+        self, analysis_id: str, classification_keys: list[str], operation: str = "reserve"
     ) -> AppClassificationAccessResponse:
         assert analysis_id == "ana_123456789012345678901234"
+        self.operations.append(operation)
         return AppClassificationAccessResponse(
             access=AppClassificationAccess(
                 allowedClassificationKeys=classification_keys,
                 limit=200,
-                used=len(classification_keys),
+                used=len(classification_keys) if operation == "commit" else 0,
                 remaining=200 - len(classification_keys),
                 exhausted=False,
             )
@@ -71,7 +75,8 @@ def test_classification_key_is_stable_when_criteria_are_reordered() -> None:
 @pytest.mark.anyio
 async def test_classify_trials_returns_only_three_trial_id_arrays(monkeypatch: pytest.MonkeyPatch) -> None:
     trial_ids = ["2024-500001-00-00", "2024-500002-00-00", "2024-500003-00-00"]
-    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubClassificationControlPlane())
+    control = StubClassificationControlPlane()
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: control)
     monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubClassificationEngine())
 
     async def fake_classify_profile_items(_settings, profiles, _inclusion, _exclusion):
@@ -116,6 +121,7 @@ async def test_classify_trials_returns_only_three_trial_id_arrays(monkeypatch: p
         )
 
     assert result.is_error is False
+    assert control.operations == ["reserve", "commit"]
     assert result.structured_content == {
         "eligible_trials": [trial_ids[0]],
         "ineligible_trials": [trial_ids[1]],
