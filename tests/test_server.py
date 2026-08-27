@@ -88,10 +88,6 @@ class StubEngine:
                     eu_number="2024-500001-00-00",
                     trial_title="Phase 2 head and neck study",
                     sponsor_name="Example Sponsor",
-                    phase=[2],
-                    latest_country_submission_or_approval_date="2026-08-01",
-                    available_extracted_document_types=["protocol"],
-                    available_extracted_document_names=["Protocol v2"],
                 )
             ],
             applied_filters={"phase": {"operator": "contains_any", "values": [2]}},
@@ -169,7 +165,11 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
         assert result.is_error is False
         assert result.structured_content is not None
         assert result.structured_content["returned"] == 1
-        assert result.structured_content["data"][0]["eu_number"] == "2024-500001-00-00"
+        assert result.structured_content["data"][0] == {
+            "eu_number": "2024-500001-00-00",
+            "trial_title": "Phase 2 head and neck study",
+            "sponsor_name": "Example Sponsor",
+        }
 
 
 @pytest.mark.anyio
