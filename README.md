@@ -6,7 +6,7 @@ Implemented tools:
 
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Intel Engine's versioned internal endpoint. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
-- `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets.
+- `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
@@ -14,6 +14,10 @@ User identity, plan approval, package, enabled tools and allowances remain app-o
 ## `filter_trials` contract
 
 `filter_trials` is a shortlist tool. It does not search the whole profile, run semantic search, classify trials, retrieve complete profiles/documents, extract variables or write report prose.
+
+Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
+
+Filtering already returns `returned`, the number of shortlist items in the current response. When `has_more` is true, this is a page count rather than the total number of matches.
 
 General behavior:
 
