@@ -24,6 +24,15 @@ class ClassifyTrialsOutput(BaseModel):
     eligible_trials: list[str]
     ineligible_trials: list[str]
     uncertain_trials: list[str]
+    eligible_count: int = Field(
+        ge=0, le=MAX_TRIALS_PER_CALL, description="Number of IDs in eligible_trials."
+    )
+    ineligible_count: int = Field(
+        ge=0, le=MAX_TRIALS_PER_CALL, description="Number of IDs in ineligible_trials."
+    )
+    uncertain_count: int = Field(
+        ge=0, le=MAX_TRIALS_PER_CALL, description="Number of IDs in uncertain_trials."
+    )
 
 
 class ClassificationProfileItem(BaseModel):
