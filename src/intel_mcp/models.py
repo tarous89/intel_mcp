@@ -403,10 +403,6 @@ class FilterTrialItem(BaseModel):
     eu_number: str
     trial_title: str | None
     sponsor_name: str | None
-    phase: list[int]
-    latest_country_submission_or_approval_date: str | None
-    available_extracted_document_types: list[str]
-    available_extracted_document_names: list[str]
 
 
 class FilterCoverage(BaseModel):
