@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from intel_mcp.classification import AppClassificationAccessResponse
 from intel_mcp.config import Settings
+from intel_mcp.documents import AppDocumentAccessResponse
 from intel_mcp.models import AppFilterAccessResponse, AppStartAnalysisResponse
 from intel_mcp.profiles import AppProfileAccessResponse
 
@@ -116,6 +117,31 @@ class ControlPlaneClient:
             response,
             "PROFILE_ACCESS_FAILED",
             "The profile request could not be authorized.",
+        )
+
+    async def authorize_document(
+        self, analysis_id: str, document_key: str
+    ) -> AppDocumentAccessResponse:
+        """Validate the lease and atomically meter one unique extracted document."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/document-access"
+        response = await self._post(
+            url,
+            {"analysisId": analysis_id, "documentKey": document_key},
+        )
+        if response.is_success:
+            try:
+                return AppDocumentAccessResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise ControlPlaneError(
+                    "CONTROL_PLANE_INVALID_RESPONSE",
+                    "The analysis control plane returned an invalid document authorization response.",
+                    502,
+                ) from error
+        raise self._response_error(
+            response,
+            "DOCUMENT_ACCESS_FAILED",
+            "The document request could not be authorized.",
         )
 
     async def _post(self, url: str, payload: dict) -> httpx.Response:

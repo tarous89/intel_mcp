@@ -55,12 +55,12 @@ start_analysis
 filter_trials
 classify_trials
 get_profiles
+get_documents
 ```
 
 Planned substantive tools:
 
 ```text
-get_documents
 extract_variables
 ```
 
@@ -350,6 +350,39 @@ openWorldHint: false
 
 Detailed contract: `docs/get-profiles.md`.
 
+## `get_documents` — implemented contract
+
+`get_documents(analysis_id, trial_id, document_name, part=1)` returns extracted
+text for exactly one explicitly named document.
+
+- `document_name` must exactly match, case-insensitively, a value exposed by the
+  approved Trial Profile's `available_extracted_document_names`.
+- Engine boundary: `POST /api/internal/mcp/documents`.
+- App allowance boundary: `POST /api/internal/mcp/document-access`.
+- Each response part contains at most 200,000 characters and preserves page
+  markers. Splitting keeps complete pages where possible, then paragraph or
+  line boundaries without dropping text.
+- `next_part` is the next one-based part to request; `null` means complete.
+- Public output is limited to trial ID, document name/type, part, text,
+  `next_part` and the common analysis allowance object.
+- No PDF, binary, download link, page count, character count, storage path or
+  internal document key is exposed.
+- Light/Max allowances are 10 / 50 unique documents per analysis. Additional
+  parts and exact retries for the same document are allowance-idempotent.
+- The tool performs no download, OCR, extraction, semantic search, model work
+  or report writing.
+
+Annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: true
+openWorldHint: false
+```
+
+Detailed contract: `docs/get-documents.md`.
+
 ## App control-plane boundary
 
 MCP reaches the app through service-authenticated internal endpoints. Current relevant endpoints:
@@ -359,6 +392,7 @@ POST /api/internal/mcp/start-analysis
 POST /api/internal/mcp/filter-access
 POST /api/internal/mcp/classification-access
 POST /api/internal/mcp/profile-access
+POST /api/internal/mcp/document-access
 ```
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
@@ -407,11 +441,10 @@ This verifies configuration and contracts. It does not constitute a paid end-to-
 
 ## Immediate next implementation work
 
-1. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
-2. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
-3. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-4. Wire the approved background SOL report execution after the required MCP tool surface is complete.
-5. Add external OAuth/distribution only after the internal business-tool flow is stable.
+1. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
+2. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+3. Wire the approved background SOL report execution after the required MCP tool surface is complete.
+4. Add external OAuth/distribution only after the internal business-tool flow is stable.
 
 ## Context discipline
 

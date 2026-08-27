@@ -24,6 +24,7 @@ from intel_mcp.classification import (
 )
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
+from intel_mcp.documents import GetDocumentsOutput
 from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.models import (
     AnalysisAllowance,
@@ -414,6 +415,103 @@ async def get_profiles(
             unavailable=len(engine_result.unavailable_trial_ids),
             allowance_reached=len(allowance_reached),
         ),
+        analysis_allowance=AnalysisAllowance(
+            limit=access.limit,
+            used=access.used,
+            remaining=access.remaining,
+        ),
+    )
+
+
+@mcp.tool(
+    title="Get extracted CTIS document text",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+)
+async def get_documents(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    trial_id: Annotated[
+        str,
+        Field(
+            pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$",
+            description="EU trial number with a current approved Trial Profile.",
+        ),
+    ],
+    document_name: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=1000,
+            description=(
+                "One exact document name from available_extracted_document_names. "
+                "Matching is case-insensitive."
+            ),
+        ),
+    ],
+    part: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=10_000,
+            description=(
+                "One-based document part. Start with 1. If next_part is not null, repeat the same "
+                "call using that value until next_part is null."
+            ),
+        ),
+    ] = 1,
+) -> GetDocumentsOutput:
+    """Return extracted text for one explicitly named CTIS document.
+
+    Use this tool for deep source review or page-cited verification after trial shortlisting or
+    classification. Request exactly one document name per call. The response contains text only,
+    with page markers retained inside the text; it never returns a PDF, binary, download link,
+    page count or character count.
+
+    Each numbered part contains at most 200,000 characters. Start with part 1 and continue with
+    the returned next_part until it is null. Additional parts of the same document do not consume
+    additional document allowance. Exact retries are allowance-idempotent.
+
+    Only successfully or partially extracted documents listed by a current approved Trial Profile
+    are accessible. The tool performs no download, OCR, extraction, semantic search or model work.
+    For targeted facts across many documents, use extract_variables once that tool is available
+    instead of loading many complete documents into the model context.
+    """
+    try:
+        engine_result = await engine_client().get_document(
+            trial_id=trial_id,
+            document_name=document_name,
+            part=part,
+        )
+        access_result = await control_plane_client().authorize_document(
+            analysis_id,
+            engine_result.document_access_key,
+        )
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    access = access_result.access
+    if access.document_key != engine_result.document_access_key:
+        raise ToolError(
+            "DOCUMENT_ACCESS_FAILED: the control plane returned misaligned document authorization."
+        )
+    return GetDocumentsOutput(
+        trial_id=engine_result.trial_id,
+        document_name=engine_result.document_name,
+        document_type=engine_result.document_type,
+        part=engine_result.part,
+        text=engine_result.text,
+        next_part=engine_result.next_part,
         analysis_allowance=AnalysisAllowance(
             limit=access.limit,
             used=access.used,

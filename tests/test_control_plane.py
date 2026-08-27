@@ -123,3 +123,34 @@ async def test_profile_access_is_authenticated_and_parsed() -> None:
     )
     assert result.access.allowed_trial_ids == ["2024-500001-00-00"]
     assert result.access.remaining == 49
+
+
+@pytest.mark.anyio
+async def test_document_access_is_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-service-token"
+        assert request.url.path == "/api/internal/mcp/document-access"
+        assert request.content == (
+            b'{"analysisId":"ana_123456789012345678901234","documentKey":"'
+            + b"a" * 64
+            + b'"}'
+        )
+        return httpx.Response(
+            200,
+            json={
+                "access": {
+                    "documentKey": "a" * 64,
+                    "limit": 10,
+                    "used": 1,
+                    "remaining": 9,
+                    "exhausted": False,
+                }
+            },
+        )
+
+    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.authorize_document(
+        "ana_123456789012345678901234", "a" * 64
+    )
+    assert result.access.document_key == "a" * 64
+    assert result.access.remaining == 9
