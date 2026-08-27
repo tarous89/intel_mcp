@@ -106,6 +106,12 @@ Core rules:
 - page size 1–100 with opaque filter/sort-bound cursor;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
 
+The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
+contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
+Reproductive Medicine, Emergency Medicine, Critical Care, surgical,
+transplantation, trauma, genetic/congenital and nutrition categories.
+`Reproductive Health` is no longer a controlled value.
+
 The app control plane meters unique returned EU trial numbers against the active analysis lease. Current limits: Light 100, Max 1,000. Exact repeated trial IDs do not consume allowance twice.
 
 Because allowance state changes, `filter_trials` is annotated `readOnlyHint: false`, despite its Engine database query being read-only.

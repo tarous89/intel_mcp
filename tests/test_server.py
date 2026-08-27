@@ -152,6 +152,26 @@ def test_controlled_filter_values_accept_any_case_and_normalize() -> None:
     assert filters.countries[0].recruitment_statuses.values == ["Authorised"]
 
 
+def test_expanded_therapeutic_area_values_are_exposed_and_normalized() -> None:
+    from intel_mcp.models import TrialFilters
+
+    filters = TrialFilters.model_validate(
+        {
+            "therapeutic_areas": {
+                "operator": "contains_all",
+                "values": ["blood disorders", "GYNECOLOGY", "emergency medicine"],
+            }
+        }
+    )
+
+    assert filters.therapeutic_areas is not None
+    assert filters.therapeutic_areas.values == [
+        "Blood Disorders",
+        "Gynecology",
+        "Emergency Medicine",
+    ]
+
+
 @pytest.mark.anyio
 async def test_mcp_http_requires_service_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("intel_mcp.server.settings", replace(settings, mcp_inbound_service_token="expected-token"))

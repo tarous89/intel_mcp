@@ -79,10 +79,15 @@ ComparisonOperator = Literal[
 BooleanValue = bool | Literal["unknown"]
 
 TherapeuticArea = Literal[
-    "Solid Tumor Oncology", "Haematological Malignancies", "Cardiology", "Neurology",
-    "Immunology", "Infectious Disease", "Endocrinology", "Respiratory", "Gastroenterology",
-    "Dermatology", "Musculoskeletal", "Ophthalmology", "Nephrology", "Psychiatry",
-    "Reproductive Health", "Urology", "Other",
+    "Solid Tumor Oncology", "Haematological Malignancies", "Blood Disorders",
+    "Cardiology", "Neurology", "Immunology", "Rheumatology", "Allergy",
+    "Infectious Disease", "Endocrinology", "Metabolic Disorders", "Respiratory",
+    "Gastroenterology", "Hepatology", "Dermatology", "Musculoskeletal",
+    "Ophthalmology", "Otolaryngology", "Oral Health and Dentistry", "Nephrology",
+    "Psychiatry", "Pain Medicine", "Gynecology", "Obstetrics",
+    "Reproductive Medicine", "Urology", "Emergency Medicine", "Critical Care",
+    "Surgery and Perioperative Care", "Transplantation", "Trauma and Injury",
+    "Genetic and Congenital Disorders", "Nutrition", "Other",
 ]
 Modality = Literal[
     "Biologic", "Antibody", "Small molecule", "Monoclonal antibody", "Bispecific antibody",
@@ -134,12 +139,17 @@ class StringSetFilter(BaseModel):
 
 class TherapeuticAreaFilter(StringSetFilter):
     canonical_values = (
-        "Solid Tumor Oncology", "Haematological Malignancies", "Cardiology", "Neurology",
-        "Immunology", "Infectious Disease", "Endocrinology", "Respiratory", "Gastroenterology",
-        "Dermatology", "Musculoskeletal", "Ophthalmology", "Nephrology", "Psychiatry",
-        "Reproductive Health", "Urology", "Other",
+        "Solid Tumor Oncology", "Haematological Malignancies", "Blood Disorders",
+        "Cardiology", "Neurology", "Immunology", "Rheumatology", "Allergy",
+        "Infectious Disease", "Endocrinology", "Metabolic Disorders", "Respiratory",
+        "Gastroenterology", "Hepatology", "Dermatology", "Musculoskeletal",
+        "Ophthalmology", "Otolaryngology", "Oral Health and Dentistry", "Nephrology",
+        "Psychiatry", "Pain Medicine", "Gynecology", "Obstetrics",
+        "Reproductive Medicine", "Urology", "Emergency Medicine", "Critical Care",
+        "Surgery and Perioperative Care", "Transplantation", "Trauma and Injury",
+        "Genetic and Congenital Disorders", "Nutrition", "Other",
     )
-    values: list[TherapeuticArea] = Field(min_length=1, max_length=17)
+    values: list[TherapeuticArea] = Field(min_length=1, max_length=34)
 
 
 class ModalityFilter(StringSetFilter):

@@ -40,6 +40,10 @@ Exposed structured fields:
 
 Controlled vocabularies are embedded directly in the MCP JSON Schema. Country codes use ISO 3166-1 alpha-2. Known normalized country statuses are `Authorised`, `Not authorised`, `Under evaluation`, `Ended`, `Halted`, `Lapsed`, `Withdrawn`, `Expired`, `Suspended`, `Not valid`, `Pending` and `Revoked`.
 
+The 34-value therapeutic-area vocabulary is aligned with Trial Profile contract
+8.4.0 and includes separate Blood Disorders, Gynecology, Obstetrics,
+Reproductive Medicine, Emergency Medicine and Critical Care values.
+
 Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer to a subsidy or funding source, or omit part of the complete legal entity name. Use sponsor-name filtering to shortlist records; do not treat it as definitive legal-entity resolution.
 
 ## Local setup
