@@ -178,4 +178,7 @@ async def test_health_remains_public() -> None:
         response = await client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "intel-mcp"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["service"] == "intel-mcp"
+    assert "classifier_configured" in body

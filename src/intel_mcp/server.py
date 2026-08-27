@@ -13,6 +13,14 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from intel_mcp.classification import (
+    ClassifierError,
+    ClassifyTrialsOutput,
+    aggregate_trial_result,
+    classification_key,
+    classify_profile_items,
+    validate_criteria,
+)
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.engine import EngineClient, EngineError
@@ -192,9 +200,151 @@ async def filter_trials(
     )
 
 
+@mcp.tool(
+    title="Classify approved clinical trials",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=False,
+    ),
+)
+async def classify_trials(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    trial_ids: Annotated[
+        list[Annotated[str, Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")]],
+        Field(
+            min_length=1,
+            max_length=25,
+            description="One to 25 distinct EU trial numbers with approved Trial Profiles.",
+        ),
+    ],
+    inclusion_criteria: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=600)]],
+        Field(
+            min_length=1,
+            max_length=20,
+            description=(
+                "One or more user-defined trial classification conditions that must all be true for eligibility. "
+                "These are analysis criteria, not necessarily formal protocol inclusion criteria."
+            ),
+        ),
+    ],
+    exclusion_criteria: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=600)]],
+        Field(
+            min_length=1,
+            max_length=20,
+            description=(
+                "One or more user-defined exclusionary conditions that must all be false for eligibility. "
+                "A true classifier answer means the exclusionary condition is present."
+            ),
+        ),
+    ],
+) -> ClassifyTrialsOutput:
+    """Classify selected approved Trial Profiles into eligible, ineligible or uncertain trial IDs.
+
+    One independent Terra worker call is made per trial. Inside each worker call, every inclusion and
+    exclusion criterion is classified separately as true, false or unknown/null with concise evidence.
+    Those detailed criterion-level results stay internal to the worker/aggregation path and are not
+    returned by this MCP tool.
+
+    Deterministic aggregation is:
+    - ineligible if ANY inclusion criterion is false OR ANY exclusion criterion is true;
+    - otherwise uncertain if ANY criterion is unknown/null;
+    - otherwise eligible (all inclusions true and all exclusions false).
+
+    Criteria are interpreted literally. Inclusion/exclusion labels never invert Terra's boolean answer.
+    Normally, missing information produces unknown and therefore an uncertain trial. Only when it is
+    analytically appropriate may the caller explicitly include unknown/missing information in the wording
+    of an individual criterion, for example "pediatric patients are included OR pediatric participation is
+    unknown". In that example an unknown pediatric status makes that complete criterion true. Do not add
+    unknown handling routinely; use it only when the analysis genuinely intends that behavior.
+
+    The tool uses approved Trial Profiles only, does not inspect protocols or other documents, and does not
+    use external knowledge. If a needed fact is absent from the Trial Profile, ordinary criteria stay unknown.
+    """
+    if len(set(trial_ids)) != len(trial_ids):
+        raise ToolError("INVALID_TRIAL_IDS: trial_ids must not contain duplicates.")
+    try:
+        inclusion, exclusion = validate_criteria(inclusion_criteria, exclusion_criteria)
+    except ValueError as error:
+        raise ToolError(f"INVALID_CRITERIA: {error}") from error
+
+    keys = [classification_key(trial_id, inclusion, exclusion) for trial_id in trial_ids]
+    control = control_plane_client()
+    try:
+        # Validate approved-profile availability before reserving classification allowance.
+        profile_result = await engine_client().classification_profiles(trial_ids)
+        access_result = await control.authorize_classifications(analysis_id, keys, "reserve")
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    if access_result.access.allowed_classification_keys != keys:
+        raise ToolError(
+            "CLASSIFICATION_ACCESS_FAILED: the control plane returned misaligned classification authorization."
+        )
+
+    try:
+        worker_results = await classify_profile_items(
+            settings,
+            profile_result.data,
+            inclusion,
+            exclusion,
+        )
+    except ClassifierError as error:
+        try:
+            await control.authorize_classifications(analysis_id, keys, "release")
+        except ControlPlaneError:
+            pass
+        raise ToolError(f"{error.code}: {error.message}") from error
+    except Exception:
+        try:
+            await control.authorize_classifications(analysis_id, keys, "release")
+        except ControlPlaneError:
+            pass
+        raise
+
+    try:
+        await control.authorize_classifications(analysis_id, keys, "commit")
+    except ControlPlaneError as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    eligible_trials: list[str] = []
+    ineligible_trials: list[str] = []
+    uncertain_trials: list[str] = []
+    for result in worker_results:
+        classification = aggregate_trial_result(result)
+        if classification == "eligible":
+            eligible_trials.append(result.trial_id)
+        elif classification == "ineligible":
+            ineligible_trials.append(result.trial_id)
+        else:
+            uncertain_trials.append(result.trial_id)
+
+    return ClassifyTrialsOutput(
+        eligible_trials=eligible_trials,
+        ineligible_trials=ineligible_trials,
+        uncertain_trials=uncertain_trials,
+    )
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_request: Request) -> Response:
-    return JSONResponse({"status": "ok", "service": "intel-mcp"})
+    return JSONResponse(
+        {
+            "status": "ok",
+            "service": "intel-mcp",
+            "classifier_configured": bool(settings.openai_api_key),
+        }
+    )
 
 
 transport_security = TransportSecuritySettings(allowed_hosts=list(settings.allowed_hosts))

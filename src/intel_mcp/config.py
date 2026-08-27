@@ -18,6 +18,14 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    classifier_model: str = "gpt-5.6-terra"
+    classifier_reasoning_effort: str = "high"
+    classifier_service_tier: str = "standard"
+    classifier_max_output_tokens: int = 12000
+    classifier_concurrency: int = 4
+    classifier_timeout_seconds: float = 300
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -35,6 +43,14 @@ class Settings:
             ),
             port=int(os.getenv("PORT", "8000")),
             request_timeout_seconds=float(os.getenv("INTEL_APP_REQUEST_TIMEOUT_SECONDS", "10")),
+            openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
+            openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/"),
+            classifier_model=os.getenv("MCP_CLASSIFIER_MODEL", "gpt-5.6-terra").strip(),
+            classifier_reasoning_effort=os.getenv("MCP_CLASSIFIER_REASONING_EFFORT", "high").strip(),
+            classifier_service_tier=os.getenv("MCP_CLASSIFIER_SERVICE_TIER", "standard").strip(),
+            classifier_max_output_tokens=int(os.getenv("MCP_CLASSIFIER_MAX_OUTPUT_TOKENS", "12000")),
+            classifier_concurrency=max(1, min(8, int(os.getenv("MCP_CLASSIFIER_CONCURRENCY", "4")))),
+            classifier_timeout_seconds=float(os.getenv("MCP_CLASSIFIER_TIMEOUT_SECONDS", "300")),
         )
 
     def validate_control_plane(self) -> None:
@@ -52,3 +68,11 @@ class Settings:
             raise RuntimeError("INTEL_ENGINE_API_URL is not configured")
         if not self.engine_service_token:
             raise RuntimeError("INTEL_ENGINE_SERVICE_TOKEN is not configured")
+
+    def validate_classifier(self) -> None:
+        if not self.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if not self.classifier_model:
+            raise RuntimeError("MCP_CLASSIFIER_MODEL is not configured")
+        if self.classifier_max_output_tokens < 1:
+            raise RuntimeError("MCP_CLASSIFIER_MAX_OUTPUT_TOKENS must be positive")

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import httpx
 from pydantic import ValidationError
 
+from intel_mcp.classification import EngineClassificationProfilesResponse
 from intel_mcp.config import Settings
 from intel_mcp.models import EngineFilterResponse, TrialFilters, TrialSort
 
@@ -37,20 +38,7 @@ class EngineClient:
             "limit": limit,
             "cursor": cursor,
         }
-        try:
-            async with httpx.AsyncClient(
-                timeout=self._settings.request_timeout_seconds,
-                transport=self._transport,
-            ) as client:
-                response = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {self._settings.engine_service_token}"},
-                    json=payload,
-                )
-        except httpx.TimeoutException as error:
-            raise EngineError("ENGINE_TIMEOUT", "The trial filter timed out; retry this call.", 504) from error
-        except httpx.HTTPError as error:
-            raise EngineError("ENGINE_UNAVAILABLE", "The trial data service is temporarily unavailable.", 503) from error
+        response = await self._post(url, payload, timeout_message="The trial filter timed out; retry this call.")
 
         if response.is_success:
             try:
@@ -62,8 +50,59 @@ class EngineClient:
                     502,
                 ) from error
 
-        code = "TRIAL_FILTER_FAILED"
-        message = "The trials could not be filtered."
+        raise self._response_error(response, "TRIAL_FILTER_FAILED", "The trials could not be filtered.")
+
+    async def classification_profiles(self, trial_ids: list[str]) -> EngineClassificationProfilesResponse:
+        self._settings.validate_engine()
+        url = f"{self._settings.engine_api_url}/api/internal/mcp/classification-profiles"
+        response = await self._post(
+            url,
+            {"trial_ids": trial_ids},
+            timeout_message="The approved Trial Profiles could not be retrieved in time; retry this call.",
+        )
+        if response.is_success:
+            try:
+                result = EngineClassificationProfilesResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned invalid classification profiles.",
+                    502,
+                ) from error
+            if [item.eu_number for item in result.data] != trial_ids:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned misaligned classification profiles.",
+                    502,
+                )
+            return result
+
+        raise self._response_error(
+            response,
+            "CLASSIFICATION_PROFILES_FAILED",
+            "The approved Trial Profiles could not be retrieved for classification.",
+        )
+
+    async def _post(self, url: str, payload: dict, *, timeout_message: str) -> httpx.Response:
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._settings.request_timeout_seconds,
+                transport=self._transport,
+            ) as client:
+                return await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {self._settings.engine_service_token}"},
+                    json=payload,
+                )
+        except httpx.TimeoutException as error:
+            raise EngineError("ENGINE_TIMEOUT", timeout_message, 504) from error
+        except httpx.HTTPError as error:
+            raise EngineError("ENGINE_UNAVAILABLE", "The trial data service is temporarily unavailable.", 503) from error
+
+    @staticmethod
+    def _response_error(response: httpx.Response, default_code: str, default_message: str) -> EngineError:
+        code = default_code
+        message = default_message
         try:
             body = response.json()
             error_body = body.get("error") if isinstance(body, dict) else None
@@ -72,4 +111,4 @@ class EngineClient:
                 message = error_body.get("message", message)
         except ValueError:
             pass
-        raise EngineError(str(code), str(message), response.status_code)
+        return EngineError(str(code), str(message), response.status_code)
