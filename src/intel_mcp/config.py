@@ -26,6 +26,11 @@ class Settings:
     classifier_max_output_tokens: int = 12000
     classifier_concurrency: int = 4
     classifier_timeout_seconds: float = 300
+    extractor_model: str = "gpt-5.6-terra"
+    extractor_reasoning_effort: str = "high"
+    extractor_service_tier: str = "standard"
+    extractor_max_output_tokens: int = 12000
+    extractor_timeout_seconds: float = 300
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -51,6 +56,11 @@ class Settings:
             classifier_max_output_tokens=int(os.getenv("MCP_CLASSIFIER_MAX_OUTPUT_TOKENS", "12000")),
             classifier_concurrency=max(1, min(8, int(os.getenv("MCP_CLASSIFIER_CONCURRENCY", "4")))),
             classifier_timeout_seconds=float(os.getenv("MCP_CLASSIFIER_TIMEOUT_SECONDS", "300")),
+            extractor_model=os.getenv("MCP_EXTRACTOR_MODEL", "gpt-5.6-terra").strip(),
+            extractor_reasoning_effort=os.getenv("MCP_EXTRACTOR_REASONING_EFFORT", "high").strip(),
+            extractor_service_tier=os.getenv("MCP_EXTRACTOR_SERVICE_TIER", "standard").strip(),
+            extractor_max_output_tokens=int(os.getenv("MCP_EXTRACTOR_MAX_OUTPUT_TOKENS", "12000")),
+            extractor_timeout_seconds=float(os.getenv("MCP_EXTRACTOR_TIMEOUT_SECONDS", "300")),
         )
 
     def validate_control_plane(self) -> None:
@@ -76,3 +86,11 @@ class Settings:
             raise RuntimeError("MCP_CLASSIFIER_MODEL is not configured")
         if self.classifier_max_output_tokens < 1:
             raise RuntimeError("MCP_CLASSIFIER_MAX_OUTPUT_TOKENS must be positive")
+
+    def validate_extractor(self) -> None:
+        if not self.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if not self.extractor_model:
+            raise RuntimeError("MCP_EXTRACTOR_MODEL is not configured")
+        if self.extractor_max_output_tokens < 1:
+            raise RuntimeError("MCP_EXTRACTOR_MAX_OUTPUT_TOKENS must be positive")

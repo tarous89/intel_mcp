@@ -108,3 +108,25 @@ async def test_engine_get_document_is_service_authenticated_and_parsed() -> None
     )
     assert result.next_part == 3
     assert result.document_access_key == "a" * 64
+
+
+@pytest.mark.anyio
+async def test_engine_extraction_source_is_service_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-engine-token"
+        assert request.url.path == "/api/internal/mcp/extraction-source"
+        assert request.content == b'{"trial_id":"2024-500001-00-00"}'
+        return httpx.Response(
+            200,
+            json={
+                "trial_id": "2024-500001-00-00",
+                "profile": {"planned_sample_size": 420},
+                "protocol_text": "Complete protocol",
+                "schema_version": "1.0.0",
+            },
+        )
+
+    client = EngineClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.extraction_source("2024-500001-00-00")
+    assert result.profile == {"planned_sample_size": 420}
+    assert result.protocol_text == "Complete protocol"

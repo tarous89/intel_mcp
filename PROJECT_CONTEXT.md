@@ -56,11 +56,6 @@ filter_trials
 classify_trials
 get_profiles
 get_documents
-```
-
-Planned substantive tools:
-
-```text
 extract_variables
 ```
 
@@ -383,6 +378,44 @@ openWorldHint: false
 
 Detailed contract: `docs/get-documents.md`.
 
+## `extract_variables` — implemented contract
+
+`extract_variables(analysis_id, trial_id, variables)` extracts a caller-defined
+typed schema from exactly one trial.
+
+- one EU trial number and 1–20 uniquely named variables per call;
+- each variable contains a lower-case snake-case `name`, a bounded precise
+  `instruction`, and `value_type` (`string`, `integer`, `number`, `boolean` or
+  `string_array`; default `string`);
+- Engine boundary: `POST /api/internal/mcp/extraction-source` requires a current
+  approved Trial Profile and returns the complete stored profile plus the
+  complete best extracted protocol, if available;
+- protocol selection reuses the deterministic Trial Profile ranking; profile-only
+  extraction remains valid when no protocol text exists;
+- Terra receives profile and protocol together in exactly one model request;
+  there is no automatic model retry;
+- the strict worker schema and MCP result contain values only: every requested
+  name is present and unsupported values are `null`; no status, explanation,
+  evidence, document name, page or source metadata is produced;
+- app boundary: `POST /api/internal/mcp/extraction-access` uses
+  reserve/commit/release semantics and stable trial-plus-variable-set SHA-256
+  keys; failed model work is released and exact retries do not double-charge;
+- current extraction-unit limits are Light 20 and Max 200. Both tiers allow at
+  most 20 variables per call;
+- no on-demand download, OCR, document extraction, external knowledge or report
+  writing occurs.
+
+Annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: false
+openWorldHint: false
+```
+
+Detailed contract: `docs/extract-variables.md`.
+
 ## App control-plane boundary
 
 MCP reaches the app through service-authenticated internal endpoints. Current relevant endpoints:
@@ -393,6 +426,7 @@ POST /api/internal/mcp/filter-access
 POST /api/internal/mcp/classification-access
 POST /api/internal/mcp/profile-access
 POST /api/internal/mcp/document-access
+POST /api/internal/mcp/extraction-access
 ```
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
@@ -441,10 +475,9 @@ This verifies configuration and contracts. It does not constitute a paid end-to-
 
 ## Immediate next implementation work
 
-1. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
-2. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-3. Wire the approved background SOL report execution after the required MCP tool surface is complete.
-4. Add external OAuth/distribution only after the internal business-tool flow is stable.
+1. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+2. Wire the approved background SOL report execution now that the required MCP business-tool surface is complete.
+3. Add external OAuth/distribution only after the internal business-tool flow is stable.
 
 ## Context discipline
 

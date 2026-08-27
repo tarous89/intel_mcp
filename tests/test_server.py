@@ -23,6 +23,11 @@ from intel_mcp.documents import (
     AppDocumentAccessResponse,
     EngineDocumentResponse,
 )
+from intel_mcp.extraction import (
+    AppExtractionAccess,
+    AppExtractionAccessResponse,
+    EngineExtractionSourceResponse,
+)
 from intel_mcp.profiles import (
     AppProfileAccess,
     AppProfileAccessResponse,
@@ -33,6 +38,9 @@ from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 
 
 class StubControlPlane:
+    def __init__(self) -> None:
+        self.extraction_operations: list[str] = []
+
     async def start_analysis(self, report_run_id: str) -> AppStartAnalysisResponse:
         return AppStartAnalysisResponse(
             analysis=AppAnalysis(
@@ -98,6 +106,26 @@ class StubControlPlane:
             )
         )
 
+    async def authorize_extraction(
+        self,
+        analysis_id: str,
+        extraction_key: str,
+        variable_count: int,
+        operation: str = "reserve",
+    ) -> AppExtractionAccessResponse:
+        assert analysis_id == "ana_123456789012345678901234"
+        assert variable_count == 2
+        self.extraction_operations.append(operation)
+        return AppExtractionAccessResponse(
+            access=AppExtractionAccess(
+                extractionKey=extraction_key,
+                limit=200,
+                used=1 if operation == "commit" else 0,
+                remaining=199,
+                exhausted=False,
+            )
+        )
+
 
 class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
@@ -147,6 +175,15 @@ class StubEngine:
             text="[[PAGE 1]]\nExtracted text",
             next_part=2,
             document_access_key="a" * 64,
+            schema_version="1.0.0",
+        )
+
+    async def extraction_source(self, trial_id: str) -> EngineExtractionSourceResponse:
+        assert trial_id == "2024-500001-00-00"
+        return EngineExtractionSourceResponse(
+            trial_id=trial_id,
+            profile={"planned_sample_size": 420},
+            protocol_text="Complete protocol",
             schema_version="1.0.0",
         )
 
@@ -312,6 +349,81 @@ async def test_get_documents_returns_one_text_document_part(
     }
 
 
+@pytest.mark.anyio
+async def test_extract_variables_uses_one_trial_and_returns_values_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    control = StubControlPlane()
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: control)
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+
+    class StubExtractor:
+        def __init__(self, _settings) -> None:
+            pass
+
+        async def extract(self, **kwargs):
+            assert kwargs["trial_id"] == "2024-500001-00-00"
+            assert kwargs["profile"] == {"planned_sample_size": 420}
+            assert kwargs["protocol_text"] == "Complete protocol"
+            assert len(kwargs["variables"]) == 2
+            return {
+                "planned_sample_size": 420,
+                "central_imaging_review": None,
+            }
+
+    monkeypatch.setattr("intel_mcp.server.TerraExtractor", StubExtractor)
+
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+        tool = next(item for item in tools.tools if item.name == "extract_variables")
+        assert set(tool.input_schema["properties"]) == {
+            "analysis_id",
+            "trial_id",
+            "variables",
+        }
+        assert tool.annotations is not None
+        assert tool.annotations.read_only_hint is False
+        assert tool.annotations.idempotent_hint is False
+
+        result = await client.call_tool(
+            "extract_variables",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_id": "2024-500001-00-00",
+                "variables": [
+                    {
+                        "name": "planned_sample_size",
+                        "instruction": "Return the planned randomized population.",
+                        "value_type": "integer",
+                    },
+                    {
+                        "name": "central_imaging_review",
+                        "instruction": "Is central imaging review required?",
+                        "value_type": "boolean",
+                    },
+                ],
+            },
+        )
+
+    assert result.is_error is False
+    assert control.extraction_operations == ["reserve", "commit"]
+    assert result.structured_content == {
+        "trial_id": "2024-500001-00-00",
+        "values": {
+            "planned_sample_size": 420,
+            "central_imaging_review": None,
+        },
+        "analysis_allowance": {"limit": 200, "used": 1, "remaining": 199},
+    }
+    assert not {
+        "status",
+        "explanation",
+        "source",
+        "document_name",
+        "page",
+    } & set(result.structured_content)
+
+
 def test_controlled_filter_values_accept_any_case_and_normalize() -> None:
     from intel_mcp.models import TrialFilters
 
@@ -384,3 +496,4 @@ async def test_health_remains_public() -> None:
     assert body["status"] == "ok"
     assert body["service"] == "intel-mcp"
     assert "classifier_configured" in body
+    assert "extractor_configured" in body

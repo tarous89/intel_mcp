@@ -26,6 +26,15 @@ from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.documents import GetDocumentsOutput
 from intel_mcp.engine import EngineClient, EngineError
+from intel_mcp.extraction import (
+    MAX_VARIABLES_PER_CALL,
+    ExtractVariablesOutput,
+    ExtractionVariable,
+    ExtractorError,
+    TerraExtractor,
+    extraction_key,
+    normalize_variables,
+)
 from intel_mcp.models import (
     AnalysisAllowance,
     AnalysisLimits,
@@ -484,8 +493,8 @@ async def get_documents(
 
     Only successfully or partially extracted documents listed by a current approved Trial Profile
     are accessible. The tool performs no download, OCR, extraction, semantic search or model work.
-    For targeted facts across many documents, use extract_variables once that tool is available
-    instead of loading many complete documents into the model context.
+    For targeted facts, use extract_variables instead of loading many complete documents into
+    the model context.
     """
     try:
         engine_result = await engine_client().get_document(
@@ -520,6 +529,123 @@ async def get_documents(
     )
 
 
+@mcp.tool(
+    title="Extract trial variables",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=False,
+    ),
+)
+async def extract_variables(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    trial_id: Annotated[
+        str,
+        Field(
+            pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$",
+            description="One EU trial number with a current approved Trial Profile.",
+        ),
+    ],
+    variables: Annotated[
+        list[ExtractionVariable],
+        Field(
+            min_length=1,
+            max_length=MAX_VARIABLES_PER_CALL,
+            description=(
+                "One to 20 uniquely named variables. Each variable has a snake_case name, a precise "
+                "instruction and a requested value type. Missing values are returned as null."
+            ),
+        ),
+    ],
+) -> ExtractVariablesOutput:
+    """Extract up to 20 caller-defined values from one trial in one Terra worker call.
+
+    The Engine supplies the complete current approved Trial Profile plus the complete best extracted
+    protocol when available. Terra uses the profile as the primary source and the protocol to complete
+    or correct protocol-defined details. When no extracted protocol is available, extraction uses the
+    profile alone.
+
+    Every requested variable is returned under its exact name. A source that does not establish the
+    answer produces null. The result intentionally contains no status, explanation, evidence, document
+    name or page metadata. The worker uses no external knowledge and performs no download, OCR or
+    document extraction.
+
+    Exactly one model request is made per tool invocation, with no automatic model retry, to keep latency
+    bounded. Exact caller retries reuse the stable trial+variables allowance key.
+    """
+    try:
+        normalized_variables = normalize_variables(variables)
+    except ValueError as error:
+        raise ToolError(f"INVALID_VARIABLES: {error}") from error
+
+    key = extraction_key(trial_id, normalized_variables)
+    control = control_plane_client()
+    try:
+        source = await engine_client().extraction_source(trial_id)
+        reservation = await control.authorize_extraction(
+            analysis_id,
+            key,
+            len(normalized_variables),
+            "reserve",
+        )
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    if reservation.access.extraction_key != key:
+        raise ToolError(
+            "EXTRACTION_ACCESS_FAILED: the control plane returned misaligned extraction authorization."
+        )
+
+    try:
+        values = await TerraExtractor(settings).extract(
+            trial_id=trial_id,
+            profile=source.profile,
+            protocol_text=source.protocol_text,
+            variables=normalized_variables,
+        )
+    except ExtractorError as error:
+        try:
+            await control.authorize_extraction(
+                analysis_id, key, len(normalized_variables), "release"
+            )
+        except ControlPlaneError:
+            pass
+        raise ToolError(f"{error.code}: {error.message}") from error
+    except Exception:
+        try:
+            await control.authorize_extraction(
+                analysis_id, key, len(normalized_variables), "release"
+            )
+        except ControlPlaneError:
+            pass
+        raise
+
+    try:
+        committed = await control.authorize_extraction(
+            analysis_id, key, len(normalized_variables), "commit"
+        )
+    except ControlPlaneError as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    return ExtractVariablesOutput(
+        trial_id=trial_id,
+        values=values,
+        analysis_allowance=AnalysisAllowance(
+            limit=committed.access.limit,
+            used=committed.access.used,
+            remaining=committed.access.remaining,
+        ),
+    )
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_request: Request) -> Response:
     return JSONResponse(
@@ -527,6 +653,7 @@ async def health(_request: Request) -> Response:
             "status": "ok",
             "service": "intel-mcp",
             "classifier_configured": bool(settings.openai_api_key),
+            "extractor_configured": bool(settings.openai_api_key),
         }
     )
 

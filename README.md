@@ -9,8 +9,27 @@ Implemented tools:
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
+- `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using its complete profile plus best extracted protocol when available.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
+
+## `extract_variables` contract
+
+`extract_variables` accepts one `trial_id` and 1–20 variable definitions with a
+snake-case name, precise instruction and optional value type. Supported types
+are string, integer, number, boolean and string array.
+
+The Engine supplies the complete approved Trial Profile and the complete best
+extracted protocol when available. Both are sent in one Terra request. Output is
+limited to the trial ID, a values object containing every requested key (with
+`null` when unresolved), and the standard analysis allowance. Status,
+explanation, evidence, document name, page and source metadata are excluded from
+both the worker schema and public result.
+
+No on-demand download, OCR or extraction occurs. The tool uses one model request
+per invocation with no automatic model retry. Stable trial-plus-variable-set
+keys make exact retries allowance-safe. Detailed contract:
+`docs/extract-variables.md`.
 
 ## `filter_trials` contract
 

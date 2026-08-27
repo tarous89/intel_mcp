@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from intel_mcp.classification import EngineClassificationProfilesResponse
 from intel_mcp.config import Settings
 from intel_mcp.documents import EngineDocumentResponse
+from intel_mcp.extraction import EngineExtractionSourceResponse
 from intel_mcp.models import EngineFilterResponse, TrialFilters, TrialSort
 from intel_mcp.profiles import EngineProfilesResponse
 
@@ -157,6 +158,36 @@ class EngineClient:
             response,
             "DOCUMENT_RETRIEVAL_FAILED",
             "The extracted document text could not be retrieved.",
+        )
+
+    async def extraction_source(self, trial_id: str) -> EngineExtractionSourceResponse:
+        self._settings.validate_engine()
+        url = f"{self._settings.engine_api_url}/api/internal/mcp/extraction-source"
+        response = await self._post(
+            url,
+            {"trial_id": trial_id},
+            timeout_message="The approved extraction source could not be retrieved in time; retry this call.",
+        )
+        if response.is_success:
+            try:
+                result = EngineExtractionSourceResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned an invalid extraction source.",
+                    502,
+                ) from error
+            if result.trial_id != trial_id:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned a misaligned extraction source.",
+                    502,
+                )
+            return result
+        raise self._response_error(
+            response,
+            "EXTRACTION_SOURCE_FAILED",
+            "The approved extraction source could not be retrieved.",
         )
 
     async def _post(self, url: str, payload: dict, *, timeout_message: str) -> httpx.Response:
