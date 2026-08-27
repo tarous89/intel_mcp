@@ -40,11 +40,11 @@ transport: Streamable HTTP
 
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
-Current production commit is
-`62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd`; Render deploy
-`dep-da81goks728c73ajeud0` is live. It aligns the MCP therapeutic-area
-allowlist with Trial Profile contract 8.4.0. Main CI passed the unit/contract
-suite and the live `classifier_configured=true` assertion.
+Therapeutic-area alignment commit
+`62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd` reached production in Render
+deploy `dep-da81goks728c73ajeud0`. It aligns the MCP allowlist with Trial
+Profile contract 8.4.0. Main CI passed the unit/contract suite and the live
+`classifier_configured=true` assertion.
 
 ## Current MCP tool surface
 
