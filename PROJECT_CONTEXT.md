@@ -98,6 +98,8 @@ POST /api/internal/mcp/filter-trials
 
 Core rules:
 
+- it is the first screening/shortlisting step: use broad structured conditions to reduce the candidate pool before semantic classification;
+- complex inclusion/exclusion logic belongs in `classify_trials`, not in structured filtering;
 - approved Trial Profiles only; no raw-CTIS fallback;
 - explicit field/operator/sort allowlists only; no SQL or arbitrary JSON paths;
 - case-insensitive text matching;
@@ -123,6 +125,8 @@ Because allowance state changes, `filter_trials` is annotated `readOnlyHint: fal
 ## `classify_trials` — finalized contract
 
 `classify_trials` is the semantic eligibility/prioritization step after a shortlist exists. It classifies selected **approved Trial Profiles**, not full protocols/documents.
+
+It is the final semantic classification step, not the initial discovery mechanism. Use `filter_trials` first wherever broad structured conditions can reduce the population. Classification is limited to 25 trials per call; larger focused shortlists use consistent batches.
 
 ### MCP input
 
@@ -238,7 +242,10 @@ The MCP caller receives only:
 {
   "eligible_trials": ["..."],
   "ineligible_trials": ["..."],
-  "uncertain_trials": ["..."]
+  "uncertain_trials": ["..."],
+  "eligible_count": 0,
+  "ineligible_count": 0,
+  "uncertain_count": 0
 }
 ```
 
