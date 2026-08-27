@@ -6,12 +6,18 @@ Implemented tools:
 
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Intel Engine's versioned internal endpoint. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
+- `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
+- `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
 
 ## `filter_trials` contract
 
 `filter_trials` is a shortlist tool. It does not search the whole profile, run semantic search, classify trials, retrieve complete profiles/documents, extract variables or write report prose.
+
+Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
+
+Each shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`. Phase, dates and normalized document types remain usable as filters but are not repeated in every result item. Output counts contain total approved profiles, total matches and records returned in this call. Analysis allowance separately reports its limit, cumulative unique IDs used and remaining capacity.
 
 General behavior:
 
@@ -23,7 +29,7 @@ General behavior:
 - Different fields combine with AND. Put multiple alternatives for the same field in one condition. If OR is needed across different fields, make separate calls.
 - Conditions within one `countries` group must match the same country row. Multiple country groups combine with AND and may match different rows.
 - Default order is `latest_country_submission_or_approval_date desc`, with `eu_number asc` as the stable tie-breaker.
-- Pages are capped at 100. Continue only with the opaque `next_cursor` returned for identical filters and sort.
+- Pages are capped at 100. Use `offset: 0` first, then increase offset by the prior call's limit while more matches remain.
 - Light analyses may receive 100 unique filtered trial IDs; Max analyses may receive 1,000. Repeated IDs in retries or revisions do not consume allowance twice.
 - The MCP annotation uses `readOnlyHint: false`: the Engine query is read-only, but admitting a previously unseen trial ID updates the analysis's observable allowance state.
 
@@ -45,6 +51,18 @@ The 34-value therapeutic-area vocabulary is aligned with Trial Profile contract
 Reproductive Medicine, Emergency Medicine and Critical Care values.
 
 Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer to a subsidy or funding source, or omit part of the complete legal entity name. Use sponsor-name filtering to shortlist records; do not treat it as definitive legal-entity resolution.
+
+## `get_profiles` contract
+
+`get_profiles` accepts only `analysis_id` and `trial_ids`.
+
+- Request 1–10 EU trial numbers per call; duplicate IDs are removed while preserving order.
+- Return the complete stored current approved Trial Profile, including contacts and extracted-document inventory.
+- Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
+- Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
+- Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
+- The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
+- Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
 
 ## Local setup
 

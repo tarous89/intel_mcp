@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from intel_mcp.classification import AppClassificationAccessResponse
 from intel_mcp.config import Settings
 from intel_mcp.models import AppFilterAccessResponse, AppStartAnalysisResponse
+from intel_mcp.profiles import AppProfileAccessResponse
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,31 @@ class ControlPlaneClient:
             response,
             "CLASSIFICATION_ACCESS_FAILED",
             "The classification request could not be authorized.",
+        )
+
+    async def authorize_profiles(
+        self, analysis_id: str, trial_ids: list[str]
+    ) -> AppProfileAccessResponse:
+        """Validate the lease and atomically meter complete profiles returned."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/profile-access"
+        response = await self._post(
+            url,
+            {"analysisId": analysis_id, "trialIds": trial_ids},
+        )
+        if response.is_success:
+            try:
+                return AppProfileAccessResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise ControlPlaneError(
+                    "CONTROL_PLANE_INVALID_RESPONSE",
+                    "The analysis control plane returned an invalid profile authorization response.",
+                    502,
+                ) from error
+        raise self._response_error(
+            response,
+            "PROFILE_ACCESS_FAILED",
+            "The profile request could not be authorized.",
         )
 
     async def _post(self, url: str, payload: dict) -> httpx.Response:

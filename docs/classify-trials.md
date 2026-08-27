@@ -8,6 +8,14 @@ Current contract: 2026-08-27
 
 It is not a protocol/document extraction tool. It uses the approved Trial Profile only.
 
+This is the final semantic classification step, not the initial discovery step. Normally the caller should:
+
+1. use `filter_trials` to shortlist candidates with broad structured conditions;
+2. pass the focused shortlist to `classify_trials` for complex inclusion/exclusion conditions;
+3. split shortlists larger than 25 trials into batches that use the same criteria.
+
+For example, filter a broad population of hundreds or thousands of profiles to a relevant shortlist, then classify only that shortlist rather than spending classification allowance across the entire discovery population.
+
 ## MCP input
 
 ```json
@@ -92,11 +100,22 @@ The public result is intentionally minimal:
 {
   "eligible_trials": ["2024-500001-00-00"],
   "ineligible_trials": ["2024-500002-00-00"],
-  "uncertain_trials": ["2024-500003-00-00"]
+  "uncertain_trials": ["2024-500003-00-00"],
+  "counts": {
+    "classified": 3,
+    "eligible": 1,
+    "ineligible": 1,
+    "uncertain": 1
+  },
+  "analysis_allowance": {
+    "limit": 25,
+    "used": 3,
+    "remaining": 22
+  }
 }
 ```
 
-No criterion-level evidence, rationale, confidence score, profile content, internal IDs, prompts, token usage or model traces are returned.
+Counts are calculated deterministically from the corresponding ID arrays so callers can quantify results without recounting them. No criterion-level evidence, rationale, confidence score, profile content, internal IDs, prompts, token usage or model traces are returned.
 
 ## Data and model boundary
 

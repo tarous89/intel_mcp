@@ -10,6 +10,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from intel_mcp.config import Settings
+from intel_mcp.models import AnalysisAllowance
 
 
 MAX_TRIALS_PER_CALL = 25
@@ -18,12 +19,23 @@ MAX_CRITERION_LENGTH = 600
 CLASSIFICATION_SCHEMA_VERSION = "1.0.0"
 
 
+class ClassificationCounts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    classified: int = Field(ge=0, le=MAX_TRIALS_PER_CALL)
+    eligible: int = Field(ge=0, le=MAX_TRIALS_PER_CALL)
+    ineligible: int = Field(ge=0, le=MAX_TRIALS_PER_CALL)
+    uncertain: int = Field(ge=0, le=MAX_TRIALS_PER_CALL)
+
+
 class ClassifyTrialsOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     eligible_trials: list[str]
     ineligible_trials: list[str]
     uncertain_trials: list[str]
+    counts: ClassificationCounts
+    analysis_allowance: AnalysisAllowance
 
 
 class ClassificationProfileItem(BaseModel):

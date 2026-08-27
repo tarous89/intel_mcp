@@ -54,12 +54,12 @@ Implemented now:
 start_analysis
 filter_trials
 classify_trials
+get_profiles
 ```
 
 Planned substantive tools:
 
 ```text
-get_profiles
 get_documents
 extract_variables
 ```
@@ -98,6 +98,8 @@ POST /api/internal/mcp/filter-trials
 
 Core rules:
 
+- it is the first screening/shortlisting step: use broad structured conditions to reduce the candidate pool before semantic classification;
+- complex inclusion/exclusion logic belongs in `classify_trials`, not in structured filtering;
 - approved Trial Profiles only; no raw-CTIS fallback;
 - explicit field/operator/sort allowlists only; no SQL or arbitrary JSON paths;
 - case-insensitive text matching;
@@ -107,8 +109,10 @@ Core rules:
 - country conditions within one country group must match the same country row;
 - different structured fields combine with AND; OR across different fields requires separate calls;
 - default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
-- page size 1–100 with opaque filter/sort-bound cursor;
+- page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
+- each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`; phase, dates and normalized document types remain filterable but are omitted from the repeated result projection;
+- output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
 contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
@@ -123,6 +127,8 @@ Because allowance state changes, `filter_trials` is annotated `readOnlyHint: fal
 ## `classify_trials` — finalized contract
 
 `classify_trials` is the semantic eligibility/prioritization step after a shortlist exists. It classifies selected **approved Trial Profiles**, not full protocols/documents.
+
+It is the final semantic classification step, not the initial discovery mechanism. Use `filter_trials` first wherever broad structured conditions can reduce the population. Classification is limited to 25 trials per call; larger focused shortlists use consistent batches.
 
 ### MCP input
 
@@ -238,7 +244,18 @@ The MCP caller receives only:
 {
   "eligible_trials": ["..."],
   "ineligible_trials": ["..."],
-  "uncertain_trials": ["..."]
+  "uncertain_trials": ["..."],
+  "counts": {
+    "classified": 0,
+    "eligible": 0,
+    "ineligible": 0,
+    "uncertain": 0
+  },
+  "analysis_allowance": {
+    "limit": 25,
+    "used": 0,
+    "remaining": 25
+  }
 }
 ```
 
@@ -308,6 +325,31 @@ The tool performs paid model work and changes observable allowance state. Exact 
 
 Detailed human-readable contract: `docs/classify-trials.md`.
 
+## `get_profiles` — implemented contract
+
+`get_profiles(analysis_id, trial_ids)` returns complete current approved Trial Profiles.
+
+- The only inputs are `analysis_id` and 1–10 EU trial numbers.
+- Duplicate trial IDs are removed while preserving order.
+- The Engine endpoint is `POST /api/internal/mcp/profiles`; it returns complete approved `profile_json`, profile schema version and approval timestamp, plus unavailable IDs.
+- Missing, candidate and rejected profiles are reported only as unavailable; no internal review state or raw-CTIS fallback is exposed.
+- Complete stored profiles include contacts and extracted-document inventory.
+- Every approved profile admitted by allowance is returned complete; no response-size deferral state is exposed.
+- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Current limits are Light 50 and Max 500. Exact repeated IDs do not consume allowance twice; unavailable IDs are not metered.
+- Output includes complete `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, compact counts and the common analysis allowance object.
+- The tool performs no generation, refresh, document retrieval, classification, semantic search, extraction or report writing.
+
+Annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: true
+openWorldHint: false
+```
+
+Detailed contract: `docs/get-profiles.md`.
+
 ## App control-plane boundary
 
 MCP reaches the app through service-authenticated internal endpoints. Current relevant endpoints:
@@ -316,6 +358,7 @@ MCP reaches the app through service-authenticated internal endpoints. Current re
 POST /api/internal/mcp/start-analysis
 POST /api/internal/mcp/filter-access
 POST /api/internal/mcp/classification-access
+POST /api/internal/mcp/profile-access
 ```
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
@@ -364,12 +407,11 @@ This verifies configuration and contracts. It does not constitute a paid end-to-
 
 ## Immediate next implementation work
 
-1. Implement `get_profiles` with bounded projections and its app allowance boundary.
-2. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
-3. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
-4. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-5. Wire the approved background SOL report execution after the required MCP tool surface is complete.
-6. Add external OAuth/distribution only after the internal business-tool flow is stable.
+1. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
+2. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
+3. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+4. Wire the approved background SOL report execution after the required MCP tool surface is complete.
+5. Add external OAuth/distribution only after the internal business-tool flow is stable.
 
 ## Context discipline
 

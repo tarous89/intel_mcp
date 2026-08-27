@@ -73,7 +73,7 @@ def test_classification_key_is_stable_when_criteria_are_reordered() -> None:
 
 
 @pytest.mark.anyio
-async def test_classify_trials_returns_only_three_trial_id_arrays(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_classify_trials_returns_trial_id_buckets_and_counts(monkeypatch: pytest.MonkeyPatch) -> None:
     trial_ids = ["2024-500001-00-00", "2024-500002-00-00", "2024-500003-00-00"]
     control = StubClassificationControlPlane()
     monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: control)
@@ -109,6 +109,8 @@ async def test_classify_trials_returns_only_three_trial_id_arrays(monkeypatch: p
         assert tool.annotations.destructive_hint is False
         assert tool.annotations.idempotent_hint is False
         assert "unknown" in (tool.description or "").lower()
+        assert "final semantic classification step" in (tool.description or "").lower()
+        assert "filter_trials" in (tool.description or "")
 
         result = await client.call_tool(
             "classify_trials",
@@ -126,4 +128,15 @@ async def test_classify_trials_returns_only_three_trial_id_arrays(monkeypatch: p
         "eligible_trials": [trial_ids[0]],
         "ineligible_trials": [trial_ids[1]],
         "uncertain_trials": [trial_ids[2]],
+        "counts": {
+            "classified": 3,
+            "eligible": 1,
+            "ineligible": 1,
+            "uncertain": 1,
+        },
+        "analysis_allowance": {
+            "limit": 200,
+            "used": 3,
+            "remaining": 197,
+        },
     }

@@ -15,6 +15,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from intel_mcp.classification import (
     ClassifierError,
+    ClassificationCounts,
     ClassifyTrialsOutput,
     aggregate_trial_result,
     classification_key,
@@ -25,12 +26,18 @@ from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.models import (
+    AnalysisAllowance,
     AnalysisLimits,
-    FilterBudget,
+    FilterCounts,
     FilterTrialsOutput,
     StartAnalysisOutput,
     TrialFilters,
     TrialSort,
+)
+from intel_mcp.profiles import (
+    MAX_PROFILES_PER_CALL,
+    GetProfilesCounts,
+    GetProfilesOutput,
 )
 
 settings = Settings.from_environment()
@@ -135,16 +142,21 @@ async def filter_trials(
             description="Maximum trials requested in this page. The hard per-call cap is 100.",
         ),
     ] = 20,
-    cursor: Annotated[
-        str | None,
+    offset: Annotated[
+        int,
         Field(
-            default=None,
-            max_length=2000,
-            description="Opaque cursor returned by the immediately preceding compatible filter call.",
+            ge=0,
+            le=1_000_000,
+            description="Number of matching trials to skip. Use 0 for the first page, then add the prior limit.",
         ),
-    ] = None,
+    ] = 0,
 ) -> FilterTrialsOutput:
     """Deterministically shortlist approved structured Trial Profiles.
+
+    Use this as the first screening step to reduce the candidate set with broad, reliable structured
+    conditions. After shortlisting, use classify_trials for complex inclusion/exclusion conditions that
+    require semantic interpretation of the Trial Profile. Do not use broad classification as the initial
+    discovery step when structured filtering can first reduce the candidate pool.
 
     This tool queries only documented structured columns. It does not search the complete profile,
     run semantic search, classify trials, retrieve full profiles/documents, extract variables, or
@@ -153,14 +165,15 @@ async def filter_trials(
 
     Results are validated and metered against the app-owned analysis lease. Light analyses may see
     at most 100 unique filtered trial IDs and Max analyses at most 1,000; retries and revisions do not
-    consume the same trial ID twice. Continue only with next_cursor returned by this tool.
+    consume the same trial ID twice. For another page, repeat the same filters and sort with offset
+    increased by the prior call's limit.
     """
     try:
         engine_result = await engine_client().filter_trials(
             filters=filters,
             sort=sort,
             limit=limit,
-            cursor=cursor,
+            offset=offset,
         )
         access_result = await control_plane_client().authorize_filter_results(
             analysis_id,
@@ -172,31 +185,18 @@ async def filter_trials(
     access = access_result.access
     allowed = set(access.allowed_trial_ids)
     data = [item for item in engine_result.data if item.eu_number in allowed]
-    warnings = list(engine_result.warnings)
-    allowance_removed_results = len(data) != len(engine_result.data)
-    if allowance_removed_results:
-        warnings.append(
-            "The analysis filtered-trial allowance was reached; additional new trial IDs were not returned."
-        )
-
-    has_more = engine_result.has_more and not access.exhausted and not allowance_removed_results
     return FilterTrialsOutput(
         data=data,
-        applied_filters=engine_result.applied_filters,
-        coverage=engine_result.coverage,
-        warnings=warnings,
-        returned=len(data),
-        requested_limit=limit,
-        applied_limit=engine_result.applied_limit,
-        has_more=has_more,
-        next_cursor=engine_result.next_cursor if has_more else None,
-        analysis_budget=FilterBudget(
+        counts=FilterCounts(
+            total_profiles=engine_result.counts.total_profiles,
+            total_matches=engine_result.counts.total_matches,
+            returned=len(data),
+        ),
+        analysis_allowance=AnalysisAllowance(
             limit=access.limit,
             used=access.used,
             remaining=access.remaining,
-            exhausted=access.exhausted,
         ),
-        schema_version=engine_result.schema_version,
     )
 
 
@@ -250,6 +250,10 @@ async def classify_trials(
     ],
 ) -> ClassifyTrialsOutput:
     """Classify selected approved Trial Profiles into eligible, ineligible or uncertain trial IDs.
+
+    Use this as the final semantic classification step for trials already shortlisted with filter_trials.
+    Do not classify a broad discovery population when structured filtering can first reduce it. Classify
+    at most 25 trials per call; split a larger shortlist into batches using the same criteria.
 
     One independent Terra worker call is made per trial. Inside each worker call, every inclusion and
     exclusion criterion is classified separately as true, false or unknown/null with concise evidence.
@@ -313,7 +317,7 @@ async def classify_trials(
         raise
 
     try:
-        await control.authorize_classifications(analysis_id, keys, "commit")
+        commit_result = await control.authorize_classifications(analysis_id, keys, "commit")
     except ControlPlaneError as error:
         raise ToolError(f"{error.code}: {error.message}") from error
 
@@ -333,6 +337,88 @@ async def classify_trials(
         eligible_trials=eligible_trials,
         ineligible_trials=ineligible_trials,
         uncertain_trials=uncertain_trials,
+        counts=ClassificationCounts(
+            classified=len(worker_results),
+            eligible=len(eligible_trials),
+            ineligible=len(ineligible_trials),
+            uncertain=len(uncertain_trials),
+        ),
+        analysis_allowance=AnalysisAllowance(
+            limit=commit_result.access.limit,
+            used=commit_result.access.used,
+            remaining=commit_result.access.remaining,
+        ),
+    )
+
+
+@mcp.tool(
+    title="Get complete approved Trial Profiles",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+)
+async def get_profiles(
+    analysis_id: Annotated[
+        str,
+        Field(
+            min_length=20,
+            max_length=128,
+            description="Active 60-minute analysis ID returned by start_analysis.",
+        ),
+    ],
+    trial_ids: Annotated[
+        list[Annotated[str, Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")]],
+        Field(
+            min_length=1,
+            max_length=MAX_PROFILES_PER_CALL,
+            description="One to 10 EU trial numbers. Duplicate values are removed while preserving order.",
+        ),
+    ],
+) -> GetProfilesOutput:
+    """Return complete current approved Trial Profiles for selected EU trial numbers.
+
+    The tool returns the stored structured profile in full, including contacts and document inventory.
+    It does not generate or refresh profiles, retrieve document text, classify trials, search semantically,
+    or write report prose. Candidate and rejected profiles are treated as unavailable; there is no raw-CTIS
+    fallback.
+
+    Up to ten IDs may be requested and every approved profile admitted by the analysis allowance is returned
+    complete. Exact retries or later retrieval of the same profile do not consume the allowance twice.
+    """
+    unique_trial_ids = list(dict.fromkeys(trial_ids))
+    try:
+        engine_result = await engine_client().get_profiles(unique_trial_ids)
+        available_ids = [item.eu_number for item in engine_result.data]
+        access_result = await control_plane_client().authorize_profiles(analysis_id, available_ids)
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+
+    access = access_result.access
+    allowed = set(access.allowed_trial_ids)
+    if not allowed.issubset(available_ids) or len(allowed) != len(access.allowed_trial_ids):
+        raise ToolError("PROFILE_ACCESS_FAILED: the control plane returned misaligned profile authorization.")
+
+    profiles = [item for item in engine_result.data if item.eu_number in allowed]
+    allowance_reached = [item.eu_number for item in engine_result.data if item.eu_number not in allowed]
+
+    return GetProfilesOutput(
+        profiles=profiles,
+        unavailable_trial_ids=engine_result.unavailable_trial_ids,
+        allowance_reached_trial_ids=allowance_reached,
+        counts=GetProfilesCounts(
+            requested=len(unique_trial_ids),
+            returned=len(profiles),
+            unavailable=len(engine_result.unavailable_trial_ids),
+            allowance_reached=len(allowance_reached),
+        ),
+        analysis_allowance=AnalysisAllowance(
+            limit=access.limit,
+            used=access.used,
+            remaining=access.remaining,
+        ),
     )
 
 

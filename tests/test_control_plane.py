@@ -96,3 +96,30 @@ async def test_filter_access_is_authenticated_and_parsed() -> None:
         "ana_123456789012345678901234", ["2024-500001-00-00"]
     )
     assert result.access.remaining == 99
+
+
+@pytest.mark.anyio
+async def test_profile_access_is_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-service-token"
+        assert request.url.path == "/api/internal/mcp/profile-access"
+        assert request.content == b'{"analysisId":"ana_123456789012345678901234","trialIds":["2024-500001-00-00"]}'
+        return httpx.Response(
+            200,
+            json={
+                "access": {
+                    "allowedTrialIds": ["2024-500001-00-00"],
+                    "limit": 50,
+                    "used": 1,
+                    "remaining": 49,
+                    "exhausted": False,
+                }
+            },
+        )
+
+    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.authorize_profiles(
+        "ana_123456789012345678901234", ["2024-500001-00-00"]
+    )
+    assert result.access.allowed_trial_ids == ["2024-500001-00-00"]
+    assert result.access.remaining == 49
