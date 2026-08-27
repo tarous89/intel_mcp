@@ -6,6 +6,8 @@ Implemented tools:
 
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Intel Engine's versioned internal endpoint. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
+- `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets.
+- `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
 
@@ -45,6 +47,19 @@ The 34-value therapeutic-area vocabulary is aligned with Trial Profile contract
 Reproductive Medicine, Emergency Medicine and Critical Care values.
 
 Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer to a subsidy or funding source, or omit part of the complete legal entity name. Use sponsor-name filtering to shortlist records; do not treat it as definitive legal-entity resolution.
+
+## `get_profiles` contract
+
+`get_profiles` accepts only `analysis_id` and `trial_ids`.
+
+- Request 1–10 EU trial numbers per call; duplicate IDs are removed while preserving order.
+- Return the complete stored current approved Trial Profile, including contacts and extracted-document inventory.
+- Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
+- Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
+- The normal aggregate response target is 500,000 UTF-8 bytes. Profiles are never truncated: complete profiles that do not fit are listed in `remaining_trial_ids` for a later call, while a single oversized profile is returned alone.
+- `allowance_excluded_trial_ids` distinguishes available profiles that could not be admitted because the analysis profile allowance was exhausted.
+- The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
+- Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
 
 ## Local setup
 
