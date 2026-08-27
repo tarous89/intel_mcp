@@ -15,7 +15,7 @@ from intel_mcp.models import (
     AppFilterAccessResponse,
     AppStartAnalysisResponse,
     EngineFilterResponse,
-    FilterCoverage,
+    FilterCounts,
     FilterTrialItem,
 )
 from intel_mcp.profiles import (
@@ -91,14 +91,7 @@ class StubEngine:
                     available_extracted_document_names=["Protocol v2"],
                 )
             ],
-            applied_filters={"phase": {"operator": "contains_any", "values": [2]}},
-            coverage=FilterCoverage(approved_profiles_considered=7, total_matches=1),
-            warnings=[],
-            returned=1,
-            applied_limit=20,
-            has_more=False,
-            next_cursor=None,
-            schema_version="1.0.0",
+            counts=FilterCounts(total_profiles=7, total_matches=1, returned=1),
         )
 
     async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
@@ -150,6 +143,8 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
         schema_text = str(tool.input_schema)
         assert "profile_contains" not in schema_text
         assert "sponsor_name" in schema_text
+        assert "offset" in tool.input_schema["properties"]
+        assert "cursor" not in tool.input_schema["properties"]
         assert tool.annotations is not None
         assert "first screening step" in (tool.description or "").lower()
         assert "classify_trials" in (tool.description or "")
@@ -165,14 +160,23 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
         )
         assert result.is_error is False
         assert result.structured_content is not None
-        assert result.structured_content["returned"] == 1
+        assert set(result.structured_content) == {"data", "counts", "analysis_allowance"}
         assert result.structured_content["data"][0] == {
             "eu_number": "2024-500001-00-00",
             "trial_title": "Phase 2 head and neck study",
             "sponsor_name": "Example Sponsor",
             "available_extracted_document_names": ["Protocol v2"],
         }
-        assert result.structured_content["coverage"]["total_matches"] == 1
+        assert result.structured_content["counts"] == {
+            "total_profiles": 7,
+            "total_matches": 1,
+            "returned": 1,
+        }
+        assert result.structured_content["analysis_allowance"] == {
+            "limit": 1000,
+            "used": 1,
+            "remaining": 999,
+        }
 
 
 @pytest.mark.anyio
@@ -204,14 +208,30 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
 
     assert result.is_error is False
     assert result.structured_content is not None
-    assert result.structured_content["requested"] == 2
-    assert result.structured_content["returned"] == 1
+    assert set(result.structured_content) == {
+        "profiles",
+        "unavailable_trial_ids",
+        "allowance_reached_trial_ids",
+        "counts",
+        "analysis_allowance",
+    }
     assert result.structured_content["profiles"][0]["profile"] == {
         "filtering_variables": {"phase": [2]},
         "classification_variables": {"trial_title": "Full 2024-500001-00-00"},
     }
     assert result.structured_content["unavailable_trial_ids"] == ["2024-500002-00-00"]
-    assert result.structured_content["remaining_trial_ids"] == []
+    assert result.structured_content["allowance_reached_trial_ids"] == []
+    assert result.structured_content["counts"] == {
+        "requested": 2,
+        "returned": 1,
+        "unavailable": 1,
+        "allowance_reached": 0,
+    }
+    assert result.structured_content["analysis_allowance"] == {
+        "limit": 500,
+        "used": 1,
+        "remaining": 499,
+    }
 
 
 def test_controlled_filter_values_accept_any_case_and_normalize() -> None:
