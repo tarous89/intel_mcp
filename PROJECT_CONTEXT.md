@@ -1,705 +1,366 @@
-# Intel MCP — Project Context
+# Intel MCP — Current Project Context
 
-**Canonical handoff file for the TrialAgents Intel MCP service.**
+**Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-08-26  
-Repository: `tarous89/intel_mcp`  
-Status: `start_analysis` implemented; app control plane live; isolated free Render Web Service deployed.
+Last updated: 2026-08-27  
+Repository: `tarous89/intel_mcp`
 
-## Purpose
+> This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
 
-Intel MCP is the fifth component of the TrialAgents platform. It exposes the existing Intel Agent clinical-trial intelligence backend to ChatGPT, the OpenAI API, Claude, the Claude API, and other MCP clients.
+## Purpose and boundaries
 
-This repository is a distribution and access layer. It must not duplicate CTIS ingestion, document extraction, Trial Profile generation, or profile refresh logic owned by `tarous89/intel-agent`. Prefer a versioned internal API boundary to direct database coupling. The MCP service is independently deployable so MCP changes cannot interrupt the underlying data-building engine.
+Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical-trial intelligence and MCP clients/orchestrators.
 
-## Final public tool surface
+Repositories remain separate:
 
-### 1. `filter_trials`
+- `tarous89/intel-agent`: CTIS ingestion, documents, extracted text, Trial Profiles and Engine read boundaries.
+- `tarous89/intel_mcp`: MCP protocol server, bounded tools and AI-worker orchestration.
+- `tarous89/intel_agent_app`: user identity, projects, purchases, entitlements, approved report runs, analysis leases and usage accounting.
+- `tarous89/trial_feed`: TrialFeed/OncologyHero workflow.
 
-Deterministically filters structured Trial Profile fields.
+MCP must not receive the clinical warehouse `DATABASE_URL` or the app/control-plane database credentials. It reaches both systems through narrow service-authenticated HTTP boundaries.
 
-- Inputs: supported field/operator conditions, sort, page size, cursor.
-- Outputs: matching trial IDs, normalized applied filters, total/coverage and next cursor.
-- No free-form SQL or semantic search.
-- Annotation: `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false`.
+The underlying Intel Engine must remain isolated from MCP/App iteration.
 
-### 2. `classify_trials`
+## Production service
 
-Uses an LLM worker to classify selected Trial Profiles against user-supplied criteria.
+Intel MCP runs as its own Render Web Service in Frankfurt:
 
-- Inputs: trial IDs, criterion, allowed labels or requested output definition.
-- Outputs per trial: classification, concise rationale, confidence/status and evidence references.
-- Must use bounded batches and disclose that it consumes the account's analysis allowance.
-- If it consumes allowance or persists job/usage state: `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`.
+```text
+service: intel-mcp
+service id: srv-da7g4igae00c73bo6oe0
+current protocol URL: https://intel-mcp.onrender.com/mcp
+health: https://intel-mcp.onrender.com/health
+runtime: Python
+MCP SDK: official v2 line
+transport: Streamable HTTP
+```
 
-### 3. `get_profiles`
+`/mcp` requires the dedicated inbound service bearer for the current internal-app profile. `/health` is public and non-sensitive.
 
-Returns selected structured Trial Profiles.
+The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
-- Inputs: trial IDs, requested field projection, page size and cursor.
-- Outputs: bounded profile data, sources, coverage and continuation cursor.
-- Exclude contact personal data by default.
-- Annotation: `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false`.
+On 2026-08-27, after the OpenAI/Terra API key was added to Intel MCP, Render performed a fresh manual deploy of commit `3a6502c54261777c7a776058e0fefdb71a0a2c57`; deploy `dep-da80emc9v7es739cfb7g` reached `live`. The MCP CI re-run then passed both the unit/contract test job and the live assertion that `classifier_configured=true`.
 
-### 4. `get_documents`
+## Current MCP tool surface
 
-Returns extracted CTIS documents. This name supersedes `get_protocols`.
+Implemented now:
 
-- Inputs: trial IDs, document types, optional document names/IDs, page or character bounds and cursor.
-- Supported normalized types: `protocol`, `recruitment_arrangements`, `patient_information_and_informed_consent`, `assessments_and_forms`, and `results_report`.
-- Use the Trial Profile's available extracted document types and document names.
-- Outputs: document metadata and bounded text chunks with source/page references, truncation state and continuation cursor.
-- Never dump every full document by default.
-- Annotation: `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false`.
+```text
+start_analysis
+filter_trials
+classify_trials
+```
 
-### 5. `extract_variables`
+Planned substantive tools:
 
-Uses internal semantic retrieval plus an LLM worker to extract requested variables from selected documents.
+```text
+get_profiles
+get_documents
+extract_variables
+```
 
-- Inputs: trial IDs, document types or IDs, requested variables and optional population/context.
-- Outputs per trial and variable: value, `found | not_found | ambiguous | not_applicable | error`, concise evidence and source/page references.
-- Semantic passage search remains internal; there is no public search tool.
-- Must use bounded batches and disclose analysis-allowance consumption.
-- If it consumes allowance or persists job/usage state: `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`.
+Do not add standalone `search_protocols`, `aggregate` or `get_evidence`. Semantic passage retrieval is an internal implementation detail; evidence belongs to the substantive operation that produced it.
 
-Excluded tools: `search_protocols`, `aggregate`, and `get_evidence`. Evidence is returned with substantive results.
+The Intel Agent app should pass only tools enabled for the active analysis to SOL. Server-side control-plane checks remain authoritative if a disabled tool call is nevertheless attempted.
 
-## Common result contract
+## `start_analysis`
 
-Use concise MCP `structuredContent` with a common envelope:
+`start_analysis(report_run_id)` is the lifecycle tool.
+
+- It accepts only the stable app-created `report_run_id`.
+- The app resolves the authenticated user, project, approved plan, tier, entitlements and enabled tools server-side.
+- It returns/reuses one opaque 60-minute `analysis_id` lease.
+- One active analysis per individual user is enforced in v1.
+- Repeated starts for an already-active report reuse the current lease.
+- It performs no filtering, retrieval, classification, document work or report writing.
+
+Annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: true
+openWorldHint: false
+```
+
+## `filter_trials`
+
+`filter_trials` deterministically filters approved structured Trial Profile fields through Engine endpoint:
+
+```text
+POST /api/internal/mcp/filter-trials
+```
+
+Core rules:
+
+- approved Trial Profiles only; no raw-CTIS fallback;
+- explicit field/operator/sort allowlists only; no SQL or arbitrary JSON paths;
+- case-insensitive text matching;
+- text operators: `contains`, `is`, `does_not_contain`, `is_not`;
+- controlled arrays: `contains_any`, `contains_all`, `contains_none`;
+- missing values do not satisfy negative filters;
+- country conditions within one country group must match the same country row;
+- different structured fields combine with AND; OR across different fields requires separate calls;
+- default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
+- page size 1–100 with opaque filter/sort-bound cursor;
+- sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
+
+The app control plane meters unique returned EU trial numbers against the active analysis lease. Current limits: Light 100, Max 1,000. Exact repeated trial IDs do not consume allowance twice.
+
+Because allowance state changes, `filter_trials` is annotated `readOnlyHint: false`, despite its Engine database query being read-only.
+
+## `classify_trials` — finalized contract
+
+`classify_trials` is the semantic eligibility/prioritization step after a shortlist exists. It classifies selected **approved Trial Profiles**, not full protocols/documents.
+
+### MCP input
 
 ```json
 {
-  "data": {},
-  "evidence": [],
-  "coverage": {},
-  "warnings": [],
-  "next_cursor": null
+  "analysis_id": "ana_...",
+  "trial_ids": ["2024-500001-00-00"],
+  "inclusion_criteria": ["The trial includes the target population"],
+  "exclusion_criteria": ["The trial is restricted to healthy volunteers"]
 }
 ```
 
-- `content`: short human-readable summary only.
-- `_meta`: client-only presentation metadata; never secrets or sensitive information.
-- Stable public trial/profile/document IDs.
-- Absolute, user-openable CTIS source URLs.
-- Evidence includes document ID/type plus page or section.
-- Per-item statuses allow partial success.
-- Mark truncation and supply a cursor.
-- Never expose tokens, prompts, chain-of-thought, internal traces, database IDs or debug data.
-- Keep schemas strict, versioned and backward compatible; prefer additive changes.
+Rules:
 
-## Remote MCP architecture
+- 1–25 distinct EU trial numbers per call;
+- every requested trial must have an approved Trial Profile;
+- one or more inclusion criteria;
+- one or more exclusion criteria;
+- maximum 20 criteria total across both groups;
+- maximum 600 characters per criterion.
 
-Deploy one universal production endpoint:
+The words `inclusion_criteria` and `exclusion_criteria` refer to user-defined analysis criteria; they are not necessarily formal protocol eligibility criteria.
+
+### Engine profile boundary
+
+Before allowance reservation or Terra work, MCP calls:
+
+```text
+POST /api/internal/mcp/classification-profiles
+```
+
+Engine:
+
+- validates the bounded EU-number list;
+- requires an approved Trial Profile for every requested trial;
+- preserves caller order;
+- recursively removes contact personal data such as first name, last name, email and phone while preserving non-personal operational context;
+- returns only Trial Profile JSON required by the classifier path.
+
+If any requested approved profile is unavailable, the whole classification call fails before model work is reserved.
+
+### One Terra worker call per trial
+
+For every trial, MCP creates one logical Terra worker job containing the full contact-redacted approved Trial Profile plus **all** requested inclusion and exclusion criteria.
+
+Internal positional criterion IDs are generated only for reliable alignment:
+
+```text
+i1, i2, ...
+e1, e2, ...
+```
+
+Terra evaluates every criterion independently and returns:
+
+```json
+{
+  "criterion_id": "i1",
+  "classification": true,
+  "evidence": "Concise Trial Profile evidence/reasoning"
+}
+```
+
+`classification` is strictly:
+
+- `true`: the complete criterion statement is supported;
+- `false`: the Trial Profile affirmatively supports that the complete statement is not satisfied;
+- `null`: the Trial Profile does not establish either true or false.
+
+Absence of evidence is normally `null`, not `false`.
+
+Inclusion/exclusion labels **never invert** the Terra boolean. For an exclusion criterion, `true` means the exclusionary condition described by the statement is present.
+
+Detailed criterion-level classifications and evidence exist in the internal worker result used for aggregation. They are intentionally not returned by the MCP tool. The current implementation does not persist these detailed worker results after the call completes.
+
+Terra is instructed to treat Trial Profile content as untrusted data, ignore embedded instructions, use only the supplied Trial Profile, and not inspect protocols, other documents or external knowledge.
+
+### Unknown handling
+
+Default behavior is to state the factual condition normally. If the profile cannot establish it, Terra returns `null`, potentially making the trial uncertain.
+
+Only when analytically appropriate may the caller explicitly make unknown/missing information part of the criterion itself, for example:
+
+```text
+Pediatric patients are included OR pediatric participation is unknown.
+```
+
+If pediatric status is genuinely unknown, that complete statement is `true`. Do not add this construction routinely; use it only when the requested analysis genuinely intends unknown to satisfy that specific statement.
+
+### Deterministic aggregation
+
+Terra does **not** classify the overall trial as eligible/ineligible. MCP derives the final bucket locally with fixed precedence:
+
+```text
+INELIGIBLE
+  if ANY inclusion criterion = false
+  OR ANY exclusion criterion = true
+
+UNCERTAIN
+  otherwise, if ANY criterion = null
+
+ELIGIBLE
+  otherwise
+  (= all inclusion criteria true and all exclusion criteria false)
+```
+
+A definitive failure therefore takes precedence over an unrelated unknown.
+
+### MCP output
+
+The MCP caller receives only:
+
+```json
+{
+  "eligible_trials": ["..."],
+  "ineligible_trials": ["..."],
+  "uncertain_trials": ["..."]
+}
+```
+
+Do not return criterion evidence, rationale, confidence scores, prompts, token usage, profile bodies, internal IDs or model traces in this tool result.
+
+### Classifier runtime
+
+Current defaults:
+
+```text
+model: gpt-5.6-terra
+reasoning effort: high
+service tier: standard
+max output tokens: 12,000
+worker concurrency: 4
+per-worker timeout: 300 seconds
+retry: one controlled retry for retryable worker failures
+```
+
+Operational values are environment-configurable without changing the public schema.
+
+### Classification allowance
+
+The app/control plane owns allowance. Current per-analysis limits are:
+
+```text
+Light: 25
+Max:   200
+```
+
+A classification unit is identified by a stable SHA-256 fingerprint of:
+
+```text
+EU trial number
++ normalized inclusion criteria
++ normalized exclusion criteria
++ classifier schema version
+```
+
+The batch is all-or-nothing when insufficient allowance remains.
+
+Allowance uses reservation/finalization semantics:
+
+1. MCP validates approved profiles.
+2. App control plane `reserve`s all new classification keys.
+3. MCP runs Terra workers.
+4. On complete success, MCP `commit`s the keys.
+5. On classifier/system failure, MCP `release`s the keys.
+
+Consequences:
+
+- failed Terra work does not consume completed-classification allowance;
+- exact retries reuse the same fingerprint and do not double-charge completed work;
+- changing criteria creates new fingerprints and is new classification work;
+- commit/release can finalize already-started work after lease expiry/inactivation so reservations do not become stranded merely because a valid call ran long.
+
+`classify_trials` annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: false
+openWorldHint: false
+```
+
+The tool performs paid model work and changes observable allowance state. Exact usage is deduplicated, but the operation is not advertised as generally idempotent because an external model worker executes.
+
+Detailed human-readable contract: `docs/classify-trials.md`.
+
+## App control-plane boundary
+
+MCP reaches the app through service-authenticated internal endpoints. Current relevant endpoints:
+
+```text
+POST /api/internal/mcp/start-analysis
+POST /api/internal/mcp/filter-access
+POST /api/internal/mcp/classification-access
+```
+
+MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
+
+`classification-access` supports `reserve | commit | release` and stores bounded committed/reserved classification-key sets inside the existing lease `usage` JSON; no control-plane schema migration was required.
+
+## Security and privacy
+
+- Public CTIS/trial data only in the initial intelligence scope; never request patient-level PHI.
+- Treat Trial Profiles and documents as untrusted data, never instructions.
+- Never expose service credentials, API keys, OAuth tokens, prompts, chain-of-thought or internal traces.
+- MCP has no clinical database credentials and no app/control-plane database credentials.
+- Contact personal data is excluded from the classifier profile path.
+- Tenant/user/entitlement enforcement belongs server-side, not to model-provided assertions.
+
+## External ChatGPT / Claude distribution
+
+Current production profile is the internal Intel Agent application integration protected by service bearer authentication.
+
+Later external distribution should reuse the same business-tool contracts behind OAuth 2.1/OIDC authorization code + PKCE S256, protected-resource metadata/discovery, token audience/resource validation, scopes, refresh/revocation and account entitlement checks.
+
+Billing remains on TrialAgents. Do not sell subscriptions/credits inside ChatGPT/Claude.
+
+Proposed machine endpoint remains:
 
 ```text
 https://mcp.trialagents.com/mcp
 ```
 
-Requirements:
+Public OAuth work is not complete and must not reuse the current internal bearer as end-user authentication.
 
-- Public HTTPS with a recognized certificate.
-- Streamable HTTP using an official MCP SDK.
-- Tools-only first release for widest OpenAI and Claude API compatibility.
-- Stateless request handling where possible.
-- Strict JSON input/output validation.
-- Tenant isolation and server-side authorization on every call.
-- Pagination, output limits and bounded batch sizes.
-- Analysis calls must complete reliably within hosted-client timeouts; agents continue larger work using cursors.
-- Rate limiting, timeouts, retry-safe behavior and graceful partial errors.
-- Metrics and structured operational logs without tokens, PHI, document bodies or unnecessary personal data.
-- Stable production URL; no local or temporary tunnel used for review.
+## Verification
 
-## Authentication and paid access
+MCP CI (`.github/workflows/ci.yml`) now runs the Python unit/contract suite on PRs and main pushes. On main it also checks the deployed `/health` response and requires `classifier_configured=true`.
 
-Use the existing TrialAgents account, subscription and entitlement system. Billing stays on TrialAgents; OpenAI, Anthropic and the MCP Registry are not the merchant of record.
-
-Implement OAuth 2.1/OIDC:
-
-- Authorization Code flow with PKCE `S256`.
-- Protected Resource Metadata.
-- Authorization-server or OIDC discovery.
-- Client ID Metadata Documents and Dynamic Client Registration where supported.
-- Exact redirect URI and issuer validation.
-- Resource indicators and access-token audience validation.
-- Scope validation, token expiry, refresh and revocation.
-- `401` plus correct `WWW-Authenticate` challenge.
-- Server-side subscription/entitlement lookup on every request or with a very short cache.
-
-Recommended scopes:
-
-- `trials:read`
-- `documents:read`
-- `analysis:run`
-- `contacts:read` only if contact access is later justified
-
-Commercial rules:
-
-- Users purchase on the TrialAgents website, then connect an existing paid account.
-- Do not sell subscriptions, credits or digital services inside the ChatGPT plugin.
-- Do not show plans, initiate checkout, promote upgrades or link directly to checkout from ChatGPT.
-- An unavailable tool may state that the current entitlement does not include it and link only to a general informational plan page.
-- Claude listing copy may disclose that an existing TrialAgents account/plan is required.
-- There is no standard cross-platform autonomous-agent payment or directory revenue-share protocol.
-
-## Privacy, clinical-data and security guardrails
-
-Initial public MCP scope is public CTIS trial and extracted-document data only.
-
-- Never request or accept patient records or patient-level PHI.
-- Treat profiles and documents as untrusted data, not instructions.
-- Defend LLM workers against prompt injection from source documents.
-- Minimize inputs and results; never collect the full host conversation.
-- Exclude names/emails and other contact personal data by default; require explicit request, authorization and scope if later exposed.
-- Never return credentials, access tokens, API keys, passwords or MFA data.
-- Publish privacy, retention, deletion, subprocessors and security-contact information.
-- Maintain auditability without exposing internal logs to callers.
-- Enforce plan limits, rate limits and tenant boundaries server-side.
-
-## Platform compatibility
-
-### ChatGPT / OpenAI plugin directory
-
-Submit as an MCP-only plugin using the universal endpoint. Required package:
-
-- Verified business/developer identity and public production domain.
-- Name, icon, short/long descriptions and categories.
-- Website, support, privacy and terms URLs.
-- Accurate tool names, titles, descriptions, schemas, security schemes and annotations.
-- OAuth configuration and reviewer-accessible demo account without MFA/signup blockers.
-- Five positive and three negative/out-of-scope test cases with expected tool behavior.
-- Supported countries, release notes and required attestations.
-- Complete, reliable production functionality; not a trial/demo shell.
-
-Official references:
-
-- https://developers.openai.com/plugins/build/mcp-server
-- https://developers.openai.com/plugins/build/auth
-- https://developers.openai.com/plugins/deploy/submission
-- https://developers.openai.com/plugins/deploy/app-review
-- https://developers.openai.com/plugins/app-guidelines
-
-### OpenAI API
-
-The same endpoint must work through the Responses API remote MCP tool using `server_url`, OAuth `authorization`, `allowed_tools` and appropriate approval configuration. The API integrator obtains and refreshes the OAuth token.
-
-Reference: https://developers.openai.com/api/docs/guides/tools-connectors-mcp
-
-### Claude connector directory and Claude clients
-
-Requirements:
-
-- Public Streamable HTTP endpoint and OAuth.
-- Every tool has a title and accurate read-only/destructive annotations.
-- Connector name (max 100 characters), tagline (max 55), description (max 2,000), one to five categories, permanent slug and icon.
-- Docs, privacy, support and security-contact URLs.
-- Required account/plan, read/write scope and data-source/health-data declarations.
-- Fully populated test account and precise setup instructions.
-- At least three working example prompts.
-- Helpful, token-efficient errors.
-- No hidden instructions, tool-selection manipulation or unnecessary conversation collection.
-- Submission requires an eligible Claude Team/Enterprise organization and owner/delegated directory permission.
-
-References:
-
-- https://claude.com/docs/connectors/building
-- https://claude.com/docs/connectors/building/submission
-- https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy
-
-### Claude API
-
-The same public HTTPS endpoint must work through the Messages API `mcp_servers` configuration using an OAuth bearer token. The API consumer obtains and refreshes that token. The hosted connector currently supports MCP tools, so resources/prompts are not required for v1.
-
-Reference: https://platform.claude.com/docs/en/agents-and-tools/mcp-connector
-
-### Official MCP Registry
-
-Publish immutable versioned metadata under a verified domain namespace, proposed:
+Verification after the 2026-08-27 API-key configuration:
 
 ```text
-com.trialagents/intel-agent
+unit/contract tests: PASS
+live classifier configuration check: PASS
+MCP Render deployment: LIVE
+app classification-access deployment: LIVE
 ```
 
-The `server.json` must contain the current schema URL, name, title, description, semantic version and a `streamable-http` remote pointing to the universal endpoint. Registry listing provides discovery only, not billing.
+This verifies configuration and contracts. It does not constitute a paid end-to-end Terra classification of a real analysis lease.
 
-References:
+## Immediate next implementation work
 
-- https://modelcontextprotocol.io/registry/about
-- https://modelcontextprotocol.io/registry/remote-servers
-- https://modelcontextprotocol.io/registry/authentication
-- https://modelcontextprotocol.io/registry/versioning
+1. Implement `get_profiles` with bounded projections and its app allowance boundary.
+2. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
+3. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
+4. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+5. Wire the approved background SOL report execution after the required MCP tool surface is complete.
+6. Add external OAuth/distribution only after the internal business-tool flow is stable.
 
-## Proposed repository structure
+## Context discipline
 
-```text
-src/
-  server/
-  tools/
-    filter_trials
-    classify_trials
-    get_profiles
-    get_documents
-    extract_variables
-  schemas/
-  clients/
-    intel_backend
-    llm_worker
-  auth/
-  entitlements/
-  policies/
-  observability/
-tests/
-  contract/
-  integration/
-  security/
-  review_cases/
-docs/
-  setup/
-  privacy/
-  support/
-registry/
-  server.json
-```
-
-Do not add client-specific business logic to tools. Platform adapters should remain thin around the same MCP contracts.
-
-## Build sequence
-
-1. Decide implementation language after inspecting the existing Intel Agent stack; reuse its language unless there is a strong reason not to.
-2. Define the versioned internal Intel Agent read API and LLM-worker boundary.
-3. Finalize strict JSON schemas, limits, errors and annotations for the five tools.
-4. Scaffold the Streamable HTTP MCP server plus health checks and observability.
-5. Implement OAuth discovery, PKCE, token validation, scopes and TrialAgents entitlement checks.
-6. Implement and contract-test the three deterministic read tools.
-7. Implement bounded `classify_trials` and `extract_variables` worker calls.
-8. Add prompt-injection defenses, PHI rejection, data minimization, rate limits and security tests.
-9. Test with MCP Inspector, ChatGPT developer mode, OpenAI Responses API, Claude connectors/Claude Code and Claude Messages API.
-10. Deploy the stable production endpoint, then prepare OpenAI, Claude and MCP Registry submission packages.
-
-## Documentation rule
-
-Update this file after every important architectural decision, implementation milestone, production learning or listing-policy change. Keep prior decisions when superseded and mark their replacement explicitly.
-
-
-## Use-case and access-profile architecture (2026-08-26)
-
-This section supersedes the earlier assumption that every consumer uses one public OAuth-protected endpoint. Build one shared MCP codebase and tool implementation, but support distinct access and feature profiles.
-
-### Use case 1 — Intel Agent application backend
-
-- Intel MCP powers report generation inside the Intel Agent application.
-- The user authenticates only once with the Intel Agent application.
-- MCP must run transparently in the backend with no second login, OAuth consent, account-linking screen or user-facing MCP authentication step.
-- The internal MCP surface must not be an unauthenticated public endpoint. Preferred safeguard: a Render private-network endpoint callable only by the Intel Agent backend. A service identity may be used if network topology requires it, but it must not create another user authentication flow.
-- The Intel Agent backend remains responsible for user/session authentication and passes trusted user, tenant and entitlement context needed for authorization, usage attribution and limits.
-- The app orchestrates MCP calls into reports; Intel MCP remains the bounded data/tool layer rather than owning the application UI.
-
-### Use case 2 — external ChatGPT and Claude access
-
-- Expose a public HTTPS Streamable HTTP MCP endpoint for ChatGPT, Claude and API consumers.
-- Reuse the existing Intel Agent/TrialAgents account system and subscriptions.
-- Use native OAuth account linking. Authentication is protocol-level OAuth, not a public `authenticate` MCP tool that accepts credentials.
-- Provide a dedicated connection/consent page, either within the Intel Agent app or on a dedicated MCP route/domain.
-- Validate OAuth token, user/tenant, scopes, subscription entitlement and limits on every request.
-- External API consumers obtain and refresh a bearer token outside the MCP call.
-
-### Feature profiles
-
-Support centrally selectable tool bundles without forking the business logic:
-
-1. **Core / no-worker profile** — deterministic retrieval tools only.
-2. **Worker-enabled profile** — core tools plus approved AI-worker tools.
-
-The exact membership remains pending because `classify_trials` also uses an LLM worker, while the user specifically described the no-worker version as “without basically the extraction tool.” Confirm whether the core profile excludes both `classify_trials` and `extract_variables`, or only `extract_variables`.
-
-Feature availability must be controlled server-side by deployment profile, client registration, tenant/subscription entitlement or an explicit combination. Disabled tools must not be callable even if a client fabricates the request. Prefer one codebase with configuration-driven profiles; decide later whether public profiles use separate endpoints/listings or one OAuth endpoint with entitlement-based tool exposure.
-
-### Centrally controlled limits
-
-Every potentially large operation must accept a bounded requested limit and enforce a server-controlled hard maximum. “All” must never mean an unbounded synchronous request.
-
-Limits must be independently configurable for:
-
-- Trial IDs returned by `filter_trials`.
-- Profiles returned by `get_profiles`.
-- Trials processed by `classify_trials`.
-- Documents returned per request and per trial by `get_documents`.
-- Text chunks/pages/characters returned per document and per call.
-- Trials, documents and variables processed by `extract_variables`.
-- Total output size, worker runtime, concurrent calls, daily/monthly analysis allowance and pagination depth.
-
-Use defaults plus hard caps. The caller may request any value up to its effective cap; the server clamps or rejects larger values and returns the applied limit, truncation state and continuation cursor. Effective limits may vary by internal-app profile, public profile, subscription tier and deployment environment. Store the policy centrally rather than hard-coding values into tool handlers.
-
-“Top N” requires an explicit stable ordering. Deterministic filters should support approved sort keys such as relevance, latest submission/approval date or another defined field, with a deterministic tie-breaker. The ranking and default sort remain to be decided.
-
-### Foundation questions still open
-
-- Which exact report types and workflows will the Intel Agent app generate first?
-- Which tools should the internal app profile expose?
-- Does “no-worker” exclude both LLM-backed tools or only `extract_variables`?
-- Are Core and Worker-enabled public access separate products/listings/endpoints, or one connector whose tools depend on entitlement?
-- What default and hard maximum should apply to each trial, profile, document, text and worker dimension?
-- What defines “top” results when the caller does not specify a sort?
-- Will Intel Agent and Intel MCP run in the same Render private network?
-- Should the connection/consent page live at `intel.trialagents.com/mcp` or a dedicated MCP subdomain?
-
-
-## Confirmed report, packaging and deployment direction (2026-08-26)
-
-### Report workflow and scope
-
-Intel Agent reports are composable multi-tool workflows:
-
-1. Filter trials deterministically using Trial Profile filtering variables.
-2. If deterministic filtering is insufficient, classify only the shortlisted trials.
-3. Retrieve profiles and/or documents and extract requested variables based on the report questions.
-4. Combine the results, evidence and coverage into one report.
-
-High-value examples include:
-
-- All participating EU sites for Phase 2 head-and-neck cancer trials.
-- Endpoint benchmarking.
-- Inclusion/exclusion criteria comparisons.
-- Principal investigators with names and emails.
-- Sites with full contact details.
-- Other specific variables extracted from documents.
-- Multi-factor reports evaluating any combination of fields available in `intel_agent_db`.
-
-Any information in the Intel Agent database may become a report topic. Tool outputs therefore must be composable, consistently identified, evidence-linked and able to share one report/analysis context. The app/report orchestrator, not an individual MCP tool, assembles the final report.
-
-The internal Intel Agent app profile may use all five tools. Package policy (initially Light versus Max) controls the total trials, profiles, documents, variables and worker work available to a report.
-
-### Feature control
-
-Maintain independent server-side feature switches/entitlements rather than only two hard-coded bundles:
-
-- `filter_trials`
-- `get_profiles`
-- `get_documents`
-- `classify_trials`
-- `extract_variables`
-
-This permits at least:
-
-- Core: deterministic tools only.
-- Classification-enabled: core plus `classify_trials`.
-- Full analysis: all five tools.
-
-The user may enable either or both worker tools without maintaining separate implementations. External distribution uses one connector; the server enforces the connected account's tool and usage entitlements.
-
-### Analysis as the commercial unit — proposed
-
-Prefer “analyses per month” for customer-facing pricing, with internal compute metering for margin protection.
-
-One analysis should be a server-side report workspace identified by an `analysis_id` and defined by:
-
-- One report objective/brief.
-- One base trial cohort/search definition.
-- A package-specific maximum scope and compute budget.
-- All filtering, classification, profile/document retrieval and variable extraction needed for that report.
-- Revisions and follow-up questions within the same report workspace and base cohort.
-
-A revision remains part of the same analysis when it refines presentation, filters, variables or questions for the same underlying report/cohort. A new analysis begins when the user starts a new report objective, materially changes the base cohort (for example a different indication, phase or geography), or exhausts the analysis scope/compute budget.
-
-Do not bill each internal MCP call as a separate analysis. Track trials classified, documents processed, variables extracted, model tokens/cost and revisions internally. The exact revision window and package budgets remain to be agreed.
-
-Because MCP hosts do not reliably provide a reusable conversation identifier, tools should accept an optional `analysis_id` and return it. The first report call may create the ID automatically; later calls and revisions must reuse it. Avoid adding a separate public `create_analysis` tool unless testing shows automatic creation is unreliable.
-
-### Default ordering
-
-The default trial order is latest update first, using `latest_country_submission_or_approval_date DESC`, with EU trial number as a stable tie-breaker. Callers may select other approved deterministic sort keys. “Top N” always means the first N records under the declared order.
-
-### Deployment isolation — proposed
-
-Use one repository/codebase deployed as separate Render services in the same workspace:
-
-1. **Private internal MCP service** — reachable only through Render's private network by the Intel Agent app/backend. No second user login or OAuth flow. The app forwards trusted user, tenant, package and `analysis_id` context; a private service identity or signed internal context protects the service without creating user-visible authentication.
-2. **Public MCP gateway/service** — stable public HTTPS endpoint for the single ChatGPT/Claude connector. Performs OAuth, entitlement, rate-limit and public-policy enforcement before invoking the same core tool layer.
-3. **Worker service/queue** — isolated AI classification and extraction execution so expensive or failed worker tasks cannot destabilize retrieval.
-
-Deploy the same image/configurable modules where practical; do not fork the tool implementations. The public service must not expose the private internal endpoint or directly broaden database access.
-
-### Domain direction — proposed hybrid
-
-Use:
-
-- `https://intel.trialagents.com/mcp` for the user-facing product, connection, consent, documentation and account-management page.
-- `https://mcp.trialagents.com/mcp` for the stable machine-facing MCP protocol endpoint.
-
-This preserves Intel Agent discovery and conversion while isolating protocol routing, rate limits, security, logs and availability. The OAuth consent page can return users to Intel Agent. Do not force the machine endpoint to share the application deployment merely for marketing visibility.
-
-### Initial limit proposal for discussion
-
-Use both per-call caps and per-analysis package budgets. The following are starting values, not final decisions:
-
-| Dimension | Per-call hard cap | Light per analysis | Max per analysis |
-|---|---:|---:|---:|
-| Filtered trial IDs returned | 100 | 100 | 1,000 |
-| Profiles returned | 25 | 50 | 500 |
-| Trials classified | 20 | 25 | 200 |
-| Document metadata records | 100 | 100 | 1,000 |
-| Document text returned | 5 documents / 150k characters total | 25 documents | 200 documents |
-| Trials sent to variable extraction | 10 | 20 | 200 |
-| Documents processed by extraction | 25 | 50 | 500 |
-| Requested variables | 20 | 20 | 50 |
-
-All larger work is paginated/batched. Public interactive calls remain bounded; the internal app may orchestrate multiple batches up to the package's analysis budget. Limits must be admin-configurable without redeployment and recorded with every analysis for reproducibility.
-
-### Remaining decisions
-
-- Approve or revise the proposed definition of one analysis and how revisions stay within it.
-- Approve or revise the Light/Max starting limits after cost/performance measurement.
-- Decide whether external users may retrieve investigator/site names and emails, and under which plan/scope.
-- Decide whether analyses expire for revisions after a defined time window.
-- Decide whether limit overages are blocked, require a new analysis, or are offered only through an externally managed add-on.
-
-
-## SOL orchestration and short-lived analysis lease (2026-08-26)
-
-This section supersedes any implication that the Intel Agent application itself manually sequences individual MCP calls.
-
-### Orchestration ownership
-
-- After the user approves the report plan, the Intel Agent app makes one initial call to OpenAI SOL and waits for the completed report.
-- SOL receives the approved report plan plus access to the permitted Intel MCP tools.
-- SOL decides which tools to call, in which order, whether deterministic filtering is sufficient, when classification is needed, whether profiles or documents are required, and which variables must be extracted.
-- SOL may paginate and make repeated calls within the analysis limits.
-- Each MCP tool performs only its narrow declared operation. Tools do not generate the overall report, decide the workflow or silently invoke other public tools.
-- SOL synthesizes the final report from structured tool outputs, coverage and public source references.
-
-Public investigator, site and contact data may be returned within applicable limits and accompanied by the public sources from which it was obtained. Detailed contact-field privacy and presentation rules are deferred.
-
-### Confirmed limits and result behavior
-
-- The previously proposed Light and Max starting limits are accepted for now and remain centrally configurable.
-- The orchestrator chooses how many results to request up to the effective per-call and per-analysis limits.
-- Tools should enable retrieval of as many valid matching results as the entitlement permits through deterministic pagination.
-- When more results exist, return `has_more`, `next_cursor`, the applied limit and remaining analysis budget. Never silently discard valid results or interpret “all” as an unbounded call.
-- The single external connector supports entitlement-controlled Core, classification-enabled and full-analysis capabilities.
-
-### Analysis lease requirements
-
-Use a short-lived `analysis_id` to correlate, meter and constrain all calls belonging to one report execution or revision session.
-
-Confirmed behavior:
-
-- Initial expiry: 60 minutes.
-- The ID may be reused for repeated filtering and revisions while still valid.
-- Every substantive tool after analysis creation requires the same `analysis_id`.
-- The ID is bound server-side to the authenticated user/account, tenant, package, enabled tools, limit snapshot, usage counters, creation time, expiry and status.
-- Expired, blocked or exhausted IDs cannot be revived.
-- On expiry or budget exhaustion, return a typed error instructing SOL to start a new analysis. Creating a replacement must recheck authentication, entitlement and remaining monthly analyses.
-- Already-running calls may finish, but no new call may begin after expiry.
-- Default expiry is absolute from creation, not indefinitely extended by activity, unless this is changed later.
-
-Security boundary:
-
-- `analysis_id` is not the user's authentication token and must never replace OAuth or the trusted internal app/service identity.
-- Treat it as an opaque analysis lease/handle. Validate both the real authenticated principal and the ID binding on every call.
-- Prefer an opaque high-entropy identifier with server-side state over a self-contained JWT so it can be revoked, blocked and atomically metered.
-
-### Recommended lifecycle tool — pending final approval
-
-Add a narrow control-plane tool, proposed name `start_analysis`, rather than making `filter_trials` create IDs.
-
-Reasons:
-
-- Session creation, entitlement reservation and filtering are different operations.
-- Some valid workflows begin with known trial IDs and do not need filtering.
-- Coupling billing/session creation to filtering violates the rule that tools do only their declared task.
-- Expiry and allowance errors can consistently tell SOL to call one lifecycle tool.
-- `filter_trials` remains reusable with an existing valid ID for flexible revisions.
-
-Proposed `start_analysis` behavior:
-
-- Input: concise approved report objective/plan reference and requested capabilities.
-- Authenticates the caller, verifies remaining analyses and creates a 60-minute lease.
-- Output: `analysis_id`, `expires_at`, enabled tools, effective Light/Max limits and analysis status.
-- It performs no filtering or report work.
-- Starting alone should not unfairly consume an analysis if no substantive tool ever succeeds; implement reservation/activation semantics and limit abandoned reservations.
-- Annotation: `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`.
-
-If approved, the public surface contains five business/data tools plus one lifecycle/control tool. A new analysis begins through `start_analysis`; `filter_trials` never creates or authenticates an analysis.
-
-
-## Confirmed app orchestration, progress and concurrency (2026-08-26)
-
-### Two-call report flow
-
-The Intel Agent app owns the report lifecycle:
-
-1. The user submits the initial report request.
-2. A first SOL call, without report-execution MCP access, proposes a report plan.
-3. The app stores and displays the plan.
-4. The user may edit the plan and explicitly approves it.
-5. The app starts a second SOL call with the approved plan and only the entitled Intel MCP tools.
-6. SOL calls `start_analysis`, orchestrates the required MCP tools and writes the final report.
-7. The app stores the final report and presents it to the user.
-
-The app owns the initial user input, plan versions, approval state, OpenAI response/run identifiers, visible progress, final report and report revision history. Intel MCP owns only its narrow tool operations, analysis lease, usage limits and minimal audit/evidence references. MCP does not own report planning, orchestration, prose generation or final report storage.
-
-### Reliable background SOL execution and visible progress
-
-Run the second SOL request through the OpenAI Responses API with both background execution and event streaming enabled.
-
-- Background execution allows the run to continue if the user's browser disconnects or an HTTP connection times out.
-- The Intel Agent backend stores the OpenAI response ID and latest event sequence number.
-- The browser receives progress from the Intel Agent backend through SSE or WebSocket.
-- If the app-to-OpenAI stream disconnects, resume from the last sequence number; do not restart the whole report.
-- Poll/retrieve the existing response when status is uncertain. Start a replacement response only after the original is definitively failed/cancelled.
-- OpenAI streaming exposes response status and MCP list/call in-progress, completed and failed events. Convert these into concise user-facing stages; never expose hidden reasoning or chain-of-thought.
-
-Initial user-facing stages:
-
-- Preparing analysis
-- Filtering trials
-- Classifying shortlisted trials
-- Retrieving trial profiles
-- Reviewing documents
-- Extracting requested variables
-- Writing report
-- Completed / retrying / failed
-
-Where MCP results provide counts, show factual progress such as “42 trials matched” or “12 of 20 documents reviewed.” Do not fabricate percentage completion when the total work is not yet known.
-
-Retries must be idempotent:
-
-- The app creates a stable `report_run_id` for the approved plan and passes it to SOL.
-- `start_analysis` accepts `report_run_id`.
-- A repeated `start_analysis` for the same user and run returns the existing valid analysis rather than consuming another allowance.
-- Because only one active analysis is allowed per user, an accidental repeated start also returns that active analysis.
-- Read-tool retries must preserve `analysis_id`, cursor and request bounds.
-- Worker retry and usage accounting must avoid double charging the same accepted worker job.
-
-Official OpenAI references:
-
-- https://developers.openai.com/api/docs/guides/background
-- https://developers.openai.com/api/docs/guides/streaming-responses
-- https://developers.openai.com/api/reference/cli/resources/beta/subresources/responses
-
-### Confirmed ownership and concurrency
-
-- Analysis allowances belong to individual users in v1. Company/workspace sharing is out of scope.
-- Every package allows only one active `analysis_id` per user.
-- A second start request while an analysis is valid returns the active analysis instead of creating another.
-- The 60-minute absolute expiry remains.
-- After expiry or blocking, a new start checks the user's remaining analysis allowance.
-- The app persists report content and history; MCP does not.
-
-### Confirmed tool discovery
-
-- `start_analysis` is approved as the sixth, separate lifecycle tool.
-- The five business tools remain narrow and do not orchestrate each other.
-- Worker tools that are disabled for a deployment/profile or unavailable to a user must not be visible to SOL.
-- For the Intel Agent app, pass only the entitled tools in the SOL request/allowed-tools configuration.
-- For public ChatGPT/Claude access, return an authenticated entitlement-filtered tool list. Reconnection may be required after a subscription/tool entitlement changes.
-- Do not advertise unavailable tools merely to return entitlement errors in v1.
-
-
-## Implementation discovery: app authentication and allowance prerequisite (2026-08-26)
-
-Inspection of `tarous89/intel_agent_app` before implementing `start_analysis` found:
-
-- The current signup/login/session is an explicit browser-local prototype. Accounts, plaintext prototype passwords and sessions are stored in `localStorage`; no server can trust this identity.
-- The app's Drizzle schema is intentionally empty and there is no durable user, session, project, order, entitlement, analysis or report storage.
-- The ChatGPT-auth header helper belongs to the earlier hosting integration and is not production authentication for the canonical Render app.
-- Stripe Checkout currently sells one €450 Max Report and carries project metadata, but the signed webhook only logs successful checkout.
-- The payment-success page stores a browser-local demo order. A payment does not yet create a durable user-bound report entitlement.
-- Light Report is currently labeled as a free preview; its real allowance has not been defined.
-- Therefore `start_analysis` cannot yet truthfully authenticate a user or atomically consume/check a durable analysis allowance.
-
-Security constraint: never accept user ID, plan, payment status or remaining allowance directly from the browser/localStorage. Never treat an email header or unsigned internal header as app authentication.
-
-Required dependency order:
-
-1. Add production app authentication and durable user/session storage.
-2. Add durable projects, Stripe orders and per-user analysis entitlement/allowance ledger.
-3. Make the Stripe webhook idempotently grant the purchased entitlement to the authenticated user/project.
-4. Add a private app-to-MCP identity assertion or internal entitlement endpoint protected by a service credential and private network.
-5. Implement `start_analysis` with an atomic one-active-analysis-per-user transaction, 60-minute expiry, allowance reservation/activation and idempotent `report_run_id`.
-6. Only then connect the approved-plan SOL background run.
-
-Recommended isolation remains a separate app/MCP control-plane PostgreSQL database, not the Intel Agent clinical-trial warehouse. Final authentication provider, database provisioning and Light/Max allowance rules require owner confirmation before implementation.
-
-
-## Approved implementation foundation (2026-08-26)
-
-The owner confirmed the implementation foundation:
-
-- No parallel reports are supported. Every user, regardless of Light or Max, may have only one active report/`analysis_id` at a time.
-- `start_analysis` is a separate sixth lifecycle tool.
-- The app uses a two-SOL-call flow: plan proposal/revision first, then a background MCP-enabled SOL call only after approval.
-- Unavailable worker tools are hidden from the orchestrator rather than exposed with entitlement errors.
-- The app owns user input, project, plan versions/approval, background response progress, final report and revision history. MCP remains narrow.
-- Analysis ownership is per individual user in v1; organizations/workspaces are deferred.
-- Production app authentication and durable users/sessions must replace the browser-local prototype.
-- Create an isolated app/MCP control-plane PostgreSQL database; never use the clinical-trial warehouse for identity, commerce or analysis leases.
-- Initial allowance policy: one free Light analysis per user; every successful €450 Max Report purchase grants one Max analysis tied to that user/project.
-- System failures before successful report fulfillment restore the reserved allowance.
-- Stripe remains fail-closed/test-mode until its verified webhook creates durable, idempotent user-bound entitlements.
-- Implement the private app-to-MCP identity bridge only after production app authentication exists.
-
-The one-active-analysis rule also provides start idempotency: while a valid lease exists, repeated `start_analysis` calls for that authenticated user return the existing analysis rather than reserving another allowance.
-
-## start_analysis implementation checkpoint (2026-08-26)
-
-The first MCP implementation now exists on branch `feat/start-analysis`.
-
-- Selected Python to match the extraction/intelligence stack.
-- Selected the official stable MCP Python SDK v2 line, which supports the 2026-07-28 sessionless Streamable HTTP protocol. The previous planning text that assumed the v1 FastMCP API is superseded for new code.
-- Added a tools-only `MCPServer` with Streamable HTTP at `/mcp`, an unauthenticated non-sensitive `/health` route, and explicit DNS-rebinding Host allowlisting through `MCP_ALLOWED_HOSTS`.
-- Implemented `start_analysis(report_run_id)` as the only visible tool in this checkpoint.
-- The tool accepts only the stable app-created `report_run_id`. It does not accept user ID, email, package, payment state, remaining allowance, plan content or requested tool entitlements from the model.
-- The tool calls the service-authenticated app endpoint `POST /api/internal/mcp/start-analysis` with a shared Render service credential. End users authenticate only with the Intel Agent app; there is no second user login or MCP authentication prompt for the internal app profile.
-- The app resolves the authenticated user, project, approved plan, tier, enabled tools and allowance server-side, then atomically returns or creates the one active 60-minute lease.
-- The typed MCP result contains `analysis_id`, actual `report_run_id`, `active` status, tier, absolute expiry, visible enabled tools, the immutable limit snapshot and whether the lease was reused.
-- `start_analysis` is annotated non-read-only, non-destructive, idempotent and closed-world. It performs no filtering, retrieval, classification, extraction or report writing.
-- Expected allowance and state failures are surfaced as typed, model-readable tool errors without leaking internal HTTP details or service credentials.
-- Tests cover control-plane bearer propagation, inbound MCP bearer enforcement, public health access, response validation, allowance errors, tool discovery annotations and structured output. Current result: 5 passing tests.
-
-Cross-repository dependency:
-
-- App branch `feat/production-auth-start-analysis` owns PostgreSQL users/sessions, one free Light entitlement, paid Max entitlements, approved report runs and the atomic lease endpoint.
-- Both services receive the same control-plane secret as app `MCP_INTERNAL_SERVICE_TOKEN` and MCP `INTEL_APP_SERVICE_TOKEN`. The MCP also requires `MCP_INBOUND_SERVICE_TOKEN` for authenticated protocol requests from the app.
-- While the app is on a free Render instance, `INTEL_APP_CONTROL_URL` uses the canonical authenticated HTTPS app URL.
-- The app migration and protected control-plane endpoint are deployed and verified.
-
-
-## Final isolated Render deployment — 2026-08-26
-
-The owner rejected and deleted all shared-server or consolidation proposals. The existing isolated component structure remains unchanged.
-
-- Intel MCP is live as its own free public Render Web Service in Frankfurt: `intel-mcp` (`srv-da7g4igae00c73bo6oe0`).
-- Current service URL: `https://intel-mcp.onrender.com`; Streamable HTTP endpoint: `https://intel-mcp.onrender.com/mcp`.
-- Source: `tarous89/intel_mcp`, branch `main`, Python runtime, build `pip install .`, start `intel-mcp`, automatic deploy enabled.
-- Do not combine MCP with the Intel Agent app, Intel Engine, TrialFeed, admin services, PostgreSQL or MinIO.
-- Upgrade only the MCP service when observed usage requires more capacity.
-- The service is public at the network layer, but every `/mcp` request requires the dedicated `MCP_INBOUND_SERVICE_TOKEN`. The non-sensitive `/health` route remains public.
-- MCP calls the canonical app HTTPS control-plane endpoint with `INTEL_APP_SERVICE_TOKEN`; the app continues to own user authentication, allowances, approved report runs and analysis leases.
-- MCP has no database of its own and receives no control-plane database credentials.
-- The service-authenticated internal app profile is deployed first. Public ChatGPT/Claude OAuth and a custom `mcp.trialagents.com` domain remain separate later work and must not reuse the internal bearer as end-user authentication.
-- Production verification passed: `/health` returned HTTP 200; anonymous `/mcp` returned HTTP 401; authenticated initialization negotiated MCP protocol `2025-11-25`; authenticated discovery exposed only `start_analysis`; a nonexistent-run probe reached the app boundary and returned a model-readable tool failure without creating an analysis.
-- Local contract/security tests pass: 5 tests.
-- The inbound verification bearer was rotated immediately after deployment verification; no client depended on the previous value.
-- Do not reintroduce shared-server or consolidation proposals unless the owner explicitly asks to reconsider this decision.
-
-## `filter_trials` implementation decision — 2026-08-27
-
-This section supersedes the earlier open filter-scope questions.
-
-- `filter_trials` exposes structured Trial Profile fields only. The proposed profile-wide `contains` search is removed from v1.
-- Only approved Trial Profiles are queryable. There is no raw-CTIS fallback in this version.
-- The MCP service remains isolated and has no clinical database credentials. It calls the existing Intel Engine Trial Profile service through `POST /api/internal/mcp/filter-trials` with a dedicated MCP-to-Engine service credential. This credential is separate from the extraction-run token.
-- The Engine endpoint is read-only, strictly allowlisted and parameterized. It rejects unknown fields, operators and controlled values; it never accepts SQL, raw profile JSON paths or arbitrary database column names.
-- Text matching is case-insensitive. `contains` is the standard/default text mode; `is` is the exact case-insensitive mode. Negative modes are `does_not_contain` and `is_not`, and missing values do not satisfy negative filters.
-- Controlled arrays accept `contains_any`, `contains_all` and `contains_none`. Different structured fields combine with AND. OR across different fields requires separate calls.
-- Country conditions are grouped into same-row `EXISTS` clauses so a country code and country status/date/site constraint cannot accidentally match different countries. Multiple country groups combine with AND.
-- Controlled vocabularies are embedded in the MCP JSON Schema. ISO alpha-2 country codes are pattern-constrained. Known normalized CTIS country statuses are advertised explicitly.
-- Sponsor-name documentation must always warn that the CTIS sponsor value may sometimes refer to a subsidy/funding source or omit part of the complete legal entity name. Sponsor matching is shortlist evidence, not definitive legal-entity resolution.
-- Default ordering remains latest country submission/approval date descending, with EU trial number ascending as the stable tie-breaker. Alternate sort fields are allowlisted. Page size is 1–100 and pagination uses an opaque filter/sort-bound cursor.
-- Per-trial output contains EU number, title, sponsor name, phase, latest country submission/approval date, and available extracted document types and names. It does not return per-trial `matched_filters`.
-- Result metadata contains normalized applied filters/sort, approved-profile coverage, total matches, returned count, warnings, cursor state, schema version and remaining filtered-ID budget.
-- Every call requires an active `analysis_id`. After the Engine returns candidate rows internally, MCP calls the app control plane to validate the 60-minute lease, verify `filter_trials` is enabled and atomically meter unique returned trial IDs. Retries/revisions do not charge the same EU trial number twice.
-- The app-owned cumulative limits remain Light 100 and Max 1,000 unique filtered trial IDs per analysis. The MCP per-call cap remains 100.
-- The app stores the bounded seen-ID set inside the existing analysis-lease usage JSON, avoiding a control-database migration while keeping allowance enforcement atomic under an analysis-specific advisory lock.
-- Superseding the earlier generic read-tool annotation: `filter_trials` uses `readOnlyHint: false`. Its Engine query is read-only, but admitting a new unique trial ID changes the caller-visible remaining analysis allowance. It remains non-destructive, idempotent for retries and closed-world.
+Update this file after material MCP tool-contract, auth, entitlement, deployment or production changes. Keep current truth concise; use git history for superseded detail rather than accumulating contradictory active sections.
