@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from intel_mcp.classification import EngineClassificationProfilesResponse
 from intel_mcp.config import Settings
 from intel_mcp.models import EngineFilterResponse, TrialFilters, TrialSort
+from intel_mcp.profiles import EngineProfilesResponse
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,47 @@ class EngineClient:
             response,
             "CLASSIFICATION_PROFILES_FAILED",
             "The approved Trial Profiles could not be retrieved for classification.",
+        )
+
+    async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
+        self._settings.validate_engine()
+        url = f"{self._settings.engine_api_url}/api/internal/mcp/profiles"
+        response = await self._post(
+            url,
+            {"trial_ids": trial_ids},
+            timeout_message="The approved Trial Profiles could not be retrieved in time; retry this call.",
+        )
+        if response.is_success:
+            try:
+                result = EngineProfilesResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned invalid Trial Profiles.",
+                    502,
+                ) from error
+
+            unavailable = set(result.unavailable_trial_ids)
+            returned_ids = [item.eu_number for item in result.data]
+            expected_returned = [trial_id for trial_id in trial_ids if trial_id not in unavailable]
+            if (
+                returned_ids != expected_returned
+                or result.unavailable_trial_ids != [trial_id for trial_id in trial_ids if trial_id in unavailable]
+                or len(unavailable) != len(result.unavailable_trial_ids)
+                or set(returned_ids) & unavailable
+                or set(returned_ids) | unavailable != set(trial_ids)
+            ):
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned misaligned Trial Profiles.",
+                    502,
+                )
+            return result
+
+        raise self._response_error(
+            response,
+            "PROFILE_RETRIEVAL_FAILED",
+            "The approved Trial Profiles could not be retrieved.",
         )
 
     async def _post(self, url: str, payload: dict, *, timeout_message: str) -> httpx.Response:
