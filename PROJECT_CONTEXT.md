@@ -109,10 +109,10 @@ Core rules:
 - country conditions within one country group must match the same country row;
 - different structured fields combine with AND; OR across different fields requires separate calls;
 - default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
-- page size 1–100 with opaque filter/sort-bound cursor;
+- page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
 - each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`; phase, dates and normalized document types remain filterable but are omitted from the repeated result projection;
-- `coverage.total_matches` returns the complete match count independently of the current page's `returned` count;
+- output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
 contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
@@ -245,9 +245,17 @@ The MCP caller receives only:
   "eligible_trials": ["..."],
   "ineligible_trials": ["..."],
   "uncertain_trials": ["..."],
-  "eligible_count": 0,
-  "ineligible_count": 0,
-  "uncertain_count": 0
+  "counts": {
+    "classified": 0,
+    "eligible": 0,
+    "ineligible": 0,
+    "uncertain": 0
+  },
+  "analysis_allowance": {
+    "limit": 25,
+    "used": 0,
+    "remaining": 25
+  }
 }
 ```
 
@@ -326,9 +334,9 @@ Detailed human-readable contract: `docs/classify-trials.md`.
 - The Engine endpoint is `POST /api/internal/mcp/profiles`; it returns complete approved `profile_json`, profile schema version and approval timestamp, plus unavailable IDs.
 - Missing, candidate and rejected profiles are reported only as unavailable; no internal review state or raw-CTIS fallback is exposed.
 - Complete stored profiles include contacts and extracted-document inventory.
-- The normal aggregate response target is 500,000 UTF-8 bytes. MCP never truncates a profile: it returns an ordered prefix of complete profiles and places deferred IDs in `remaining_trial_ids`. A single profile exceeding the target is returned alone.
-- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Current limits are Light 50 and Max 500. Exact repeated IDs do not consume allowance twice; unavailable or response-size-deferred IDs are not metered.
-- `allowance_excluded_trial_ids` distinguishes available profiles blocked by exhausted allowance.
+- Every approved profile admitted by allowance is returned complete; no response-size deferral state is exposed.
+- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Current limits are Light 50 and Max 500. Exact repeated IDs do not consume allowance twice; unavailable IDs are not metered.
+- Output includes complete `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, compact counts and the common analysis allowance object.
 - The tool performs no generation, refresh, document retrieval, classification, semantic search, extraction or report writing.
 
 Annotations:
