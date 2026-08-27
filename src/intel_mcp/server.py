@@ -15,6 +15,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from intel_mcp.classification import (
     ClassifierError,
+    ClassificationCounts,
     ClassifyTrialsOutput,
     aggregate_trial_result,
     classification_key,
@@ -25,8 +26,9 @@ from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.models import (
+    AnalysisAllowance,
     AnalysisLimits,
-    FilterBudget,
+    FilterCounts,
     FilterTrialsOutput,
     StartAnalysisOutput,
     TrialFilters,
@@ -34,9 +36,8 @@ from intel_mcp.models import (
 )
 from intel_mcp.profiles import (
     MAX_PROFILES_PER_CALL,
+    GetProfilesCounts,
     GetProfilesOutput,
-    ProfileBudget,
-    select_complete_profile_batch,
 )
 
 settings = Settings.from_environment()
@@ -141,14 +142,14 @@ async def filter_trials(
             description="Maximum trials requested in this page. The hard per-call cap is 100.",
         ),
     ] = 20,
-    cursor: Annotated[
-        str | None,
+    offset: Annotated[
+        int,
         Field(
-            default=None,
-            max_length=2000,
-            description="Opaque cursor returned by the immediately preceding compatible filter call.",
+            ge=0,
+            le=1_000_000,
+            description="Number of matching trials to skip. Use 0 for the first page, then add the prior limit.",
         ),
-    ] = None,
+    ] = 0,
 ) -> FilterTrialsOutput:
     """Deterministically shortlist approved structured Trial Profiles.
 
@@ -164,14 +165,15 @@ async def filter_trials(
 
     Results are validated and metered against the app-owned analysis lease. Light analyses may see
     at most 100 unique filtered trial IDs and Max analyses at most 1,000; retries and revisions do not
-    consume the same trial ID twice. Continue only with next_cursor returned by this tool.
+    consume the same trial ID twice. For another page, repeat the same filters and sort with offset
+    increased by the prior call's limit.
     """
     try:
         engine_result = await engine_client().filter_trials(
             filters=filters,
             sort=sort,
             limit=limit,
-            cursor=cursor,
+            offset=offset,
         )
         access_result = await control_plane_client().authorize_filter_results(
             analysis_id,
@@ -183,31 +185,18 @@ async def filter_trials(
     access = access_result.access
     allowed = set(access.allowed_trial_ids)
     data = [item for item in engine_result.data if item.eu_number in allowed]
-    warnings = list(engine_result.warnings)
-    allowance_removed_results = len(data) != len(engine_result.data)
-    if allowance_removed_results:
-        warnings.append(
-            "The analysis filtered-trial allowance was reached; additional new trial IDs were not returned."
-        )
-
-    has_more = engine_result.has_more and not access.exhausted and not allowance_removed_results
     return FilterTrialsOutput(
         data=data,
-        applied_filters=engine_result.applied_filters,
-        coverage=engine_result.coverage,
-        warnings=warnings,
-        returned=len(data),
-        requested_limit=limit,
-        applied_limit=engine_result.applied_limit,
-        has_more=has_more,
-        next_cursor=engine_result.next_cursor if has_more else None,
-        analysis_budget=FilterBudget(
+        counts=FilterCounts(
+            total_profiles=engine_result.counts.total_profiles,
+            total_matches=engine_result.counts.total_matches,
+            returned=len(data),
+        ),
+        analysis_allowance=AnalysisAllowance(
             limit=access.limit,
             used=access.used,
             remaining=access.remaining,
-            exhausted=access.exhausted,
         ),
-        schema_version=engine_result.schema_version,
     )
 
 
@@ -328,7 +317,7 @@ async def classify_trials(
         raise
 
     try:
-        await control.authorize_classifications(analysis_id, keys, "commit")
+        commit_result = await control.authorize_classifications(analysis_id, keys, "commit")
     except ControlPlaneError as error:
         raise ToolError(f"{error.code}: {error.message}") from error
 
@@ -348,9 +337,17 @@ async def classify_trials(
         eligible_trials=eligible_trials,
         ineligible_trials=ineligible_trials,
         uncertain_trials=uncertain_trials,
-        eligible_count=len(eligible_trials),
-        ineligible_count=len(ineligible_trials),
-        uncertain_count=len(uncertain_trials),
+        counts=ClassificationCounts(
+            classified=len(worker_results),
+            eligible=len(eligible_trials),
+            ineligible=len(ineligible_trials),
+            uncertain=len(uncertain_trials),
+        ),
+        analysis_allowance=AnalysisAllowance(
+            limit=commit_result.access.limit,
+            used=commit_result.access.used,
+            remaining=commit_result.access.remaining,
+        ),
     )
 
 
@@ -388,59 +385,40 @@ async def get_profiles(
     or write report prose. Candidate and rejected profiles are treated as unavailable; there is no raw-CTIS
     fallback.
 
-    Up to ten IDs may be requested. To protect the orchestrator context, the normal aggregate response is
-    capped at approximately 500 KB without ever truncating an individual profile. If all complete profiles
-    do not fit, remaining_trial_ids lists the IDs to pass to a later get_profiles call. A single oversized
-    profile is still returned alone. Exact retries or later retrieval of the same profile do not consume the
-    analysis profile allowance twice.
+    Up to ten IDs may be requested and every approved profile admitted by the analysis allowance is returned
+    complete. Exact retries or later retrieval of the same profile do not consume the allowance twice.
     """
     unique_trial_ids = list(dict.fromkeys(trial_ids))
     try:
         engine_result = await engine_client().get_profiles(unique_trial_ids)
-        selected, deferred, first_profile_oversized = select_complete_profile_batch(engine_result.data)
-        selected_ids = [item.eu_number for item in selected]
-        access_result = await control_plane_client().authorize_profiles(analysis_id, selected_ids)
+        available_ids = [item.eu_number for item in engine_result.data]
+        access_result = await control_plane_client().authorize_profiles(analysis_id, available_ids)
     except (ControlPlaneError, EngineError) as error:
         raise ToolError(f"{error.code}: {error.message}") from error
 
     access = access_result.access
     allowed = set(access.allowed_trial_ids)
-    if not allowed.issubset(selected_ids) or len(allowed) != len(access.allowed_trial_ids):
+    if not allowed.issubset(available_ids) or len(allowed) != len(access.allowed_trial_ids):
         raise ToolError("PROFILE_ACCESS_FAILED: the control plane returned misaligned profile authorization.")
 
-    profiles = [item for item in selected if item.eu_number in allowed]
-    allowance_excluded = [item.eu_number for item in selected if item.eu_number not in allowed]
-    remaining_trial_ids = [item.eu_number for item in deferred]
-    warnings: list[str] = []
-    if remaining_trial_ids:
-        warnings.append(
-            "The complete profiles exceeded the safe aggregate response size. Call get_profiles again with "
-            "remaining_trial_ids."
-        )
-    if first_profile_oversized:
-        warnings.append(
-            "The first complete profile exceeded the normal aggregate response-size target and was returned alone."
-        )
-    if allowance_excluded:
-        warnings.append(
-            "The analysis profile allowance was reached; some otherwise available profiles were not returned."
-        )
+    profiles = [item for item in engine_result.data if item.eu_number in allowed]
+    allowance_reached = [item.eu_number for item in engine_result.data if item.eu_number not in allowed]
 
     return GetProfilesOutput(
         profiles=profiles,
         unavailable_trial_ids=engine_result.unavailable_trial_ids,
-        remaining_trial_ids=remaining_trial_ids,
-        allowance_excluded_trial_ids=allowance_excluded,
-        requested=len(unique_trial_ids),
-        returned=len(profiles),
-        warnings=warnings,
-        analysis_budget=ProfileBudget(
+        allowance_reached_trial_ids=allowance_reached,
+        counts=GetProfilesCounts(
+            requested=len(unique_trial_ids),
+            returned=len(profiles),
+            unavailable=len(engine_result.unavailable_trial_ids),
+            allowance_reached=len(allowance_reached),
+        ),
+        analysis_allowance=AnalysisAllowance(
             limit=access.limit,
             used=access.used,
             remaining=access.remaining,
-            exhausted=access.exhausted,
         ),
-        schema_version=engine_result.schema_version,
     )
 
 
