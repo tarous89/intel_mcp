@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import httpx
 from pydantic import ValidationError
 
+from intel_mcp.classification import AppClassificationAccessResponse
 from intel_mcp.config import Settings
 from intel_mcp.models import AppFilterAccessResponse, AppStartAnalysisResponse
 
@@ -24,21 +25,7 @@ class ControlPlaneClient:
     async def start_analysis(self, report_run_id: str) -> AppStartAnalysisResponse:
         self._settings.validate_control_plane()
         url = f"{self._settings.app_control_url}/api/internal/mcp/start-analysis"
-        try:
-            async with httpx.AsyncClient(
-                timeout=self._settings.request_timeout_seconds,
-                transport=self._transport,
-            ) as client:
-                response = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {self._settings.app_service_token}"},
-                    json={"reportRunId": report_run_id},
-                )
-        except httpx.TimeoutException as error:
-            raise ControlPlaneError("CONTROL_PLANE_TIMEOUT", "The analysis control plane timed out; retry this call.", 504) from error
-        except httpx.HTTPError as error:
-            raise ControlPlaneError("CONTROL_PLANE_UNAVAILABLE", "The analysis control plane is temporarily unavailable.", 503) from error
-
+        response = await self._post(url, {"reportRunId": report_run_id})
         if response.is_success:
             try:
                 return AppStartAnalysisResponse.model_validate(response.json())
@@ -48,9 +35,83 @@ class ControlPlaneClient:
                     "The analysis control plane returned an invalid response.",
                     502,
                 ) from error
+        raise self._response_error(response, "ANALYSIS_START_FAILED", "The analysis could not be started.")
 
-        code = "ANALYSIS_START_FAILED"
-        message = "The analysis could not be started."
+    async def authorize_filter_results(
+        self, analysis_id: str, trial_ids: list[str]
+    ) -> AppFilterAccessResponse:
+        """Validate the lease and atomically meter newly returned trial IDs."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/filter-access"
+        response = await self._post(url, {"analysisId": analysis_id, "trialIds": trial_ids})
+        if response.is_success:
+            try:
+                return AppFilterAccessResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise ControlPlaneError(
+                    "CONTROL_PLANE_INVALID_RESPONSE",
+                    "The analysis control plane returned an invalid response.",
+                    502,
+                ) from error
+        raise self._response_error(response, "FILTER_ACCESS_FAILED", "The filter request could not be authorized.")
+
+    async def authorize_classifications(
+        self, analysis_id: str, classification_keys: list[str]
+    ) -> AppClassificationAccessResponse:
+        """Validate classify_trials access and atomically meter trial+criteria work.
+
+        Exact retries reuse the same SHA-256 keys and do not consume another classified-trial
+        allowance unit. Changing the criteria creates a new key and therefore new classification work.
+        """
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/classification-access"
+        response = await self._post(
+            url,
+            {"analysisId": analysis_id, "classificationKeys": classification_keys},
+        )
+        if response.is_success:
+            try:
+                return AppClassificationAccessResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise ControlPlaneError(
+                    "CONTROL_PLANE_INVALID_RESPONSE",
+                    "The analysis control plane returned an invalid classification authorization response.",
+                    502,
+                ) from error
+        raise self._response_error(
+            response,
+            "CLASSIFICATION_ACCESS_FAILED",
+            "The classification request could not be authorized.",
+        )
+
+    async def _post(self, url: str, payload: dict) -> httpx.Response:
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._settings.request_timeout_seconds,
+                transport=self._transport,
+            ) as client:
+                return await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {self._settings.app_service_token}"},
+                    json=payload,
+                )
+        except httpx.TimeoutException as error:
+            raise ControlPlaneError(
+                "CONTROL_PLANE_TIMEOUT",
+                "The analysis control plane timed out; retry this call.",
+                504,
+            ) from error
+        except httpx.HTTPError as error:
+            raise ControlPlaneError(
+                "CONTROL_PLANE_UNAVAILABLE",
+                "The analysis control plane is temporarily unavailable.",
+                503,
+            ) from error
+
+    @staticmethod
+    def _response_error(response: httpx.Response, default_code: str, default_message: str) -> ControlPlaneError:
+        code = default_code
+        message = default_message
         try:
             body = response.json()
             error_body = body.get("error") if isinstance(body, dict) else None
@@ -61,51 +122,4 @@ class ControlPlaneClient:
                     message = error_body["message"]
         except ValueError:
             pass
-        raise ControlPlaneError(code, message, response.status_code)
-
-    async def authorize_filter_results(
-        self, analysis_id: str, trial_ids: list[str]
-    ) -> AppFilterAccessResponse:
-        """Validate the lease and atomically meter newly returned trial IDs.
-
-        The app stores the user binding and package budget. Re-sending an ID already
-        returned in the same analysis is idempotent and does not consume allowance twice.
-        """
-        self._settings.validate_control_plane()
-        url = f"{self._settings.app_control_url}/api/internal/mcp/filter-access"
-        try:
-            async with httpx.AsyncClient(
-                timeout=self._settings.request_timeout_seconds,
-                transport=self._transport,
-            ) as client:
-                response = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {self._settings.app_service_token}"},
-                    json={"analysisId": analysis_id, "trialIds": trial_ids},
-                )
-        except httpx.TimeoutException as error:
-            raise ControlPlaneError("CONTROL_PLANE_TIMEOUT", "The analysis control plane timed out; retry this call.", 504) from error
-        except httpx.HTTPError as error:
-            raise ControlPlaneError("CONTROL_PLANE_UNAVAILABLE", "The analysis control plane is temporarily unavailable.", 503) from error
-
-        if response.is_success:
-            try:
-                return AppFilterAccessResponse.model_validate(response.json())
-            except (ValueError, ValidationError) as error:
-                raise ControlPlaneError(
-                    "CONTROL_PLANE_INVALID_RESPONSE",
-                    "The analysis control plane returned an invalid response.",
-                    502,
-                ) from error
-
-        code = "FILTER_ACCESS_FAILED"
-        message = "The filter request could not be authorized."
-        try:
-            body = response.json()
-            error_body = body.get("error") if isinstance(body, dict) else None
-            if isinstance(error_body, dict):
-                code = error_body.get("code", code)
-                message = error_body.get("message", message)
-        except ValueError:
-            pass
-        raise ControlPlaneError(str(code), str(message), response.status_code)
+        return ControlPlaneError(code, message, response.status_code)
