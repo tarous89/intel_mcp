@@ -406,56 +406,35 @@ class FilterTrialItem(BaseModel):
     available_extracted_document_names: list[str]
 
 
-class FilterCoverage(BaseModel):
+class FilterCounts(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    approved_profiles_considered: int = Field(ge=0)
+    total_profiles: int = Field(ge=0)
     total_matches: int = Field(ge=0)
+    returned: int = Field(ge=0, le=100)
 
 
-class FilterBudget(BaseModel):
+class AnalysisAllowance(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     limit: int = Field(ge=0)
     used: int = Field(ge=0)
     remaining: int = Field(ge=0)
-    exhausted: bool
 
 
 class FilterTrialsOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     data: list[FilterTrialItem]
-    applied_filters: dict[str, object]
-    coverage: FilterCoverage
-    warnings: list[str]
-    returned: int = Field(
-        ge=0,
-        description=(
-            "Number of shortlist items returned in this response after allowance enforcement. "
-            "This is not a total match count when has_more is true."
-        ),
-    )
-    requested_limit: int = Field(ge=1, le=100)
-    applied_limit: int = Field(ge=1, le=100)
-    has_more: bool
-    next_cursor: str | None
-    analysis_budget: FilterBudget
-    schema_version: str
+    counts: FilterCounts
+    analysis_allowance: AnalysisAllowance
 
 
 class EngineFilterResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     data: list[FilterTrialItem]
-    applied_filters: dict[str, object]
-    coverage: FilterCoverage
-    warnings: list[str]
-    returned: int = Field(ge=0)
-    applied_limit: int = Field(ge=1, le=100)
-    has_more: bool
-    next_cursor: str | None
-    schema_version: str
+    counts: FilterCounts
 
 
 class AppFilterAccess(BaseModel):
