@@ -128,7 +128,15 @@ async def test_classify_trials_returns_trial_id_buckets_and_counts(monkeypatch: 
         "eligible_trials": [trial_ids[0]],
         "ineligible_trials": [trial_ids[1]],
         "uncertain_trials": [trial_ids[2]],
-        "eligible_count": 1,
-        "ineligible_count": 1,
-        "uncertain_count": 1,
+        "counts": {
+            "classified": 3,
+            "eligible": 1,
+            "ineligible": 1,
+            "uncertain": 1,
+        },
+        "analysis_allowance": {
+            "limit": 200,
+            "used": 3,
+            "remaining": 197,
+        },
     }
