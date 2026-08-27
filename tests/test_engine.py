@@ -27,18 +27,12 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
         assert request.headers["authorization"] == "Bearer test-engine-token"
         assert request.url.path == "/api/internal/mcp/filter-trials"
         assert b'"phase":{"operator":"contains_any","values":[2]}' in request.content
+        assert b'"offset":100' in request.content
         return httpx.Response(
             200,
             json={
                 "data": [],
-                "applied_filters": {"phase": {"operator": "contains_any", "values": [2]}},
-                "coverage": {"approved_profiles_considered": 7, "total_matches": 0},
-                "warnings": [],
-                "returned": 0,
-                "applied_limit": 20,
-                "has_more": False,
-                "next_cursor": None,
-                "schema_version": "1.0.0",
+                "counts": {"total_profiles": 7, "total_matches": 0, "returned": 0},
             },
         )
 
@@ -47,9 +41,9 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
         filters=TrialFilters(phase=PhaseFilter(values=[2])),
         sort=TrialSort(),
         limit=20,
-        cursor=None,
+        offset=100,
     )
-    assert result.coverage.total_matches == 0
+    assert result.counts.total_matches == 0
 
 
 @pytest.mark.anyio
