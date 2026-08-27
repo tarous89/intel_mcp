@@ -432,7 +432,13 @@ class FilterTrialsOutput(BaseModel):
     applied_filters: dict[str, object]
     coverage: FilterCoverage
     warnings: list[str]
-    returned: int = Field(ge=0)
+    returned: int = Field(
+        ge=0,
+        description=(
+            "Number of shortlist items returned in this response after allowance enforcement. "
+            "This is not a total match count when has_more is true."
+        ),
+    )
     requested_limit: int = Field(ge=1, le=100)
     applied_limit: int = Field(ge=1, le=100)
     has_more: bool
