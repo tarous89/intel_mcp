@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from intel_mcp.classification import EngineClassificationProfilesResponse
 from intel_mcp.config import Settings
+from intel_mcp.documents import EngineDocumentResponse
 from intel_mcp.models import EngineFilterResponse, TrialFilters, TrialSort
 from intel_mcp.profiles import EngineProfilesResponse
 
@@ -123,6 +124,39 @@ class EngineClient:
             response,
             "PROFILE_RETRIEVAL_FAILED",
             "The approved Trial Profiles could not be retrieved.",
+        )
+
+    async def get_document(
+        self,
+        *,
+        trial_id: str,
+        document_name: str,
+        part: int,
+    ) -> EngineDocumentResponse:
+        self._settings.validate_engine()
+        url = f"{self._settings.engine_api_url}/api/internal/mcp/documents"
+        response = await self._post(
+            url,
+            {
+                "trial_id": trial_id,
+                "document_name": document_name,
+                "part": part,
+            },
+            timeout_message="The extracted document text could not be retrieved in time; retry this call.",
+        )
+        if response.is_success:
+            try:
+                return EngineDocumentResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise EngineError(
+                    "ENGINE_INVALID_RESPONSE",
+                    "The trial data service returned invalid document text.",
+                    502,
+                ) from error
+        raise self._response_error(
+            response,
+            "DOCUMENT_RETRIEVAL_FAILED",
+            "The extracted document text could not be retrieved.",
         )
 
     async def _post(self, url: str, payload: dict, *, timeout_message: str) -> httpx.Response:

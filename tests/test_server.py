@@ -18,6 +18,11 @@ from intel_mcp.models import (
     FilterCounts,
     FilterTrialItem,
 )
+from intel_mcp.documents import (
+    AppDocumentAccess,
+    AppDocumentAccessResponse,
+    EngineDocumentResponse,
+)
 from intel_mcp.profiles import (
     AppProfileAccess,
     AppProfileAccessResponse,
@@ -41,8 +46,8 @@ class StubControlPlane:
                     profiles=500,
                     classified_trials=200,
                     document_metadata=1000,
-                    document_text_documents=200,
-                    document_text_characters=150000,
+                    document_text_documents=50,
+                    document_text_characters=200000,
                     extraction_trials=200,
                     extraction_documents=500,
                     variables=50,
@@ -79,6 +84,20 @@ class StubControlPlane:
             )
         )
 
+    async def authorize_document(
+        self, analysis_id: str, document_key: str
+    ) -> AppDocumentAccessResponse:
+        assert analysis_id == "ana_123456789012345678901234"
+        return AppDocumentAccessResponse(
+            access=AppDocumentAccess(
+                document_key=document_key,
+                limit=50,
+                used=1,
+                remaining=49,
+                exhausted=False,
+            )
+        )
+
 
 class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
@@ -111,6 +130,23 @@ class StubEngine:
                 if trial_id not in unavailable
             ],
             unavailable_trial_ids=unavailable,
+            schema_version="1.0.0",
+        )
+
+    async def get_document(self, **kwargs) -> EngineDocumentResponse:
+        assert kwargs == {
+            "trial_id": "2024-500001-00-00",
+            "document_name": "Protocol v2",
+            "part": 1,
+        }
+        return EngineDocumentResponse(
+            trial_id="2024-500001-00-00",
+            document_name="Protocol v2",
+            document_type="protocol",
+            part=1,
+            text="[[PAGE 1]]\nExtracted text",
+            next_part=2,
+            document_access_key="a" * 64,
             schema_version="1.0.0",
         )
 
@@ -231,6 +267,48 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
         "limit": 500,
         "used": 1,
         "remaining": 499,
+    }
+
+
+@pytest.mark.anyio
+async def test_get_documents_returns_one_text_document_part(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+        tool = next(item for item in tools.tools if item.name == "get_documents")
+        assert set(tool.input_schema["properties"]) == {
+            "analysis_id",
+            "trial_id",
+            "document_name",
+            "part",
+        }
+        assert tool.input_schema["properties"]["part"]["default"] == 1
+        assert tool.annotations is not None
+        assert tool.annotations.read_only_hint is False
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+
+        result = await client.call_tool(
+            "get_documents",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_id": "2024-500001-00-00",
+                "document_name": "Protocol v2",
+            },
+        )
+
+    assert result.is_error is False
+    assert result.structured_content == {
+        "trial_id": "2024-500001-00-00",
+        "document_name": "Protocol v2",
+        "document_type": "protocol",
+        "part": 1,
+        "text": "[[PAGE 1]]\nExtracted text",
+        "next_part": 2,
+        "analysis_allowance": {"limit": 50, "used": 1, "remaining": 49},
     }
 
 

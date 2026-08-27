@@ -8,6 +8,7 @@ Implemented tools:
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Intel Engine's versioned internal endpoint. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
+- `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
 
@@ -63,6 +64,24 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 - Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
+
+## `get_documents` contract
+
+`get_documents` accepts `analysis_id`, one `trial_id`, one exact
+case-insensitive `document_name`, and optional one-based `part` (default 1).
+
+- The document must be listed in the approved Trial Profile's
+  `available_extracted_document_names`.
+- Each response returns extracted text only, with preserved page markers, and
+  never returns a PDF, binary, link, page count or character count.
+- Each part is limited to 200,000 characters. If `next_part` is a number, call
+  the tool again with that part; `null` means the document is complete.
+- Light analyses may retrieve 10 unique documents; Max analyses may retrieve
+  50. Continuation parts and exact retries do not consume another document.
+- The tool performs no on-demand download, OCR, extraction, semantic search or
+  model work.
+
+Detailed contract: `docs/get-documents.md`.
 
 ## Local setup
 

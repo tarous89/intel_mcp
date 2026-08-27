@@ -76,3 +76,35 @@ async def test_engine_get_profiles_is_service_authenticated_and_preserves_partia
     result = await client.get_profiles(trial_ids)
     assert [item.eu_number for item in result.data] == ["2024-500001-00-00"]
     assert result.unavailable_trial_ids == ["2024-500002-00-00"]
+
+
+@pytest.mark.anyio
+async def test_engine_get_document_is_service_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-engine-token"
+        assert request.url.path == "/api/internal/mcp/documents"
+        assert request.content == (
+            b'{"trial_id":"2024-500001-00-00","document_name":"Protocol v3","part":2}'
+        )
+        return httpx.Response(
+            200,
+            json={
+                "trial_id": "2024-500001-00-00",
+                "document_name": "Protocol v3",
+                "document_type": "protocol",
+                "part": 2,
+                "text": "[[PAGE 50 CONTINUED]]\nText",
+                "next_part": 3,
+                "document_access_key": "a" * 64,
+                "schema_version": "1.0.0",
+            },
+        )
+
+    client = EngineClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.get_document(
+        trial_id="2024-500001-00-00",
+        document_name="Protocol v3",
+        part=2,
+    )
+    assert result.next_part == 3
+    assert result.document_access_key == "a" * 64
