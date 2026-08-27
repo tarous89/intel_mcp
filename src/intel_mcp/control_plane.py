@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from intel_mcp.classification import AppClassificationAccessResponse
 from intel_mcp.config import Settings
 from intel_mcp.documents import AppDocumentAccessResponse
+from intel_mcp.extraction import AppExtractionAccessResponse
 from intel_mcp.models import AppFilterAccessResponse, AppStartAnalysisResponse
 from intel_mcp.profiles import AppProfileAccessResponse
 
@@ -142,6 +143,40 @@ class ControlPlaneClient:
             response,
             "DOCUMENT_ACCESS_FAILED",
             "The document request could not be authorized.",
+        )
+
+    async def authorize_extraction(
+        self,
+        analysis_id: str,
+        extraction_key: str,
+        variable_count: int,
+        operation: Literal["reserve", "commit", "release"] = "reserve",
+    ) -> AppExtractionAccessResponse:
+        """Reserve, commit or release one trial+variables extraction unit."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/extraction-access"
+        response = await self._post(
+            url,
+            {
+                "analysisId": analysis_id,
+                "extractionKey": extraction_key,
+                "variableCount": variable_count,
+                "operation": operation,
+            },
+        )
+        if response.is_success:
+            try:
+                return AppExtractionAccessResponse.model_validate(response.json())
+            except (ValueError, ValidationError) as error:
+                raise ControlPlaneError(
+                    "CONTROL_PLANE_INVALID_RESPONSE",
+                    "The analysis control plane returned an invalid extraction authorization response.",
+                    502,
+                ) from error
+        raise self._response_error(
+            response,
+            "EXTRACTION_ACCESS_FAILED",
+            "The extraction request could not be authorized.",
         )
 
     async def _post(self, url: str, payload: dict) -> httpx.Response:

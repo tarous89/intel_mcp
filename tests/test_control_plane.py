@@ -154,3 +154,34 @@ async def test_document_access_is_authenticated_and_parsed() -> None:
     )
     assert result.access.document_key == "a" * 64
     assert result.access.remaining == 9
+
+
+@pytest.mark.anyio
+async def test_extraction_access_is_authenticated_and_parsed() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-service-token"
+        assert request.url.path == "/api/internal/mcp/extraction-access"
+        assert request.content == (
+            b'{"analysisId":"ana_123456789012345678901234","extractionKey":"'
+            + b"a" * 64
+            + b'","variableCount":2,"operation":"reserve"}'
+        )
+        return httpx.Response(
+            200,
+            json={
+                "access": {
+                    "extractionKey": "a" * 64,
+                    "limit": 20,
+                    "used": 0,
+                    "remaining": 19,
+                    "exhausted": False,
+                }
+            },
+        )
+
+    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+    result = await client.authorize_extraction(
+        "ana_123456789012345678901234", "a" * 64, 2, "reserve"
+    )
+    assert result.access.extraction_key == "a" * 64
+    assert result.access.remaining == 19
