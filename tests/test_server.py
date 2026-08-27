@@ -88,6 +88,7 @@ class StubEngine:
                     eu_number="2024-500001-00-00",
                     trial_title="Phase 2 head and neck study",
                     sponsor_name="Example Sponsor",
+                    available_extracted_document_names=["Protocol v2"],
                 )
             ],
             applied_filters={"phase": {"operator": "contains_any", "values": [2]}},
@@ -169,7 +170,9 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
             "eu_number": "2024-500001-00-00",
             "trial_title": "Phase 2 head and neck study",
             "sponsor_name": "Example Sponsor",
+            "available_extracted_document_names": ["Protocol v2"],
         }
+        assert result.structured_content["coverage"]["total_matches"] == 1
 
 
 @pytest.mark.anyio
