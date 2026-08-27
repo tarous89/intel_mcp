@@ -101,9 +101,17 @@ The public result is intentionally minimal:
   "eligible_trials": ["2024-500001-00-00"],
   "ineligible_trials": ["2024-500002-00-00"],
   "uncertain_trials": ["2024-500003-00-00"],
-  "eligible_count": 1,
-  "ineligible_count": 1,
-  "uncertain_count": 1
+  "counts": {
+    "classified": 3,
+    "eligible": 1,
+    "ineligible": 1,
+    "uncertain": 1
+  },
+  "analysis_allowance": {
+    "limit": 25,
+    "used": 3,
+    "remaining": 22
+  }
 }
 ```
 
