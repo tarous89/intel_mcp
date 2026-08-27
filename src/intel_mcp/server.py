@@ -152,6 +152,11 @@ async def filter_trials(
 ) -> FilterTrialsOutput:
     """Deterministically shortlist approved structured Trial Profiles.
 
+    Use this as the first screening step to reduce the candidate set with broad, reliable structured
+    conditions. After shortlisting, use classify_trials for complex inclusion/exclusion conditions that
+    require semantic interpretation of the Trial Profile. Do not use broad classification as the initial
+    discovery step when structured filtering can first reduce the candidate pool.
+
     This tool queries only documented structured columns. It does not search the complete profile,
     run semantic search, classify trials, retrieve full profiles/documents, extract variables, or
     write a report. Sponsor-name matching is a shortlist aid: the CTIS source can sometimes identify
@@ -257,6 +262,10 @@ async def classify_trials(
 ) -> ClassifyTrialsOutput:
     """Classify selected approved Trial Profiles into eligible, ineligible or uncertain trial IDs.
 
+    Use this as the final semantic classification step for trials already shortlisted with filter_trials.
+    Do not classify a broad discovery population when structured filtering can first reduce it. Classify
+    at most 25 trials per call; split a larger shortlist into batches using the same criteria.
+
     One independent Terra worker call is made per trial. Inside each worker call, every inclusion and
     exclusion criterion is classified separately as true, false or unknown/null with concise evidence.
     Those detailed criterion-level results stay internal to the worker/aggregation path and are not
@@ -339,6 +348,9 @@ async def classify_trials(
         eligible_trials=eligible_trials,
         ineligible_trials=ineligible_trials,
         uncertain_trials=uncertain_trials,
+        eligible_count=len(eligible_trials),
+        ineligible_count=len(ineligible_trials),
+        uncertain_count=len(uncertain_trials),
     )
 
 
