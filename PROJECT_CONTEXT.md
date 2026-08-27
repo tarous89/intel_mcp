@@ -54,12 +54,12 @@ Implemented now:
 start_analysis
 filter_trials
 classify_trials
+get_profiles
 ```
 
 Planned substantive tools:
 
 ```text
-get_profiles
 get_documents
 extract_variables
 ```
@@ -308,6 +308,31 @@ The tool performs paid model work and changes observable allowance state. Exact 
 
 Detailed human-readable contract: `docs/classify-trials.md`.
 
+## `get_profiles` — implemented contract
+
+`get_profiles(analysis_id, trial_ids)` returns complete current approved Trial Profiles.
+
+- The only inputs are `analysis_id` and 1–10 EU trial numbers.
+- Duplicate trial IDs are removed while preserving order.
+- The Engine endpoint is `POST /api/internal/mcp/profiles`; it returns complete approved `profile_json`, profile schema version and approval timestamp, plus unavailable IDs.
+- Missing, candidate and rejected profiles are reported only as unavailable; no internal review state or raw-CTIS fallback is exposed.
+- Complete stored profiles include contacts and extracted-document inventory.
+- The normal aggregate response target is 500,000 UTF-8 bytes. MCP never truncates a profile: it returns an ordered prefix of complete profiles and places deferred IDs in `remaining_trial_ids`. A single profile exceeding the target is returned alone.
+- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Current limits are Light 50 and Max 500. Exact repeated IDs do not consume allowance twice; unavailable or response-size-deferred IDs are not metered.
+- `allowance_excluded_trial_ids` distinguishes available profiles blocked by exhausted allowance.
+- The tool performs no generation, refresh, document retrieval, classification, semantic search, extraction or report writing.
+
+Annotations:
+
+```text
+readOnlyHint: false
+destructiveHint: false
+idempotentHint: true
+openWorldHint: false
+```
+
+Detailed contract: `docs/get-profiles.md`.
+
 ## App control-plane boundary
 
 MCP reaches the app through service-authenticated internal endpoints. Current relevant endpoints:
@@ -316,6 +341,7 @@ MCP reaches the app through service-authenticated internal endpoints. Current re
 POST /api/internal/mcp/start-analysis
 POST /api/internal/mcp/filter-access
 POST /api/internal/mcp/classification-access
+POST /api/internal/mcp/profile-access
 ```
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
@@ -364,12 +390,11 @@ This verifies configuration and contracts. It does not constitute a paid end-to-
 
 ## Immediate next implementation work
 
-1. Implement `get_profiles` with bounded projections and its app allowance boundary.
-2. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
-3. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
-4. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-5. Wire the approved background SOL report execution after the required MCP tool surface is complete.
-6. Add external OAuth/distribution only after the internal business-tool flow is stable.
+1. Implement `get_documents` with metadata/text bounds, source/page provenance and pagination.
+2. Implement `extract_variables` using internal semantic retrieval + bounded worker execution.
+3. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+4. Wire the approved background SOL report execution after the required MCP tool surface is complete.
+5. Add external OAuth/distribution only after the internal business-tool flow is stable.
 
 ## Context discipline
 
