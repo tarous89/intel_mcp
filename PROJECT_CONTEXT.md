@@ -111,6 +111,7 @@ Core rules:
 - default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
 - page size 1–100 with opaque filter/sort-bound cursor;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
+- each returned shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`; phase, dates and document availability remain filterable but are omitted from the repeated result projection;
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
 contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
