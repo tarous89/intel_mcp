@@ -279,10 +279,11 @@ async def classify_trials(
         raise ToolError(f"INVALID_CRITERIA: {error}") from error
 
     keys = [classification_key(trial_id, inclusion, exclusion) for trial_id in trial_ids]
+    control = control_plane_client()
     try:
-        # Validate approved-profile availability before consuming classification allowance.
+        # Validate approved-profile availability before reserving classification allowance.
         profile_result = await engine_client().classification_profiles(trial_ids)
-        access_result = await control_plane_client().authorize_classifications(analysis_id, keys)
+        access_result = await control.authorize_classifications(analysis_id, keys, "reserve")
     except (ControlPlaneError, EngineError) as error:
         raise ToolError(f"{error.code}: {error.message}") from error
 
@@ -299,6 +300,21 @@ async def classify_trials(
             exclusion,
         )
     except ClassifierError as error:
+        try:
+            await control.authorize_classifications(analysis_id, keys, "release")
+        except ControlPlaneError:
+            pass
+        raise ToolError(f"{error.code}: {error.message}") from error
+    except Exception:
+        try:
+            await control.authorize_classifications(analysis_id, keys, "release")
+        except ControlPlaneError:
+            pass
+        raise
+
+    try:
+        await control.authorize_classifications(analysis_id, keys, "commit")
+    except ControlPlaneError as error:
         raise ToolError(f"{error.code}: {error.message}") from error
 
     eligible_trials: list[str] = []
