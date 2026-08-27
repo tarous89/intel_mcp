@@ -19,7 +19,7 @@ Use it as the first screening step. Apply broad structured conditions to reduce 
 
 Filtering already returns `returned`, the number of shortlist items in the current response. When `has_more` is true, this is a page count rather than the total number of matches.
 
-Each shortlist item is intentionally minimal: `eu_number`, `trial_title` and `sponsor_name`. Phase, dates and document-availability fields remain usable as filters but are not repeated in every result item; retrieve the complete selected records with `get_profiles` when needed.
+Each shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`. Phase, dates and normalized document types remain usable as filters but are not repeated in every result item; retrieve the complete selected records with `get_profiles` when needed. The full match count remains available as `coverage.total_matches` independently of page size.
 
 General behavior:
 
