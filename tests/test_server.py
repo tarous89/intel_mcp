@@ -18,6 +18,12 @@ from intel_mcp.models import (
     FilterCoverage,
     FilterTrialItem,
 )
+from intel_mcp.profiles import (
+    AppProfileAccess,
+    AppProfileAccessResponse,
+    EngineProfilesResponse,
+    FullProfileItem,
+)
 from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 
 
@@ -59,6 +65,20 @@ class StubControlPlane:
             )
         )
 
+    async def authorize_profiles(
+        self, analysis_id: str, trial_ids: list[str]
+    ) -> AppProfileAccessResponse:
+        assert analysis_id == "ana_123456789012345678901234"
+        return AppProfileAccessResponse(
+            access=AppProfileAccess(
+                allowed_trial_ids=trial_ids,
+                limit=500,
+                used=len(trial_ids),
+                remaining=500 - len(trial_ids),
+                exhausted=False,
+            )
+        )
+
 
 class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
@@ -81,6 +101,26 @@ class StubEngine:
             applied_limit=20,
             has_more=False,
             next_cursor=None,
+            schema_version="1.0.0",
+        )
+
+    async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
+        unavailable = [trial_id for trial_id in trial_ids if trial_id.endswith("02-00-00")]
+        return EngineProfilesResponse(
+            data=[
+                FullProfileItem(
+                    eu_number=trial_id,
+                    profile_schema_version="8.4.0",
+                    approved_at="2026-08-27T12:00:00+00:00",
+                    profile={
+                        "filtering_variables": {"phase": [2]},
+                        "classification_variables": {"trial_title": f"Full {trial_id}"},
+                    },
+                )
+                for trial_id in trial_ids
+                if trial_id not in unavailable
+            ],
+            unavailable_trial_ids=unavailable,
             schema_version="1.0.0",
         )
 
@@ -128,6 +168,45 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
         assert result.structured_content is not None
         assert result.structured_content["returned"] == 1
         assert result.structured_content["data"][0]["eu_number"] == "2024-500001-00-00"
+
+
+@pytest.mark.anyio
+async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+        tool = next(item for item in tools.tools if item.name == "get_profiles")
+        assert set(tool.input_schema["properties"]) == {"analysis_id", "trial_ids"}
+        assert tool.annotations is not None
+        assert tool.annotations.read_only_hint is False
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+
+        result = await client.call_tool(
+            "get_profiles",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_ids": [
+                    "2024-500001-00-00",
+                    "2024-500002-00-00",
+                    "2024-500001-00-00",
+                ],
+            },
+        )
+
+    assert result.is_error is False
+    assert result.structured_content is not None
+    assert result.structured_content["requested"] == 2
+    assert result.structured_content["returned"] == 1
+    assert result.structured_content["profiles"][0]["profile"] == {
+        "filtering_variables": {"phase": [2]},
+        "classification_variables": {"trial_title": "Full 2024-500001-00-00"},
+    }
+    assert result.structured_content["unavailable_trial_ids"] == ["2024-500002-00-00"]
+    assert result.structured_content["remaining_trial_ids"] == []
 
 
 def test_controlled_filter_values_accept_any_case_and_normalize() -> None:
