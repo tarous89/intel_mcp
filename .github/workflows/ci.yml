@@ -1,0 +1,37 @@
+name: MCP CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+
+  live-health:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deployed MCP classifier configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            body="$(curl -fsS --max-time 15 https://intel-mcp.onrender.com/health || true)"
+            if python -c 'import json,sys; d=json.loads(sys.argv[1]); assert d.get("status")=="ok" and d.get("service")=="intel-mcp" and d.get("classifier_configured") is True' "$body" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'MCP health did not report classifier_configured=true.' >&2
+          exit 1
