@@ -18,14 +18,14 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
-    openai_api_key: str
-    openai_base_url: str
-    classifier_model: str
-    classifier_reasoning_effort: str
-    classifier_service_tier: str
-    classifier_max_output_tokens: int
-    classifier_concurrency: int
-    classifier_timeout_seconds: float
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    classifier_model: str = "gpt-5.6-terra"
+    classifier_reasoning_effort: str = "high"
+    classifier_service_tier: str = "standard"
+    classifier_max_output_tokens: int = 12000
+    classifier_concurrency: int = 4
+    classifier_timeout_seconds: float = 300
 
     @classmethod
     def from_environment(cls) -> "Settings":
