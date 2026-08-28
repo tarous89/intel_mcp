@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-08-27  
+Last updated: 2026-08-28
 Repository: `tarous89/intel_mcp`
 
 > This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
@@ -38,7 +38,7 @@ transport: Streamable HTTP
 
 `/mcp` requires the dedicated inbound service bearer for the current internal-app profile. `/health` is public and non-sensitive.
 
-The production health result exposes only configuration booleans for the classifier and extractor; it never exposes the shared credential itself.
+The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
 Therapeutic-area alignment commit
 `62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd` reached production in Render
@@ -427,9 +427,29 @@ POST /api/internal/mcp/classification-access
 POST /api/internal/mcp/profile-access
 POST /api/internal/mcp/document-access
 POST /api/internal/mcp/extraction-access
+POST /api/internal/mcp/tool-call
 ```
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
+
+## Runtime model selection and telemetry — implemented 2026-08-28
+
+The app control plane returns `workerModel` and `configVersion` with classification
+and extraction reservations. `classify_trials` and `extract_variables` therefore use
+their independently configured model (`gpt-5.6-terra`, `gpt-5.6-luna`,
+`gpt-5.6-sol` or `gpt-5.5`) for the complete in-flight operation. A saved admin change
+applies to the next reservation and requires no MCP restart.
+
+All six MCP tools emit a best-effort post-call event to
+`POST /api/internal/mcp/tool-call`. Events contain only call ID, tool, timing,
+success/error code, analysis/report-run routing identifiers and aggregated worker
+usage. They never include tool inputs/results, trial IDs, profiles, documents,
+criteria, variables or prompts.
+
+Worker token accounting uses the actual Responses API `usage` object and includes
+input, cached-input, output, reasoning and total tokens across all worker requests and
+controlled retries. Reasoning tokens are a subset of output tokens. Telemetry delivery
+failure never changes the MCP tool result.
 
 `classification-access` supports `reserve | commit | release` and stores bounded committed/reserved classification-key sets inside the existing lease `usage` JSON; no control-plane schema migration was required.
 
@@ -472,8 +492,6 @@ app classification-access deployment: LIVE
 ```
 
 This verifies configuration and contracts. It does not constitute a paid end-to-end Terra classification of a real analysis lease.
-
-`extract_variables` shipped in MCP PR #9 / merge `daea4af7c8f296565f1231c6e4c6bda4e1ce2db8` and is live in Render deploy `dep-da8b2c2jnfac73diltj0`. PR validation passed all 28 unit/contract tests. The public `/health` response is `status=ok` with both `classifier_configured=true` and `extractor_configured=true`. No paid extraction call was run during deployment verification.
 
 ## Immediate next implementation work
 

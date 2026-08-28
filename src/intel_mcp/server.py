@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import logging
 import secrets
+import time
+from datetime import datetime, timezone
+from functools import wraps
+from inspect import signature
 from typing import Annotated
+from uuid import uuid4
 
 import uvicorn
 from mcp.server import MCPServer
@@ -49,6 +55,9 @@ from intel_mcp.profiles import (
     GetProfilesCounts,
     GetProfilesOutput,
 )
+from intel_mcp.telemetry import begin_metrics, end_metrics, set_worker_model
+
+LOGGER = logging.getLogger("intel_mcp")
 
 settings = Settings.from_environment()
 mcp = MCPServer(
@@ -68,6 +77,63 @@ def engine_client() -> EngineClient:
     return EngineClient(settings)
 
 
+def track_tool_call(tool_name: str):
+    def decorate(function):
+        function_signature = signature(function)
+
+        @wraps(function)
+        async def wrapped(*args, **kwargs):
+            bound = function_signature.bind_partial(*args, **kwargs)
+            analysis_id = bound.arguments.get("analysis_id")
+            report_run_id = bound.arguments.get("report_run_id")
+            started_at = datetime.now(timezone.utc)
+            started_clock = time.perf_counter()
+            metrics, metrics_token = begin_metrics()
+            status = "success"
+            error_code = None
+            try:
+                return await function(*args, **kwargs)
+            except Exception as error:
+                status = "error"
+                message = str(error)
+                error_code = message.split(":", 1)[0][:100] if message else error.__class__.__name__[:100]
+                raise
+            finally:
+                completed_at = datetime.now(timezone.utc)
+                duration_ms = max(0, round((time.perf_counter() - started_clock) * 1000))
+                end_metrics(metrics_token)
+                payload = {
+                    "callId": str(uuid4()),
+                    "toolName": tool_name,
+                    "status": status,
+                    "workerCalls": metrics.worker_calls,
+                    "inputTokens": metrics.input_tokens,
+                    "cachedInputTokens": metrics.cached_input_tokens,
+                    "outputTokens": metrics.output_tokens,
+                    "reasoningTokens": metrics.reasoning_tokens,
+                    "totalTokens": metrics.total_tokens,
+                    "startedAt": started_at.isoformat(),
+                    "completedAt": completed_at.isoformat(),
+                    "durationMs": duration_ms,
+                }
+                if isinstance(analysis_id, str):
+                    payload["analysisId"] = analysis_id
+                if isinstance(report_run_id, str):
+                    payload["reportRunId"] = report_run_id
+                if error_code:
+                    payload["errorCode"] = error_code
+                if metrics.worker_model:
+                    payload["workerModel"] = metrics.worker_model
+                try:
+                    await control_plane_client().record_tool_call(payload)
+                except Exception:
+                    LOGGER.warning("MCP telemetry delivery failed for %s", tool_name, exc_info=True)
+
+        return wrapped
+
+    return decorate
+
+
 @mcp.tool(
     title="Start Intel analysis",
     annotations=ToolAnnotations(
@@ -77,6 +143,7 @@ def engine_client() -> EngineClient:
         open_world_hint=False,
     ),
 )
+@track_tool_call("start_analysis")
 async def start_analysis(
     report_run_id: Annotated[
         str,
@@ -119,6 +186,7 @@ async def start_analysis(
         open_world_hint=False,
     ),
 )
+@track_tool_call("filter_trials")
 async def filter_trials(
     analysis_id: Annotated[
         str,
@@ -219,6 +287,7 @@ async def filter_trials(
         open_world_hint=False,
     ),
 )
+@track_tool_call("classify_trials")
 async def classify_trials(
     analysis_id: Annotated[
         str,
@@ -306,12 +375,15 @@ async def classify_trials(
             "CLASSIFICATION_ACCESS_FAILED: the control plane returned misaligned classification authorization."
         )
 
+    set_worker_model(access_result.access.worker_model)
+
     try:
         worker_results = await classify_profile_items(
             settings,
             profile_result.data,
             inclusion,
             exclusion,
+            model=access_result.access.worker_model,
         )
     except ClassifierError as error:
         try:
@@ -370,6 +442,7 @@ async def classify_trials(
         open_world_hint=False,
     ),
 )
+@track_tool_call("get_profiles")
 async def get_profiles(
     analysis_id: Annotated[
         str,
@@ -441,6 +514,7 @@ async def get_profiles(
         open_world_hint=False,
     ),
 )
+@track_tool_call("get_documents")
 async def get_documents(
     analysis_id: Annotated[
         str,
@@ -538,6 +612,7 @@ async def get_documents(
         open_world_hint=False,
     ),
 )
+@track_tool_call("extract_variables")
 async def extract_variables(
     analysis_id: Annotated[
         str,
@@ -604,12 +679,15 @@ async def extract_variables(
             "EXTRACTION_ACCESS_FAILED: the control plane returned misaligned extraction authorization."
         )
 
+    set_worker_model(reservation.access.worker_model)
+
     try:
         values = await TerraExtractor(settings).extract(
             trial_id=trial_id,
             profile=source.profile,
             protocol_text=source.protocol_text,
             variables=normalized_variables,
+            model=reservation.access.worker_model,
         )
     except ExtractorError as error:
         try:

@@ -85,8 +85,8 @@ async def test_filter_access_is_authenticated_and_parsed() -> None:
                     "allowedTrialIds": ["2024-500001-00-00"],
                     "limit": 100,
                     "used": 1,
-                    "remaining": 99,
-                    "exhausted": False,
+                        "remaining": 99,
+                        "exhausted": False,
                 }
             },
         )
@@ -173,8 +173,10 @@ async def test_extraction_access_is_authenticated_and_parsed() -> None:
                     "extractionKey": "a" * 64,
                     "limit": 20,
                     "used": 0,
-                    "remaining": 19,
-                    "exhausted": False,
+                        "remaining": 19,
+                        "exhausted": False,
+                        "workerModel": "gpt-5.6-luna",
+                        "configVersion": 2,
                 }
             },
         )
@@ -185,3 +187,4 @@ async def test_extraction_access_is_authenticated_and_parsed() -> None:
     )
     assert result.access.extraction_key == "a" * 64
     assert result.access.remaining == 19
+    assert result.access.worker_model == "gpt-5.6-luna"

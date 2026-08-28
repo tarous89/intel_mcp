@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from intel_mcp.config import Settings
 from intel_mcp.models import AnalysisAllowance
+from intel_mcp.telemetry import record_worker_response
 
 
 MAX_TRIALS_PER_CALL = 25
@@ -60,6 +61,8 @@ class AppClassificationAccess(BaseModel):
     used: int = Field(ge=0)
     remaining: int = Field(ge=0)
     exhausted: bool
+    worker_model: str = Field(default="gpt-5.6-terra", alias="workerModel")
+    config_version: int = Field(default=1, alias="configVersion", ge=1)
 
 
 class AppClassificationAccessResponse(BaseModel):
@@ -253,6 +256,7 @@ class TerraClassifier:
         profile: dict[str, Any],
         inclusion_criteria: list[str],
         exclusion_criteria: list[str],
+        model: str | None = None,
     ) -> TrialWorkerResult:
         try:
             self._settings.validate_classifier()
@@ -263,6 +267,7 @@ class TerraClassifier:
                 False,
             ) from error
 
+        selected_model = model or self._settings.classifier_model
         inclusion_items = [
             {"criterion_id": f"i{index}", "criterion": criterion}
             for index, criterion in enumerate(inclusion_criteria, start=1)
@@ -286,7 +291,7 @@ class TerraClassifier:
         last_error: ClassifierError | None = None
         for attempt in range(1, 3):
             try:
-                output = await self._request(user_payload=user_payload, schema=schema)
+                output = await self._request(user_payload=user_payload, schema=schema, model=selected_model)
                 return _validate_worker_result(
                     output,
                     trial_id=trial_id,
@@ -301,10 +306,10 @@ class TerraClassifier:
         assert last_error is not None
         raise last_error
 
-    async def _request(self, *, user_payload: str, schema: dict[str, Any]) -> dict[str, Any]:
+    async def _request(self, *, user_payload: str, schema: dict[str, Any], model: str) -> dict[str, Any]:
         url = f"{self._settings.openai_base_url.rstrip('/')}/responses"
         request = {
-            "model": self._settings.classifier_model,
+            "model": model,
             "service_tier": self._settings.classifier_service_tier,
             "store": False,
             "max_output_tokens": self._settings.classifier_max_output_tokens,
@@ -356,6 +361,8 @@ class TerraClassifier:
                 response.status_code >= 500,
             ) from error
 
+        record_worker_response(model, payload)
+
         if response.status_code >= 400:
             retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
             raise ClassifierError(
@@ -393,8 +400,10 @@ async def classify_profile_items(
     profiles: list[ClassificationProfileItem],
     inclusion_criteria: list[str],
     exclusion_criteria: list[str],
+    model: str | None = None,
 ) -> list[TrialWorkerResult]:
     classifier = TerraClassifier(settings)
+    selected_model = model or settings.classifier_model
     semaphore = asyncio.Semaphore(settings.classifier_concurrency)
 
     async def classify_one(item: ClassificationProfileItem) -> TrialWorkerResult:
@@ -404,6 +413,7 @@ async def classify_profile_items(
                 profile=item.profile,
                 inclusion_criteria=inclusion_criteria,
                 exclusion_criteria=exclusion_criteria,
+                model=selected_model,
             )
 
     tasks = [asyncio.create_task(classify_one(item)) for item in profiles]
