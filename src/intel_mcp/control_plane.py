@@ -179,6 +179,21 @@ class ControlPlaneClient:
             "The extraction request could not be authorized.",
         )
 
+    async def record_tool_call(self, payload: dict) -> None:
+        """Best-effort operational telemetry; callers must never expose clinical payloads here."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/mcp/tool-call"
+        try:
+            async with httpx.AsyncClient(timeout=2.0, transport=self._transport) as client:
+                response = await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {self._settings.app_service_token}"},
+                    json=payload,
+                )
+                response.raise_for_status()
+        except httpx.HTTPError:
+            return
+
     async def _post(self, url: str, payload: dict) -> httpx.Response:
         try:
             async with httpx.AsyncClient(

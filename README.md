@@ -13,6 +13,13 @@ Implemented tools:
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
 
+Every MCP business-tool invocation emits best-effort operational telemetry to the
+app control plane: response duration, success/error code and, for worker-backed tools,
+the selected model plus actual Responses API token usage. Clinical inputs and results
+are never included. The app reservation response selects the model independently for
+`classify_trials` and `extract_variables`, so admin changes apply on the next call
+without restarting MCP.
+
 ## `extract_variables` contract
 
 `extract_variables` accepts one `trial_id` and 1–20 variable definitions with a

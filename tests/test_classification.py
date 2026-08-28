@@ -79,7 +79,8 @@ async def test_classify_trials_returns_trial_id_buckets_and_counts(monkeypatch: 
     monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: control)
     monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubClassificationEngine())
 
-    async def fake_classify_profile_items(_settings, profiles, _inclusion, _exclusion):
+    async def fake_classify_profile_items(_settings, profiles, _inclusion, _exclusion, model=None):
+        assert model == "gpt-5.6-terra"
         assert [profile.eu_number for profile in profiles] == trial_ids
         return [
             TrialWorkerResult(

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from intel_mcp.config import Settings
 from intel_mcp.models import AnalysisAllowance
+from intel_mcp.telemetry import record_worker_response
 
 
 MAX_VARIABLES_PER_CALL = 20
@@ -57,6 +58,8 @@ class AppExtractionAccess(BaseModel):
     used: int = Field(ge=0)
     remaining: int = Field(ge=0)
     exhausted: bool
+    worker_model: str = Field(default="gpt-5.6-terra", alias="workerModel")
+    config_version: int = Field(default=1, alias="configVersion", ge=1)
 
 
 class AppExtractionAccessResponse(BaseModel):
@@ -230,12 +233,14 @@ class TerraExtractor:
         profile: dict[str, Any],
         protocol_text: str | None,
         variables: list[ExtractionVariable],
+        model: str | None = None,
     ) -> dict[str, ExtractedValue]:
         try:
             self._settings.validate_extractor()
         except RuntimeError as error:
             raise ExtractorError("EXTRACTOR_NOT_CONFIGURED", "The Terra extractor is not configured.") from error
 
+        selected_model = model or self._settings.extractor_model
         payload = json.dumps(
             {
                 "trial_id": trial_id,
@@ -248,7 +253,7 @@ class TerraExtractor:
         )
         schema = result_schema(variables)
         request = {
-            "model": self._settings.extractor_model,
+            "model": selected_model,
             "service_tier": self._settings.extractor_service_tier,
             "store": False,
             "max_output_tokens": self._settings.extractor_max_output_tokens,
@@ -293,6 +298,7 @@ class TerraExtractor:
                 "The Terra extractor returned an invalid response.",
                 response.status_code >= 500,
             ) from error
+        record_worker_response(selected_model, response_payload)
         if response.status_code >= 400:
             retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
             raise ExtractorError("EXTRACTOR_API_ERROR", "The Terra extractor request failed.", retryable)
