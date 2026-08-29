@@ -28,6 +28,24 @@ POST /api/internal/mcp/profiles
 
 Engine returns only current `approval_status = approved` profile JSON plus the public profile schema version and approval timestamp. Missing, candidate and rejected records are indistinguishable to the MCP caller and appear only as unavailable. Contacts and extracted-document inventory remain part of the complete stored profile.
 
+The profile inventory has one object with six always-present arrays:
+
+```json
+{
+  "available_extracted_documents": {
+    "protocol": ["Clinical Trial Protocol v3"],
+    "recruitment_arrangements": [],
+    "patient_information_and_informed_consent": ["Main PIS-ICF"],
+    "assessments_and_forms": [],
+    "clinical_study_report": [],
+    "results_summary": []
+  }
+}
+```
+
+The legacy parallel document-type and document-name lists are not returned in
+the profile JSON.
+
 Every approved profile admitted by the analysis allowance is returned complete. The tool never truncates individual profiles.
 
 ## Allowance

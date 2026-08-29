@@ -14,9 +14,9 @@ from intel_mcp.models import (
     AppFilterAccess,
     AppFilterAccessResponse,
     AppStartAnalysisResponse,
+    EngineFilterTrialItem,
     EngineFilterResponse,
     FilterCounts,
-    FilterTrialItem,
 )
 from intel_mcp.documents import (
     AppDocumentAccess,
@@ -131,11 +131,16 @@ class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
         return EngineFilterResponse(
             data=[
-                FilterTrialItem(
+                EngineFilterTrialItem(
                     eu_number="2024-500001-00-00",
                     trial_title="Phase 2 head and neck study",
                     sponsor_name="Example Sponsor",
-                    available_extracted_document_names=["Protocol v2"],
+                    protocol=["Protocol v2"],
+                    recruitment_arrangements=[],
+                    patient_information_and_informed_consent=["Main PIS-ICF"],
+                    assessments_and_forms=["Quality-of-life questionnaire"],
+                    clinical_study_report=[],
+                    results_summary=[],
                 )
             ],
             counts=FilterCounts(total_profiles=7, total_matches=1, returned=1),
@@ -147,11 +152,19 @@ class StubEngine:
             data=[
                 FullProfileItem(
                     eu_number=trial_id,
-                    profile_schema_version="8.4.0",
+                    profile_schema_version="8.6.0",
                     approved_at="2026-08-27T12:00:00+00:00",
                     profile={
                         "filtering_variables": {"phase": [2]},
                         "classification_variables": {"trial_title": f"Full {trial_id}"},
+                        "available_extracted_documents": {
+                            "protocol": ["Protocol v2"],
+                            "recruitment_arrangements": [],
+                            "patient_information_and_informed_consent": ["Main PIS-ICF"],
+                            "assessments_and_forms": ["Quality-of-life questionnaire"],
+                            "clinical_study_report": [],
+                            "results_summary": [],
+                        },
                     },
                 )
                 for trial_id in trial_ids
@@ -238,7 +251,12 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
             "eu_number": "2024-500001-00-00",
             "trial_title": "Phase 2 head and neck study",
             "sponsor_name": "Example Sponsor",
-            "available_extracted_document_names": ["Protocol v2"],
+            "protocol": ["Protocol v2"],
+            "recruitment_arrangements": [],
+            "patient_information_and_informed_consent": ["Main PIS-ICF"],
+            "assessments_and_forms": ["Quality-of-life questionnaire"],
+            "clinical_study_report": [],
+            "results_summary": [],
         }
         assert result.structured_content["counts"] == {
             "total_profiles": 7,
@@ -291,6 +309,14 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
     assert result.structured_content["profiles"][0]["profile"] == {
         "filtering_variables": {"phase": [2]},
         "classification_variables": {"trial_title": "Full 2024-500001-00-00"},
+        "available_extracted_documents": {
+            "protocol": ["Protocol v2"],
+            "recruitment_arrangements": [],
+            "patient_information_and_informed_consent": ["Main PIS-ICF"],
+            "assessments_and_forms": ["Quality-of-life questionnaire"],
+            "clinical_study_report": [],
+            "results_summary": [],
+        },
     }
     assert result.structured_content["unavailable_trial_ids"] == ["2024-500002-00-00"]
     assert result.structured_content["allowance_reached_trial_ids"] == []

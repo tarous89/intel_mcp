@@ -45,6 +45,7 @@ from intel_mcp.models import (
     AnalysisAllowance,
     AnalysisLimits,
     FilterCounts,
+    FilterTrialItem,
     FilterTrialsOutput,
     StartAnalysisOutput,
     TrialFilters,
@@ -262,7 +263,13 @@ async def filter_trials(
 
     access = access_result.access
     allowed = set(access.allowed_trial_ids)
-    data = [item for item in engine_result.data if item.eu_number in allowed]
+    data = [
+        FilterTrialItem.model_validate(
+            item.model_dump(exclude={"available_extracted_document_names"})
+        )
+        for item in engine_result.data
+        if item.eu_number in allowed
+    ]
     return FilterTrialsOutput(
         data=data,
         counts=FilterCounts(
@@ -537,8 +544,9 @@ async def get_documents(
             min_length=1,
             max_length=1000,
             description=(
-                "One exact document name from available_extracted_document_names. "
-                "Matching is case-insensitive."
+                "One exact document name from a filter_trials category field or from one of the "
+                "approved profile's six available_extracted_documents arrays. Matching is "
+                "case-insensitive."
             ),
         ),
     ],
@@ -565,8 +573,9 @@ async def get_documents(
     the returned next_part until it is null. Additional parts of the same document do not consume
     additional document allowance. Exact retries are allowance-idempotent.
 
-    Only successfully or partially extracted documents listed by a current approved Trial Profile
-    are accessible. The tool performs no download, OCR, extraction, semantic search or model work.
+    Only successfully or partially extracted documents listed in one of a current approved Trial
+    Profile's six available_extracted_documents arrays are accessible. The tool performs no
+    download, OCR, extraction, semantic search or model work.
     For targeted facts, use extract_variables instead of loading many complete documents into
     the model context.
     """
@@ -643,10 +652,10 @@ async def extract_variables(
 ) -> ExtractVariablesOutput:
     """Extract up to 20 caller-defined values from one trial in one Terra worker call.
 
-    The Engine supplies the complete current approved Trial Profile plus the complete best extracted
-    protocol when available. Terra uses the profile as the primary source and the protocol to complete
-    or correct protocol-defined details. When no extracted protocol is available, extraction uses the
-    profile alone.
+    The Engine supplies the complete current approved Trial Profile plus the complete extracted text
+    of the single protocol named in that profile when available. Terra uses the profile as the primary
+    source and the protocol to complete or correct protocol-defined details. When the profile has no
+    extracted protocol, extraction uses the profile alone.
 
     Every requested variable is returned under its exact name. A source that does not establish the
     answer produces null. The result intentionally contains no status, explanation, evidence, document

@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Repository: `tarous89/intel_mcp`
 
 > This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
@@ -106,7 +106,8 @@ Core rules:
 - default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
 - page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
-- each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and `available_extracted_document_names`; phase, dates and normalized document types remain filterable but are omitted from the repeated result projection;
+- each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and six always-present document-name arrays: `protocol`, `recruitment_arrangements`, `patient_information_and_informed_consent`, `assessments_and_forms`, `clinical_study_report` and `results_summary`; unavailable categories are empty arrays;
+- MCP temporarily accepts the superseded Engine `available_extracted_document_names` projection during rolling deployment but never exposes that legacy field publicly; remove this compatibility only after every Engine environment serves the six-field response;
 - output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
@@ -350,8 +351,9 @@ Detailed contract: `docs/get-profiles.md`.
 `get_documents(analysis_id, trial_id, document_name, part=1)` returns extracted
 text for exactly one explicitly named document.
 
-- `document_name` must exactly match, case-insensitively, a value exposed by the
-  approved Trial Profile's `available_extracted_document_names`.
+- `document_name` must exactly match, case-insensitively, a value exposed in a
+  `filter_trials` category field or one of the approved Trial Profile's six
+  `available_extracted_documents` arrays.
 - Engine boundary: `POST /api/internal/mcp/documents`.
 - App allowance boundary: `POST /api/internal/mcp/document-access`.
 - Each response part contains at most 200,000 characters and preserves page
@@ -389,9 +391,11 @@ typed schema from exactly one trial.
   `string_array`; default `string`);
 - Engine boundary: `POST /api/internal/mcp/extraction-source` requires a current
   approved Trial Profile and returns the complete stored profile plus the
-  complete best extracted protocol, if available;
-- protocol selection reuses the deterministic Trial Profile ranking; profile-only
-  extraction remains valid when no protocol text exists;
+  complete text of the single protocol named in
+  `available_extracted_documents.protocol`, if available;
+- protocol selection is completed upstream when the profile inventory is built;
+  extraction does not re-rank stored protocol rows, and profile-only extraction
+  remains valid when the profile has no protocol;
 - Terra receives profile and protocol together in exactly one model request;
   there is no automatic model retry;
 - the strict worker schema and MCP result contain values only: every requested

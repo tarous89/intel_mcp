@@ -13,7 +13,10 @@
 }
 ```
 
-`document_name` must exactly match, case-insensitively, one value previously exposed in `available_extracted_document_names`. One document name is accepted per call. `part` defaults to `1`.
+`document_name` must exactly match, case-insensitively, one value exposed in a
+`filter_trials` document-category field or in one of the approved profile's six
+`available_extracted_documents` arrays. One document name is accepted per call.
+`part` defaults to `1`.
 
 ## Output
 
