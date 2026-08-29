@@ -2,6 +2,13 @@
 
 Remote Model Context Protocol service for TrialAgents Intel Agent.
 
+The service root serves the public Intel MCP documentation page. It explains
+the report-run lifecycle, platform-specific ChatGPT and Claude connector setup,
+an official Python MCP SDK example, copyable tool arguments and the complete
+six-tool workflow. The page deliberately marks hosted ChatGPT/Claude connection
+as unavailable until public OAuth is implemented; it never exposes or asks a
+customer to reuse the internal service credential.
+
 Implemented tools:
 
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
@@ -131,7 +138,8 @@ export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
 intel-mcp
 ```
 
-The Streamable HTTP endpoint is `/mcp`; the unauthenticated liveness endpoint is `/health`.
+The public documentation page is `/`, the Streamable HTTP endpoint is `/mcp`,
+and the unauthenticated liveness endpoint is `/health`.
 
 Required production settings:
 
