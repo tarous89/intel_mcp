@@ -46,6 +46,16 @@ deploy `dep-da81goks728c73ajeud0`. It aligns the MCP allowlist with Trial
 Profile contract 8.4.0. Main CI passed the unit/contract suite and the live
 `classifier_configured=true` assertion.
 
+Trial Profile 8.6 document-inventory alignment was merged in MCP PR #12 as
+`40fd24595b45966e5f4a1dfa71084c49306b9ae5` and reached production in Render
+deploy `dep-da9d5r3ncjis739771eg`. Engine PR #134 / merge
+`9a0250d6db54fd21e64196ac8fe244b1610ada43` is live in profile-boundary
+deploy `dep-da9d75gae00c73aijm8g` and daily-sync deploy
+`dep-da9d75oae00c73aijmjg`. MCP CI passed 32 tests and Engine CI passed 283.
+Both health endpoints returned 200 and the deployment window had no error-level
+logs. No migration, download, OCR, extraction, profile generation or model call
+was performed.
+
 ## Current MCP tool surface
 
 Implemented now:
