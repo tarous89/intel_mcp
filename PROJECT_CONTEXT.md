@@ -47,6 +47,15 @@ state that public OAuth is not enabled; no internal service credential is expose
 The intended custom-domain routes are `https://mcp.trialagents.com/` and
 `https://mcp.trialagents.com/mcp` once the domain is attached and DNS/TLS is live.
 
+The documentation site was merged in MCP PR #15 as
+`72a905aa94757fd8b30c190ee0f8a3e763593d25` and reached production in Render
+deploy `dep-da9eq4ajnfac73dlbgog`. The service root and health endpoint returned
+200, security headers were present, classifier/extractor configuration remained
+healthy and unauthenticated `/mcp` access remained closed with 401. The
+`MCP_ALLOWED_HOSTS` production allowlist now includes both the Render hostname
+and `mcp.trialagents.com`. Custom-domain attachment, DNS and TLS verification are
+still pending outside the currently exposed Render integration actions.
+
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
 Therapeutic-area alignment commit
