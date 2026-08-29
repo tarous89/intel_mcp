@@ -16,7 +16,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from intel_mcp.classification import (
@@ -31,6 +31,7 @@ from intel_mcp.classification import (
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.documents import GetDocumentsOutput
+from intel_mcp.docs_site import DOCS_HTML
 from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.extraction import (
     MAX_VARIABLES_PER_CALL,
@@ -724,6 +725,23 @@ async def extract_variables(
             used=committed.access.used,
             remaining=committed.access.remaining,
         ),
+    )
+
+
+@mcp.custom_route("/", methods=["GET"])
+async def documentation(_request: Request) -> Response:
+    return HTMLResponse(
+        DOCS_HTML,
+        headers={
+            "Cache-Control": "public, max-age=300",
+            "Content-Security-Policy": (
+                "default-src 'self'; img-src 'self' https://intel.trialagents.com data:; "
+                "style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; "
+                "base-uri 'self'; frame-ancestors 'none'; form-action 'none'"
+            ),
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
