@@ -45,6 +45,7 @@ from intel_mcp.models import (
     AnalysisAllowance,
     AnalysisLimits,
     FilterCounts,
+    FilterTrialItem,
     FilterTrialsOutput,
     StartAnalysisOutput,
     TrialFilters,
@@ -262,7 +263,13 @@ async def filter_trials(
 
     access = access_result.access
     allowed = set(access.allowed_trial_ids)
-    data = [item for item in engine_result.data if item.eu_number in allowed]
+    data = [
+        FilterTrialItem.model_validate(
+            item.model_dump(exclude={"available_extracted_document_names"})
+        )
+        for item in engine_result.data
+        if item.eu_number in allowed
+    ]
     return FilterTrialsOutput(
         data=data,
         counts=FilterCounts(
