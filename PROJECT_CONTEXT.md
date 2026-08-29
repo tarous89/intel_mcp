@@ -30,6 +30,7 @@ Intel MCP runs as its own Render Web Service in Frankfurt:
 service: intel-mcp
 service id: srv-da7g4igae00c73bo6oe0
 current protocol URL: https://intel-mcp.onrender.com/mcp
+public documentation: service root now serves the Intel MCP connection guide
 health: https://intel-mcp.onrender.com/health
 runtime: Python
 MCP SDK: official v2 line
@@ -37,6 +38,14 @@ transport: Streamable HTTP
 ```
 
 `/mcp` requires the dedicated inbound service bearer for the current internal-app profile. `/health` is public and non-sensitive.
+
+The public `/` route is a self-contained responsive documentation page using the
+Intel Agent dark/green visual system. It documents the app-created report-run
+lifecycle, ChatGPT and Claude connector paths, a Python Streamable HTTP client,
+all six tools and copyable argument examples. Hosted connector sections clearly
+state that public OAuth is not enabled; no internal service credential is exposed.
+The intended custom-domain routes are `https://mcp.trialagents.com/` and
+`https://mcp.trialagents.com/mcp` once the domain is attached and DNS/TLS is live.
 
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
@@ -505,6 +514,11 @@ https://mcp.trialagents.com/mcp
 ```
 
 Public OAuth work is not complete and must not reuse the current internal bearer as end-user authentication.
+
+The public documentation page may describe the exact current ChatGPT and Claude
+UI setup path, but it must continue to label the authorization step unavailable
+until the OAuth boundary above is implemented. Private software integrations may
+use only credentials explicitly issued for that integration.
 
 ## Verification
 
