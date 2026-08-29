@@ -107,6 +107,7 @@ Core rules:
 - page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
 - each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and six always-present document-name arrays: `protocol`, `recruitment_arrangements`, `patient_information_and_informed_consent`, `assessments_and_forms`, `clinical_study_report` and `results_summary`; unavailable categories are empty arrays;
+- MCP temporarily accepts the superseded Engine `available_extracted_document_names` projection during rolling deployment but never exposes that legacy field publicly; remove this compatibility only after every Engine environment serves the six-field response;
 - output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
