@@ -56,6 +56,14 @@ Both health endpoints returned 200 and the deployment window had no error-level
 logs. No migration, download, OCR, extraction, profile generation or model call
 was performed.
 
+Lean filter/classification output was merged in MCP PR #13 as
+`525c3ea7e5e61a29d3c1fbd72c732b14ea31a232` and reached production in Render
+deploy `dep-da9e5om7bikc73asug0g`. `filter_trials` returns only EU number,
+trial title and sponsor name. Classification receives no document inventory.
+Callers use `get_profiles` to obtain exact filenames before `get_documents`.
+MCP CI passed 31 tests; Engine PR #138 validation passed. Both live health
+checks returned 200 and the deployment window had no error-level logs.
+
 ## Current MCP tool surface
 
 Implemented now:
