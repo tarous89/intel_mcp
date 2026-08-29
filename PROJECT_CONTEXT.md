@@ -116,8 +116,8 @@ Core rules:
 - default sort: `latest_country_submission_or_approval_date DESC`, then EU trial number;
 - page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
-- each returned shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and six always-present document-name arrays: `protocol`, `recruitment_arrangements`, `patient_information_and_informed_consent`, `assessments_and_forms`, `clinical_study_report` and `results_summary`; unavailable categories are empty arrays;
-- MCP temporarily accepts the superseded Engine `available_extracted_document_names` projection during rolling deployment but never exposes that legacy field publicly; remove this compatibility only after every Engine environment serves the six-field response;
+- each returned shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`; document inventory is intentionally omitted to keep pages compact;
+- callers retrieve selected complete profiles with `get_profiles` before requesting document text;
 - output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
@@ -172,13 +172,14 @@ Engine:
 - requires an approved Trial Profile for every requested trial;
 - preserves caller order;
 - recursively removes contact personal data such as first name, last name, email and phone while preserving non-personal operational context;
+- removes `available_extracted_documents` so classification receives no filenames or document inventory;
 - returns only Trial Profile JSON required by the classifier path.
 
 If any requested approved profile is unavailable, the whole classification call fails before model work is reserved.
 
 ### One Terra worker call per trial
 
-For every trial, MCP creates one logical Terra worker job containing the full contact-redacted approved Trial Profile plus **all** requested inclusion and exclusion criteria.
+For every trial, MCP creates one logical Terra worker job containing the approved contact-redacted scientific and operational Trial Profile fields, without document inventory, plus **all** requested inclusion and exclusion criteria.
 
 Internal positional criterion IDs are generated only for reliable alignment:
 
@@ -361,9 +362,10 @@ Detailed contract: `docs/get-profiles.md`.
 `get_documents(analysis_id, trial_id, document_name, part=1)` returns extracted
 text for exactly one explicitly named document.
 
-- `document_name` must exactly match, case-insensitively, a value exposed in a
-  `filter_trials` category field or one of the approved Trial Profile's six
-  `available_extracted_documents` arrays.
+- exact filenames are available in the complete Trial Profile returned by
+  `get_profiles`;
+- `document_name` must exactly match, case-insensitively, a value in one of the
+  approved Trial Profile's six `available_extracted_documents` arrays.
 - Engine boundary: `POST /api/internal/mcp/documents`.
 - App allowance boundary: `POST /api/internal/mcp/document-access`.
 - Each response part contains at most 200,000 characters and preserves page

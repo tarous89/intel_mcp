@@ -13,10 +13,10 @@
 }
 ```
 
-`document_name` must exactly match, case-insensitively, one value exposed in a
-`filter_trials` document-category field or in one of the approved profile's six
-`available_extracted_documents` arrays. One document name is accepted per call.
-`part` defaults to `1`.
+Exact filenames are available in the complete Trial Profile returned by
+`get_profiles`. `document_name` must exactly match, case-insensitively, one value
+in that profile's six `available_extracted_documents` arrays. One document name
+is accepted per call. `part` defaults to `1`.
 
 ## Output
 

@@ -36,12 +36,6 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
                         "eu_number": "2024-500001-00-00",
                         "trial_title": "Example trial",
                         "sponsor_name": "Example sponsor",
-                        "protocol": ["Protocol v3"],
-                        "recruitment_arrangements": [],
-                        "patient_information_and_informed_consent": [],
-                        "assessments_and_forms": [],
-                        "clinical_study_report": [],
-                        "results_summary": [],
                     }
                 ],
                 "counts": {"total_profiles": 7, "total_matches": 1, "returned": 1},
@@ -56,8 +50,8 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
         offset=100,
     )
     assert result.counts.total_matches == 1
-    assert result.data[0].protocol == ["Protocol v3"]
-    assert result.data[0].results_summary == []
+    assert result.data[0].eu_number == "2024-500001-00-00"
+    assert set(result.data[0].model_dump()) == {"eu_number", "trial_title", "sponsor_name"}
 
 
 @pytest.mark.anyio

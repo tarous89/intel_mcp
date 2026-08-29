@@ -14,9 +14,9 @@ from intel_mcp.models import (
     AppFilterAccess,
     AppFilterAccessResponse,
     AppStartAnalysisResponse,
-    EngineFilterTrialItem,
     EngineFilterResponse,
     FilterCounts,
+    FilterTrialItem,
 )
 from intel_mcp.documents import (
     AppDocumentAccess,
@@ -131,16 +131,10 @@ class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
         return EngineFilterResponse(
             data=[
-                EngineFilterTrialItem(
+                FilterTrialItem(
                     eu_number="2024-500001-00-00",
                     trial_title="Phase 2 head and neck study",
                     sponsor_name="Example Sponsor",
-                    protocol=["Protocol v2"],
-                    recruitment_arrangements=[],
-                    patient_information_and_informed_consent=["Main PIS-ICF"],
-                    assessments_and_forms=["Quality-of-life questionnaire"],
-                    clinical_study_report=[],
-                    results_summary=[],
                 )
             ],
             counts=FilterCounts(total_profiles=7, total_matches=1, returned=1),
@@ -251,12 +245,6 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
             "eu_number": "2024-500001-00-00",
             "trial_title": "Phase 2 head and neck study",
             "sponsor_name": "Example Sponsor",
-            "protocol": ["Protocol v2"],
-            "recruitment_arrangements": [],
-            "patient_information_and_informed_consent": ["Main PIS-ICF"],
-            "assessments_and_forms": ["Quality-of-life questionnaire"],
-            "clinical_study_report": [],
-            "results_summary": [],
         }
         assert result.structured_content["counts"] == {
             "total_profiles": 7,
