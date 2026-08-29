@@ -31,8 +31,20 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
         return httpx.Response(
             200,
             json={
-                "data": [],
-                "counts": {"total_profiles": 7, "total_matches": 0, "returned": 0},
+                "data": [
+                    {
+                        "eu_number": "2024-500001-00-00",
+                        "trial_title": "Example trial",
+                        "sponsor_name": "Example sponsor",
+                        "protocol": ["Protocol v3"],
+                        "recruitment_arrangements": [],
+                        "patient_information_and_informed_consent": [],
+                        "assessments_and_forms": [],
+                        "clinical_study_report": [],
+                        "results_summary": [],
+                    }
+                ],
+                "counts": {"total_profiles": 7, "total_matches": 1, "returned": 1},
             },
         )
 
@@ -43,7 +55,9 @@ async def test_engine_filter_is_service_authenticated_and_strict() -> None:
         limit=20,
         offset=100,
     )
-    assert result.counts.total_matches == 0
+    assert result.counts.total_matches == 1
+    assert result.data[0].protocol == ["Protocol v3"]
+    assert result.data[0].results_summary == []
 
 
 @pytest.mark.anyio
@@ -62,7 +76,7 @@ async def test_engine_get_profiles_is_service_authenticated_and_preserves_partia
                 "data": [
                     {
                         "eu_number": "2024-500001-00-00",
-                        "profile_schema_version": "8.4.0",
+                        "profile_schema_version": "8.6.0",
                         "approved_at": "2026-08-27T12:00:00+00:00",
                         "profile": {"filtering_variables": {}, "classification_variables": {}},
                     }
