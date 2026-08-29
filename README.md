@@ -45,14 +45,12 @@ keys make exact retries allowance-safe. Detailed contract:
 
 Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
 
-Each shortlist item contains `eu_number`, `trial_title`, `sponsor_name` and six
-separate arrays of document names: `protocol`, `recruitment_arrangements`,
-`patient_information_and_informed_consent`, `assessments_and_forms`,
-`clinical_study_report` and `results_summary`. Every key is present; unavailable
-categories are empty arrays. Phase and dates remain usable as filters but are not
-repeated in every result item. Output counts contain total approved profiles,
-total matches and records returned in this call. Analysis allowance separately
-reports its limit, cumulative unique IDs used and remaining capacity.
+Each shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`.
+Document names, phase and dates are not repeated in filtering results. Retrieve a
+complete selected profile with `get_profiles`; its `available_extracted_documents`
+object contains the exact names accepted by `get_documents`. Output counts contain
+total approved profiles, total matches and records returned in this call. Analysis
+allowance separately reports its limit, cumulative unique IDs used and remaining capacity.
 
 General behavior:
 
@@ -93,7 +91,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 
 - Request 1–10 EU trial numbers per call; duplicate IDs are removed while preserving order.
 - Return the complete stored current approved Trial Profile, including contacts and extracted-document inventory.
-- The inventory is `available_extracted_documents`, containing the same six always-present category arrays returned separately by `filter_trials`.
+- The inventory is `available_extracted_documents`, containing six always-present category arrays with the exact names accepted by `get_documents`.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
 - Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
 - Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
@@ -106,8 +104,8 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 case-insensitive `document_name`, and optional one-based `part` (default 1).
 
 - The document must be listed in one of the approved Trial Profile's six
-  `available_extracted_documents` arrays. The same arrays are exposed as six
-  separate fields by `filter_trials`.
+  `available_extracted_documents` arrays. Obtain the exact name with
+  `get_profiles` before calling `get_documents`.
 - Each response returns extracted text only, with preserved page markers, and
   never returns a PDF, binary, link, page count or character count.
 - Each part is limited to 200,000 characters. If `next_part` is a number, call
