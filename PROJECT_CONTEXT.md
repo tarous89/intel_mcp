@@ -29,32 +29,35 @@ Intel MCP runs as its own Render Web Service in Frankfurt:
 ```text
 service: intel-mcp
 service id: srv-da7g4igae00c73bo6oe0
-current protocol URL: https://intel-mcp.onrender.com/mcp
-public documentation: service root now serves the Intel MCP connection guide
-health: https://intel-mcp.onrender.com/health
+current protocol URL: https://mcp.trialagents.com/mcp
+public documentation: https://mcp.trialagents.com/
+health: https://mcp.trialagents.com/health
 runtime: Python
 MCP SDK: official v2 line
 transport: Streamable HTTP
 ```
 
-`/mcp` requires the dedicated inbound service bearer for the current internal-app profile. `/health` is public and non-sensitive.
+`/mcp` accepts either the dedicated internal-app service bearer or a scoped TrialAgents
+OAuth access token issued for an existing Intel Agent account. `/health` is public and
+non-sensitive.
 
 The public `/` route is a self-contained responsive documentation page using the
 Intel Agent dark/green visual system. It documents the app-created report-run
 lifecycle, ChatGPT and Claude connector paths, a Python Streamable HTTP client,
-all six tools and copyable argument examples. Hosted connector sections clearly
-state that public OAuth is not enabled; no internal service credential is exposed.
-The intended custom-domain routes are `https://mcp.trialagents.com/` and
-`https://mcp.trialagents.com/mcp` once the domain is attached and DNS/TLS is live.
+all six tools and copyable argument examples. Hosted connector sections direct users
+through the live TrialAgents OAuth flow; no internal service credential is exposed.
+The custom-domain routes are `https://mcp.trialagents.com/` and
+`https://mcp.trialagents.com/mcp`.
 
 The documentation site was merged in MCP PR #15 as
 `72a905aa94757fd8b30c190ee0f8a3e763593d25` and reached production in Render
 deploy `dep-da9eq4ajnfac73dlbgog`. The service root and health endpoint returned
 200, security headers were present, classifier/extractor configuration remained
 healthy and unauthenticated `/mcp` access remained closed with 401. The
-`MCP_ALLOWED_HOSTS` production allowlist now includes both the Render hostname
-and `mcp.trialagents.com`. Custom-domain attachment, DNS and TLS verification are
-still pending outside the currently exposed Render integration actions.
+`MCP_ALLOWED_HOSTS` production allowlist includes both the Render hostname and
+`mcp.trialagents.com`. IONOS serves `mcp.trialagents.com` as a CNAME to
+`intel-mcp.onrender.com` with TTL 60; Render reports the domain verified and the TLS
+certificate issued.
 
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
@@ -510,24 +513,32 @@ failure never changes the MCP tool result.
 
 ## External ChatGPT / Claude distribution
 
-Current production profile is the internal Intel Agent application integration protected by service bearer authentication.
+The internal Intel Agent application continues to use its private service bearer. Public
+ChatGPT, Claude and compatible MCP clients use TrialAgents OAuth 2.1 authorization code
+with PKCE S256 and the existing Intel Agent account session.
 
-Later external distribution should reuse the same business-tool contracts behind OAuth 2.1/OIDC authorization code + PKCE S256, protected-resource metadata/discovery, token audience/resource validation, scopes, refresh/revocation and account entitlement checks.
+MCP publishes RFC 9728 protected-resource metadata at both required well-known paths
+and returns its metadata URL in unauthenticated `WWW-Authenticate` challenges. The
+authorization server is `https://intel.trialagents.com`, the protected resource is
+`https://mcp.trialagents.com/mcp`, and the required scope is `mcp:tools`.
+
+The app supports OAuth authorization-server discovery, dynamic client registration,
+explicit user consent, 15-minute opaque access tokens, 30-day rotating refresh tokens
+and revocation. MCP introspects access tokens across the existing private app service
+boundary. The resulting opaque account subject is forwarded to every app control-plane
+authorization so report-run and analysis-lease ownership is checked before work is
+admitted. MCP never receives the app database, password, email, tier or payment state.
 
 Billing remains on TrialAgents. Do not sell subscriptions/credits inside ChatGPT/Claude.
 
-Proposed machine endpoint remains:
+Machine endpoint:
 
 ```text
 https://mcp.trialagents.com/mcp
 ```
 
-Public OAuth work is not complete and must not reuse the current internal bearer as end-user authentication.
-
-The public documentation page may describe the exact current ChatGPT and Claude
-UI setup path, but it must continue to label the authorization step unavailable
-until the OAuth boundary above is implemented. Private software integrations may
-use only credentials explicitly issued for that integration.
+Public OAuth tokens and internal service credentials remain separate. Private software
+integrations may continue to use only explicitly issued service credentials.
 
 ## Verification
 
@@ -548,7 +559,7 @@ This verifies configuration and contracts. It does not constitute a paid end-to-
 
 1. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
 2. Wire the approved background SOL report execution now that the required MCP business-tool surface is complete.
-3. Add external OAuth/distribution only after the internal business-tool flow is stable.
+3. Submit the MCP-backed TrialAgents plugin/connector for public directory review after OAuth dogfooding.
 
 ## Context discipline
 

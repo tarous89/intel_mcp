@@ -6,6 +6,8 @@ from typing import Literal
 import httpx
 from pydantic import ValidationError
 
+from intel_mcp.auth_context import current_oauth_subject
+
 from intel_mcp.classification import AppClassificationAccessResponse
 from intel_mcp.config import Settings
 from intel_mcp.documents import AppDocumentAccessResponse
@@ -40,6 +42,29 @@ class ControlPlaneClient:
                     502,
                 ) from error
         raise self._response_error(response, "ANALYSIS_START_FAILED", "The analysis could not be started.")
+
+    async def introspect_access_token(self, token: str) -> dict:
+        """Validate an opaque public OAuth access token with the issuing app."""
+        self._settings.validate_control_plane()
+        url = f"{self._settings.app_control_url}/api/internal/oauth/introspect"
+        response = await self._post(url, {"token": token}, include_oauth_subject=False)
+        if not response.is_success:
+            raise self._response_error(response, "OAUTH_INTROSPECTION_FAILED", "OAuth validation is unavailable.")
+        try:
+            body = response.json()
+        except ValueError as error:
+            raise ControlPlaneError(
+                "CONTROL_PLANE_INVALID_RESPONSE",
+                "The OAuth issuer returned an invalid response.",
+                502,
+            ) from error
+        if not isinstance(body, dict) or not isinstance(body.get("active"), bool):
+            raise ControlPlaneError(
+                "CONTROL_PLANE_INVALID_RESPONSE",
+                "The OAuth issuer returned an invalid response.",
+                502,
+            )
+        return body
 
     async def authorize_filter_results(
         self, analysis_id: str, trial_ids: list[str]
@@ -194,7 +219,10 @@ class ControlPlaneClient:
         except httpx.HTTPError:
             return
 
-    async def _post(self, url: str, payload: dict) -> httpx.Response:
+    async def _post(self, url: str, payload: dict, *, include_oauth_subject: bool = True) -> httpx.Response:
+        request_payload = dict(payload)
+        if include_oauth_subject and (subject := current_oauth_subject()):
+            request_payload["oauthSubject"] = subject
         try:
             async with httpx.AsyncClient(
                 timeout=self._settings.request_timeout_seconds,
@@ -203,7 +231,7 @@ class ControlPlaneClient:
                 return await client.post(
                     url,
                     headers={"Authorization": f"Bearer {self._settings.app_service_token}"},
-                    json=payload,
+                    json=request_payload,
                 )
         except httpx.TimeoutException as error:
             raise ControlPlaneError(

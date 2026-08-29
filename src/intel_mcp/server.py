@@ -19,6 +19,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from intel_mcp.auth_context import reset_oauth_subject, set_oauth_subject
 from intel_mcp.classification import (
     ClassifierError,
     ClassificationCounts,
@@ -59,6 +60,8 @@ from intel_mcp.profiles import (
 from intel_mcp.telemetry import begin_metrics, end_metrics, set_worker_model
 
 LOGGER = logging.getLogger("intel_mcp")
+OAUTH_SCOPE = "mcp:tools"
+OAUTH_TOOL_META = {"securitySchemes": [{"type": "oauth2", "scopes": [OAUTH_SCOPE]}]}
 
 settings = Settings.from_environment()
 mcp = MCPServer(
@@ -137,6 +140,7 @@ def track_tool_call(tool_name: str):
 
 @mcp.tool(
     title="Start Intel analysis",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -180,6 +184,7 @@ async def start_analysis(
 
 @mcp.tool(
     title="Filter approved clinical trials",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -281,6 +286,7 @@ async def filter_trials(
 
 @mcp.tool(
     title="Classify approved clinical trials",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -437,6 +443,7 @@ async def classify_trials(
 
 @mcp.tool(
     title="Get complete approved Trial Profiles",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -509,6 +516,7 @@ async def get_profiles(
 
 @mcp.tool(
     title="Get extracted CTIS document text",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -609,6 +617,7 @@ async def get_documents(
 
 @mcp.tool(
     title="Extract trial variables",
+    meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
         destructive_hint=False,
@@ -757,11 +766,34 @@ async def health(_request: Request) -> Response:
     )
 
 
+def protected_resource_metadata() -> JSONResponse:
+    return JSONResponse(
+        {
+            "resource": settings.mcp_public_resource_url,
+            "authorization_servers": [settings.oauth_authorization_server_url],
+            "scopes_supported": [OAUTH_SCOPE],
+            "bearer_methods_supported": ["header"],
+            "resource_documentation": settings.mcp_public_resource_url.removesuffix("/mcp") + "/",
+        },
+        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@mcp.custom_route("/.well-known/oauth-protected-resource", methods=["GET"])
+async def oauth_protected_resource(_request: Request) -> Response:
+    return protected_resource_metadata()
+
+
+@mcp.custom_route("/.well-known/oauth-protected-resource/mcp", methods=["GET"])
+async def oauth_protected_resource_path(_request: Request) -> Response:
+    return protected_resource_metadata()
+
+
 transport_security = TransportSecuritySettings(allowed_hosts=list(settings.allowed_hosts))
 
 
 class MCPServiceAuthMiddleware:
-    """Require the internal service bearer on every MCP protocol request."""
+    """Accept the internal service bearer or a scoped TrialAgents user OAuth token."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -771,34 +803,66 @@ class MCPServiceAuthMiddleware:
             await self.app(scope, receive, send)
             return
 
-        try:
-            settings.validate_inbound_auth()
-        except RuntimeError:
+        headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        authorization = headers.get(b"authorization", b"").decode("latin-1")
+        scheme, separator, token = authorization.partition(" ")
+        internal = (
+            bool(separator)
+            and scheme.lower() == "bearer"
+            and bool(settings.mcp_inbound_service_token)
+            and secrets.compare_digest(token, settings.mcp_inbound_service_token)
+        )
+        if internal:
+            await self.app(scope, receive, send)
+            return
+
+        if not separator or scheme.lower() != "bearer" or not token:
             response = JSONResponse(
-                {"error": {"code": "MCP_AUTH_NOT_CONFIGURED", "message": "MCP authentication is not configured."}},
+                {"error": {"code": "UNAUTHORIZED", "message": "Connect a TrialAgents account to use this MCP server."}},
+                status_code=401,
+                headers={"WWW-Authenticate": self._challenge()},
+            )
+            await response(scope, receive, send)
+            return
+
+        try:
+            token_info = await control_plane_client().introspect_access_token(token)
+        except (ControlPlaneError, RuntimeError):
+            response = JSONResponse(
+                {"error": {"code": "OAUTH_VALIDATION_UNAVAILABLE", "message": "OAuth validation is temporarily unavailable."}},
                 status_code=503,
             )
             await response(scope, receive, send)
             return
 
-        headers = {key.lower(): value for key, value in scope.get("headers", [])}
-        authorization = headers.get(b"authorization", b"").decode("latin-1")
-        scheme, separator, token = authorization.partition(" ")
-        valid = (
-            bool(separator)
-            and scheme.lower() == "bearer"
-            and secrets.compare_digest(token, settings.mcp_inbound_service_token)
+        scopes = set(str(token_info.get("scope", "")).split())
+        subject = token_info.get("sub")
+        valid_oauth = (
+            token_info.get("active") is True
+            and isinstance(subject, str)
+            and bool(subject)
+            and token_info.get("resource") == settings.mcp_public_resource_url
+            and OAUTH_SCOPE in scopes
         )
-        if not valid:
+        if not valid_oauth:
             response = JSONResponse(
-                {"error": {"code": "UNAUTHORIZED", "message": "A valid MCP service credential is required."}},
+                {"error": {"code": "INVALID_OAUTH_TOKEN", "message": "The OAuth access token is invalid, expired, revoked or not issued for this MCP server."}},
                 status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
+                headers={"WWW-Authenticate": f'{self._challenge()}, error="invalid_token"'},
             )
             await response(scope, receive, send)
             return
 
-        await self.app(scope, receive, send)
+        context_token = set_oauth_subject(subject)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            reset_oauth_subject(context_token)
+
+    @staticmethod
+    def _challenge() -> str:
+        origin = settings.mcp_public_resource_url.removesuffix("/mcp")
+        return f'Bearer resource_metadata="{origin}/.well-known/oauth-protected-resource", scope="{OAUTH_SCOPE}"'
 
 
 app = MCPServiceAuthMiddleware(mcp.streamable_http_app(transport_security=transport_security))

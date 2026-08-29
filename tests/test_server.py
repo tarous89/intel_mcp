@@ -8,6 +8,7 @@ import pytest
 from mcp import Client
 from starlette.responses import Response
 
+from intel_mcp.auth_context import current_oauth_subject
 from intel_mcp.models import (
     AppAnalysis,
     AppAnalysisLimits,
@@ -481,22 +482,40 @@ def test_expanded_therapeutic_area_values_are_exposed_and_normalized() -> None:
 
 
 @pytest.mark.anyio
-async def test_mcp_http_requires_service_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_mcp_http_accepts_internal_or_user_oauth_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("intel_mcp.server.settings", replace(settings, mcp_inbound_service_token="expected-token"))
 
+    class OAuthControl:
+        async def introspect_access_token(self, token: str) -> dict:
+            if token == "oauth-good":
+                return {
+                    "active": True,
+                    "sub": "user-123",
+                    "scope": "mcp:tools offline_access",
+                    "resource": "https://mcp.trialagents.com/mcp",
+                }
+            return {"active": False}
+
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: OAuthControl())
+
     async def accepted(scope, receive, send) -> None:
-        await Response(status_code=204)(scope, receive, send)
+        subject = current_oauth_subject()
+        await Response(status_code=204, headers={"X-OAuth-Subject": subject or "internal"})(scope, receive, send)
 
     transport = httpx.ASGITransport(app=MCPServiceAuthMiddleware(accepted))
     async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
         unauthenticated = await client.post("/mcp")
         invalid = await client.post("/mcp", headers={"Authorization": "Bearer wrong-token"})
         authorized = await client.post("/mcp", headers={"Authorization": "Bearer expected-token"})
+        oauth_authorized = await client.post("/mcp", headers={"Authorization": "Bearer oauth-good"})
 
     assert unauthenticated.status_code == 401
-    assert unauthenticated.headers["www-authenticate"] == "Bearer"
+    assert "oauth-protected-resource" in unauthenticated.headers["www-authenticate"]
     assert invalid.status_code == 401
     assert authorized.status_code == 204
+    assert authorized.headers["x-oauth-subject"] == "internal"
+    assert oauth_authorized.status_code == 204
+    assert oauth_authorized.headers["x-oauth-subject"] == "user-123"
 
 
 @pytest.mark.anyio
@@ -514,6 +533,22 @@ async def test_health_remains_public() -> None:
 
 
 @pytest.mark.anyio
+async def test_oauth_protected_resource_metadata_is_public() -> None:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
+        response = await client.get("/.well-known/oauth-protected-resource")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "resource": "https://mcp.trialagents.com/mcp",
+        "authorization_servers": ["https://intel.trialagents.com"],
+        "scopes_supported": ["mcp:tools"],
+        "bearer_methods_supported": ["header"],
+        "resource_documentation": "https://mcp.trialagents.com/",
+    }
+
+
+@pytest.mark.anyio
 async def test_documentation_page_is_public_and_contains_connection_guidance() -> None:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
@@ -528,5 +563,6 @@ async def test_documentation_page_is_public_and_contains_connection_guidance() -
     assert "ChatGPT" in response.text
     assert "Claude" in response.text
     assert "Own software" in response.text
-    assert "Public connector sign-in is not enabled yet" in response.text
+    assert "TrialAgents OAuth live" in response.text
+    assert "Sign in with your existing Intel Agent account" in response.text
     assert "available_extracted_documents" in response.text

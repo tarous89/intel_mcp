@@ -18,6 +18,8 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
+    mcp_public_resource_url: str = "https://mcp.trialagents.com/mcp"
+    oauth_authorization_server_url: str = "https://intel.trialagents.com"
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     classifier_model: str = "gpt-5.6-terra"
@@ -40,6 +42,12 @@ class Settings:
             engine_api_url=os.getenv("INTEL_ENGINE_API_URL", "").strip().rstrip("/"),
             engine_service_token=os.getenv("INTEL_ENGINE_SERVICE_TOKEN", "").strip(),
             mcp_inbound_service_token=os.getenv("MCP_INBOUND_SERVICE_TOKEN", "").strip(),
+            mcp_public_resource_url=os.getenv(
+                "MCP_PUBLIC_RESOURCE_URL", "https://mcp.trialagents.com/mcp"
+            ).strip().rstrip("/"),
+            oauth_authorization_server_url=os.getenv(
+                "MCP_OAUTH_AUTHORIZATION_SERVER_URL", "https://intel.trialagents.com"
+            ).strip().rstrip("/"),
             allowed_hosts=_csv(
                 os.getenv(
                     "MCP_ALLOWED_HOSTS",
