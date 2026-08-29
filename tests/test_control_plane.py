@@ -5,6 +5,7 @@ import pytest
 
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
+from intel_mcp.auth_context import reset_oauth_subject, set_oauth_subject
 
 
 def settings() -> Settings:
@@ -55,6 +56,37 @@ async def test_start_analysis_parses_and_authenticates() -> None:
     result = await client.start_analysis("run-123")
     assert result.analysis.analysis_id.startswith("ana_")
     assert result.analysis.limits.filtered_trial_ids == 100
+
+
+@pytest.mark.anyio
+async def test_oauth_subject_is_forwarded_to_control_plane() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/internal/mcp/filter-access"
+        assert request.content == b'{"analysisId":"ana-1","trialIds":[],"oauthSubject":"user-123"}'
+        return httpx.Response(200, json={"access": {"allowedTrialIds": [], "limit": 100, "used": 0, "remaining": 100, "exhausted": False}})
+
+    context_token = set_oauth_subject("user-123")
+    try:
+        client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+        await client.authorize_filter_results("ana-1", [])
+    finally:
+        reset_oauth_subject(context_token)
+
+
+@pytest.mark.anyio
+async def test_oauth_introspection_does_not_forward_subject() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/internal/oauth/introspect"
+        assert request.content == b'{"token":"public-token"}'
+        return httpx.Response(200, json={"active": True, "sub": "user-123", "scope": "mcp:tools", "resource": "https://mcp.trialagents.com/mcp"})
+
+    context_token = set_oauth_subject("should-not-leak")
+    try:
+        client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+        result = await client.introspect_access_token("public-token")
+    finally:
+        reset_oauth_subject(context_token)
+    assert result["active"] is True
 
 
 @pytest.mark.anyio

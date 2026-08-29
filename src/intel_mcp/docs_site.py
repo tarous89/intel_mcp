@@ -237,13 +237,13 @@ DOCS_HTML = r"""<!doctype html>
         <div class="notice">
           <div class="notice-icon">!</div>
           <div>
-            <strong>Public connector sign-in is not enabled yet.</strong>
-            <p>The MCP endpoint currently accepts only TrialAgents-issued private service credentials. ChatGPT and Claude require a public OAuth flow before customers can connect safely. The platform steps below are ready for that release; do not paste an internal service token into either product.</p>
+            <strong>Sign in with your existing Intel Agent account.</strong>
+            <p>ChatGPT and Claude use TrialAgents OAuth. After login and consent, the client receives a scoped, short-lived token; your password, plan, payment details, and internal service credentials are never shared with the client.</p>
           </div>
         </div>
         <div class="steps">
           <article class="step"><span class="step-number">01</span><h3>Create a report run</h3><p>Open Intel Agent, configure the report, and complete plan approval.</p></article>
-          <article class="step"><span class="step-number">02</span><h3>Connect your client</h3><p>Add the remote MCP URL and complete TrialAgents authorization when available.</p></article>
+          <article class="step"><span class="step-number">02</span><h3>Connect your client</h3><p>Add the remote MCP URL, sign in at Intel Agent, and approve the connection.</p></article>
           <article class="step"><span class="step-number">03</span><h3>Start the analysis</h3><p>Call <code>start_analysis</code> once with the app-created <code>report_run_id</code>.</p></article>
           <article class="step"><span class="step-number">04</span><h3>Use the tools</h3><p>Pass the returned <code>analysis_id</code> to every filter, profile, document, classification, or extraction call.</p></article>
         </div>
@@ -266,17 +266,17 @@ DOCS_HTML = r"""<!doctype html>
           <div class="tab-panel active" id="panel-chatgpt" role="tabpanel" aria-labelledby="tab-chatgpt">
             <div class="platform-grid">
               <div class="platform-copy">
-                <div class="status-label">Awaiting TrialAgents OAuth</div>
+                <div class="status-label">TrialAgents OAuth live</div>
                 <h3>Connect from ChatGPT</h3>
-                <p>Custom MCP apps are managed through ChatGPT developer mode. Workspace permissions and plan availability apply.</p>
+                <p>Custom MCP tools are connected through ChatGPT developer mode. Workspace permissions and plan availability apply.</p>
                 <ol class="numbered">
-                  <li>Ask your workspace admin to enable <strong>Developer mode / Create custom MCP connectors</strong> under Workspace Settings → Permissions &amp; Roles → Connected data.</li>
-                  <li>Open Workspace Settings → Apps → <strong>Create</strong>.</li>
-                  <li>Name the app <strong>TrialAgents Intel</strong> and enter the MCP URL shown here.</li>
-                  <li>Complete the TrialAgents OAuth sign-in. This step will work after public authorization launches.</li>
-                  <li>Publish or enable the app, then select it in a new conversation and use the starter prompt.</li>
+                  <li>Open ChatGPT <strong>Settings → Security and login</strong> and turn on <strong>Developer mode</strong>. A workspace admin may need to allow it.</li>
+                  <li>Open <strong>ChatGPT Plugins</strong>, select the plus button, and create a developer-mode MCP connection.</li>
+                  <li>Name it <strong>TrialAgents Intel</strong>, add a short description, and enter the MCP URL shown here.</li>
+                  <li>Sign in with your Intel Agent email and password, then approve the scoped connection.</li>
+                  <li>Enable TrialAgents Intel in a new conversation and use the starter prompt.</li>
                 </ol>
-                <a class="small-link" href="https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt" target="_blank" rel="noreferrer">Official ChatGPT setup guide ↗</a>
+                <a class="small-link" href="https://developers.openai.com/api/docs/guides/developer-mode" target="_blank" rel="noreferrer">Official ChatGPT setup guide ↗</a>
               </div>
               <div>
                 <div class="code-card">
@@ -294,14 +294,14 @@ DOCS_HTML = r"""<!doctype html>
           <div class="tab-panel" id="panel-claude" role="tabpanel" aria-labelledby="tab-claude">
             <div class="platform-grid">
               <div class="platform-copy">
-                <div class="status-label">Awaiting TrialAgents OAuth</div>
+                <div class="status-label">TrialAgents OAuth live</div>
                 <h3>Connect from Claude</h3>
                 <p>Claude supports public remote MCP servers as custom connectors across its web and desktop surfaces.</p>
                 <ol class="numbered">
                   <li>On Pro or Max, open Customize → Connectors. On Team or Enterprise, an Owner first opens Organization settings → Connectors.</li>
                   <li>Click <strong>+</strong>, choose <strong>Add custom connector</strong> (or Custom → Web for an organization), and enter the MCP URL.</li>
                   <li>Name it <strong>TrialAgents Intel</strong>, save it, then click <strong>Connect</strong>.</li>
-                  <li>Complete the TrialAgents OAuth sign-in. This step will work after public authorization launches.</li>
+                  <li>Sign in with your Intel Agent email and password, then approve the scoped connection.</li>
                   <li>In a chat, use the <strong>+</strong> menu → Connectors and enable TrialAgents Intel for that conversation.</li>
                 </ol>
                 <a class="small-link" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Official Claude setup guide ↗</a>
@@ -343,7 +343,7 @@ DOCS_HTML = r"""<!doctype html>
                   <pre><code>import asyncio
 import os
 
-import httpx2
+import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -353,7 +353,7 @@ async def main():
     headers = {
         "Authorization": f"Bearer {os.environ['TRIALAGENTS_ACCESS_TOKEN']}"
     }
-    async with httpx2.AsyncClient(headers=headers) as http:
+    async with httpx.AsyncClient(headers=headers) as http:
         async with streamable_http_client(MCP_URL, http_client=http) as streams:
             read_stream, write_stream = streams
             async with ClientSession(read_stream, write_stream) as session:

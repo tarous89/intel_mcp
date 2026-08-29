@@ -5,8 +5,8 @@ Remote Model Context Protocol service for TrialAgents Intel Agent.
 The service root serves the public Intel MCP documentation page. It explains
 the report-run lifecycle, platform-specific ChatGPT and Claude connector setup,
 an official Python MCP SDK example, copyable tool arguments and the complete
-six-tool workflow. The page deliberately marks hosted ChatGPT/Claude connection
-as unavailable until public OAuth is implemented; it never exposes or asks a
+six-tool workflow. Hosted ChatGPT and Claude clients sign in through TrialAgents
+OAuth linked to the existing Intel Agent account; the page never exposes or asks a
 customer to reuse the internal service credential.
 
 Implemented tools:
@@ -135,6 +135,8 @@ export INTEL_APP_SERVICE_TOKEN=replace-me
 export INTEL_ENGINE_API_URL=http://localhost:10000
 export INTEL_ENGINE_SERVICE_TOKEN=replace-with-a-separate-engine-service-token
 export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
+export MCP_PUBLIC_RESOURCE_URL=https://mcp.trialagents.com/mcp
+export MCP_OAUTH_AUTHORIZATION_SERVER_URL=https://intel.trialagents.com
 intel-mcp
 ```
 
@@ -147,8 +149,10 @@ Required production settings:
 - `INTEL_APP_SERVICE_TOKEN`: shared service credential stored only in Render secrets.
 - `INTEL_ENGINE_API_URL`: Intel Engine Trial Profile service base URL.
 - `INTEL_ENGINE_SERVICE_TOKEN`: dedicated MCP-to-Engine credential; do not reuse the extraction run token.
-- `MCP_INBOUND_SERVICE_TOKEN`: bearer credential required on every request to `/mcp`.
+- `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the Intel Agent backend.
+- `MCP_PUBLIC_RESOURCE_URL`: canonical OAuth protected-resource audience for `/mcp`.
+- `MCP_OAUTH_AUTHORIZATION_SERVER_URL`: Intel Agent account authorization-server issuer.
 - `MCP_ALLOWED_HOSTS`: comma-separated exact public/private Host allowlist entries.
 - `PORT`: HTTP port assigned by the platform.
 
-The initial free Render deployment is public at the network layer but `/mcp` is closed to callers without the internal service bearer. Public OAuth is a later profile and must not reuse the internal service credential as end-user authentication.
+`/mcp` accepts either the private internal service bearer or a scoped public OAuth access token issued by Intel Agent. Public clients discover OAuth through RFC 9728 protected-resource metadata; internal service credentials are never used as end-user tokens.
