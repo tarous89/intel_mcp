@@ -403,12 +403,6 @@ class FilterTrialItem(BaseModel):
     eu_number: str
     trial_title: str | None
     sponsor_name: str | None
-    protocol: list[str]
-    recruitment_arrangements: list[str]
-    patient_information_and_informed_consent: list[str]
-    assessments_and_forms: list[str]
-    clinical_study_report: list[str]
-    results_summary: list[str]
 
 
 class FilterCounts(BaseModel):
@@ -435,27 +429,10 @@ class FilterTrialsOutput(BaseModel):
     analysis_allowance: AnalysisAllowance
 
 
-class EngineFilterTrialItem(BaseModel):
-    """Engine response item with temporary compatibility for the legacy projection."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    eu_number: str
-    trial_title: str | None
-    sponsor_name: str | None
-    protocol: list[str] = Field(default_factory=list)
-    recruitment_arrangements: list[str] = Field(default_factory=list)
-    patient_information_and_informed_consent: list[str] = Field(default_factory=list)
-    assessments_and_forms: list[str] = Field(default_factory=list)
-    clinical_study_report: list[str] = Field(default_factory=list)
-    results_summary: list[str] = Field(default_factory=list)
-    available_extracted_document_names: list[str] = Field(default_factory=list)
-
-
 class EngineFilterResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    data: list[EngineFilterTrialItem]
+    data: list[FilterTrialItem]
     counts: FilterCounts
 
 
