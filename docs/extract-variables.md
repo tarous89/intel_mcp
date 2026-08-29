@@ -34,10 +34,10 @@ trial in one Terra worker request.
 ## Source policy
 
 The Engine requires a current approved Trial Profile and returns that complete
-profile plus the complete best extracted protocol when one is available. The
-protocol is selected with the deterministic ranking used by Trial Profile
-generation, favoring a full clean English protocol over synopses, summaries and
-tracked copies.
+profile plus the complete extracted text of the single document named in
+`available_extracted_documents.protocol` when one is available. Protocol
+selection has already happened upstream during the deterministic profile
+inventory build; `extract_variables` does not re-rank stored protocol rows.
 
 Terra receives the profile and protocol together in one request. It uses the
 profile first, the protocol to complete or correct protocol-defined details,
