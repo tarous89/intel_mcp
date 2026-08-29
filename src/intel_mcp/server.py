@@ -351,9 +351,9 @@ async def classify_trials(
     unknown". In that example an unknown pediatric status makes that complete criterion true. Do not add
     unknown handling routinely; use it only when the analysis genuinely intends that behavior.
 
-    The tool uses approved scientific and operational Trial Profile fields only. Contact personal data and
-    extracted-document inventory are removed before classification. It does not inspect protocols or other
-    documents and does not use external knowledge. If a needed fact is absent, ordinary criteria stay unknown.
+    The tool uses complete approved Trial Profiles, including document inventory, with contact personal data
+    removed. It does not retrieve or inspect protocol/document text and does not use external knowledge. If a
+    needed fact is absent from the Trial Profile, ordinary criteria stay unknown.
     """
     if len(set(trial_ids)) != len(trial_ids):
         raise ToolError("INVALID_TRIAL_IDS: trial_ids must not contain duplicates.")
