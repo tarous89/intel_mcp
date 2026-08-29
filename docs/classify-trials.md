@@ -46,6 +46,11 @@ Rules:
 
 The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile together with all inclusion and exclusion criteria for that trial.
 
+The profile follows contract 8.6.0: extracted-document availability is the
+six-array `available_extracted_documents` object. Classification receives that
+object as part of the full profile but does not retrieve or classify document
+text.
+
 Internally the criteria receive stable positional IDs (`i1`, `i2`, ..., `e1`, `e2`, ...). Terra must evaluate every criterion independently and return exactly one result for each criterion:
 
 ```json
