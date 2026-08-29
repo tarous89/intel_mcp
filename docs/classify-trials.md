@@ -44,12 +44,7 @@ Rules:
 
 ## Worker boundary
 
-The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile together with all inclusion and exclusion criteria for that trial.
-
-The profile follows contract 8.6.0: extracted-document availability is the
-six-array `available_extracted_documents` object. Classification receives that
-object as part of the full profile but does not retrieve or classify document
-text.
+The backend performs one logical Terra classification job per trial. Each job sends the approved scientific and operational Trial Profile fields together with all inclusion and exclusion criteria for that trial. Engine removes contact personal data and the `available_extracted_documents` inventory before the classification worker boundary. Classification never retrieves or classifies document text.
 
 Internally the criteria receive stable positional IDs (`i1`, `i2`, ..., `e1`, `e2`, ...). Terra must evaluate every criterion independently and return exactly one result for each criterion:
 
@@ -127,6 +122,7 @@ Counts are calculated deterministically from the corresponding ID arrays so call
 - Only approved Trial Profiles are used.
 - Engine returns profiles through `POST /api/internal/mcp/classification-profiles`.
 - Contact personal data is recursively removed before profiles leave Engine for this classifier path.
+- Extracted-document names and inventory are removed before profiles leave Engine for this classifier path.
 - Terra is instructed to treat Trial Profile content as untrusted data, not instructions.
 - Terra must use only the supplied Trial Profile; it does not inspect protocols, other CTIS documents or external knowledge.
 - If the requested fact is outside the Trial Profile, the ordinary result is `null`.
