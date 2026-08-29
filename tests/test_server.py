@@ -511,3 +511,22 @@ async def test_health_remains_public() -> None:
     assert body["service"] == "intel-mcp"
     assert "classifier_configured" in body
     assert "extractor_configured" in body
+
+
+@pytest.mark.anyio
+async def test_documentation_page_is_public_and_contains_connection_guidance() -> None:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
+        response = await client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert "TrialAgents Intel MCP" in response.text
+    assert "https://mcp.trialagents.com/mcp" in response.text
+    assert "ChatGPT" in response.text
+    assert "Claude" in response.text
+    assert "Own software" in response.text
+    assert "Public connector sign-in is not enabled yet" in response.text
+    assert "available_extracted_documents" in response.text
