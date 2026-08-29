@@ -59,8 +59,10 @@ was performed.
 Lean filter/classification output was merged in MCP PR #13 as
 `525c3ea7e5e61a29d3c1fbd72c732b14ea31a232` and reached production in Render
 deploy `dep-da9e5om7bikc73asug0g`. `filter_trials` returns only EU number,
-trial title and sponsor name. Classification receives no document inventory.
-Callers use `get_profiles` to obtain exact filenames before `get_documents`.
+trial title and sponsor name. Terra classification receives the complete
+contact-redacted profile, including document inventory, while the public
+classification result contains only trial-ID buckets and counts. Callers use
+`get_profiles` to obtain exact filenames before `get_documents`.
 MCP CI passed 31 tests; Engine PR #138 validation passed. Both live health
 checks returned 200 and the deployment window had no error-level logs.
 
@@ -180,14 +182,14 @@ Engine:
 - requires an approved Trial Profile for every requested trial;
 - preserves caller order;
 - recursively removes contact personal data such as first name, last name, email and phone while preserving non-personal operational context;
-- removes `available_extracted_documents` so classification receives no filenames or document inventory;
+- preserves the complete `available_extracted_documents` inventory while removing contact personal data;
 - returns only Trial Profile JSON required by the classifier path.
 
 If any requested approved profile is unavailable, the whole classification call fails before model work is reserved.
 
 ### One Terra worker call per trial
 
-For every trial, MCP creates one logical Terra worker job containing the approved contact-redacted scientific and operational Trial Profile fields, without document inventory, plus **all** requested inclusion and exclusion criteria.
+For every trial, MCP creates one logical Terra worker job containing the complete approved contact-redacted Trial Profile, including document inventory, plus **all** requested inclusion and exclusion criteria.
 
 Internal positional criterion IDs are generated only for reliable alignment:
 
