@@ -14,9 +14,9 @@ from intel_mcp.models import (
     AppFilterAccess,
     AppFilterAccessResponse,
     AppStartAnalysisResponse,
+    EngineFilterTrialItem,
     EngineFilterResponse,
     FilterCounts,
-    FilterTrialItem,
 )
 from intel_mcp.documents import (
     AppDocumentAccess,
@@ -131,7 +131,7 @@ class StubEngine:
     async def filter_trials(self, **_kwargs) -> EngineFilterResponse:
         return EngineFilterResponse(
             data=[
-                FilterTrialItem(
+                EngineFilterTrialItem(
                     eu_number="2024-500001-00-00",
                     trial_title="Phase 2 head and neck study",
                     sponsor_name="Example Sponsor",
