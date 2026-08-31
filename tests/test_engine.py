@@ -70,9 +70,38 @@ async def test_engine_get_profiles_is_service_authenticated_and_preserves_partia
                 "data": [
                     {
                         "eu_number": "2024-500001-00-00",
-                        "profile_schema_version": "8.6.0",
+                        "profile_schema_version": "10.0.0",
                         "approved_at": "2026-08-27T12:00:00+00:00",
-                        "profile": {"filtering_variables": {}, "classification_variables": {}},
+                        "profile": {
+                            "filtering_variables": {
+                                "modality": "Other biologic",
+                                "available_extracted_documents": {
+                                    "protocol": ["Protocol v2"],
+                                    "recruitment_arrangements": [],
+                                    "patient_information_and_informed_consent": [],
+                                    "assessments_and_forms": [],
+                                    "clinical_study_report": [],
+                                    "results_summary": [],
+                                },
+                            },
+                            "classification_variables": {},
+                            "ctis_lifecycle": {"overall_updates": [], "countries": []},
+                            "results": {
+                                "participant_flow": {
+                                    "screened": None,
+                                    "enrolled": None,
+                                    "randomized": None,
+                                    "completed": None,
+                                },
+                                "country_enrollment": [],
+                                "primary_endpoint_results": [],
+                                "major_secondary_endpoint_results": [],
+                                "serious_safety_results": [],
+                                "other_results": [],
+                                "early_termination_reason": None,
+                                "trial_operational_findings": [],
+                            },
+                        },
                     }
                 ],
                 "unavailable_trial_ids": ["2024-500002-00-00"],
