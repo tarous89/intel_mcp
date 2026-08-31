@@ -90,10 +90,10 @@ TherapeuticArea = Literal[
     "Genetic and Congenital Disorders", "Nutrition", "Other",
 ]
 Modality = Literal[
-    "Biologic", "Antibody", "Small molecule", "Monoclonal antibody", "Bispecific antibody",
-    "Other antibody", "ADC", "Cell therapy", "Gene therapy", "mRNA", "Other RNA",
-    "Peptide/protein/enzyme", "Oligonucleotide", "Vaccine", "Radiopharmaceutical",
-    "Diagnostic agent", "Medical device", "Procedure", "Other",
+    "Small molecule", "Monoclonal antibody", "Bispecific antibody", "ADC",
+    "Other antibody", "Cell therapy", "Gene therapy", "mRNA", "Oligonucleotide",
+    "Other RNA", "Peptide/protein/enzyme", "Vaccine", "Radiopharmaceutical",
+    "Diagnostic agent", "Other biologic", "Medical device", "Procedure", "Other",
 ]
 Route = Literal[
     "Oral", "Intravenous", "Subcutaneous", "Intramuscular", "Intratumoral", "Inhaled",
@@ -154,12 +154,12 @@ class TherapeuticAreaFilter(StringSetFilter):
 
 class ModalityFilter(StringSetFilter):
     canonical_values = (
-        "Biologic", "Antibody", "Small molecule", "Monoclonal antibody", "Bispecific antibody",
-        "Other antibody", "ADC", "Cell therapy", "Gene therapy", "mRNA", "Other RNA",
-        "Peptide/protein/enzyme", "Oligonucleotide", "Vaccine", "Radiopharmaceutical",
-        "Diagnostic agent", "Medical device", "Procedure", "Other",
+        "Small molecule", "Monoclonal antibody", "Bispecific antibody", "ADC",
+        "Other antibody", "Cell therapy", "Gene therapy", "mRNA", "Oligonucleotide",
+        "Other RNA", "Peptide/protein/enzyme", "Vaccine", "Radiopharmaceutical",
+        "Diagnostic agent", "Other biologic", "Medical device", "Procedure", "Other",
     )
-    values: list[Modality] = Field(min_length=1, max_length=19)
+    values: list[Modality] = Field(min_length=1, max_length=18)
 
 
 class RouteFilter(StringSetFilter):
@@ -362,7 +362,13 @@ class TrialFilters(BaseModel):
     paediatric_trial: BooleanFilter | None = None
     first_in_human: BooleanFilter | None = None
     phase: PhaseFilter | None = None
-    modalities: ModalityFilter | None = None
+    modalities: ModalityFilter | None = Field(
+        default=None,
+        description=(
+            "Match the Trial Profile 10.0.0 scalar filtering_variables.modality through "
+            "the Engine's plural compatibility filter field."
+        ),
+    )
     routes_of_administration: RouteFilter | None = None
     country_codes: CountryCodeFilter | None = Field(
         default=None,
