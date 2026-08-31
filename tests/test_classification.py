@@ -38,8 +38,24 @@ class StubClassificationControlPlane:
 
 class StubClassificationEngine:
     async def classification_profiles(self, trial_ids: list[str]) -> EngineClassificationProfilesResponse:
+        profile = {
+            "filtering_variables": {
+                "modality": "Other biologic",
+                "available_extracted_documents": {
+                    "protocol": ["Protocol v2"],
+                    "recruitment_arrangements": [],
+                    "patient_information_and_informed_consent": [],
+                    "assessments_and_forms": [],
+                    "clinical_study_report": [],
+                    "results_summary": ["Results summary"],
+                },
+            },
+            "classification_variables": {},
+            "ctis_lifecycle": {"overall_updates": [], "countries": []},
+            "results": {"trial_operational_findings": ["Recruitment was slower than planned."]},
+        }
         return EngineClassificationProfilesResponse(
-            data=[ClassificationProfileItem(eu_number=trial_id, profile={"trial_title": trial_id}) for trial_id in trial_ids],
+            data=[ClassificationProfileItem(eu_number=trial_id, profile=profile) for trial_id in trial_ids],
             schema_version="1.0.0",
         )
 
@@ -82,6 +98,12 @@ async def test_classify_trials_returns_trial_id_buckets_and_counts(monkeypatch: 
     async def fake_classify_profile_items(_settings, profiles, _inclusion, _exclusion, model=None):
         assert model == "gpt-5.6-terra"
         assert [profile.eu_number for profile in profiles] == trial_ids
+        assert profiles[0].profile["filtering_variables"][
+            "available_extracted_documents"
+        ]["protocol"] == ["Protocol v2"]
+        assert profiles[0].profile["results"]["trial_operational_findings"] == [
+            "Recruitment was slower than planned."
+        ]
         return [
             TrialWorkerResult(
                 trial_id=trial_ids[0],

@@ -44,7 +44,7 @@ Rules:
 
 ## Worker boundary
 
-The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile, including `available_extracted_documents`, together with all inclusion and exclusion criteria for that trial. Classification never retrieves or classifies document text.
+The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile 10.0.0, including `filtering_variables.available_extracted_documents` and the top-level `results` object, together with all inclusion and exclusion criteria for that trial. Classification never retrieves or classifies document text.
 
 Internally the criteria receive stable positional IDs (`i1`, `i2`, ..., `e1`, `e2`, ...). Terra must evaluate every criterion independently and return exactly one result for each criterion:
 

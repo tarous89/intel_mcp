@@ -358,9 +358,9 @@ async def classify_trials(
     unknown". In that example an unknown pediatric status makes that complete criterion true. Do not add
     unknown handling routinely; use it only when the analysis genuinely intends that behavior.
 
-    The tool uses complete approved Trial Profiles, including document inventory, with contact personal data
-    removed. It does not retrieve or inspect protocol/document text and does not use external knowledge. If a
-    needed fact is absent from the Trial Profile, ordinary criteria stay unknown.
+    The tool uses complete approved Trial Profile 10.0.0 objects, including document inventory and results,
+    with contact personal data removed. It does not retrieve or inspect protocol/document text and does not
+    use external knowledge. If a needed fact is absent from the Trial Profile, ordinary criteria stay unknown.
     """
     if len(set(trial_ids)) != len(trial_ids):
         raise ToolError("INVALID_TRIAL_IDS: trial_ids must not contain duplicates.")
@@ -472,7 +472,7 @@ async def get_profiles(
 ) -> GetProfilesOutput:
     """Return complete current approved Trial Profiles for selected EU trial numbers.
 
-    The tool returns the stored structured profile in full, including contacts and document inventory.
+    The tool returns the stored structured profile in full, including contacts, document inventory and results.
     It does not generate or refresh profiles, retrieve document text, classify trials, search semantically,
     or write report prose. Candidate and rejected profiles are treated as unavailable; there is no raw-CTIS
     fallback.
@@ -548,8 +548,8 @@ async def get_documents(
             max_length=1000,
             description=(
                 "One exact document name from an approved Trial Profile's "
-                "available_extracted_documents arrays, returned by get_profiles. Matching is "
-                "case-insensitive."
+                "filtering_variables.available_extracted_documents arrays, returned by "
+                "get_profiles. Matching is case-insensitive."
             ),
         ),
     ],
@@ -577,8 +577,9 @@ async def get_documents(
     additional document allowance. Exact retries are allowance-idempotent.
 
     Exact filenames are available in the complete Trial Profile returned by get_profiles. Only successfully
-    or partially extracted documents listed in one of that profile's six available_extracted_documents
-    arrays are accessible. The tool performs no download, OCR, extraction, semantic search or model work.
+    or partially extracted documents listed in one of that profile's six
+    filtering_variables.available_extracted_documents arrays are accessible. The tool performs no download,
+    OCR, extraction, semantic search or model work.
     For targeted facts, use extract_variables instead of loading many complete documents into
     the model context.
     """
@@ -657,7 +658,8 @@ async def extract_variables(
     """Extract up to 20 caller-defined values from one trial in one Terra worker call.
 
     The Engine supplies the complete current approved Trial Profile plus the complete extracted text
-    of the single protocol named in that profile when available. Terra uses the profile as the primary
+    of the single protocol named in filtering_variables.available_extracted_documents.protocol when
+    available. Terra uses the profile as the primary
     source and the protocol to complete or correct protocol-defined details. When the profile has no
     extracted protocol, extraction uses the profile alone.
 

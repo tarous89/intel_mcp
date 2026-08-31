@@ -34,7 +34,8 @@ snake-case name, precise instruction and optional value type. Supported types
 are string, integer, number, boolean and string array.
 
 The Engine supplies the complete approved Trial Profile and the complete text of
-the single protocol named in its `available_extracted_documents.protocol` array
+the single protocol named in its
+`filtering_variables.available_extracted_documents.protocol` array
 when available. Both are sent in one Terra request. Output is
 limited to the trial ID, a values object containing every requested key (with
 `null` when unresolved), and the standard analysis allowance. Status,
@@ -54,8 +55,9 @@ Use it as the first screening step. Apply broad structured conditions to reduce 
 
 Each shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`.
 Document names, phase and dates are not repeated in filtering results. Retrieve a
-complete selected profile with `get_profiles`; its `available_extracted_documents`
-object contains the exact names accepted by `get_documents`. Output counts contain
+complete selected profile with `get_profiles`; its
+`filtering_variables.available_extracted_documents` object contains the exact names
+accepted by `get_documents`. Output counts contain
 total approved profiles, total matches and records returned in this call. Analysis
 allowance separately reports its limit, cumulative unique IDs used and remaining capacity.
 
@@ -78,7 +80,7 @@ Exposed structured fields:
 - Text: `eu_number`, `trial_title`, `trial_acronym`, `sponsor_name`.
 - Dates: latest country submission/approval, initial CTIS submission, first CTIS authorization and latest CTIS authorization.
 - Document availability: normalized extracted document types and individual document names.
-- Controlled arrays: therapeutic areas, phases, modalities, administration routes, country codes, eligible sexes and comparator types.
+- Controlled arrays: therapeutic areas, phases, administration routes, country codes, eligible sexes and comparator types. The `modalities` filter targets the profile's single scalar `modality` through the Engine compatibility projection.
 - Booleans: rare-disease, orphan-designation, paediatric and first-in-human flags. Boolean values may also be checked for `unknown`.
 - Numbers: planned sample size, number of countries and number of sites.
 - Controlled scalars: allocation, masking and intervention model.
@@ -86,8 +88,8 @@ Exposed structured fields:
 
 Controlled vocabularies are embedded directly in the MCP JSON Schema. Country codes use ISO 3166-1 alpha-2. Known normalized country statuses are `Authorised`, `Not authorised`, `Under evaluation`, `Ended`, `Halted`, `Lapsed`, `Withdrawn`, `Expired`, `Suspended`, `Not valid`, `Pending` and `Revoked`.
 
-The 34-value therapeutic-area vocabulary is aligned with Trial Profile contract
-8.4.0 and includes separate Blood Disorders, Gynecology, Obstetrics,
+The controlled filter vocabularies are aligned with Trial Profile contract
+10.0.0. The 34 therapeutic areas include separate Blood Disorders, Gynecology, Obstetrics,
 Reproductive Medicine, Emergency Medicine and Critical Care values.
 
 Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer to a subsidy or funding source, or omit part of the complete legal entity name. Use sponsor-name filtering to shortlist records; do not treat it as definitive legal-entity resolution.
@@ -97,8 +99,9 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 `get_profiles` accepts only `analysis_id` and `trial_ids`.
 
 - Request 1–10 EU trial numbers per call; duplicate IDs are removed while preserving order.
-- Return the complete stored current approved Trial Profile, including contacts and extracted-document inventory.
-- The inventory is `available_extracted_documents`, containing six always-present category arrays with the exact names accepted by `get_documents`.
+- Return the complete stored current approved Trial Profile 10.0.0, including contacts, extracted-document inventory and results.
+- The profile has four top-level objects: `filtering_variables`, `classification_variables`, `ctis_lifecycle` and `results`.
+- The inventory is `filtering_variables.available_extracted_documents`, containing six always-present category arrays with the exact names accepted by `get_documents`.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
 - Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
 - Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
@@ -111,7 +114,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 case-insensitive `document_name`, and optional one-based `part` (default 1).
 
 - The document must be listed in one of the approved Trial Profile's six
-  `available_extracted_documents` arrays. Obtain the exact name with
+  `filtering_variables.available_extracted_documents` arrays. Obtain the exact name with
   `get_profiles` before calling `get_documents`.
 - Each response returns extracted text only, with preserved page markers, and
   never returns a PDF, binary, link, page count or character count.

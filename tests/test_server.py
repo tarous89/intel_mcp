@@ -38,6 +38,40 @@ from intel_mcp.profiles import (
 from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 
 
+def _trial_profile_v10(trial_id: str) -> dict:
+    return {
+        "filtering_variables": {
+            "phase": [2],
+            "modality": "Other biologic",
+            "available_extracted_documents": {
+                "protocol": ["Protocol v2"],
+                "recruitment_arrangements": [],
+                "patient_information_and_informed_consent": ["Main PIS-ICF"],
+                "assessments_and_forms": ["Quality-of-life questionnaire"],
+                "clinical_study_report": [],
+                "results_summary": [],
+            },
+        },
+        "classification_variables": {"trial_title": f"Full {trial_id}"},
+        "ctis_lifecycle": {"overall_updates": [], "countries": []},
+        "results": {
+            "participant_flow": {
+                "screened": None,
+                "enrolled": None,
+                "randomized": None,
+                "completed": None,
+            },
+            "country_enrollment": [],
+            "primary_endpoint_results": [],
+            "major_secondary_endpoint_results": [],
+            "serious_safety_results": [],
+            "other_results": [],
+            "early_termination_reason": None,
+            "trial_operational_findings": [],
+        },
+    }
+
+
 class StubControlPlane:
     def __init__(self) -> None:
         self.extraction_operations: list[str] = []
@@ -147,20 +181,9 @@ class StubEngine:
             data=[
                 FullProfileItem(
                     eu_number=trial_id,
-                    profile_schema_version="8.6.0",
+                    profile_schema_version="10.0.0",
                     approved_at="2026-08-27T12:00:00+00:00",
-                    profile={
-                        "filtering_variables": {"phase": [2]},
-                        "classification_variables": {"trial_title": f"Full {trial_id}"},
-                        "available_extracted_documents": {
-                            "protocol": ["Protocol v2"],
-                            "recruitment_arrangements": [],
-                            "patient_information_and_informed_consent": ["Main PIS-ICF"],
-                            "assessments_and_forms": ["Quality-of-life questionnaire"],
-                            "clinical_study_report": [],
-                            "results_summary": [],
-                        },
-                    },
+                    profile=_trial_profile_v10(trial_id),
                 )
                 for trial_id in trial_ids
                 if trial_id not in unavailable
@@ -295,18 +318,9 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
         "counts",
         "analysis_allowance",
     }
-    assert result.structured_content["profiles"][0]["profile"] == {
-        "filtering_variables": {"phase": [2]},
-        "classification_variables": {"trial_title": "Full 2024-500001-00-00"},
-        "available_extracted_documents": {
-            "protocol": ["Protocol v2"],
-            "recruitment_arrangements": [],
-            "patient_information_and_informed_consent": ["Main PIS-ICF"],
-            "assessments_and_forms": ["Quality-of-life questionnaire"],
-            "clinical_study_report": [],
-            "results_summary": [],
-        },
-    }
+    assert result.structured_content["profiles"][0]["profile"] == _trial_profile_v10(
+        "2024-500001-00-00"
+    )
     assert result.structured_content["unavailable_trial_ids"] == ["2024-500002-00-00"]
     assert result.structured_content["allowance_reached_trial_ids"] == []
     assert result.structured_content["counts"] == {

@@ -61,13 +61,13 @@ certificate issued.
 
 The production health result includes only whether the classifier credential is configured; it never exposes the credential itself.
 
-Therapeutic-area alignment commit
+Historical therapeutic-area alignment commit
 `62c4d16363a8a4e3dc7c3ff669d18b4c2f0ebdfd` reached production in Render
 deploy `dep-da81goks728c73ajeud0`. It aligns the MCP allowlist with Trial
-Profile contract 8.4.0. Main CI passed the unit/contract suite and the live
+Profile contract 8.4.0 at that release. Main CI passed the unit/contract suite and the live
 `classifier_configured=true` assertion.
 
-Trial Profile 8.6 document-inventory alignment was merged in MCP PR #12 as
+Historical Trial Profile 8.6 document-inventory alignment was merged in MCP PR #12 as
 `40fd24595b45966e5f4a1dfa71084c49306b9ae5` and reached production in Render
 deploy `dep-da9d5r3ncjis739771eg`. Engine PR #134 / merge
 `9a0250d6db54fd21e64196ac8fe244b1610ada43` is live in profile-boundary
@@ -81,8 +81,8 @@ Lean filtering was merged in MCP PR #13 as
 `525c3ea7e5e61a29d3c1fbd72c732b14ea31a232`; the corrected classification
 contract was merged in PR #14 as
 `2e58320302fdca99afe2a8ab93dd23fed8b4ae9d`. `filter_trials` returns only EU
-number, trial title and sponsor name. Terra receives the complete approved
-contact-redacted profile, including document inventory, while the public
+number, trial title and sponsor name. Under current contract 10.0.0, Terra receives the complete approved
+contact-redacted profile, including nested document inventory and results, while the public
 classification result contains only trial-ID buckets and counts. Callers use
 `get_profiles` to obtain exact filenames before `get_documents`. Corrected MCP
 Render deploy `dep-da9ebsu7bikc73at3tp0` is live. MCP CI passed 31 tests and
@@ -153,11 +153,15 @@ Core rules:
 - callers retrieve selected complete profiles with `get_profiles` before requesting document text;
 - output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
-The therapeutic-area filter is aligned with Trial Profile contract 8.4.0. It
-contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
+The filter vocabularies are aligned with Trial Profile contract 10.0.0. The therapeutic-area
+filter contains 34 values, including distinct Blood Disorders, Gynecology, Obstetrics,
 Reproductive Medicine, Emergency Medicine, Critical Care, surgical,
 transplantation, trauma, genetic/congenital and nutrition categories.
 `Reproductive Health` is no longer a controlled value.
+
+The public profile has one scalar `filtering_variables.modality`. MCP retains the
+plural `modalities` filter parameter only as the Engine compatibility query field;
+its values are the 18 current scalar modality values.
 
 The app control plane meters unique returned EU trial numbers against the active analysis lease. Current limits: Light 100, Max 1,000. Exact repeated trial IDs do not consume allowance twice.
 
@@ -205,14 +209,14 @@ Engine:
 - requires an approved Trial Profile for every requested trial;
 - preserves caller order;
 - recursively removes contact personal data such as first name, last name, email and phone while preserving non-personal operational context;
-- preserves the complete `available_extracted_documents` inventory while removing contact personal data;
+- preserves the complete `filtering_variables.available_extracted_documents` inventory and top-level `results` object while removing contact personal data;
 - returns only Trial Profile JSON required by the classifier path.
 
 If any requested approved profile is unavailable, the whole classification call fails before model work is reserved.
 
 ### One Terra worker call per trial
 
-For every trial, MCP creates one logical Terra worker job containing the complete approved contact-redacted Trial Profile, including document inventory, plus **all** requested inclusion and exclusion criteria.
+For every trial, MCP creates one logical Terra worker job containing the complete approved contact-redacted Trial Profile 10.0.0, including document inventory and results, plus **all** requested inclusion and exclusion criteria.
 
 Internal positional criterion IDs are generated only for reliable alignment:
 
@@ -398,7 +402,7 @@ text for exactly one explicitly named document.
 - exact filenames are available in the complete Trial Profile returned by
   `get_profiles`;
 - `document_name` must exactly match, case-insensitively, a value in one of the
-  approved Trial Profile's six `available_extracted_documents` arrays.
+  approved Trial Profile's six `filtering_variables.available_extracted_documents` arrays.
 - Engine boundary: `POST /api/internal/mcp/documents`.
 - App allowance boundary: `POST /api/internal/mcp/document-access`.
 - Each response part contains at most 200,000 characters and preserves page
@@ -437,7 +441,7 @@ typed schema from exactly one trial.
 - Engine boundary: `POST /api/internal/mcp/extraction-source` requires a current
   approved Trial Profile and returns the complete stored profile plus the
   complete text of the single protocol named in
-  `available_extracted_documents.protocol`, if available;
+  `filtering_variables.available_extracted_documents.protocol`, if available;
 - protocol selection is completed upstream when the profile inventory is built;
   extraction does not re-rank stored protocol rows, and profile-only extraction
   remains valid when the profile has no protocol;
