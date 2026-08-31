@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 Repository: `tarous89/intel_mcp`
 
 > This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
@@ -88,6 +88,14 @@ classification result contains only trial-ID buckets and counts. Callers use
 Render deploy `dep-da9ebsu7bikc73at3tp0` is live. MCP CI passed 31 tests and
 Engine PR #139 validation passed. Both live health checks returned 200 and the
 deployment window had no error-level logs.
+
+Trial Profile 10.0.0 boundary alignment was merged in MCP PR #17 as
+`6bf8815a7333d3d042b7be030cde106ba34399f6` and reached production in Render
+deploy `dep-daauqbvavr4c738kgsag`. The paired Engine alignment was merged in
+Engine PR #169 as `f3ade126989fa3a5158478411e965eaa26ab7ea2`; its profile/API,
+daily-profile and daily-sync deploys are recorded in the Engine context. MCP CI passed
+36 tests, both deployed web-service windows had no error-level logs, and no paid
+classification/extraction call or profile generation was performed for release validation.
 
 ## Current MCP tool surface
 
