@@ -35,7 +35,7 @@ trial in one Terra worker request.
 
 The Engine requires a current approved Trial Profile and returns that complete
 profile plus the complete extracted text of the single document named in
-`available_extracted_documents.protocol` when one is available. Protocol
+`filtering_variables.available_extracted_documents.protocol` when one is available. Protocol
 selection has already happened upstream during the deterministic profile
 inventory build; `extract_variables` does not re-rank stored protocol rows.
 
