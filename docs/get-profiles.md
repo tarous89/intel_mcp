@@ -26,22 +26,38 @@ MCP calls the service-authenticated Engine endpoint:
 POST /api/internal/mcp/profiles
 ```
 
-Engine returns only current `approval_status = approved` profile JSON plus the public profile schema version and approval timestamp. Missing, candidate and rejected records are indistinguishable to the MCP caller and appear only as unavailable. Contacts and extracted-document inventory remain part of the complete stored profile.
+Engine returns only current `approval_status = approved` profile JSON plus the public profile schema version and approval timestamp. Missing, candidate and rejected records are indistinguishable to the MCP caller and appear only as unavailable. Contacts, extracted-document inventory and results remain part of the complete stored profile.
+
+The current 10.0.0 profile has exactly four top-level objects:
+
+```text
+filtering_variables
+classification_variables
+ctis_lifecycle
+results
+```
 
 The profile inventory has one object with six always-present arrays:
 
 ```json
 {
-  "available_extracted_documents": {
-    "protocol": ["Clinical Trial Protocol v3"],
-    "recruitment_arrangements": [],
-    "patient_information_and_informed_consent": ["Main PIS-ICF"],
-    "assessments_and_forms": [],
-    "clinical_study_report": [],
-    "results_summary": []
+  "filtering_variables": {
+    "modality": "Other biologic",
+    "available_extracted_documents": {
+      "protocol": ["Clinical Trial Protocol v3"],
+      "recruitment_arrangements": [],
+      "patient_information_and_informed_consent": ["Main PIS-ICF"],
+      "assessments_and_forms": [],
+      "clinical_study_report": [],
+      "results_summary": []
+    }
   }
 }
 ```
+
+The top-level `results` object contains participant flow, country enrollment,
+primary and major secondary endpoint results, serious safety findings, other
+results, early-termination reason and explicit trial operational findings.
 
 The legacy parallel document-type and document-name lists are not returned in
 the profile JSON.
