@@ -12,13 +12,13 @@ customer to reuse the internal service credential.
 Implemented tools:
 
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
-- `filter_trials` deterministically queries approved structured Trial Profiles through the Intel Engine's versioned internal endpoint. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
+- `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
 - `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using its complete profile plus the single profile-listed protocol when available.
 
-User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no application or clinical database credentials.
+User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no app/control-plane database credential and no Engine owner or write credential. Its only clinical-store login is the exact `intel_mcp_reader_v1` role, which PostgreSQL restricts to approved-only versioned views and read-only transactions.
 
 Every MCP business-tool invocation emits best-effort operational telemetry to the
 app control plane: response duration, success/error code and, for worker-backed tools,
@@ -33,7 +33,7 @@ without restarting MCP.
 snake-case name, precise instruction and optional value type. Supported types
 are string, integer, number, boolean and string array.
 
-The Engine supplies the complete approved Trial Profile and the complete text of
+The local Engine-read adapter supplies the complete approved Trial Profile and the complete text of
 the single protocol named in its
 `filtering_variables.available_extracted_documents.protocol` array
 when available. Both are sent in one Terra request. Output is
@@ -135,6 +135,14 @@ python -m venv .venv
 pip install -e '.[dev]'
 export INTEL_APP_CONTROL_URL=http://localhost:3000
 export INTEL_APP_SERVICE_TOKEN=replace-me
+# Production uses the database source. The Engine host/user/password are a
+# distinct restricted login, never the Engine owner DATABASE_URL.
+export MCP_ENGINE_SOURCE=database
+export MCP_ENGINE_DATABASE_HOST=engine-db.internal
+export MCP_ENGINE_DATABASE_NAME=intel
+export MCP_ENGINE_DATABASE_USER=intel_mcp_reader_v1
+export MCP_ENGINE_DATABASE_PASSWORD=replace-with-a-long-random-reader-password
+# Temporary rollback compatibility while the database path is canaried:
 export INTEL_ENGINE_API_URL=http://localhost:10000
 export INTEL_ENGINE_SERVICE_TOKEN=replace-with-a-separate-engine-service-token
 export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
@@ -150,8 +158,12 @@ Required production settings:
 
 - `INTEL_APP_CONTROL_URL`: service-authenticated Intel Agent app base URL.
 - `INTEL_APP_SERVICE_TOKEN`: shared service credential stored only in Render secrets.
-- `INTEL_ENGINE_API_URL`: Intel Engine Trial Profile service base URL.
-- `INTEL_ENGINE_SERVICE_TOKEN`: dedicated MCP-to-Engine credential; do not reuse the extraction run token.
+- `MCP_ENGINE_SOURCE`: `database` in production; `http` is retained only as a reversible cutover fallback.
+- `MCP_ENGINE_DATABASE_HOST`, `MCP_ENGINE_DATABASE_PORT`, `MCP_ENGINE_DATABASE_NAME`: Engine PostgreSQL endpoint coordinates.
+- `MCP_ENGINE_DATABASE_USER`: must be exactly `intel_mcp_reader_v1`; the service rejects owner or broader logins.
+- `MCP_ENGINE_DATABASE_PASSWORD`: separate long reader password provisioned by the Engine migration tooling.
+- `MCP_ENGINE_DATABASE_SSLMODE`: defaults to `require`.
+- `INTEL_ENGINE_API_URL` and `INTEL_ENGINE_SERVICE_TOKEN`: temporary authenticated HTTP rollback path; do not reuse the extraction run token.
 - `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the Intel Agent backend.
 - `MCP_PUBLIC_RESOURCE_URL`: canonical OAuth protected-resource audience for `/mcp`.
 - `MCP_OAUTH_AUTHORIZATION_SERVER_URL`: Intel Agent account authorization-server issuer.
@@ -159,3 +171,13 @@ Required production settings:
 - `PORT`: HTTP port assigned by the platform.
 
 `/mcp` accepts either the private internal service bearer or a scoped public OAuth access token issued by Intel Agent. Public clients discover OAuth through RFC 9728 protected-resource metadata; internal service credentials are never used as end-user tokens.
+
+## Engine read isolation
+
+The five clinical reads (`filter_trials`, classification profiles, complete profiles,
+document text and extraction source) run inside MCP to remove a cold-starting Engine
+web hop. Engine still owns ingestion, extraction, profile generation, approval, queues,
+schema migrations and all writes. PostgreSQL enforces the split: the MCP role can select
+only `mcp_serving.*_v1`, every MCP checkout begins `SET TRANSACTION READ ONLY`, and MCP
+startup rejects any database URL whose username is not the restricted role. See
+`docs/ENGINE_READ_CUTOVER.md` for the staged rollout and one-variable rollback.

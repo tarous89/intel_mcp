@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import quote, unquote, urlsplit
+
+
+ENGINE_READER_ROLE = "intel_mcp_reader_v1"
 
 
 def _csv(value: str) -> tuple[str, ...]:
@@ -18,6 +22,15 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
+    engine_source: str = "http"
+    engine_database_url: str = ""
+    engine_database_host: str = ""
+    engine_database_port: int = 5432
+    engine_database_name: str = ""
+    engine_database_user: str = ENGINE_READER_ROLE
+    engine_database_password: str = ""
+    engine_database_sslmode: str = "require"
+    engine_database_pool_size: int = 5
     mcp_public_resource_url: str = "https://mcp.trialagents.com/mcp"
     oauth_authorization_server_url: str = "https://intel.trialagents.com"
     openai_api_key: str = ""
@@ -36,6 +49,12 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        engine_database_url = os.getenv("MCP_ENGINE_DATABASE_URL", "").strip()
+        engine_database_host = os.getenv("MCP_ENGINE_DATABASE_HOST", "").strip()
+        configured_source = os.getenv("MCP_ENGINE_SOURCE", "").strip().casefold()
+        engine_source = configured_source or (
+            "database" if engine_database_url or engine_database_host else "http"
+        )
         return cls(
             app_control_url=os.getenv("INTEL_APP_CONTROL_URL", "").strip().rstrip("/"),
             app_service_token=os.getenv("INTEL_APP_SERVICE_TOKEN", "").strip(),
@@ -56,6 +75,23 @@ class Settings:
             ),
             port=int(os.getenv("PORT", "8000")),
             request_timeout_seconds=float(os.getenv("INTEL_APP_REQUEST_TIMEOUT_SECONDS", "10")),
+            engine_source=engine_source,
+            engine_database_url=engine_database_url,
+            engine_database_host=engine_database_host,
+            engine_database_port=int(os.getenv("MCP_ENGINE_DATABASE_PORT", "5432")),
+            engine_database_name=os.getenv("MCP_ENGINE_DATABASE_NAME", "").strip(),
+            engine_database_user=os.getenv(
+                "MCP_ENGINE_DATABASE_USER", ENGINE_READER_ROLE
+            ).strip(),
+            engine_database_password=os.getenv(
+                "MCP_ENGINE_DATABASE_PASSWORD", ""
+            ),
+            engine_database_sslmode=os.getenv(
+                "MCP_ENGINE_DATABASE_SSLMODE", "require"
+            ).strip(),
+            engine_database_pool_size=max(
+                1, min(10, int(os.getenv("MCP_ENGINE_DATABASE_POOL_SIZE", "5")))
+            ),
             openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
             openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/"),
             classifier_model=os.getenv("MCP_CLASSIFIER_MODEL", "gpt-5.6-terra").strip(),
@@ -82,10 +118,53 @@ class Settings:
             raise RuntimeError("MCP_INBOUND_SERVICE_TOKEN is not configured")
 
     def validate_engine(self) -> None:
-        if not self.engine_api_url:
-            raise RuntimeError("INTEL_ENGINE_API_URL is not configured")
-        if not self.engine_service_token:
-            raise RuntimeError("INTEL_ENGINE_SERVICE_TOKEN is not configured")
+        if self.engine_source not in {"database", "http"}:
+            raise RuntimeError("MCP_ENGINE_SOURCE must be database or http")
+        if self.engine_source == "http":
+            if not self.engine_api_url:
+                raise RuntimeError("INTEL_ENGINE_API_URL is not configured")
+            if not self.engine_service_token:
+                raise RuntimeError("INTEL_ENGINE_SERVICE_TOKEN is not configured")
+            return
+        if self.engine_database_url:
+            username = unquote(urlsplit(self.engine_database_url).username or "")
+            if username != ENGINE_READER_ROLE:
+                raise RuntimeError(
+                    f"MCP_ENGINE_DATABASE_URL must use the restricted {ENGINE_READER_ROLE} login"
+                )
+            return
+        missing = [
+            name
+            for name, value in (
+                ("MCP_ENGINE_DATABASE_HOST", self.engine_database_host),
+                ("MCP_ENGINE_DATABASE_NAME", self.engine_database_name),
+                ("MCP_ENGINE_DATABASE_USER", self.engine_database_user),
+                ("MCP_ENGINE_DATABASE_PASSWORD", self.engine_database_password),
+            )
+            if not value
+        ]
+        if missing:
+            raise RuntimeError(f"Missing Engine database setting(s): {', '.join(missing)}")
+        if self.engine_database_user != ENGINE_READER_ROLE:
+            raise RuntimeError(
+                f"MCP_ENGINE_DATABASE_USER must be {ENGINE_READER_ROLE}"
+            )
+
+    def engine_database_dsn(self) -> str:
+        self.validate_engine()
+        if self.engine_source != "database":
+            raise RuntimeError("The Engine database is not the configured source")
+        if self.engine_database_url:
+            return self.engine_database_url
+        user = quote(self.engine_database_user, safe="")
+        password = quote(self.engine_database_password, safe="")
+        host = self.engine_database_host
+        database = quote(self.engine_database_name, safe="")
+        sslmode = quote(self.engine_database_sslmode, safe="")
+        return (
+            f"postgresql://{user}:{password}@{host}:{self.engine_database_port}/"
+            f"{database}?sslmode={sslmode}"
+        )
 
     def validate_classifier(self) -> None:
         if not self.openai_api_key:
