@@ -34,6 +34,7 @@ from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
 from intel_mcp.documents import GetDocumentsOutput
 from intel_mcp.docs_site import DOCS_HTML
 from intel_mcp.engine import EngineClient, EngineError
+from intel_mcp.engine_database import DatabaseEngineClient
 from intel_mcp.extraction import (
     MAX_VARIABLES_PER_CALL,
     ExtractVariablesOutput,
@@ -77,8 +78,18 @@ def control_plane_client() -> ControlPlaneClient:
     return ControlPlaneClient(settings)
 
 
-def engine_client() -> EngineClient:
-    return EngineClient(settings)
+_engine_reader: EngineClient | DatabaseEngineClient | None = None
+
+
+def engine_client() -> EngineClient | DatabaseEngineClient:
+    global _engine_reader
+    if _engine_reader is None:
+        _engine_reader = (
+            DatabaseEngineClient(settings)
+            if settings.engine_source == "database"
+            else EngineClient(settings)
+        )
+    return _engine_reader
 
 
 def track_tool_call(tool_name: str):
@@ -758,10 +769,31 @@ async def documentation(_request: Request) -> Response:
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_request: Request) -> Response:
+    engine_status = "http_compatibility"
+    if settings.engine_source == "database":
+        try:
+            reader = engine_client()
+            assert isinstance(reader, DatabaseEngineClient)
+            await reader.healthcheck()
+            engine_status = "read_only_database_ok"
+        except (EngineError, RuntimeError):
+            return JSONResponse(
+                {
+                    "status": "degraded",
+                    "service": "intel-mcp",
+                    "engine_source": "database",
+                    "engine": "unavailable",
+                    "classifier_configured": bool(settings.openai_api_key),
+                    "extractor_configured": bool(settings.openai_api_key),
+                },
+                status_code=503,
+            )
     return JSONResponse(
         {
             "status": "ok",
             "service": "intel-mcp",
+            "engine_source": settings.engine_source,
+            "engine": engine_status,
             "classifier_configured": bool(settings.openai_api_key),
             "extractor_configured": bool(settings.openai_api_key),
         }
