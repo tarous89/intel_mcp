@@ -536,6 +536,13 @@ brief and requested insights, and a versioned description of all six MCP capabil
 It returns only the strict user-facing Report-plan structure. There is no deterministic
 fallback and no MCP tool is executed during planning.
 
+This boundary shipped in MCP PR #22 / squash
+`c2fdf8aee8e482ac8c3e6d363e9f87c2d23f782f`. PRs #23–24 corrected the
+Responses-compatible strict schema and removed an unsupported service-tier value; deploy
+`dep-dacou1ijnfac739lck4g` is live. A production App request returned `source=terra`
+with RPE65-specific cohorts and report sections. The App integration shipped in App PR
+#25 / squash `edc92c2e56592f1f87a55ad2e337c765a7edb9f3`.
+
 ## Runtime model selection and telemetry — implemented 2026-08-28
 
 The app control plane returns `workerModel` and `configVersion` with classification
