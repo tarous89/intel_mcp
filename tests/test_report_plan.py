@@ -39,6 +39,7 @@ async def test_report_plan_is_generated_by_terra_with_all_mcp_capabilities() -> 
         assert payload["model"] == REPORT_PLAN_MODEL
         assert payload["reasoning"] == {"effort": "medium"}
         assert payload["text"]["format"]["strict"] is True
+        assert "maxLength" not in __import__("json").dumps(payload["text"]["format"]["schema"])
         developer_text = payload["input"][0]["content"][0]["text"]
         for tool_name in (
             "start_analysis",
