@@ -37,6 +37,7 @@ async def test_report_plan_is_generated_by_terra_with_all_mcp_capabilities() -> 
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = __import__("json").loads(request.content)
         assert payload["model"] == REPORT_PLAN_MODEL
+        assert "service_tier" not in payload
         assert payload["reasoning"] == {"effort": "medium"}
         assert payload["text"]["format"]["strict"] is True
         assert "maxLength" not in __import__("json").dumps(payload["text"]["format"]["schema"])
