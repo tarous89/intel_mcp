@@ -5,29 +5,85 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from intel_mcp.report_plan import REPORT_PLAN_INSTRUCTIONS, REPORT_PLAN_MODEL, SolReportPlanner
+from intel_mcp.report_plan import (
+    REPORT_PLAN_INSTRUCTIONS,
+    REPORT_PLAN_MODEL,
+    REPORT_PLAN_VERSION,
+    SolReportPlanner,
+)
 from intel_mcp.server import settings
 
 
 SAMPLE_PLAN = {
+    "version": 2,
     "studyCohorts": [
         {
+            "role": "primary",
             "title": "Inherited retinal gene-therapy trials",
-            "description": "Phase 1/2 and Phase 2 European gene-therapy trials in inherited retinal disorders with comparable adult populations.",
+            "details": [
+                "Adults with inherited retinal disorders",
+                "European phase 1/2 and phase 2 studies",
+            ],
         },
         {
-            "title": "Rare retinal disease trials using other modalities",
-            "description": "Adjacent rare retinal studies add endpoint and recruitment evidence where gene-therapy comparators are limited.",
+            "role": "adjacent",
+            "title": "Inherited retinal disease trials",
+            "details": ["Broader treatment modalities in the same disease space"],
+        },
+        {
+            "role": "adjacent",
+            "title": "Rare-disease gene-therapy trials",
+            "details": ["Cross-disease gene-therapy studies with transferable operational lessons"],
         },
     ],
     "exclusionSummary": "Healthy-volunteer, non-interventional, and unrelated ophthalmology studies will be excluded.",
     "reportSections": [
-        {"title": "Eligibility and recruitability", "description": "Compare recurring criteria and their likely effect on the addressable population.", "coverage": "strong"},
-        {"title": "Endpoint strategy", "description": "Compare functional and anatomical endpoint patterns and assessment timing.", "coverage": "strong"},
-        {"title": "EU countries and timelines", "description": "Benchmark country participation and CTIS submission-to-authorisation timing.", "coverage": "strong"},
-        {"title": "Sites and investigators", "description": "Identify European sites and investigators with relevant inherited retinal trial experience.", "coverage": "strong"},
-        {"title": "Design choices", "description": "Compare masking, controls, dosing, follow-up duration, and sample-size patterns.", "coverage": "strong"},
-        {"title": "Operational and safety lessons", "description": "Summarize explicit execution and serious-safety findings where published sources exist.", "coverage": "source_dependent"},
+        {
+            "title": "Eligibility",
+            "analyses": [
+                "Most frequent inclusion and exclusion criteria",
+                "Exact eligibility definitions and thresholds",
+            ],
+            "coverage": "strong",
+        },
+        {
+            "title": "Endpoints",
+            "analyses": [
+                "Most frequent primary endpoints and trial count per endpoint",
+                "Exact endpoint definitions and assessment timing",
+                "Supported endpoint options for the planned trial",
+            ],
+            "coverage": "strong",
+        },
+        {
+            "title": "Countries & timelines",
+            "analyses": [
+                "Trial counts by country",
+                "Median and range of key CTIS intervals",
+            ],
+            "coverage": "strong",
+        },
+        {
+            "title": "Sites",
+            "analyses": ["Most active sites by country and repeat trial participation"],
+            "coverage": "strong",
+        },
+        {
+            "title": "Investigators",
+            "analyses": [
+                "Most active investigators grouped by country and site",
+                "Available investigator contact details",
+            ],
+            "coverage": "strong",
+        },
+        {
+            "title": "Operational lessons",
+            "analyses": [
+                "Reported recruitment shortfalls and documented reasons",
+                "Reported country or site performance problems",
+            ],
+            "coverage": "source_dependent",
+        },
     ],
 }
 
@@ -40,6 +96,9 @@ async def test_report_plan_is_generated_by_sol_with_all_mcp_capabilities() -> No
         assert "service_tier" not in payload
         assert payload["reasoning"] == {"effort": "medium"}
         assert payload["text"]["format"]["strict"] is True
+        assert payload["text"]["format"]["name"] == "intel_agent_report_plan_v2"
+        assert payload["text"]["format"]["schema"]["properties"]["version"]["const"] == 2
+        assert payload["text"]["format"]["schema"]["properties"]["studyCohorts"]["maxItems"] == 4
         assert "maxLength" not in __import__("json").dumps(payload["text"]["format"]["schema"])
         developer_text = payload["input"][0]["content"][0]["text"]
         for tool_name in (
@@ -84,16 +143,21 @@ async def test_report_plan_is_generated_by_sol_with_all_mcp_capabilities() -> No
     assert plan.model_dump() == SAMPLE_PLAN
 
 
-def test_report_plan_prompt_requires_broad_lenses_and_concrete_outputs() -> None:
+def test_report_plan_prompt_requires_simple_groups_consolidated_categories_and_coverage_logic() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
-    assert "a broader disease landscape" in REPORT_PLAN_INSTRUCTIONS
-    assert "cross-disease setting" in REPORT_PLAN_INSTRUCTIONS
-    assert "must relax at least one narrowing attribute" in REPORT_PLAN_INSTRUCTIONS
-    assert "overall lung-cancer" in REPORT_PLAN_INSTRUCTIONS
-    assert "Do not make the direct cohort so narrow" in REPORT_PLAN_INSTRUCTIONS
-    assert "most-used primary and secondary endpoints" in REPORT_PLAN_INSTRUCTIONS
-    assert "available contact details" in REPORT_PLAN_INSTRUCTIONS
-    assert "median and range of key CTIS intervals" in REPORT_PLAN_INSTRUCTIONS
+    assert REPORT_PLAN_VERSION == 2
+    assert "1 to 4 trial groups" in REPORT_PLAN_INSTRUCTIONS
+    assert "one Primary group and 2 to 3 Adjacent groups" in REPORT_PLAN_INSTRUCTIONS
+    assert 'Exactly one group must have role "primary"' in REPORT_PLAN_INSTRUCTIONS
+    assert "scannable headline" in REPORT_PLAN_INSTRUCTIONS
+    assert "Consolidate related work into one category" in REPORT_PLAN_INSTRUCTIONS
+    assert 'both belong under "Endpoints"' in REPORT_PLAN_INSTRUCTIONS
+    assert "exact analyses or outputs" in REPORT_PLAN_INSTRUCTIONS
+    assert "Most frequent primary endpoints and trial count per endpoint" in REPORT_PLAN_INSTRUCTIONS
+    assert "Most active sites by country and repeat trial participation" in REPORT_PLAN_INSTRUCTIONS
+    assert "Investigators grouped by country and site, with available contact details" in REPORT_PLAN_INSTRUCTIONS
+    assert "AT LEAST ONE planned analysis" in REPORT_PLAN_INSTRUCTIONS
+    assert "Protocol-based planned study information counts as strong coverage" in REPORT_PLAN_INSTRUCTIONS
+    assert "only when ALL useful analyses" in REPORT_PLAN_INSTRUCTIONS
+    assert "endpoints that were met or missed" in REPORT_PLAN_INSTRUCTIONS
     assert "causal delay claims require documented reasons" in REPORT_PLAN_INSTRUCTIONS
-    assert "unexplained acronym" in REPORT_PLAN_INSTRUCTIONS
-    assert "at most 45 words" in REPORT_PLAN_INSTRUCTIONS
