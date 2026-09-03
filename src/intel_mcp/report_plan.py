@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from intel_mcp.config import Settings
 
@@ -96,6 +96,38 @@ class ReportPlan(BaseModel):
     studyCohorts: list[StudyCohort] = Field(min_length=1, max_length=4)
     exclusionSummary: str = Field(min_length=1, max_length=420)
     reportSections: list[ReportSection] = Field(min_length=5, max_length=7)
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_legacy_plan(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or value.get("version") is not None:
+            return value
+        cohorts = value.get("studyCohorts")
+        sections = value.get("reportSections")
+        if not isinstance(cohorts, list) or not isinstance(sections, list):
+            return value
+        if not all(isinstance(item, dict) and "description" in item for item in cohorts + sections):
+            return value
+        return {
+            "version": REPORT_PLAN_VERSION,
+            "studyCohorts": [
+                {
+                    "role": "primary" if index == 0 else "adjacent",
+                    "title": item.get("title"),
+                    "details": [item.get("description")],
+                }
+                for index, item in enumerate(cohorts)
+            ],
+            "exclusionSummary": value.get("exclusionSummary"),
+            "reportSections": [
+                {
+                    "title": item.get("title"),
+                    "analyses": [item.get("description")],
+                    "coverage": item.get("coverage"),
+                }
+                for item in sections
+            ],
+        }
 
 
 REPORT_PLAN_SCHEMA = {
