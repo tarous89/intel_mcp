@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -14,6 +15,7 @@ MAX_CONTEXT_LENGTH = 50_000
 MAX_INSIGHTS_LENGTH = 12_000
 MAX_REVISION_LENGTH = 4_000
 REPORT_PLAN_MODEL = "gpt-5.6-terra"
+LOGGER = logging.getLogger("intel_mcp")
 
 MCP_CAPABILITY_DESCRIPTION = """Intel MCP capability description (Trial Profile contract 10.0.0):
 - start_analysis opens the approved report's bounded analysis session. It provides no clinical evidence.
@@ -186,7 +188,6 @@ class TerraReportPlanner:
 
         request_payload = {
             "model": REPORT_PLAN_MODEL,
-            "service_tier": "standard",
             "store": False,
             "max_output_tokens": 5000,
             "reasoning": {"effort": "medium"},
@@ -236,6 +237,15 @@ class TerraReportPlanner:
                 response.status_code >= 500,
             ) from error
         if response.status_code >= 400:
+            api_error = response_payload.get("error") if isinstance(response_payload, dict) else None
+            if isinstance(api_error, dict):
+                LOGGER.warning(
+                    "Terra Report-plan API rejected the request: status=%s type=%s code=%s param=%s",
+                    response.status_code,
+                    api_error.get("type"),
+                    api_error.get("code"),
+                    api_error.get("param"),
+                )
             retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
             raise ReportPlanError("REPORT_PLAN_API_ERROR", "The Terra request failed.", retryable)
         if str(response_payload.get("status") or "") == "incomplete":
