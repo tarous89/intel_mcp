@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 Repository: `tarous89/intel_mcp`
 
 > This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
@@ -42,6 +42,14 @@ checks a serving view in database mode. The former authenticated HTTP path remai
 selectable with `MCP_ENGINE_SOURCE=http` during canary and rollback. Detailed order:
 `docs/ENGINE_READ_CUTOVER.md`.
 
+Production cutover is live. MCP PR #19 / squash
+`310211273598f8e67f0fc081b861421e5b43ea33` added the restricted database adapter.
+Render deploy `dep-dachdm2fngtc73dgtnv0` is live with `MCP_ENGINE_SOURCE=database`.
+`/health` reports `engine_source=database` and `engine=read_only_database_ok`; the Engine
+role audit confirms access to exactly the five serving views and no write/base-table
+privileges. The prior Engine HTTP URL and token remain configured, so rollback changes
+only `MCP_ENGINE_SOURCE=http`.
+
 ## Production service
 
 Intel MCP runs as its own Render Web Service in Frankfurt:
@@ -53,6 +61,7 @@ current protocol URL: https://mcp.trialagents.com/mcp
 public documentation: https://mcp.trialagents.com/
 health: https://mcp.trialagents.com/health
 runtime: Python
+current Render plan: free; the planned no-cold-start upgrade is deferred until after restructuring
 MCP SDK: official v2 line
 transport: Streamable HTTP
 ```
@@ -586,13 +595,18 @@ MCP Render deployment: LIVE
 app classification-access deployment: LIVE
 ```
 
-This verifies configuration and contracts. It does not constitute a paid end-to-end Terra classification of a real analysis lease.
+Latest boundary verification passed 66 unit/contract tests, all five populated serving-view reads,
+public health, root documentation and unauthenticated `/mcp` rejection with 401. The
+post-deploy window had no application errors or HTTP 5xx responses. This verifies the
+restricted production data path and contracts; it does not constitute a paid end-to-end
+Terra classification of a real analysis lease.
 
 ## Immediate next implementation work
 
-1. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-2. Wire the approved background SOL report execution now that the required MCP business-tool surface is complete.
-3. Submit the MCP-backed TrialAgents plugin/connector for public directory review after OAuth dogfooding.
+1. Upgrade the MCP Render web service when production traffic is enabled; keep the already-live restricted database source.
+2. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
+3. Wire the approved background SOL report execution now that the required MCP business-tool surface is complete.
+4. Submit the MCP-backed TrialAgents plugin/connector for public directory review after OAuth dogfooding.
 
 ## Context discipline
 
