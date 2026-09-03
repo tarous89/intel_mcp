@@ -65,7 +65,50 @@ class ReportPlan(BaseModel):
     reportSections: list[ReportSection] = Field(min_length=5, max_length=7)
 
 
-REPORT_PLAN_SCHEMA = ReportPlan.model_json_schema()
+REPORT_PLAN_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "studyCohorts": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {"$ref": "#/$defs/studyCohort"},
+        },
+        "exclusionSummary": {"type": "string"},
+        "reportSections": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 7,
+            "items": {"$ref": "#/$defs/reportSection"},
+        },
+    },
+    "required": ["studyCohorts", "exclusionSummary", "reportSections"],
+    "$defs": {
+        "studyCohort": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+            },
+            "required": ["title", "description"],
+        },
+        "reportSection": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "coverage": {
+                    "type": "string",
+                    "enum": ["strong", "source_dependent"],
+                },
+            },
+            "required": ["title", "description", "coverage"],
+        },
+    },
+}
 
 
 @dataclass(frozen=True)
