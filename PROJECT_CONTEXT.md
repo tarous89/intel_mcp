@@ -533,24 +533,36 @@ POST /internal/report-plan
 This route is protected by its own `REPORT_PLAN_SERVICE_TOKEN`. It uses the MCP service's
 configured OpenAI credential to call `gpt-5.6-sol` with medium reasoning, the user's
 brief and requested insights, and a versioned description of all six MCP capabilities.
-It returns only the strict user-facing Report-plan structure. There is no deterministic
-fallback and no MCP tool is executed during planning.
+Planning calls no MCP tools and has no deterministic fallback.
 
-The prompt preserves the user's requested outputs before adding suggested insights and
-normally proposes direct, broader-disease and cross-disease operational/modality lenses.
-Every section must name concrete deliverables such as rankings, counts, medians, exact
-definitions, available contacts, gaps or shortlists. It uses plain language and bars
-generic comparison/benchmarking as the deliverable. CTIS dates can support calculated
-timing patterns; causal delay claims require documented source evidence.
+Report-plan schema version 2 is optimized for rapid approval rather than expert prose:
 
-The Sol planner shipped in MCP PR #25 / squash
-`f6ccfcf08570bab85260fbc713746853e0b0a720`; PR #26 / squash
-`0325543085be5d522ac21ff20870fc392bf764ee` tightened broad-disease and plain-language
-behavior. Deploy `dep-dacse4navr4c73cq7p30` is live. A production App request returned
-`source=sol`, a direct resectable lung-cancer cohort, a broader disease cohort across
-stages/settings, a cross-disease perioperative cohort, and concrete endpoint, design,
-country/timeline, site, investigator and contact outputs. The App integration shipped in
-App PR #26 / squash `695a54b9a9b6ed82df11dae0afcd4433a4b92faa`.
+- 1–4 study groups, with exactly one `primary` group and the rest `adjacent`;
+- each group has a short headline `title` plus 1–4 expandable scope `details`;
+- one concise `exclusionSummary`;
+- 5–7 consolidated report categories;
+- each category has a short `title`, 1–6 exact `analyses` bullets and category-level
+  `strong | source_dependent` coverage.
+
+Requested outputs come first, duplicate themes stay consolidated, and practical
+recommendations remain inside the relevant category instead of becoming duplicate rows.
+Trial Profile, CTIS lifecycle and protocol evidence count as strong planning coverage. A
+category is `strong` when at least one core analysis is normally supported by those
+sources. `source_dependent` is reserved for categories whose useful analyses all depend
+on observed/post-study evidence such as actual recruitment or country/site performance,
+endpoints met or missed, observed safety outcomes or reported execution problems. A
+strong category may still include an outcome-dependent bullet. CTIS lifecycle dates can
+support timing calculations directly; causal delay claims still require documented
+source evidence.
+
+The strict OpenAI output schema is v2-only. A Pydantic compatibility validator upgrades
+legacy server-side plan payloads to v2 when encountered, while the App intentionally
+rejects old browser-cached plan shapes and asks for regeneration rather than rendering
+ambiguous stale content.
+
+Report-plan v2 shipped in MCP PR #27 / squash
+`acd34d3304f821344baedf790c035495fe11f55d` and is live in Render deploy
+`dep-dactnr9srm7s73de545g`. PR CI and main push CI passed.
 
 ## Runtime model selection and telemetry — implemented 2026-08-28
 
@@ -624,11 +636,10 @@ MCP Render deployment: LIVE
 app classification-access deployment: LIVE
 ```
 
-Latest boundary verification passed 66 unit/contract tests, all five populated serving-view reads,
-public health, root documentation and unauthenticated `/mcp` rejection with 401. The
-post-deploy window had no application errors or HTTP 5xx responses. This verifies the
-restricted production data path and contracts; it does not constitute a paid end-to-end
-Terra classification of a real analysis lease.
+Latest Report-plan v2 verification passed 69 unit/contract tests and the main live-health
+check. The previously verified restricted serving-view data path remains unchanged by the
+planner release; no paid classification/extraction call or Trial Profile generation was
+performed for this change.
 
 ## Immediate next implementation work
 
