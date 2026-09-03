@@ -44,7 +44,8 @@ selectable with `MCP_ENGINE_SOURCE=http` during canary and rollback. Detailed or
 
 Production cutover is live. MCP PR #19 / squash
 `310211273598f8e67f0fc081b861421e5b43ea33` added the restricted database adapter.
-Render deploy `dep-dachdm2fngtc73dgtnv0` is live with `MCP_ENGINE_SOURCE=database`.
+Paid compute deploy `dep-dacit77avr4c73fdfp6g` is live with
+`MCP_ENGINE_SOURCE=database`.
 `/health` reports `engine_source=database` and `engine=read_only_database_ok`; the Engine
 role audit confirms access to exactly the five serving views and no write/base-table
 privileges. The prior Engine HTTP URL and token remain configured, so rollback changes
@@ -61,7 +62,7 @@ current protocol URL: https://mcp.trialagents.com/mcp
 public documentation: https://mcp.trialagents.com/
 health: https://mcp.trialagents.com/health
 runtime: Python
-current Render plan: free; the planned no-cold-start upgrade is deferred until after restructuring
+current Render plan: 0.5c-512mb (Starter); paid always-on compute is live
 MCP SDK: official v2 line
 transport: Streamable HTTP
 ```
