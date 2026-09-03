@@ -35,6 +35,7 @@ from intel_mcp.profiles import (
     EngineProfilesResponse,
     FullProfileItem,
 )
+from intel_mcp.report_plan import ReportPlan
 from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 
 
@@ -544,6 +545,57 @@ async def test_health_remains_public() -> None:
     assert body["service"] == "intel-mcp"
     assert "classifier_configured" in body
     assert "extractor_configured" in body
+    assert "report_planner_configured" in body
+
+
+@pytest.mark.anyio
+async def test_report_plan_route_requires_its_service_token_and_returns_terra_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "intel_mcp.server.settings",
+        replace(
+            settings,
+            openai_api_key="test-key",
+            report_plan_service_token="report-plan-token",
+        ),
+    )
+
+    class StubPlanner:
+        async def generate(self, **kwargs) -> ReportPlan:
+            assert kwargs["context"] == "Retinal gene therapy"
+            assert kwargs["insights"] == "Compare endpoints and sites"
+            return ReportPlan.model_validate(
+                {
+                    "studyCohorts": [{"title": "Retinal gene therapy", "description": "Comparable European interventional trials."}],
+                    "exclusionSummary": "Unrelated and non-interventional studies are excluded.",
+                    "reportSections": [
+                        {"title": "Eligibility", "description": "Compare eligibility patterns.", "coverage": "strong"},
+                        {"title": "Endpoints", "description": "Compare endpoint strategies.", "coverage": "strong"},
+                        {"title": "Countries", "description": "Compare EU participation and timelines.", "coverage": "strong"},
+                        {"title": "Sites", "description": "Identify experienced sites.", "coverage": "strong"},
+                        {"title": "Operations", "description": "Review reported operational lessons.", "coverage": "source_dependent"},
+                    ],
+                }
+            )
+
+    monkeypatch.setattr("intel_mcp.server.TerraReportPlanner", lambda _settings: StubPlanner())
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
+        unauthorized = await client.post(
+            "/internal/report-plan",
+            json={"context": "Retinal gene therapy", "insights": "Compare endpoints and sites"},
+        )
+        authorized = await client.post(
+            "/internal/report-plan",
+            headers={"Authorization": "Bearer report-plan-token"},
+            json={"context": "Retinal gene therapy", "insights": "Compare endpoints and sites"},
+        )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+    assert authorized.json()["source"] == "terra"
+    assert authorized.json()["plan"]["studyCohorts"][0]["title"] == "Retinal gene therapy"
 
 
 @pytest.mark.anyio

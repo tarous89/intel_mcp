@@ -58,6 +58,7 @@ from intel_mcp.profiles import (
     GetProfilesCounts,
     GetProfilesOutput,
 )
+from intel_mcp.report_plan import ReportPlanError, TerraReportPlanner
 from intel_mcp.telemetry import begin_metrics, end_metrics, set_worker_model
 
 LOGGER = logging.getLogger("intel_mcp")
@@ -796,8 +797,65 @@ async def health(_request: Request) -> Response:
             "engine": engine_status,
             "classifier_configured": bool(settings.openai_api_key),
             "extractor_configured": bool(settings.openai_api_key),
+            "report_planner_configured": bool(
+                settings.openai_api_key and settings.report_plan_service_token
+            ),
         }
     )
+
+
+def _report_plan_authorized(request: Request) -> bool:
+    authorization = request.headers.get("authorization", "")
+    scheme, separator, supplied = authorization.partition(" ")
+    configured = settings.report_plan_service_token
+    return bool(
+        separator
+        and scheme.casefold() == "bearer"
+        and configured
+        and secrets.compare_digest(supplied.strip(), configured)
+    )
+
+
+@mcp.custom_route("/internal/report-plan", methods=["POST"])
+async def report_plan(request: Request) -> Response:
+    if not _report_plan_authorized(request):
+        return JSONResponse({"error": "Unauthorized."}, status_code=401)
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > 80_000:
+        return JSONResponse({"error": "Report-plan request is too large."}, status_code=413)
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "A valid JSON request is required."}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "A valid JSON request is required."}, status_code=400)
+    context = body.get("context")
+    insights = body.get("insights")
+    revision = body.get("revision")
+    current_plan = body.get("currentPlan")
+    if not isinstance(context, str) or not isinstance(insights, str):
+        return JSONResponse({"error": "Trial context and requested insights are required."}, status_code=400)
+    if revision is not None and not isinstance(revision, str):
+        return JSONResponse({"error": "The revision request must be text."}, status_code=400)
+    if current_plan is not None and not isinstance(current_plan, dict):
+        return JSONResponse({"error": "The current report plan is invalid."}, status_code=400)
+    try:
+        plan = await TerraReportPlanner(settings).generate(
+            context=context,
+            insights=insights,
+            revision=revision,
+            current_plan=current_plan,
+        )
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except ReportPlanError as error:
+        LOGGER.warning("Terra report planning failed: %s", error.code)
+        status_code = 503 if error.retryable or error.code == "REPORT_PLAN_NOT_CONFIGURED" else 422
+        return JSONResponse(
+            {"error": "Terra could not prepare the report plan. Please try again."},
+            status_code=status_code,
+        )
+    return JSONResponse({"plan": plan.model_dump(), "source": "terra"})
 
 
 def protected_resource_metadata() -> JSONResponse:
