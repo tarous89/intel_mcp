@@ -543,12 +543,14 @@ definitions, available contacts, gaps or shortlists. It uses plain language and 
 generic comparison/benchmarking as the deliverable. CTIS dates can support calculated
 timing patterns; causal delay claims require documented source evidence.
 
-This boundary shipped in MCP PR #22 / squash
-`c2fdf8aee8e482ac8c3e6d363e9f87c2d23f782f`. PRs #23–24 corrected the
-Responses-compatible strict schema and removed an unsupported service-tier value; deploy
-`dep-dacou1ijnfac739lck4g` is live. A production App request returned `source=terra`
-with RPE65-specific cohorts and report sections. The App integration shipped in App PR
-#25 / squash `edc92c2e56592f1f87a55ad2e337c765a7edb9f3`.
+The Sol planner shipped in MCP PR #25 / squash
+`f6ccfcf08570bab85260fbc713746853e0b0a720`; PR #26 / squash
+`0325543085be5d522ac21ff20870fc392bf764ee` tightened broad-disease and plain-language
+behavior. Deploy `dep-dacse4navr4c73cq7p30` is live. A production App request returned
+`source=sol`, a direct resectable lung-cancer cohort, a broader disease cohort across
+stages/settings, a cross-disease perioperative cohort, and concrete endpoint, design,
+country/timeline, site, investigator and contact outputs. The App integration shipped in
+App PR #26 / squash `695a54b9a9b6ed82df11dae0afcd4433a4b92faa`.
 
 ## Runtime model selection and telemetry — implemented 2026-08-28
 
