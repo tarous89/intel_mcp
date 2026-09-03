@@ -5,7 +5,7 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from intel_mcp.report_plan import REPORT_PLAN_MODEL, TerraReportPlanner
+from intel_mcp.report_plan import REPORT_PLAN_INSTRUCTIONS, REPORT_PLAN_MODEL, SolReportPlanner
 from intel_mcp.server import settings
 
 
@@ -33,7 +33,7 @@ SAMPLE_PLAN = {
 
 
 @pytest.mark.anyio
-async def test_report_plan_is_generated_by_terra_with_all_mcp_capabilities() -> None:
+async def test_report_plan_is_generated_by_sol_with_all_mcp_capabilities() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = __import__("json").loads(request.content)
         assert payload["model"] == REPORT_PLAN_MODEL
@@ -51,7 +51,7 @@ async def test_report_plan_is_generated_by_terra_with_all_mcp_capabilities() -> 
             "extract_variables",
         ):
             assert tool_name in developer_text
-        assert "generic placeholders" in developer_text
+        assert "premium specialist consulting engagement" in developer_text
         return httpx.Response(
             200,
             json={
@@ -75,10 +75,22 @@ async def test_report_plan_is_generated_by_terra_with_all_mcp_capabilities() -> 
         openai_api_key="test-key",
         report_plan_service_token="test-service-token",
     )
-    planner = TerraReportPlanner(configured, transport=httpx.MockTransport(handler))
+    planner = SolReportPlanner(configured, transport=httpx.MockTransport(handler))
     plan = await planner.generate(
         context="Phase 2 gene therapy for inherited retinal disease in adults",
         insights="Compare eligibility, endpoints, countries, sites and investigators",
     )
 
     assert plan.model_dump() == SAMPLE_PLAN
+
+
+def test_report_plan_prompt_requires_broad_lenses_and_concrete_outputs() -> None:
+    assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
+    assert "a broader disease landscape" in REPORT_PLAN_INSTRUCTIONS
+    assert "cross-disease setting" in REPORT_PLAN_INSTRUCTIONS
+    assert "Do not make the direct cohort so narrow" in REPORT_PLAN_INSTRUCTIONS
+    assert "most-used primary and secondary endpoints" in REPORT_PLAN_INSTRUCTIONS
+    assert "available contact details" in REPORT_PLAN_INSTRUCTIONS
+    assert "median and range of key CTIS intervals" in REPORT_PLAN_INSTRUCTIONS
+    assert "causal delay claims require documented reasons" in REPORT_PLAN_INSTRUCTIONS
+    assert "at most 45 words" in REPORT_PLAN_INSTRUCTIONS

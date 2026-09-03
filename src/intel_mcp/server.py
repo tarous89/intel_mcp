@@ -58,7 +58,7 @@ from intel_mcp.profiles import (
     GetProfilesCounts,
     GetProfilesOutput,
 )
-from intel_mcp.report_plan import ReportPlanError, TerraReportPlanner
+from intel_mcp.report_plan import ReportPlanError, SolReportPlanner
 from intel_mcp.telemetry import begin_metrics, end_metrics, set_worker_model
 
 LOGGER = logging.getLogger("intel_mcp")
@@ -840,7 +840,7 @@ async def report_plan(request: Request) -> Response:
     if current_plan is not None and not isinstance(current_plan, dict):
         return JSONResponse({"error": "The current report plan is invalid."}, status_code=400)
     try:
-        plan = await TerraReportPlanner(settings).generate(
+        plan = await SolReportPlanner(settings).generate(
             context=context,
             insights=insights,
             revision=revision,
@@ -849,13 +849,13 @@ async def report_plan(request: Request) -> Response:
     except ValueError as error:
         return JSONResponse({"error": str(error)}, status_code=400)
     except ReportPlanError as error:
-        LOGGER.warning("Terra report planning failed: %s", error.code)
+        LOGGER.warning("Sol report planning failed: %s", error.code)
         status_code = 503 if error.retryable or error.code == "REPORT_PLAN_NOT_CONFIGURED" else 422
         return JSONResponse(
-            {"error": "Terra could not prepare the report plan. Please try again."},
+            {"error": "Sol could not prepare the report plan. Please try again."},
             status_code=status_code,
         )
-    return JSONResponse({"plan": plan.model_dump(), "source": "terra"})
+    return JSONResponse({"plan": plan.model_dump(), "source": "sol"})
 
 
 def protected_resource_metadata() -> JSONResponse:
