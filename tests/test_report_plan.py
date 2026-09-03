@@ -88,9 +88,12 @@ def test_report_plan_prompt_requires_broad_lenses_and_concrete_outputs() -> None
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert "a broader disease landscape" in REPORT_PLAN_INSTRUCTIONS
     assert "cross-disease setting" in REPORT_PLAN_INSTRUCTIONS
+    assert "must relax at least one narrowing attribute" in REPORT_PLAN_INSTRUCTIONS
+    assert "overall lung-cancer" in REPORT_PLAN_INSTRUCTIONS
     assert "Do not make the direct cohort so narrow" in REPORT_PLAN_INSTRUCTIONS
     assert "most-used primary and secondary endpoints" in REPORT_PLAN_INSTRUCTIONS
     assert "available contact details" in REPORT_PLAN_INSTRUCTIONS
     assert "median and range of key CTIS intervals" in REPORT_PLAN_INSTRUCTIONS
     assert "causal delay claims require documented reasons" in REPORT_PLAN_INSTRUCTIONS
+    assert "unexplained acronym" in REPORT_PLAN_INSTRUCTIONS
     assert "at most 45 words" in REPORT_PLAN_INSTRUCTIONS

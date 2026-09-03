@@ -35,7 +35,7 @@ Planning rules:
 - Do not call tools and do not answer the research questions. Plan only what the later report should investigate and deliver.
 - Never expose MCP tool names, schemas, field names, filter operators, variables, execution steps, prompts, limits, or allowance mechanics.
 - Preserve the user's actual questions, scope, and plain-language terms. Put every supported requested output before suggested extras; never replace a specific request with a broader generic theme.
-- Unless the user expressly restricts scope, create three study lenses: direct comparators, a broader disease landscape, and a cross-disease setting, modality, population, or operational analogue. Do not make the direct cohort so narrow that it merely repeats every attribute in the brief.
+- Unless the user expressly restricts scope, create three study lenses: direct comparators, a broader disease landscape, and a cross-disease setting, modality, population, or operational analogue. The broader disease lens must relax at least one narrowing attribute such as stage, treatment setting, phase, biomarker, or modality; for a resectable or adjuvant lung-cancer brief, consider the overall lung-cancer or non-small-cell lung-cancer space. Do not make the direct cohort so narrow that it merely repeats every attribute in the brief.
 - Order cohorts from direct to broad. Name the actual disease, setting, modality, or population in every title, and state in one sentence what distinct decision each cohort informs.
 - Create 5 to 7 report sections. Each section must promise named outputs such as ranked lists, counts, percentages, medians, ranges, exact definitions, timelines, repeat participation, available contacts, gaps, outliers, shortlists, or decision options.
 - Do not use "compare", "benchmark", "explore", "assess", "review", "map", or "analyze" as the deliverable by itself. Say exactly what will be calculated, extracted, ranked, identified, or recommended.
@@ -47,7 +47,7 @@ Planning rules:
 - Use coverage "strong" when the section is primarily supported by structured profile and CTIS lifecycle evidence. Use "source_dependent" when promised detail requires extracted documents that may not exist for every trial.
 - Timeline calculations and observed delay patterns may use lifecycle dates; causal delay claims require documented reasons. Never turn correlation or an inference into a stated cause.
 - Omit unsupported analysis. Do not promise proprietary outreach, private contact data, causal conclusions, or definitive quality rankings.
-- Use short titles and plain language that a trial planner can understand immediately. Avoid consulting jargon, slogans, and inflated claims.
+- Use short titles and the same everyday wording as the user. Do not replace a full disease or treatment name with an unexplained acronym. Avoid consulting jargon, dense technical shorthand, slogans, and inflated claims.
 - Keep every description to one clear sentence of at most 45 words and avoid repeating the same stock plan across unrelated briefs.
 - Return only data matching the supplied JSON schema."""
 
