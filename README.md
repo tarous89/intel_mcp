@@ -146,6 +146,7 @@ export MCP_ENGINE_DATABASE_PASSWORD=replace-with-a-long-random-reader-password
 export INTEL_ENGINE_API_URL=http://localhost:10000
 export INTEL_ENGINE_SERVICE_TOKEN=replace-with-a-separate-engine-service-token
 export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
+export REPORT_PLAN_SERVICE_TOKEN=replace-with-a-separate-report-plan-token
 export MCP_PUBLIC_RESOURCE_URL=https://mcp.trialagents.com/mcp
 export MCP_OAUTH_AUTHORIZATION_SERVER_URL=https://intel.trialagents.com
 intel-mcp
@@ -165,12 +166,19 @@ Required production settings:
 - `MCP_ENGINE_DATABASE_SSLMODE`: defaults to `require`.
 - `INTEL_ENGINE_API_URL` and `INTEL_ENGINE_SERVICE_TOKEN`: temporary authenticated HTTP rollback path; do not reuse the extraction run token.
 - `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the Intel Agent backend.
+- `REPORT_PLAN_SERVICE_TOKEN`: separate private bearer used only by the App's Report-plan endpoint.
 - `MCP_PUBLIC_RESOURCE_URL`: canonical OAuth protected-resource audience for `/mcp`.
 - `MCP_OAUTH_AUTHORIZATION_SERVER_URL`: Intel Agent account authorization-server issuer.
 - `MCP_ALLOWED_HOSTS`: comma-separated exact public/private Host allowlist entries.
 - `PORT`: HTTP port assigned by the platform.
 
 `/mcp` accepts either the private internal service bearer or a scoped public OAuth access token issued by Intel Agent. Public clients discover OAuth through RFC 9728 protected-resource metadata; internal service credentials are never used as end-user tokens.
+
+The private `POST /internal/report-plan` route accepts only
+`REPORT_PLAN_SERVICE_TOKEN`. It sends the user's brief, requested insights and the
+versioned description of all six MCP capabilities to `gpt-5.6-terra`, and returns only
+the strict user-facing Report-plan structure. It is not an MCP tool and does not execute
+clinical-data operations.
 
 ## Engine read isolation
 

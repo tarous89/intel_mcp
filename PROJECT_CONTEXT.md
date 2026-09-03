@@ -524,6 +524,18 @@ POST /api/internal/mcp/tool-call
 
 MCP never accepts user ID, email, tier, payment state or remaining allowance from the model/browser. Those values are resolved from the server-side analysis lease.
 
+The App reaches MCP through a separate private planning boundary:
+
+```text
+POST /internal/report-plan
+```
+
+This route is protected by its own `REPORT_PLAN_SERVICE_TOKEN`. It uses the MCP service's
+configured OpenAI credential to call `gpt-5.6-terra` with medium reasoning, the user's
+brief and requested insights, and a versioned description of all six MCP capabilities.
+It returns only the strict user-facing Report-plan structure. There is no deterministic
+fallback and no MCP tool is executed during planning.
+
 ## Runtime model selection and telemetry — implemented 2026-08-28
 
 The app control plane returns `workerModel` and `configVersion` with classification

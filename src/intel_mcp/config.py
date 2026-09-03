@@ -22,6 +22,7 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
+    report_plan_service_token: str = ""
     engine_source: str = "http"
     engine_database_url: str = ""
     engine_database_host: str = ""
@@ -61,6 +62,7 @@ class Settings:
             engine_api_url=os.getenv("INTEL_ENGINE_API_URL", "").strip().rstrip("/"),
             engine_service_token=os.getenv("INTEL_ENGINE_SERVICE_TOKEN", "").strip(),
             mcp_inbound_service_token=os.getenv("MCP_INBOUND_SERVICE_TOKEN", "").strip(),
+            report_plan_service_token=os.getenv("REPORT_PLAN_SERVICE_TOKEN", "").strip(),
             mcp_public_resource_url=os.getenv(
                 "MCP_PUBLIC_RESOURCE_URL", "https://mcp.trialagents.com/mcp"
             ).strip().rstrip("/"),
@@ -116,6 +118,12 @@ class Settings:
     def validate_inbound_auth(self) -> None:
         if not self.mcp_inbound_service_token:
             raise RuntimeError("MCP_INBOUND_SERVICE_TOKEN is not configured")
+
+    def validate_report_plan(self) -> None:
+        if not self.report_plan_service_token:
+            raise RuntimeError("REPORT_PLAN_SERVICE_TOKEN is not configured")
+        if not self.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
 
     def validate_engine(self) -> None:
         if self.engine_source not in {"database", "http"}:
