@@ -549,7 +549,7 @@ async def test_health_remains_public() -> None:
 
 
 @pytest.mark.anyio
-async def test_report_plan_route_requires_its_service_token_and_returns_terra_output(
+async def test_report_plan_route_requires_its_service_token_and_returns_sol_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -579,7 +579,7 @@ async def test_report_plan_route_requires_its_service_token_and_returns_terra_ou
                 }
             )
 
-    monkeypatch.setattr("intel_mcp.server.TerraReportPlanner", lambda _settings: StubPlanner())
+    monkeypatch.setattr("intel_mcp.server.SolReportPlanner", lambda _settings: StubPlanner())
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
         unauthorized = await client.post(
@@ -594,7 +594,7 @@ async def test_report_plan_route_requires_its_service_token_and_returns_terra_ou
 
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
-    assert authorized.json()["source"] == "terra"
+    assert authorized.json()["source"] == "sol"
     assert authorized.json()["plan"]["studyCohorts"][0]["title"] == "Retinal gene therapy"
 
 

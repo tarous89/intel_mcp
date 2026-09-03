@@ -531,10 +531,17 @@ POST /internal/report-plan
 ```
 
 This route is protected by its own `REPORT_PLAN_SERVICE_TOKEN`. It uses the MCP service's
-configured OpenAI credential to call `gpt-5.6-terra` with medium reasoning, the user's
+configured OpenAI credential to call `gpt-5.6-sol` with medium reasoning, the user's
 brief and requested insights, and a versioned description of all six MCP capabilities.
 It returns only the strict user-facing Report-plan structure. There is no deterministic
 fallback and no MCP tool is executed during planning.
+
+The prompt preserves the user's requested outputs before adding suggested insights and
+normally proposes direct, broader-disease and cross-disease operational/modality lenses.
+Every section must name concrete deliverables such as rankings, counts, medians, exact
+definitions, available contacts, gaps or shortlists. It uses plain language and bars
+generic comparison/benchmarking as the deliverable. CTIS dates can support calculated
+timing patterns; causal delay claims require documented source evidence.
 
 This boundary shipped in MCP PR #22 / squash
 `c2fdf8aee8e482ac8c3e6d363e9f87c2d23f782f`. PRs #23–24 corrected the
