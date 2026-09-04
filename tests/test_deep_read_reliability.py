@@ -70,18 +70,19 @@ def _settings(**overrides: Any) -> Settings:
     return Settings(**values)
 
 
-def test_legacy_standard_service_tier_is_normalized_to_default() -> None:
+def test_legacy_standard_service_tier_is_normalized_and_report_workers_default_to_flex() -> None:
     assert _openai_service_tier("standard") == "default"
     assert _openai_service_tier(" DEFAULT ") == "default"
-    assert Settings.__dataclass_fields__["classifier_service_tier"].default == "default"
-    assert Settings.__dataclass_fields__["extractor_service_tier"].default == "default"
+    assert _openai_service_tier(" flex ") == "flex"
+    assert Settings.__dataclass_fields__["classifier_service_tier"].default == "flex"
+    assert Settings.__dataclass_fields__["extractor_service_tier"].default == "flex"
 
 
 @pytest.mark.anyio
-async def test_classifier_sends_valid_default_service_tier() -> None:
+async def test_classifier_sends_flex_service_tier() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
-        assert payload["service_tier"] == "default"
+        assert payload["service_tier"] == "flex"
         return httpx.Response(
             200,
             json={
@@ -130,10 +131,10 @@ async def test_classifier_sends_valid_default_service_tier() -> None:
 
 
 @pytest.mark.anyio
-async def test_extractor_sends_valid_default_service_tier() -> None:
+async def test_extractor_sends_flex_service_tier() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
-        assert payload["service_tier"] == "default"
+        assert payload["service_tier"] == "flex"
         return httpx.Response(
             200,
             json={
