@@ -11,7 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from intel_mcp.config import Settings
 
 
-LIGHT_REPORT_MODEL = "gpt-5.6-sol"
+LIGHT_REPORT_MODEL = "gpt-5.6-terra"
+LIGHT_REPORT_SERVICE_TIER = "flex"
 LIGHT_OBJECTIVE_COUNT = 4
 LIGHT_TRIAL_COUNT = 20
 LOGGER = logging.getLogger("intel_mcp")
@@ -221,13 +222,18 @@ def _extract_output_text(payload: dict[str, Any]) -> str:
             elif content.get("type") == "output_text":
                 output_text = str(content.get("text") or "")
     if refusal:
-        raise LightReportError("LIGHT_REPORT_REFUSAL", "Sol refused the report task.", False)
+        raise LightReportError("LIGHT_REPORT_REFUSAL", "Terra refused the report task.", False)
     if not output_text:
-        raise LightReportError("LIGHT_REPORT_EMPTY_OUTPUT", "Sol returned no report output.", True)
+        raise LightReportError("LIGHT_REPORT_EMPTY_OUTPUT", "Terra returned no report output.", True)
     return output_text
 
 
 class SolLightReportRunner:
+    """Light report runner retained under its original class name for compatibility.
+
+    Report execution itself runs GPT-5.6 Terra on the Flex service tier.
+    """
+
     def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._settings = settings
         self._transport = transport
@@ -264,6 +270,7 @@ class SolLightReportRunner:
             raise LightReportError("LIGHT_REPORT_NOT_CONFIGURED", "OpenAI is not configured.", False)
         request: dict[str, Any] = {
             "model": LIGHT_REPORT_MODEL,
+            "service_tier": LIGHT_REPORT_SERVICE_TIER,
             "store": False,
             "max_output_tokens": 12_000,
             "reasoning": {"effort": "medium"},
@@ -299,20 +306,20 @@ class SolLightReportRunner:
                     json=request,
                 )
         except httpx.TimeoutException as error:
-            raise LightReportError("LIGHT_REPORT_TIMEOUT", "Sol report work timed out.", True) from error
+            raise LightReportError("LIGHT_REPORT_TIMEOUT", "Terra Flex report work timed out.", True) from error
         except httpx.HTTPError as error:
-            raise LightReportError("LIGHT_REPORT_UNAVAILABLE", "Sol report work is unavailable.", True) from error
+            raise LightReportError("LIGHT_REPORT_UNAVAILABLE", "Terra Flex report work is unavailable.", True) from error
         try:
             body = response.json()
         except ValueError as error:
-            raise LightReportError("LIGHT_REPORT_INVALID_RESPONSE", "Sol returned invalid JSON.", True) from error
+            raise LightReportError("LIGHT_REPORT_INVALID_RESPONSE", "Terra returned invalid JSON.", True) from error
         if response.status_code >= 400:
             api_error = body.get("error") if isinstance(body, dict) else None
-            LOGGER.warning("Light report Sol API error: status=%s error=%s", response.status_code, api_error)
+            LOGGER.warning("Light report Terra Flex API error: status=%s error=%s", response.status_code, api_error)
             retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
-            raise LightReportError("LIGHT_REPORT_API_ERROR", "The Sol request failed.", retryable)
+            raise LightReportError("LIGHT_REPORT_API_ERROR", "The Terra Flex request failed.", retryable)
         if str(body.get("status") or "") in {"incomplete", "failed", "cancelled"}:
-            raise LightReportError("LIGHT_REPORT_INCOMPLETE", "Sol did not complete the report task.", True)
+            raise LightReportError("LIGHT_REPORT_INCOMPLETE", "Terra did not complete the report task.", True)
         return body
 
     async def select_trials(
@@ -359,7 +366,7 @@ Selection approach:
         except (json.JSONDecodeError, ValidationError) as error:
             raise LightReportError(
                 "LIGHT_REPORT_SELECTION_INVALID",
-                "Sol returned an invalid 20-trial selection.",
+                "Terra returned an invalid 20-trial selection.",
                 True,
             ) from error
 
@@ -400,7 +407,7 @@ Return only the structured section."""
         except (json.JSONDecodeError, ValidationError) as error:
             raise LightReportError(
                 "LIGHT_REPORT_OBJECTIVE_INVALID",
-                "Sol returned an invalid report section.",
+                "Terra returned an invalid report section.",
                 True,
             ) from error
         selected = set(trial_ids)
@@ -440,6 +447,6 @@ Return only the structured section."""
         except (json.JSONDecodeError, ValidationError) as error:
             raise LightReportError(
                 "LIGHT_REPORT_SYNTHESIS_INVALID",
-                "Sol returned an invalid final synthesis.",
+                "Terra returned an invalid final synthesis.",
                 True,
             ) from error
