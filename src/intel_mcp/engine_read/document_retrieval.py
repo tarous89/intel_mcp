@@ -212,23 +212,20 @@ def get_approved_document_text(
             404,
         )
 
+    # Resolve the document identity from the lightweight catalogue first. Do not join
+    # the catalogue and text serving views: both are security-barrier views and that
+    # join can force a broad document-text scan under the restricted role's 15s timeout.
     rows = connection.execute(
         """
-        SELECT d.document_id,
-               d.ctis_uuid,
-               d.document_category,
-               d.document_type_label_raw,
-               d.title_raw,
-               d.filename_raw,
-               x.full_text,
-               x.pages_json
-        FROM mcp_serving.documents_v1 AS d
-        JOIN mcp_serving.document_text_v1 AS x
-          ON x.document_id = d.document_id
-        WHERE d.eu_number = %s
-          AND x.extraction_status IN ('success', 'partial')
-          AND COALESCE(length(x.full_text), 0) > 0
-        ORDER BY d.document_id
+        SELECT document_id,
+               ctis_uuid,
+               document_category,
+               document_type_label_raw,
+               title_raw,
+               filename_raw
+        FROM mcp_serving.documents_v1
+        WHERE eu_number = %s
+        ORDER BY document_id
         """,
         (selection.trial_id,),
     ).fetchall()
@@ -239,10 +236,7 @@ def get_approved_document_text(
     for row in rows:
         name = _document_name(int(row[0]), row[4], row[5], row[3])
         document_type = _normalized_extracted_document_type(row[2], row[3])
-        if (
-            name.casefold() == requested_identity
-            and document_type in available_types
-        ):
+        if name.casefold() == requested_identity and document_type in available_types:
             matched = row
             matched_name = name
             matched_type = document_type
@@ -254,8 +248,26 @@ def get_approved_document_text(
             404,
         )
 
+    text_row = connection.execute(
+        """
+        SELECT full_text, pages_json
+        FROM mcp_serving.document_text_v1
+        WHERE document_id = %s
+          AND extraction_status IN ('success', 'partial')
+          AND COALESCE(length(full_text), 0) > 0
+        LIMIT 1
+        """,
+        (int(matched[0]),),
+    ).fetchone()
+    if text_row is None:
+        raise DocumentRetrievalRequestError(
+            "DOCUMENT_UNAVAILABLE",
+            "The requested document is not available as extracted text for an approved Trial Profile.",
+            404,
+        )
+
     assert matched_type is not None
-    parts = _pack_parts(_page_blocks(matched[7], str(matched[6] or "")))
+    parts = _pack_parts(_page_blocks(text_row[1], str(text_row[0] or "")))
     if selection.part > len(parts):
         raise DocumentRetrievalRequestError(
             "DOCUMENT_PART_UNAVAILABLE",

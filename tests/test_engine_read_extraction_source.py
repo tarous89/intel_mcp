@@ -25,13 +25,21 @@ class _Connection:
     def __init__(self, profile_row, protocol_rows):
         self.profile_row = profile_row
         self.protocol_rows = protocol_rows
+        self.calls = []
 
     def execute(self, statement, parameters):
+        self.calls.append((statement, parameters))
         if "FROM mcp_serving.approved_profiles_v1" in statement:
             assert parameters == ("2024-500001-00-00",)
             return _Result(row=self.profile_row)
-        assert parameters == (77,)
-        return _Result(rows=self.protocol_rows)
+        if "FROM mcp_serving.documents_v1" in statement:
+            assert parameters == (77,)
+            return _Result(rows=[row[:4] for row in self.protocol_rows])
+        if "FROM mcp_serving.document_text_v1" in statement:
+            document_id = parameters[0]
+            source = next((row for row in self.protocol_rows if row[0] == document_id), None)
+            return _Result(row=(source[4], source[5]) if source else None)
+        raise AssertionError(f"Unexpected SQL: {statement}")
 
 
 def _profile(protocol_names, **values):
@@ -99,6 +107,7 @@ def test_source_returns_approved_profile_and_its_listed_protocol_only() -> None:
     }
     assert "document_name" not in result
     assert "page" not in result
+    assert any("WHERE document_id = %s" in statement for statement, _ in connection.calls)
 
 
 def test_source_uses_profile_inventory_without_reranking_other_protocol_rows() -> None:

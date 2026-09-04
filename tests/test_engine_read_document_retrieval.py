@@ -32,7 +32,13 @@ class _Connection:
         self.calls.append((statement, parameters))
         if "FROM mcp_serving.approved_profiles_v1" in statement:
             return _Result(row=self.profile_row)
-        return _Result(rows=self.document_rows)
+        if "FROM mcp_serving.documents_v1" in statement:
+            return _Result(rows=[row[:6] for row in self.document_rows])
+        if "FROM mcp_serving.document_text_v1" in statement:
+            document_id = parameters[0]
+            source = next((row for row in self.document_rows if row[0] == document_id), None)
+            return _Result(row=(source[6], source[7]) if source else None)
+        raise AssertionError(f"Unexpected SQL: {statement}")
 
 
 def _request(part=1):
@@ -100,6 +106,7 @@ def test_get_document_returns_simple_text_only_contract_and_case_insensitive_nam
     assert len(result["document_access_key"]) == 64
     assert "page_count" not in result
     assert "text_characters" not in result
+    assert any("WHERE document_id = %s" in statement for statement, _ in connection.calls)
 
 
 def test_oversized_page_is_split_into_numbered_parts_without_silent_loss() -> None:
