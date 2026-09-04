@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from intel_mcp.light_report import (
     LIGHT_OBJECTIVE_COUNT,
     LIGHT_REPORT_MODEL,
+    LIGHT_REPORT_SERVICE_TIER,
     LIGHT_TRIAL_COUNT,
     LightTrialSelection,
     SolLightReportRunner,
@@ -53,6 +54,11 @@ def test_light_report_uses_first_four_plan_categories() -> None:
     assert [item["title"] for item in objectives] == ["Endpoints", "Eligibility", "Sites", "Investigators"]
 
 
+def test_light_report_runtime_is_terra_flex() -> None:
+    assert LIGHT_REPORT_MODEL == "gpt-5.6-terra"
+    assert LIGHT_REPORT_SERVICE_TIER == "flex"
+
+
 def test_light_trial_selection_requires_exactly_twenty_unique_trials() -> None:
     assert len(LightTrialSelection.model_validate(_selection()).selected_trials) == LIGHT_TRIAL_COUNT
     invalid = _selection()
@@ -62,10 +68,11 @@ def test_light_trial_selection_requires_exactly_twenty_unique_trials() -> None:
 
 
 @pytest.mark.anyio
-async def test_selection_sol_call_only_exposes_screening_tools() -> None:
+async def test_selection_call_only_exposes_screening_tools_and_uses_terra_flex() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["model"] == LIGHT_REPORT_MODEL
+        assert payload["service_tier"] == LIGHT_REPORT_SERVICE_TIER
         assert payload["store"] is False
         tool = payload["tools"][0]
         assert tool["type"] == "mcp"

@@ -51,13 +51,13 @@ class Settings:
     openai_base_url: str = "https://api.openai.com/v1"
     classifier_model: str = "gpt-5.6-terra"
     classifier_reasoning_effort: str = "high"
-    classifier_service_tier: str = "default"
+    classifier_service_tier: str = "flex"
     classifier_max_output_tokens: int = 12000
     classifier_concurrency: int = 4
     classifier_timeout_seconds: float = 300
     extractor_model: str = "gpt-5.6-terra"
     extractor_reasoning_effort: str = "high"
-    extractor_service_tier: str = "default"
+    extractor_service_tier: str = "flex"
     extractor_max_output_tokens: int = 12000
     extractor_timeout_seconds: float = 300
 
@@ -112,7 +112,7 @@ class Settings:
             classifier_model=os.getenv("MCP_CLASSIFIER_MODEL", "gpt-5.6-terra").strip(),
             classifier_reasoning_effort=os.getenv("MCP_CLASSIFIER_REASONING_EFFORT", "high").strip(),
             classifier_service_tier=_openai_service_tier(
-                os.getenv("MCP_CLASSIFIER_SERVICE_TIER", "default")
+                os.getenv("MCP_CLASSIFIER_SERVICE_TIER", "flex")
             ),
             classifier_max_output_tokens=int(os.getenv("MCP_CLASSIFIER_MAX_OUTPUT_TOKENS", "12000")),
             classifier_concurrency=max(1, min(8, int(os.getenv("MCP_CLASSIFIER_CONCURRENCY", "4")))),
@@ -120,7 +120,7 @@ class Settings:
             extractor_model=os.getenv("MCP_EXTRACTOR_MODEL", "gpt-5.6-terra").strip(),
             extractor_reasoning_effort=os.getenv("MCP_EXTRACTOR_REASONING_EFFORT", "high").strip(),
             extractor_service_tier=_openai_service_tier(
-                os.getenv("MCP_EXTRACTOR_SERVICE_TIER", "default")
+                os.getenv("MCP_EXTRACTOR_SERVICE_TIER", "flex")
             ),
             extractor_max_output_tokens=int(os.getenv("MCP_EXTRACTOR_MAX_OUTPUT_TOKENS", "12000")),
             extractor_timeout_seconds=float(os.getenv("MCP_EXTRACTOR_TIMEOUT_SECONDS", "300")),
