@@ -87,34 +87,49 @@ def get_approved_extraction_source(
 
     protocol_text: str | None = None
     if protocol_name is not None:
+        # Resolve the selected protocol from the lightweight document catalogue first,
+        # then retrieve text by exact document_id. Joining the two security-barrier
+        # serving views can otherwise force a broad scan and hit the reader timeout.
         rows = connection.execute(
             """
-            SELECT d.document_id,
-                   d.title_raw,
-                   d.filename_raw,
-                   d.document_type_label_raw,
-                   x.full_text,
-                   x.pages_json
-            FROM mcp_serving.documents_v1 AS d
-            JOIN mcp_serving.document_text_v1 AS x
-              ON x.document_id = d.document_id
-            WHERE d.trial_id = %s
-              AND d.document_category = 'protocol'
-              AND x.extraction_status IN ('success', 'partial')
-              AND COALESCE(length(x.full_text), 0) > 0
-            ORDER BY d.document_id
+            SELECT document_id,
+                   title_raw,
+                   filename_raw,
+                   document_type_label_raw
+            FROM mcp_serving.documents_v1
+            WHERE trial_id = %s
+              AND document_category = 'protocol'
+            ORDER BY document_id
             """,
             (int(profile_row[1]),),
         ).fetchall()
         requested_identity = protocol_name.casefold()
+        matched_document_id: int | None = None
         for row in rows:
             name = _document_name(int(row[0]), row[1], row[2], row[3])
-            if name.casefold() != requested_identity:
-                continue
-            protocol_text = _format_protocol_pages(int(row[0]), list(row[5] or []))
-            if not protocol_text:
-                protocol_text = str(row[4] or "").strip() or None
-            break
+            if name.casefold() == requested_identity:
+                matched_document_id = int(row[0])
+                break
+
+        if matched_document_id is not None:
+            text_row = connection.execute(
+                """
+                SELECT full_text, pages_json
+                FROM mcp_serving.document_text_v1
+                WHERE document_id = %s
+                  AND extraction_status IN ('success', 'partial')
+                  AND COALESCE(length(full_text), 0) > 0
+                LIMIT 1
+                """,
+                (matched_document_id,),
+            ).fetchone()
+            if text_row is not None:
+                protocol_text = _format_protocol_pages(
+                    matched_document_id,
+                    list(text_row[1] or []),
+                )
+                if not protocol_text:
+                    protocol_text = str(text_row[0] or "").strip() or None
 
     return {
         "trial_id": trial_id,
