@@ -194,7 +194,7 @@ class LightReportExecutor:
                 access = await self._analysis_control.start_analysis(report_run_id)
             except ControlPlaneError as error:
                 raise ReportExecutionError(error.code, error.message, error.status_code >= 500) from error
-            analysis_id = access.analysis_id
+            analysis_id = access.analysis.analysis_id
 
             progress = _mark(progress, "trial_selection", "in_progress", completed_units=0, total_units=20)
             await self._control.progress(report_run_id, progress)
@@ -254,7 +254,7 @@ class LightReportExecutor:
                 await self._control.fail(report_run_id, error.code, error.message, progress)
             except ReportExecutionError:
                 LOGGER.exception("Could not record Light report failure: %s", report_run_id)
-        except Exception as error:
+        except Exception:
             LOGGER.exception("Unexpected Light report failure: report_run_id=%s", report_run_id)
             progress["stage"] = "failed"
             progress["errorCode"] = "LIGHT_REPORT_UNEXPECTED"
