@@ -12,16 +12,27 @@ Production MCP service:
 - `https://mcp.trialagents.com/mcp`
 - Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
 - Light execution shipped in MCP PR #28, squash `2b8b35c3f3b4d1ad61433f0e5c0b54f29216c87c`
-- Production deploy `dep-dad93agae00c73dlhjq0` is live
-- MCP CI run #61 passed
+- Deep document/classification reliability fixes shipped in MCP PR #29, squash `8e7930ee3abc91002a86ca6cab16d41335027708`
+- Terra Flex report runtime shipped in MCP PR #30, squash `fa1673d78b37305c2726c848d830c49e711f37c5`
+- Current production deploy: `dep-dadbjmrncjis738nu540`
+- MCP CI run #69 passed
 
 ## Light Report v1 execution contract
 
 A Light Report uses exactly four report categories: the first four `reportSections` in the approved Report-plan v2 payload. The user-facing plan itself remains the full compact plan; package limits determine execution depth.
 
+All Step 3 report-generation model work runs on `gpt-5.6-terra` with Responses API `service_tier=flex`:
+- trial-selection orchestration;
+- the four objective-analysis calls;
+- final report synthesis;
+- `classify_trials` Terra workers;
+- `extract_variables` Terra workers.
+
+The Step 2 Report-plan generator is intentionally unchanged and remains a separate planning call.
+
 ### Stage 1 — trial selection
 
-One `gpt-5.6-sol` Responses API request selects exactly 20 unique trials for the complete Light report. The selected set is frozen and reused by every analysis category.
+One `gpt-5.6-terra` Flex Responses API request selects exactly 20 unique trials for the complete Light report. The selected set is frozen and reused by every analysis category.
 
 The selection call receives the approved plan, full brief/context, requested insights, four Light report categories, and an active `analysis_id`.
 
@@ -38,7 +49,7 @@ Light server-side allowances remain authoritative: up to 100 unique filtered tri
 
 ### Stage 2 — four objective calls
 
-One separate `gpt-5.6-sol` call runs for each of the four report categories. All four receive the same frozen 20 trial IDs. They cannot discover, replace, add, or remove trials.
+One separate `gpt-5.6-terra` Flex call runs for each of the four report categories. All four receive the same frozen 20 trial IDs. They cannot discover, replace, add, or remove trials.
 
 Objective calls may use only:
 - `get_profiles`
@@ -46,6 +57,8 @@ Objective calls may use only:
 - `extract_variables`
 
 Profiles are the main evidence source. Documents/extraction are used only when the requested analysis genuinely requires detail not established by the profile. Existing Light document/extraction allowances remain shared across the entire report run.
+
+`classify_trials` and `extract_variables` also use `gpt-5.6-terra` on Flex processing. Their production service-tier environment values are explicitly set to `flex`, and the code defaults to Flex if those variables are absent.
 
 Each objective returns strict structured data containing:
 - title and overview;
@@ -58,9 +71,18 @@ Findings may cite only the frozen selected trial IDs. Missing evidence stays mis
 
 ### Stage 3 — final synthesis
 
-A final `gpt-5.6-sol` call receives only the frozen selection and four completed structured section outputs. It has no clinical MCP tools. It creates the report title, executive summary, cross-section key takeaways, and closing note without introducing new facts, numbers, trials, or recommendations.
+A final `gpt-5.6-terra` Flex call receives only the frozen selection and four completed structured section outputs. It has no clinical MCP tools. It creates the report title, executive summary, cross-section key takeaways, and closing note without introducing new facts, numbers, trials, or recommendations.
 
 The App safely renders the structured report online. Full production HTML/PDF artifact generation and report-ready notification delivery are not part of this first Light canary.
+
+## MCP deep-evidence reliability
+
+The first Light report exposed two independent MCP failures, now fixed in PR #29:
+
+- `classify_trials`: legacy `standard` service-tier configuration produced invalid Responses API requests. Valid service tiers are now used; report workers run Flex.
+- `get_documents` / `extract_variables`: document retrieval previously joined two security-barrier serving views and could exceed the restricted reader's 15-second statement timeout. Deep reads now resolve the document identity first and then fetch extracted text by exact `document_id`.
+
+Regression tests cover the Terra request tier and the two-stage document/extraction lookup paths.
 
 ## Execution lifecycle
 
