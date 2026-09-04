@@ -85,7 +85,7 @@ class Settings:
             allowed_hosts=_csv(
                 os.getenv(
                     "MCP_ALLOWED_HOSTS",
-                    "127.0.0.1,127.0.0.1:*,localhost,localhost:*,[::1]:*",
+                    "127.0.0.1,127.0.0.1:*,localhost,localhost:*,[::1],[::1]:*",
                 )
             ),
             port=int(os.getenv("PORT", "8000")),
