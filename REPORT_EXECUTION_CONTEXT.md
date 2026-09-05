@@ -13,17 +13,18 @@ Production MCP service:
 - Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
 - Light Report v2: MCP PR #31 / squash `ff3ac13e241e7ee1aedd1af1493de97abde7b00a`
 - Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
-- Current production deploy: `dep-dae7md97lnhs73ekhjh0`
+- Section-aware profile retrieval: MCP PR #34 / squash `b75039ca0ed2d13ce908c5888c24a5e8fd979976`
+- Current production deploy: `dep-dae9fq142hec73c7g9n0`
 
 ## Profile-retrieval capability for the next report iteration
 
-MCP PR #34 adds section-aware `get_profiles` without changing the report runner in this release. The tool now supports exact deterministic Trial Profile 10.0.0 projections for up to 100 trial IDs when a non-empty `sections` list is supplied, and complete profiles for up to 20 trial IDs when `sections` is omitted or empty.
+MCP PR #34 is live and adds section-aware `get_profiles` without changing the report runner in this release. The tool supports exact deterministic Trial Profile 10.0.0 projections for up to 100 trial IDs when a non-empty `sections` list is supplied, and complete profiles for up to 20 trial IDs when `sections` is omitted or empty.
 
 The controlled sections are: `overview`, `population`, `trial_design`, `interventions`, `eligibility`, `objectives`, `endpoints`, `sponsor_and_organizations`, `contacts`, `countries`, `sites`, `documents`, `lifecycle`, and `results`. These are field projections of the approved stored profile, not generated cards or summaries.
 
-The App control plane is being paired with this change by raising the Light unique-profile allowance from 50 to 100. Re-reading the same trial with different sections or later as a complete profile remains allowance-idempotent.
+The paired App control-plane change is live in App PR #78 / squash `733bf38dd4a02ad5a9d336485bf924b1916d94f7`, Render deploy `dep-dae9errm8hqs73cufdh0`, raising the Light unique-profile allowance from 50 to 100. Re-reading the same trial with different sections or later as a complete profile remains allowance-idempotent.
 
-**Important:** the current Light execution stages below are intentionally unchanged by MCP PR #34. Stage 1 still selects one frozen 20-trial evidence set and Stage 2 still analyzes that same set. The 100-candidate section-projection workflow discussed for the next report iteration will be implemented separately after the MCP capability is proven in production.
+**Important:** the current Light execution stages below are intentionally unchanged by MCP PR #34. Stage 1 still selects one frozen 20-trial evidence set and Stage 2 still analyzes that same set. The 100-candidate section-projection workflow discussed for the next report iteration will be implemented separately after this MCP capability rollout.
 
 ## Planning and Max eligibility
 
