@@ -12,7 +12,8 @@ Production MCP service:
 - `https://mcp.trialagents.com/mcp`
 - Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
 - Light Report v2: MCP PR #31 / squash `ff3ac13e241e7ee1aedd1af1493de97abde7b00a`
-- Current production deploy: `dep-dae5lis9v7es73ateu40`
+- Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
+- Current production deploy: `dep-dae7md97lnhs73ekhjh0`
 
 ## Planning and Max eligibility
 
@@ -47,7 +48,13 @@ Each planned analysis bullet becomes exactly one visual-first sub-analysis. The 
 - an objective-level decision implication;
 - bounded evidence notes/limitations.
 
-Trial IDs are retained internally for provenance validation but are not intended as visible report mechanics. Objective prompts prohibit discussion of screening, shortlisting, frozen/selected-trial counts, MCP, tools, calls, allowances or report-generation methodology.
+The 20 selected trials are the complete and exclusive evidence set for objective execution. The objective prompt supplies stable aliases `T01`–`T20`; provenance fields are schema-constrained to those aliases and may be empty when a finding cannot be confidently tied to one trial. Aliases are mapped back to the real selected EU trial numbers after generation.
+
+The App control plane independently freezes Light `get_profiles` access to the selected 20-trial set as soon as selection is persisted. During Stage 1, before a selected set exists, profile access remains available for evidence selection. During Stage 2, an out-of-set profile request is not returned to the model and does not consume additional profile allowance. This paired boundary shipped in App PR #73 / squash `005cd1abca44e6c7963e831d8fb52ca3a6ffcb43`.
+
+**Provenance/reference validation is non-blocking.** If objective output still contains an unknown or out-of-set provenance reference, MCP drops only that invalid internal reference, retains the finding/report content, logs `provenance_reference_mismatch`, and continues report generation. A Light Report must never fail solely because a source/provenance reference does not validate against the frozen report trial set. Structural/model/service failures remain ordinary execution failures.
+
+Trial IDs are internal provenance and are not intended as visible report mechanics. Objective prompts prohibit discussion of screening, shortlisting, frozen/selected-trial counts, MCP, tools, calls, allowances or report-generation methodology.
 
 ### Stage 3 — final synthesis
 
