@@ -42,8 +42,13 @@ from intel_mcp.server import MCPServiceAuthMiddleware, app, mcp, settings
 def _trial_profile_v10(trial_id: str) -> dict:
     return {
         "filtering_variables": {
+            "therapeutic_areas": ["Solid Tumor Oncology"],
             "phase": [2],
             "modality": "Other biologic",
+            "planned_sample_size": 240,
+            "country_codes": ["DE", "FR"],
+            "number_of_countries": 2,
+            "number_of_sites": 12,
             "available_extracted_documents": {
                 "protocol": ["Protocol v2"],
                 "recruitment_arrangements": [],
@@ -53,7 +58,14 @@ def _trial_profile_v10(trial_id: str) -> dict:
                 "results_summary": [],
             },
         },
-        "classification_variables": {"trial_title": f"Full {trial_id}"},
+        "classification_variables": {
+            "trial_title": f"Full {trial_id}",
+            "diseases": ["Head and neck cancer"],
+            "primary_objectives": ["Evaluate efficacy"],
+            "endpoints": [{"name": "Primary endpoint"}],
+            "countries": [{"country": "DE"}],
+            "sites": [{"organization": "Example Site"}],
+        },
         "ctis_lifecycle": {"overall_updates": [], "countries": []},
         "results": {
             "participant_flow": {
@@ -284,7 +296,7 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
 
 
 @pytest.mark.anyio
-async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
+async def test_get_profiles_exposes_sections_and_returns_complete_profiles_when_omitted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
@@ -292,7 +304,11 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
     async with Client(mcp) as client:
         tools = await client.list_tools()
         tool = next(item for item in tools.tools if item.name == "get_profiles")
-        assert set(tool.input_schema["properties"]) == {"analysis_id", "trial_ids"}
+        assert set(tool.input_schema["properties"]) == {"analysis_id", "trial_ids", "sections"}
+        assert tool.input_schema["properties"]["trial_ids"]["maxItems"] == 100
+        schema_text = str(tool.input_schema["properties"]["sections"])
+        for section in ("overview", "endpoints", "countries", "lifecycle", "results"):
+            assert section in schema_text
         assert tool.annotations is not None
         assert tool.annotations.read_only_hint is False
         assert tool.annotations.destructive_hint is False
@@ -335,6 +351,70 @@ async def test_get_profiles_has_only_two_inputs_and_returns_complete_profiles(
         "used": 1,
         "remaining": 499,
     }
+
+
+@pytest.mark.anyio
+async def test_get_profiles_sections_return_exact_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "get_profiles",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_ids": ["2024-500001-00-00"],
+                "sections": ["overview", "endpoints"],
+            },
+        )
+
+    assert result.is_error is False
+    assert result.structured_content is not None
+    assert result.structured_content["profiles"][0]["profile"] == {
+        "filtering_variables": {
+            "therapeutic_areas": ["Solid Tumor Oncology"],
+            "phase": [2],
+        },
+        "classification_variables": {
+            "trial_title": "Full 2024-500001-00-00",
+            "diseases": ["Head and neck cancer"],
+            "endpoints": [{"name": "Primary endpoint"}],
+        },
+    }
+
+
+@pytest.mark.anyio
+async def test_get_profiles_requires_sections_above_twenty_complete_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
+    monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
+    trial_ids = [f"2024-{500100 + index:06d}-00-00" for index in range(21)]
+    async with Client(mcp) as client:
+        rejected = await client.call_tool(
+            "get_profiles",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_ids": trial_ids,
+            },
+        )
+        allowed = await client.call_tool(
+            "get_profiles",
+            {
+                "analysis_id": "ana_123456789012345678901234",
+                "trial_ids": trial_ids,
+                "sections": ["overview"],
+            },
+        )
+
+    assert rejected.is_error is True
+    assert "PROFILE_REQUEST_TOO_LARGE" in str(rejected.content)
+    assert allowed.is_error is False
+    assert allowed.structured_content is not None
+    assert allowed.structured_content["counts"]["requested"] == 21
+    assert allowed.structured_content["counts"]["returned"] == 20
+    assert allowed.structured_content["counts"]["unavailable"] == 1
 
 
 @pytest.mark.anyio

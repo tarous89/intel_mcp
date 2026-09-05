@@ -15,6 +15,16 @@ Production MCP service:
 - Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
 - Current production deploy: `dep-dae7md97lnhs73ekhjh0`
 
+## Profile-retrieval capability for the next report iteration
+
+MCP PR #34 adds section-aware `get_profiles` without changing the report runner in this release. The tool now supports exact deterministic Trial Profile 10.0.0 projections for up to 100 trial IDs when a non-empty `sections` list is supplied, and complete profiles for up to 20 trial IDs when `sections` is omitted or empty.
+
+The controlled sections are: `overview`, `population`, `trial_design`, `interventions`, `eligibility`, `objectives`, `endpoints`, `sponsor_and_organizations`, `contacts`, `countries`, `sites`, `documents`, `lifecycle`, and `results`. These are field projections of the approved stored profile, not generated cards or summaries.
+
+The App control plane is being paired with this change by raising the Light unique-profile allowance from 50 to 100. Re-reading the same trial with different sections or later as a complete profile remains allowance-idempotent.
+
+**Important:** the current Light execution stages below are intentionally unchanged by MCP PR #34. Stage 1 still selects one frozen 20-trial evidence set and Stage 2 still analyzes that same set. The 100-candidate section-projection workflow discussed for the next report iteration will be implemented separately after the MCP capability is proven in production.
+
 ## Planning and Max eligibility
 
 Step 2 uses `gpt-5.6-sol`. The planner receives the complete Trial Profile 10.0.0 capability boundary and returns 5–7 report categories with `maxOnly` on each category.

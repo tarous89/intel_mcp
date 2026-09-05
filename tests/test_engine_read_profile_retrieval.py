@@ -49,10 +49,15 @@ def test_profile_request_accepts_only_trial_ids() -> None:
     assert captured.value.code == "INVALID_REQUEST"
 
 
-def test_profile_request_rejects_more_than_ten_trials() -> None:
+def test_profile_request_accepts_up_to_one_hundred_trials() -> None:
+    trial_ids = [f"2024-{index:06d}-00-00" for index in range(100)]
+    assert validate_profile_retrieval_request({"trial_ids": trial_ids}) == trial_ids
+
+
+def test_profile_request_rejects_more_than_one_hundred_trials() -> None:
     with pytest.raises(ProfileRetrievalRequestError) as captured:
         validate_profile_retrieval_request(
-            {"trial_ids": [f"2024-{index:06d}-00-00" for index in range(11)]}
+            {"trial_ids": [f"2024-{index:06d}-00-00" for index in range(101)]}
         )
     assert captured.value.code == "INVALID_TRIAL_IDS"
 
@@ -61,8 +66,8 @@ def test_get_profiles_returns_complete_profiles_in_request_order_and_unavailable
     approved_at = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
     connection = _Connection(
         [
-            ("2024-500001-00-00", "8.4.0", approved_at, {"complete": "first"}),
-            ("2024-500003-00-00", "8.4.0", approved_at, {"complete": "third"}),
+            ("2024-500001-00-00", "10.0.0", approved_at, {"complete": "first"}),
+            ("2024-500003-00-00", "10.0.0", approved_at, {"complete": "third"}),
         ]
     )
 
@@ -87,4 +92,3 @@ def test_get_profiles_returns_complete_profiles_in_request_order_and_unavailable
     assert result["data"][0]["profile"] == {"complete": "third"}
     assert result["unavailable_trial_ids"] == ["2024-500002-00-00"]
     assert result["schema_version"] == "1.0.0"
-

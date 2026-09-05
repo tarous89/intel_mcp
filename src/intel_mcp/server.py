@@ -54,9 +54,14 @@ from intel_mcp.models import (
     TrialSort,
 )
 from intel_mcp.profiles import (
+    MAX_FULL_PROFILES_PER_CALL,
     MAX_PROFILES_PER_CALL,
+    PROFILE_SECTIONS,
     GetProfilesCounts,
     GetProfilesOutput,
+    ProfileSection,
+    normalize_profile_sections,
+    project_profile,
 )
 from intel_mcp.report_plan import ReportPlanError, SolReportPlanner
 from intel_mcp.telemetry import begin_metrics, end_metrics, set_worker_model
@@ -70,7 +75,9 @@ mcp = MCPServer(
     "TrialAgents Intel MCP",
     instructions=(
         "Use start_analysis once after the Intel Agent app has created an approved report run. "
-        "Pass the returned analysis_id to every later Intel tool."
+        "Pass the returned analysis_id to every later Intel tool. Use filter_trials for broad structured "
+        "screening. When reviewing many shortlisted trials, call get_profiles with only the profile sections "
+        "needed for the task; omit sections only when complete profiles are genuinely required."
     ),
 )
 
@@ -454,7 +461,7 @@ async def classify_trials(
 
 
 @mcp.tool(
-    title="Get complete approved Trial Profiles",
+    title="Get approved Trial Profile data",
     meta=OAUTH_TOOL_META,
     annotations=ToolAnnotations(
         read_only_hint=False,
@@ -478,21 +485,46 @@ async def get_profiles(
         Field(
             min_length=1,
             max_length=MAX_PROFILES_PER_CALL,
-            description="One to 10 EU trial numbers. Duplicate values are removed while preserving order.",
+            description=(
+                "One to 100 EU trial numbers. Duplicate values are removed while preserving order. "
+                "When sections is omitted or empty, at most 20 unique trial IDs may be requested."
+            ),
         ),
     ],
+    sections: Annotated[
+        list[ProfileSection] | None,
+        Field(
+            max_length=len(PROFILE_SECTIONS),
+            description=(
+                "Optional Trial Profile 10.0.0 sections. Choose only what the task needs for large shortlist "
+                "review. Supported values: overview, population, trial_design, interventions, eligibility, "
+                "objectives, endpoints, sponsor_and_organizations, contacts, countries, sites, documents, "
+                "lifecycle, results. Omit or pass [] to return complete profiles."
+            ),
+        ),
+    ] = None,
 ) -> GetProfilesOutput:
-    """Return complete current approved Trial Profiles for selected EU trial numbers.
+    """Return approved Trial Profiles in full or as exact section projections.
 
-    The tool returns the stored structured profile in full, including contacts, document inventory and results.
-    It does not generate or refresh profiles, retrieve document text, classify trials, search semantically,
-    or write report prose. Candidate and rejected profiles are treated as unavailable; there is no raw-CTIS
-    fallback.
+    For broad shortlist review, request one or more relevant sections and retrieve up to 100 profiles in
+    one call. Section mode is a deterministic projection of the stored approved profile: it preserves the
+    original field values and nesting and performs no model summarization. For deep review, omit sections
+    (or pass an empty list) to return complete profiles; complete-profile mode is limited to 20 unique IDs.
 
-    Up to ten IDs may be requested and every approved profile admitted by the analysis allowance is returned
-    complete. Exact retries or later retrieval of the same profile do not consume the allowance twice.
+    The section vocabulary follows Trial Profile 10.0.0. Candidate and rejected profiles are treated as
+    unavailable; there is no raw-CTIS fallback. The tool does not generate or refresh profiles, retrieve
+    document text, classify trials, search semantically, or write report prose. Exact retries or later
+    retrieval of the same profile do not consume the analysis allowance twice.
     """
     unique_trial_ids = list(dict.fromkeys(trial_ids))
+    selected_sections = normalize_profile_sections(sections)
+    if not selected_sections and len(unique_trial_ids) > MAX_FULL_PROFILES_PER_CALL:
+        raise ToolError(
+            "PROFILE_REQUEST_TOO_LARGE: complete-profile requests are limited to "
+            f"{MAX_FULL_PROFILES_PER_CALL} unique trial IDs; request specific sections for up to "
+            f"{MAX_PROFILES_PER_CALL}."
+        )
+
     try:
         engine_result = await engine_client().get_profiles(unique_trial_ids)
         available_ids = [item.eu_number for item in engine_result.data]
@@ -505,7 +537,11 @@ async def get_profiles(
     if not allowed.issubset(available_ids) or len(allowed) != len(access.allowed_trial_ids):
         raise ToolError("PROFILE_ACCESS_FAILED: the control plane returned misaligned profile authorization.")
 
-    profiles = [item for item in engine_result.data if item.eu_number in allowed]
+    profiles = [
+        item.model_copy(update={"profile": project_profile(item.profile, selected_sections)}, deep=True)
+        for item in engine_result.data
+        if item.eu_number in allowed
+    ]
     allowance_reached = [item.eu_number for item in engine_result.data if item.eu_number not in allowed]
 
     return GetProfilesOutput(

@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for the TrialAgents Intel MCP service.**
 
-Last updated: 2026-09-03
+Last updated: 2026-09-05
 Repository: `tarous89/intel_mcp`
 
 > This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
@@ -29,7 +29,7 @@ The five MCP clinical reads now have a local database implementation for product
 ```text
 filter trials
 classification profiles
-complete profiles
+approved profile data
 document text
 extraction source
 ```
@@ -188,7 +188,7 @@ Core rules:
 - page size 1–100 with a caller-supplied numeric offset;
 - sponsor-name matching is shortlist evidence only because CTIS may sometimes expose a subsidy/funding source or an incomplete legal entity name.
 - each returned shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`; document inventory is intentionally omitted to keep pages compact;
-- callers retrieve selected complete profiles with `get_profiles` before requesting document text;
+- callers use `get_profiles` with relevant sections for larger shortlist review, or complete profiles for a small final evidence set;
 - output is limited to `data`, `counts` (`total_profiles`, `total_matches`, `returned`) and `analysis_allowance` (`limit`, `used`, `remaining`);
 
 The filter vocabularies are aligned with Trial Profile contract 10.0.0. The therapeutic-area
@@ -410,16 +410,17 @@ Detailed human-readable contract: `docs/classify-trials.md`.
 
 ## `get_profiles` — implemented contract
 
-`get_profiles(analysis_id, trial_ids)` returns complete current approved Trial Profiles.
+`get_profiles(analysis_id, trial_ids, sections?)` returns current approved Trial Profile 10.0.0 data in either deterministic section mode or complete-profile mode.
 
-- The only inputs are `analysis_id` and 1–10 EU trial numbers.
-- Duplicate trial IDs are removed while preserving order.
-- The production read comes from `mcp_serving.approved_profiles_v1`; it returns complete approved `profile_json`, profile schema version and approval timestamp, plus unavailable IDs. `POST /api/internal/mcp/profiles` remains the rollback equivalent.
+- `trial_ids` accepts 1–100 EU trial numbers; duplicate IDs are removed while preserving first occurrence order.
+- `sections` is optional and uses a controlled 14-section vocabulary: `overview`, `population`, `trial_design`, `interventions`, `eligibility`, `objectives`, `endpoints`, `sponsor_and_organizations`, `contacts`, `countries`, `sites`, `documents`, `lifecycle`, `results`.
+- With a non-empty `sections` array, MCP returns exact deterministic projections for up to 100 profiles. Values and original Trial Profile nesting are preserved; no model summary, card, rewriting or inference is performed.
+- With `sections` omitted or `[]`, MCP returns complete approved profiles and enforces a 20-unique-trial per-call cap. Requests above 20 fail with `PROFILE_REQUEST_TOO_LARGE`; they are never silently truncated.
+- The production read comes from `mcp_serving.approved_profiles_v1`; MCP applies projection only after the approved-only read and app authorization.
+- The retained `POST /api/internal/mcp/profiles` rollback endpoint still accepts ten IDs per request. MCP batches larger public requests internally into groups of ten and reassembles them in caller order, so no Engine API/schema change is required.
 - Missing, candidate and rejected profiles are reported only as unavailable; no internal review state or raw-CTIS fallback is exposed.
-- Complete stored profiles include contacts and extracted-document inventory.
-- Every approved profile admitted by allowance is returned complete; no response-size deferral state is exposed.
-- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Current limits are Light 50 and Max 500. Exact repeated IDs do not consume allowance twice; unavailable IDs are not metered.
-- Output includes complete `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, compact counts and the common analysis allowance object.
+- The app endpoint `POST /api/internal/mcp/profile-access` atomically meters unique profiles. Effective current limits are Light 100 and Max 500. A section read and later complete read of the same trial count once; unavailable IDs are not metered.
+- Output includes `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, compact counts and the common analysis allowance object.
 - The tool performs no generation, refresh, document retrieval, classification, semantic search, extraction or report writing.
 
 Annotations:
@@ -438,8 +439,7 @@ Detailed contract: `docs/get-profiles.md`.
 `get_documents(analysis_id, trial_id, document_name, part=1)` returns extracted
 text for exactly one explicitly named document.
 
-- exact filenames are available in the complete Trial Profile returned by
-  `get_profiles`;
+- exact filenames are available from `get_profiles(sections=["documents"])` or a complete Trial Profile;
 - `document_name` must exactly match, case-insensitively, a value in one of the
   approved Trial Profile's six `filtering_variables.available_extracted_documents` arrays.
 - Engine data contract: `mcp_serving.documents_v1` plus `mcp_serving.document_text_v1`; `POST /api/internal/mcp/documents` remains the rollback equivalent.
