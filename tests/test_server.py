@@ -413,7 +413,8 @@ async def test_get_profiles_requires_sections_above_twenty_complete_profiles(
     assert allowed.is_error is False
     assert allowed.structured_content is not None
     assert allowed.structured_content["counts"]["requested"] == 21
-    assert allowed.structured_content["counts"]["returned"] == 21
+    assert allowed.structured_content["counts"]["returned"] == 20
+    assert allowed.structured_content["counts"]["unavailable"] == 1
 
 
 @pytest.mark.anyio
