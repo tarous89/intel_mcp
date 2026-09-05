@@ -47,6 +47,22 @@ def _selection() -> dict:
     }
 
 
+def _objective_output(trial_reference: str) -> dict:
+    return {
+        "title": "Endpoints",
+        "summary_sentences": ["PFS was the most frequent endpoint pattern."],
+        "sub_analyses": [{
+            "title": "Endpoint frequency",
+            "visual": {"kind": "bar", "title": "Most frequent endpoints", "unit": "trials", "labels": ["PFS", "OS"], "values": [8, 5], "note": "Trial count per endpoint."},
+            "interpretation": "PFS appeared most often.",
+            "items": [{"label": "PFS", "value": "8 trials", "explanation": "It was the most recurrent endpoint.", "trial_ids": [trial_reference]}],
+            "trial_ids": [trial_reference],
+        }],
+        "conclusion": "PFS is the strongest profile-supported benchmark.",
+        "limitations": [],
+    }
+
+
 def test_light_report_uses_first_four_non_max_categories() -> None:
     objectives = light_objectives(PLAN)
     assert LIGHT_OBJECTIVE_COUNT == 4
@@ -86,25 +102,19 @@ async def test_selection_call_only_exposes_filter_and_profiles() -> None:
 
 
 @pytest.mark.anyio
-async def test_objective_call_only_exposes_profiles_and_is_visual_first() -> None:
+async def test_objective_call_only_exposes_profiles_and_constrains_provenance_aliases() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["tools"][0]["allowed_tools"] == ["get_profiles"]
         assert payload["text"]["format"]["name"] == "intel_light_objective_v2"
-        output = {
-            "title": "Endpoints",
-            "summary_sentences": ["PFS was the most frequent endpoint pattern."],
-            "sub_analyses": [{
-                "title": "Endpoint frequency",
-                "visual": {"kind": "bar", "title": "Most frequent endpoints", "unit": "trials", "labels": ["PFS", "OS"], "values": [8, 5], "note": "Trial count per endpoint."},
-                "interpretation": "PFS appeared most often.",
-                "items": [{"label": "PFS", "value": "8 trials", "explanation": "It was the most recurrent endpoint.", "trial_ids": ["2026-000001-00-00"]}],
-                "trial_ids": ["2026-000001-00-00"],
-            }],
-            "conclusion": "PFS is the strongest profile-supported benchmark.",
-            "limitations": [],
-        }
-        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output)}]}]})
+        evidence_trials = json.loads(payload["input"][1]["content"][0]["text"])["evidence_trials"]
+        assert evidence_trials[0]["alias"] == "T01"
+        assert evidence_trials[0]["trial_id"] == "2026-000001-00-00"
+        schema = payload["text"]["format"]["schema"]
+        sub_analysis = schema["properties"]["sub_analyses"]["items"]
+        assert sub_analysis["properties"]["trial_ids"]["items"]["enum"] == [f"T{index:02d}" for index in range(1, 21)]
+        assert sub_analysis["properties"]["items"]["items"]["properties"]["trial_ids"]["minItems"] == 0
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_objective_output("T01"))}]}]})
 
     configured = replace(settings, openai_api_key="test-key", mcp_inbound_service_token="internal-mcp-token", mcp_public_resource_url="https://mcp.example.test/mcp")
     runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
@@ -115,3 +125,24 @@ async def test_objective_call_only_exposes_profiles_and_is_visual_first() -> Non
         selected_trials=LightTrialSelection.model_validate(_selection()).selected_trials,
     )
     assert result.sub_analyses[0].visual.kind == "bar"
+    assert result.sub_analyses[0].trial_ids == ["2026-000001-00-00"]
+    assert result.sub_analyses[0].items[0].trial_ids == ["2026-000001-00-00"]
+    assert result.qa_warnings == []
+
+
+@pytest.mark.anyio
+async def test_outside_provenance_reference_is_sanitized_without_failing_report() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_objective_output("2025-999999-00-00"))}]}]})
+
+    configured = replace(settings, openai_api_key="test-key", mcp_inbound_service_token="internal-mcp-token", mcp_public_resource_url="https://mcp.example.test/mcp")
+    runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
+    result = await runner.analyze_objective(
+        analysis_id="analysis-12345678901234567890",
+        context="Adjuvant NSCLC",
+        objective={"title": "Endpoints", "analyses": ["Endpoint frequency"], "coverage": "strong"},
+        selected_trials=LightTrialSelection.model_validate(_selection()).selected_trials,
+    )
+    assert result.sub_analyses[0].trial_ids == []
+    assert result.sub_analyses[0].items[0].trial_ids == []
+    assert result.qa_warnings == ["provenance_reference_mismatch"]
