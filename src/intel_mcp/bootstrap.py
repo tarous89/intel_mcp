@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse, Response
 
 from intel_mcp import server
 from intel_mcp.light_report_execution import start_light_report_task
+from intel_mcp.site_search_routes import register_site_search
 
 
 def _authorized(request: Request) -> bool:
@@ -40,8 +41,10 @@ async def start_light_report(request: Request) -> Response:
     )
 
 
-# server.app is built before this module registers the route. Rebuild the ASGI app once
-# so the production entrypoint contains both the public MCP surface and Light execution route.
+register_site_search(server.mcp, server.settings, server.engine_client)
+
+# server.app is built before this module registers the routes. Rebuild the ASGI app
+# so the production entrypoint contains the public MCP and private app boundaries.
 app = server.MCPServiceAuthMiddleware(
     server.mcp.streamable_http_app(transport_security=server.transport_security)
 )

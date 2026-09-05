@@ -1,0 +1,21 @@
+name: Site agent integration
+on:
+  pull_request:
+    paths:
+      - 'src/intel_mcp/site_*.py'
+      - 'src/intel_mcp/bootstrap.py'
+      - 'tests/test_site_*.py'
+      - '.github/workflows/site-agent.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
