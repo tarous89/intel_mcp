@@ -1,107 +1,73 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 > This file is the current source of truth for Intel Agent report execution and supersedes older report-execution statements in `PROJECT_CONTEXT.md` where they conflict. General MCP tool/data-plane rules in `PROJECT_CONTEXT.md` remain authoritative.
 
 ## Current scope
 
-Light Report v1 is implemented and live for product testing. Max Report execution is intentionally not implemented yet.
+Light Report is the free, profile-only report path. Max execution is intentionally separate and is not implemented yet.
 
 Production MCP service:
 - `https://mcp.trialagents.com/mcp`
 - Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
-- Light execution shipped in MCP PR #28, squash `2b8b35c3f3b4d1ad61433f0e5c0b54f29216c87c`
-- Deep document/classification reliability fixes shipped in MCP PR #29, squash `8e7930ee3abc91002a86ca6cab16d41335027708`
-- Terra Flex report runtime shipped in MCP PR #30, squash `fa1673d78b37305c2726c848d830c49e711f37c5`
-- Current production deploy: `dep-dadbjmrncjis738nu540`
-- MCP CI run #69 passed
 
-## Light Report v1 execution contract
+## Planning and Max eligibility
 
-A Light Report uses exactly four report categories: the first four `reportSections` in the approved Report-plan v2 payload. The user-facing plan itself remains the full compact plan; package limits determine execution depth.
+Step 2 uses `gpt-5.6-sol`. The planner receives the complete Trial Profile 10.0.0 capability boundary and returns 5–7 report categories with `maxOnly` on each category.
 
-All Step 3 report-generation model work runs on `gpt-5.6-terra` with Responses API `service_tier=flex`:
-- trial-selection orchestration;
-- the four objective-analysis calls;
-- final report synthesis;
-- `classify_trials` Terra workers;
-- `extract_variables` Terra workers.
+`maxOnly=true` means the category cannot be completed credibly from complete Trial Profile data alone and needs deeper protocol/document/extraction capability. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max. Profile-supported categories are ordered before source-document-only categories.
 
-The Step 2 Report-plan generator is intentionally unchanged and remains a separate planning call.
+`maxOnly` is evidence-capability based only. The App separately enforces the Light commercial cap of four categories; any additional otherwise-Light category is also presented as Max. The user sees only the Max badge, not the internal reason.
 
-### Stage 1 — trial selection
+## Light execution contract
 
-One `gpt-5.6-terra` Flex Responses API request selects exactly 20 unique trials for the complete Light report. The selected set is frozen and reused by every analysis category.
+Light executes up to the first four categories with `maxOnly != true`.
 
-The selection call receives the approved plan, full brief/context, requested insights, four Light report categories, and an active `analysis_id`.
+### Stage 1 — evidence selection
 
-It may use only these remote MCP tools:
+One `gpt-5.6-terra` Flex call selects exactly 20 relevant EU trials for the report. It may use only:
 - `filter_trials`
-- `classify_trials`
 - `get_profiles`
 
-It must not use document text or variable extraction during selection. It is instructed to start with deterministic database filtering, use semantic classification/profile review as useful, and choose the 20 trials that collectively make the four requested analyses strongest. Relevance and objective usefulness are both considered. Objective usefulness may outweigh small similarity differences, but clearly irrelevant trials must not be included.
+Light selection has no access to `classify_trials`, `get_documents` or `extract_variables`.
 
-The selected 20 are labeled `priority` or `adjacent` according to which approved plan group they best represent. There is no quota for either label and no backup/reserve list.
+### Stage 2 — objective calls
 
-Light server-side allowances remain authoritative: up to 100 unique filtered trial IDs, 25 classified trials, and 50 unique profiles across the analysis lease.
+One independent `gpt-5.6-terra` Flex call runs for each Light category against the same 20-trial evidence set. Each objective may use only `get_profiles`.
 
-### Stage 2 — four objective calls
+Each planned analysis bullet becomes exactly one visual-first sub-analysis. The structured output requires:
+- one concise summary sentence per sub-analysis;
+- one simple visual per sub-analysis (`stat`, `bar` or `donut`);
+- no more than five displayed values/items;
+- a short interpretation;
+- optional ranked items, each with one sentence explaining why it ranks/matters;
+- an objective-level decision implication;
+- bounded evidence notes/limitations.
 
-One separate `gpt-5.6-terra` Flex call runs for each of the four report categories. All four receive the same frozen 20 trial IDs. They cannot discover, replace, add, or remove trials.
-
-Objective calls may use only:
-- `get_profiles`
-- `get_documents`
-- `extract_variables`
-
-Profiles are the main evidence source. Documents/extraction are used only when the requested analysis genuinely requires detail not established by the profile. Existing Light document/extraction allowances remain shared across the entire report run.
-
-`classify_trials` and `extract_variables` also use `gpt-5.6-terra` on Flex processing. Their production service-tier environment values are explicitly set to `flex`, and the code defaults to Flex if those variables are absent.
-
-Each objective returns strict structured data containing:
-- title and overview;
-- evidence-linked findings;
-- a supported implication/recommendation when warranted;
-- chart datasets for substantial quantitative findings when useful;
-- limitations.
-
-Findings may cite only the frozen selected trial IDs. Missing evidence stays missing. Causal delay/recruitment/site-performance explanations require explicit source evidence. Do not call sites/CROs/partners “best” without validated quality evidence.
+Trial IDs are retained internally for provenance validation but are not intended as visible report mechanics. Objective prompts prohibit discussion of screening, shortlisting, frozen/selected-trial counts, MCP, tools, calls, allowances or report-generation methodology.
 
 ### Stage 3 — final synthesis
 
-A final `gpt-5.6-terra` Flex call receives only the frozen selection and four completed structured section outputs. It has no clinical MCP tools. It creates the report title, executive summary, cross-section key takeaways, and closing note without introducing new facts, numbers, trials, or recommendations.
+A final `gpt-5.6-sol` call receives the completed structured sections and no clinical tools. It creates only the title, executive summary, cross-section takeaways and closing decision-facing note. It must not introduce new facts or discuss report mechanics. The model never emits executable HTML; the App safely renders structured report data.
 
-The App safely renders the structured report online. Full production HTML/PDF artifact generation and report-ready notification delivery are not part of this first Light canary.
+## Final report contract v2
 
-## MCP deep-evidence reliability
+`report_runs.final_report.version = 2` contains:
+- title;
+- executive summary;
+- key takeaways;
+- structured visual-first objective sections;
+- closing note.
 
-The first Light report exposed two independent MCP failures, now fixed in PR #29:
-
-- `classify_trials`: legacy `standard` service-tier configuration produced invalid Responses API requests. Valid service tiers are now used; report workers run Flex.
-- `get_documents` / `extract_variables`: document retrieval previously joined two security-barrier serving views and could exceed the restricted reader's 15-second statement timeout. Deep reads now resolve the document identity first and then fetch extracted text by exact `document_id`.
-
-Regression tests cover the Terra request tier and the two-stage document/extraction lookup paths.
+The public report payload no longer needs the selected-trial summary. Evidence-set IDs remain in internal progress/provenance rather than being presented as the report's subject.
 
 ## Execution lifecycle
 
-The App creates the stable report run and approved plan snapshot. MCP starts/reuses the bounded `analysis_id`, executes the stages above, and writes progress/final output back through the App's private service-authenticated report-execution endpoint.
+The App creates the stable report run and approved-plan snapshot. MCP starts/reuses the bounded `analysis_id`, executes the stages above, and writes progress/final output through the private report-execution endpoint.
 
-Progress steps are:
-1. Finding the best 20 trials
-2. Analyzing objective 1
-3. Analyzing objective 2
-4. Analyzing objective 3
-5. Analyzing objective 4
-6. Preparing final report
+Progress is dynamic: trial selection, one step per executed Light category, then final report preparation. Light reports are no longer entitlement-count gated; only one active analysis lease per account is allowed at a time.
 
-The App persists progress in `report_runs.progress` and the final structured output in `report_runs.final_report`. Successful completion consumes the reserved Light entitlement. System failure cancels the active analysis lease and restores the reserved Light entitlement.
+## Current implementation limitation
 
-An active analysis lease is reusable only for the same `report_run_id`; another active report for the same user returns `ANOTHER_ANALYSIS_ACTIVE`.
-
-## Canary implementation limitation
-
-For the first Light-quality test, report execution is started as an in-process async task in the MCP web service through protected route `POST /internal/light-report/start`. This is adequate for a controlled canary but is not the final durable worker architecture: a service restart during execution can interrupt the task. Before broad production use, move execution to a dedicated durable worker/claim-heartbeat-retry loop and revisit the current 60-minute lease duration.
-
-No paid report was automatically generated as part of deployment validation. The next validation step is a user-initiated Light Report from the live App so trial-selection quality, tool usage, report quality, runtime, and cost can be inspected before Max is built.
+Execution still runs as an in-process async task on the MCP web service. A service restart can interrupt an active run. Before broad production use, move execution to a durable worker/claim-heartbeat-retry loop and revisit the 60-minute lease.
