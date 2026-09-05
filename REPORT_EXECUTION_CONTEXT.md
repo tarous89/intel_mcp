@@ -11,6 +11,8 @@ Light Report is the free, profile-only report path. Max execution is intentional
 Production MCP service:
 - `https://mcp.trialagents.com/mcp`
 - Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
+- Light Report v2: MCP PR #31 / squash `ff3ac13e241e7ee1aedd1af1493de97abde7b00a`
+- Current production deploy: `dep-dae5lis9v7es73ateu40`
 
 ## Planning and Max eligibility
 
