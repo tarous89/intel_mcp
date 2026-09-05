@@ -14,7 +14,7 @@ from .schema import SCHEMA_VERSION
 
 
 PROFILE_RETRIEVAL_SCHEMA_VERSION = "1.0.0"
-MAX_PROFILES_PER_REQUEST = 10
+MAX_PROFILES_PER_REQUEST = 100
 EU_TRIAL_NUMBER_RE = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 
 
@@ -47,8 +47,7 @@ def validate_profile_retrieval_request(request: Any) -> list[str]:
         )
 
     # The public MCP contract de-duplicates while preserving caller order. Keep
-    # the Engine boundary equally safe when called directly by another internal
-    # consumer.
+    # the local read boundary equally safe when called directly.
     return list(dict.fromkeys(trial_ids))
 
 
@@ -87,7 +86,8 @@ def get_approved_profiles(
 
     Missing or unapproved profiles are reported as unavailable rather than
     failing the whole batch. Candidate/rejected state is deliberately not
-    disclosed to the caller.
+    disclosed to the caller. Public MCP projection, when requested, is applied
+    only after this approved-only read and control-plane authorization.
     """
     trial_ids = validate_profile_retrieval_request(request)
     rows = connection.execute(
