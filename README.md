@@ -14,7 +14,7 @@ Implemented tools:
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
-- `get_profiles` returns complete current approved Trial Profiles for 1–10 EU trial numbers and meters unique returned profiles through the app control plane.
+- `get_profiles` returns current approved Trial Profile 10.0.0 data for explicit EU trial numbers. With `sections`, it returns exact deterministic profile projections for up to 100 trials; with `sections` omitted or empty, it returns complete profiles for up to 20 trials.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
 - `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using its complete profile plus the single profile-listed protocol when available.
 
@@ -51,13 +51,13 @@ keys make exact retries allowance-safe. Detailed contract:
 
 `filter_trials` is a shortlist tool. It does not search the whole profile, run semantic search, classify trials, retrieve complete profiles/documents, extract variables or write report prose.
 
-Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
+Use it as the first screening step. Apply broad structured conditions to reduce the approved-profile population to a focused shortlist, then use `classify_trials` for complex inclusion/exclusion logic or `get_profiles` with selected sections when the shortlist needs objective-specific profile review. Classification accepts at most 25 trials per call, so split larger shortlists into consistent batches rather than classifying the full discovery population.
 
 Each shortlist item contains only `eu_number`, `trial_title` and `sponsor_name`.
-Document names, phase and dates are not repeated in filtering results. Retrieve a
-complete selected profile with `get_profiles`; its
-`filtering_variables.available_extracted_documents` object contains the exact names
-accepted by `get_documents`. Output counts contain
+Document names, phase and dates are not repeated in filtering results. Retrieve relevant
+profile sections or a complete selected profile with `get_profiles`; its
+`filtering_variables.available_extracted_documents` object is available through the
+`documents` section and contains the exact names accepted by `get_documents`. Output counts contain
 total approved profiles, total matches and records returned in this call. Analysis
 allowance separately reports its limit, cumulative unique IDs used and remaining capacity.
 
@@ -96,17 +96,56 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 
 ## `get_profiles` contract
 
-`get_profiles` accepts only `analysis_id` and `trial_ids`.
+`get_profiles` accepts `analysis_id`, `trial_ids`, and optional `sections`.
 
-- Request 1–10 EU trial numbers per call; duplicate IDs are removed while preserving order.
-- Return the complete stored current approved Trial Profile 10.0.0, including contacts, extracted-document inventory and results.
-- The profile has four top-level objects: `filtering_variables`, `classification_variables`, `ctis_lifecycle` and `results`.
-- The inventory is `filtering_variables.available_extracted_documents`, containing six always-present category arrays with the exact names accepted by `get_documents`.
+- In **section mode**, request 1–100 EU trial numbers and one or more controlled Trial Profile sections.
+- In **complete-profile mode**, omit `sections` or pass `[]`; request at most 20 unique EU trial numbers.
+- Duplicate trial IDs and section names are removed while preserving first occurrence order.
+- Section mode is an exact deterministic projection of the stored profile. It performs no LLM summarization, rewriting or inference.
+- Complete-profile mode returns the complete stored current approved Trial Profile, including contacts, extracted-document inventory and results.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
-- Light analyses may retrieve 50 unique profiles; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice.
-- Every approved profile admitted by the allowance is returned complete. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
+- Light analyses may retrieve **100 unique profiles**; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
+- Every approved profile admitted by the allowance is returned without field-level truncation within the requested projection. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
+
+### Trial Profile 10.0.0 section vocabulary
+
+- `overview` — therapeutic area, phase, disease, trial title/acronym and core flags.
+- `population` — target population, stage/severity, settings, population characteristics, biomarkers and eligible sexes.
+- `trial_design` — sample size, allocation, masking, intervention model and comparator types.
+- `interventions` — modality, administration routes, targets, mechanisms and products.
+- `eligibility` — inclusion and exclusion criteria.
+- `objectives` — primary and secondary objectives.
+- `endpoints` — structured endpoints.
+- `sponsor_and_organizations` — sponsor, legal representative and third-party organizations.
+- `contacts` — management, scientific, recruitment and public CTIS contacts.
+- `countries` — country counts/codes and structured country records.
+- `sites` — site count and structured site records with nested site contacts.
+- `documents` — six-category `available_extracted_documents` inventory.
+- `lifecycle` — complete dated `ctis_lifecycle` object.
+- `results` — complete results object, including participant flow, endpoint/safety results and operational findings.
+
+Example shortlist projection:
+
+```json
+{
+  "analysis_id": "ana_...",
+  "trial_ids": ["2024-500001-00-00", "2024-500002-00-00"],
+  "sections": ["overview", "trial_design", "endpoints", "countries"]
+}
+```
+
+Example complete-profile request:
+
+```json
+{
+  "analysis_id": "ana_...",
+  "trial_ids": ["2024-500001-00-00"]
+}
+```
+
+Production uses the restricted direct database read path. The legacy Engine HTTP rollback endpoint remains capped at ten trial IDs internally; MCP automatically batches larger public requests into groups of ten and preserves caller order. Detailed contract: `docs/get-profiles.md`.
 
 ## `get_documents` contract
 
@@ -115,7 +154,7 @@ case-insensitive `document_name`, and optional one-based `part` (default 1).
 
 - The document must be listed in one of the approved Trial Profile's six
   `filtering_variables.available_extracted_documents` arrays. Obtain the exact name with
-  `get_profiles` before calling `get_documents`.
+  `get_profiles(sections=["documents"])` or a complete profile before calling `get_documents`.
 - Each response returns extracted text only, with preserved page markers, and
   never returns a PDF, binary, link, page count or character count.
 - Each part is limited to 200,000 characters. If `next_part` is a number, call
@@ -182,7 +221,7 @@ clinical-data operations.
 
 ## Engine read isolation
 
-The five clinical reads (`filter_trials`, classification profiles, complete profiles,
+The five clinical reads (`filter_trials`, classification profiles, complete/profile-section reads,
 document text and extraction source) run inside MCP to remove a cold-starting Engine
 web hop. Engine still owns ingestion, extraction, profile generation, approval, queues,
 schema migrations and all writes. PostgreSQL enforces the split: the MCP role can select
