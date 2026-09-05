@@ -236,13 +236,12 @@ class LightReportExecutor:
             progress = _mark(progress, "final_report", "completed")
             progress["stage"] = "completed"
             final_report = {
-                "version": 1,
+                "version": 2,
                 "tier": "light",
                 "title": synthesis.title,
                 "executiveSummary": synthesis.executive_summary,
                 "keyTakeaways": synthesis.key_takeaways,
                 "closingNote": synthesis.closing_note,
-                "selectedTrials": selected,
                 "sections": [item.model_dump() for item in section_results],
             }
             await self._control.complete(report_run_id, progress, final_report)
