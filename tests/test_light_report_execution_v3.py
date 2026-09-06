@@ -7,6 +7,7 @@ from intel_mcp.light_report_execution import (
     LightReportExecutor,
     _analyzed_cohort_summary,
     _v3_light_execution_view,
+    _v4_light_execution_view,
 )
 from intel_mcp.profiles import AppProfileAccessResponse, EngineProfilesResponse
 from intel_mcp.server import settings
@@ -122,8 +123,6 @@ def test_v3_light_execution_uses_only_shared_group_and_first_analysis_of_five_ob
     assert objectives[-1] == {"title": "Objective 5", "analyses": ["Shared 5"]}
     assert all(len(item["analyses"]) == 1 for item in objectives)
 
-    # The reused selector has a legacy three-container helper, but its selection-only
-    # projection must still contain all five shared evidence needs.
     assert len(selection_plan["reportSections"]) == 3
     selection_analysis_text = [
         analysis
@@ -137,6 +136,78 @@ def test_v3_light_execution_uses_only_shared_group_and_first_analysis_of_five_ob
         "Objective 5: Shared 5",
         "Shared 3",
     ]
+
+
+def test_v4_light_execution_runs_all_shared_analyses_and_no_max_work() -> None:
+    plan = {
+        "version": 4,
+        "studyCohorts": [
+            {
+                "role": "primary",
+                "title": "NSCLC trials",
+                "details": ["Disease contains NSCLC"],
+                "maxOnly": False,
+                "filterDimension": "disease",
+            },
+            {
+                "role": "adjacent",
+                "title": "Mutation-positive vs mutation-negative NSCLC",
+                "details": ["Compare oncogenic mutation status"],
+                "maxOnly": True,
+                "filterDimension": None,
+            },
+            {
+                "role": "adjacent",
+                "title": "Low vs high PD-L1 NSCLC",
+                "details": ["Compare PD-L1 expression groups"],
+                "maxOnly": True,
+                "filterDimension": None,
+            },
+        ],
+        "exclusionSummary": "Unrelated trials excluded.",
+        "reportSections": [
+            {
+                "title": f"Shared analysis {index}",
+                "sharedAnalysis": {
+                    "title": f"Shared analysis {index}",
+                    "details": [f"Shared metric {index}A", f"Shared metric {index}B"],
+                },
+                "maxAnalysis": {
+                    "title": f"Max decision analysis {index}",
+                    "details": [f"Max factor {index}A", f"Max factor {index}B"],
+                },
+            }
+            for index in range(1, 8)
+        ],
+    }
+
+    selection_plan, objectives = _v4_light_execution_view(plan)
+
+    assert selection_plan["studyCohorts"] == [plan["studyCohorts"][0]]
+    assert len(objectives) == 7
+    assert objectives[0] == {
+        "title": "Shared analysis 1",
+        "analyses": ["Shared metric 1A", "Shared metric 1B"],
+    }
+    assert objectives[-1]["title"] == "Shared analysis 7"
+
+    # The selector still receives every shared evidence need, compacted into three
+    # legacy-compatible containers. No Max group or Max analysis text crosses the
+    # Light execution boundary.
+    assert len(selection_plan["reportSections"]) == 3
+    selection_text = " ".join(
+        analysis
+        for section in selection_plan["reportSections"]
+        for analysis in section["analyses"]
+    )
+    for index in range(1, 8):
+        assert f"Shared analysis {index}" in selection_text
+        assert f"Shared metric {index}A" in selection_text
+    assert "Max decision analysis" not in selection_text
+    assert "Max factor" not in selection_text
+    assert "mutation" not in selection_text.casefold()
+    assert "pd-l1" not in selection_text.casefold()
+    assert max(len(section["analyses"]) for section in selection_plan["reportSections"]) <= 4
 
 
 @pytest.mark.anyio
