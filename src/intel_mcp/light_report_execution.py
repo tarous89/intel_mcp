@@ -62,8 +62,16 @@ class ReportExecutionControl:
             ) from error
         if response.status_code >= 400:
             error_body = body.get("error") if isinstance(body, dict) else None
-            code = str(error_body.get("code") or "REPORT_CONTROL_FAILED") if isinstance(error_body, dict) else "REPORT_CONTROL_FAILED"
-            message = str(error_body.get("message") or "The report control request failed.") if isinstance(error_body, dict) else "The report control request failed."
+            code = (
+                str(error_body.get("code") or "REPORT_CONTROL_FAILED")
+                if isinstance(error_body, dict)
+                else "REPORT_CONTROL_FAILED"
+            )
+            message = (
+                str(error_body.get("message") or "The report control request failed.")
+                if isinstance(error_body, dict)
+                else "The report control request failed."
+            )
             raise ReportExecutionError(code, message, response.status_code >= 500)
         if not isinstance(body, dict):
             raise ReportExecutionError(
@@ -131,40 +139,82 @@ def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
 def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Project a v3 plan onto the intentionally shallow Light product.
 
-    Light uses only the first, structured-filterable trial group and only the first
-    descriptive analysis from each of the first five objectives. All later groups,
-    all later analyses and objectives beyond five remain Max-only promises in the
-    approved plan and are never executed by the Light runner.
+    Light executes only the first structured-filterable trial group and the first
+    descriptive analysis from each of the first five objectives. Selection still
+    needs to choose one 20-trial cohort that is useful across all five shared analyses.
+    The legacy selection helper accepts only three objective containers, so the five
+    shared analysis requirements are packed into three selection-only containers while
+    the five execution objectives remain unchanged.
     """
     cohorts = plan.get("studyCohorts")
     sections = plan.get("reportSections")
     if not isinstance(cohorts, list) or len(cohorts) < 3 or not isinstance(cohorts[0], dict):
-        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 plan has no valid shared trial group.", False)
+        raise ReportExecutionError(
+            "LIGHT_REPORT_PLAN_INVALID",
+            "The v3 plan has no valid shared trial group.",
+            False,
+        )
     if cohorts[0].get("role") != "primary" or cohorts[0].get("maxOnly") is not False:
-        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 shared trial group is invalid.", False)
-    if not isinstance(sections, list) or len(sections) < 5:
-        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 plan has too few objectives.", False)
+        raise ReportExecutionError(
+            "LIGHT_REPORT_PLAN_INVALID",
+            "The v3 shared trial group is invalid.",
+            False,
+        )
+    if not isinstance(sections, list) or len(sections) < V3_LIGHT_OBJECTIVE_COUNT:
+        raise ReportExecutionError(
+            "LIGHT_REPORT_PLAN_INVALID",
+            "The v3 plan has too few objectives.",
+            False,
+        )
 
     objectives: list[dict[str, Any]] = []
     for raw in sections[:V3_LIGHT_OBJECTIVE_COUNT]:
         if not isinstance(raw, dict):
-            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
+            raise ReportExecutionError(
+                "LIGHT_REPORT_PLAN_INVALID",
+                "A v3 report objective is invalid.",
+                False,
+            )
         title = raw.get("title")
         analyses = raw.get("analyses")
-        if not isinstance(title, str) or not title.strip() or not isinstance(analyses, list) or len(analyses) < 3:
-            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
+        if (
+            not isinstance(title, str)
+            or not title.strip()
+            or not isinstance(analyses, list)
+            or len(analyses) < 3
+        ):
+            raise ReportExecutionError(
+                "LIGHT_REPORT_PLAN_INVALID",
+                "A v3 report objective is invalid.",
+                False,
+            )
         first = analyses[0]
         if not isinstance(first, str) or not first.strip():
-            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 shared analysis is invalid.", False)
+            raise ReportExecutionError(
+                "LIGHT_REPORT_PLAN_INVALID",
+                "A v3 shared analysis is invalid.",
+                False,
+            )
         objectives.append({"title": title.strip(), "analyses": [first.strip()]})
+
+    selection_sections = [
+        {"title": item["title"], "analyses": list(item["analyses"])}
+        for item in objectives[:3]
+    ]
+    for index, extra in enumerate(objectives[3:]):
+        selection_sections[index]["analyses"].append(
+            f"{extra['title']}: {extra['analyses'][0]}"
+        )
 
     # SolLightReportRunner's selection path is intentionally reused. Give it only
     # the group that Light is allowed to search; Max cohorts never enter selection.
+    # The selection-only objective containers above preserve all five shared evidence
+    # needs despite the legacy helper's three-objective container limit.
     selection_plan = {
         "version": 3,
         "studyCohorts": [cohorts[0]],
         "exclusionSummary": plan.get("exclusionSummary"),
-        "reportSections": objectives,
+        "reportSections": selection_sections,
     }
     return selection_plan, objectives
 
@@ -192,11 +242,19 @@ def _analyzed_cohort_summary(
     buckets: list[dict[str, Any]] = []
     for index, raw in enumerate(cohorts):
         if not isinstance(raw, dict):
-            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
+            raise ReportExecutionError(
+                "LIGHT_REPORT_PLAN_INVALID",
+                "A study cohort is invalid.",
+                False,
+            )
         title = raw.get("title")
         role = raw.get("role")
         if not isinstance(title, str) or not title.strip() or role not in {"primary", "adjacent"}:
-            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
+            raise ReportExecutionError(
+                "LIGHT_REPORT_PLAN_INVALID",
+                "A study cohort is invalid.",
+                False,
+            )
         buckets.append(
             {
                 "title": title.strip(),
