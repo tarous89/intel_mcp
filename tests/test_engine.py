@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import httpx
 import pytest
 
@@ -115,40 +113,6 @@ async def test_engine_get_profiles_is_service_authenticated_and_preserves_partia
     result = await client.get_profiles(trial_ids)
     assert [item.eu_number for item in result.data] == ["2024-500001-00-00"]
     assert result.unavailable_trial_ids == ["2024-500002-00-00"]
-
-
-@pytest.mark.anyio
-async def test_engine_get_profiles_batches_large_http_rollback_requests() -> None:
-    trial_ids = [f"2024-{500100 + index:06d}-00-00" for index in range(23)]
-    batches: list[list[str]] = []
-
-    async def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/internal/mcp/profiles"
-        batch = json.loads(request.content)["trial_ids"]
-        batches.append(batch)
-        return httpx.Response(
-            200,
-            json={
-                "data": [
-                    {
-                        "eu_number": trial_id,
-                        "profile_schema_version": "10.0.0",
-                        "approved_at": "2026-08-27T12:00:00+00:00",
-                        "profile": {"classification_variables": {"trial_title": trial_id}},
-                    }
-                    for trial_id in batch
-                ],
-                "unavailable_trial_ids": [],
-                "schema_version": "1.0.0",
-            },
-        )
-
-    client = EngineClient(settings(), transport=httpx.MockTransport(handler))
-    result = await client.get_profiles(trial_ids)
-
-    assert [len(batch) for batch in batches] == [10, 10, 3]
-    assert [item.eu_number for item in result.data] == trial_ids
-    assert result.unavailable_trial_ids == []
 
 
 @pytest.mark.anyio

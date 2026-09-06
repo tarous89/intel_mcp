@@ -296,7 +296,7 @@ async def test_filter_trials_exposes_only_structured_filters(monkeypatch: pytest
 
 
 @pytest.mark.anyio
-async def test_get_profiles_exposes_sections_and_returns_complete_profiles_when_omitted(
+async def test_get_profiles_adds_only_sections_and_preserves_output_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
@@ -305,7 +305,7 @@ async def test_get_profiles_exposes_sections_and_returns_complete_profiles_when_
         tools = await client.list_tools()
         tool = next(item for item in tools.tools if item.name == "get_profiles")
         assert set(tool.input_schema["properties"]) == {"analysis_id", "trial_ids", "sections"}
-        assert tool.input_schema["properties"]["trial_ids"]["maxItems"] == 100
+        assert tool.input_schema["properties"]["trial_ids"]["maxItems"] == 10
         schema_text = str(tool.input_schema["properties"]["sections"])
         for section in ("overview", "endpoints", "countries", "lifecycle", "results"):
             assert section in schema_text
@@ -385,21 +385,21 @@ async def test_get_profiles_sections_return_exact_projection(
 
 
 @pytest.mark.anyio
-async def test_get_profiles_requires_sections_above_twenty_complete_profiles(
+async def test_get_profiles_caps_full_and_section_modes_at_ten_per_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("intel_mcp.server.control_plane_client", lambda: StubControlPlane())
     monkeypatch.setattr("intel_mcp.server.engine_client", lambda: StubEngine())
-    trial_ids = [f"2024-{500100 + index:06d}-00-00" for index in range(21)]
+    trial_ids = [f"2024-{500100 + index:06d}-00-00" for index in range(11)]
     async with Client(mcp) as client:
-        rejected = await client.call_tool(
+        complete = await client.call_tool(
             "get_profiles",
             {
                 "analysis_id": "ana_123456789012345678901234",
                 "trial_ids": trial_ids,
             },
         )
-        allowed = await client.call_tool(
+        projected = await client.call_tool(
             "get_profiles",
             {
                 "analysis_id": "ana_123456789012345678901234",
@@ -408,13 +408,8 @@ async def test_get_profiles_requires_sections_above_twenty_complete_profiles(
             },
         )
 
-    assert rejected.is_error is True
-    assert "PROFILE_REQUEST_TOO_LARGE" in str(rejected.content)
-    assert allowed.is_error is False
-    assert allowed.structured_content is not None
-    assert allowed.structured_content["counts"]["requested"] == 21
-    assert allowed.structured_content["counts"]["returned"] == 20
-    assert allowed.structured_content["counts"]["unavailable"] == 1
+    assert complete.is_error is True
+    assert projected.is_error is True
 
 
 @pytest.mark.anyio
@@ -648,6 +643,7 @@ async def test_report_plan_route_requires_its_service_token_and_returns_sol_outp
             return ReportPlan.model_validate(
                 {
                     "studyCohorts": [{"title": "Retinal gene therapy", "description": "Comparable European interventional trials."}],
+                    "inclusionSummary": "European interventional retinal gene-therapy trials are prioritized.",
                     "exclusionSummary": "Unrelated and non-interventional studies are excluded.",
                     "reportSections": [
                         {"title": "Eligibility", "description": "Compare eligibility patterns.", "coverage": "strong"},

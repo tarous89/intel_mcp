@@ -49,15 +49,15 @@ def test_profile_request_accepts_only_trial_ids() -> None:
     assert captured.value.code == "INVALID_REQUEST"
 
 
-def test_profile_request_accepts_up_to_one_hundred_trials() -> None:
-    trial_ids = [f"2024-{index:06d}-00-00" for index in range(100)]
+def test_profile_request_accepts_up_to_ten_trials() -> None:
+    trial_ids = [f"2024-{index:06d}-00-00" for index in range(10)]
     assert validate_profile_retrieval_request({"trial_ids": trial_ids}) == trial_ids
 
 
-def test_profile_request_rejects_more_than_one_hundred_trials() -> None:
+def test_profile_request_rejects_more_than_ten_trials() -> None:
     with pytest.raises(ProfileRetrievalRequestError) as captured:
         validate_profile_retrieval_request(
-            {"trial_ids": [f"2024-{index:06d}-00-00" for index in range(101)]}
+            {"trial_ids": [f"2024-{index:06d}-00-00" for index in range(11)]}
         )
     assert captured.value.code == "INVALID_TRIAL_IDS"
 

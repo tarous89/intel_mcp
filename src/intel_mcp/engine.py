@@ -10,10 +10,7 @@ from intel_mcp.config import Settings
 from intel_mcp.documents import EngineDocumentResponse
 from intel_mcp.extraction import EngineExtractionSourceResponse
 from intel_mcp.models import EngineFilterResponse, TrialFilters, TrialSort
-from intel_mcp.profiles import EngineProfilesResponse, FullProfileItem
-
-
-ENGINE_HTTP_PROFILE_BATCH_SIZE = 10
+from intel_mcp.profiles import EngineProfilesResponse
 
 
 @dataclass(frozen=True)
@@ -90,35 +87,6 @@ class EngineClient:
         )
 
     async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
-        """Read up to the public MCP cap while preserving the Engine HTTP rollback contract.
-
-        The legacy Engine HTTP endpoint accepts ten IDs per request. Production uses
-        the direct database path, but HTTP rollback remains lossless by batching and
-        reassembling responses in caller order.
-        """
-        data: list[FullProfileItem] = []
-        unavailable_trial_ids: list[str] = []
-        schema_version: str | None = None
-        for start in range(0, len(trial_ids), ENGINE_HTTP_PROFILE_BATCH_SIZE):
-            batch = trial_ids[start : start + ENGINE_HTTP_PROFILE_BATCH_SIZE]
-            result = await self._get_profiles_batch(batch)
-            if schema_version is None:
-                schema_version = result.schema_version
-            elif result.schema_version != schema_version:
-                raise EngineError(
-                    "ENGINE_INVALID_RESPONSE",
-                    "The trial data service returned inconsistent profile response versions.",
-                    502,
-                )
-            data.extend(result.data)
-            unavailable_trial_ids.extend(result.unavailable_trial_ids)
-        return EngineProfilesResponse(
-            data=data,
-            unavailable_trial_ids=unavailable_trial_ids,
-            schema_version=schema_version or "1.0.0",
-        )
-
-    async def _get_profiles_batch(self, trial_ids: list[str]) -> EngineProfilesResponse:
         self._settings.validate_engine()
         url = f"{self._settings.engine_api_url}/api/internal/mcp/profiles"
         response = await self._post(
