@@ -105,6 +105,31 @@ class ReportExecutionControl:
         )
 
 
+def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    """Return a stable execution view that gives strong coverage the Light slots first.
+
+    Planner-declared Max-only objectives remain Max regardless of coverage. Among the
+    remaining profile-eligible objectives, strong coverage precedes source-dependent
+    coverage while preserving the planner's order inside each bucket.
+    """
+    sections = plan.get("reportSections")
+    if not isinstance(sections, list):
+        return plan
+
+    indexed = list(enumerate(sections))
+
+    def priority(item: tuple[int, Any]) -> tuple[int, int, int]:
+        index, section = item
+        if not isinstance(section, dict):
+            return (2, 1, index)
+        max_only = 1 if section.get("maxOnly") is True else 0
+        coverage = 0 if section.get("coverage") == "strong" else 1
+        return (max_only, coverage, index)
+
+    ordered_sections = [section for _, section in sorted(indexed, key=priority)]
+    return {**plan, "reportSections": ordered_sections}
+
+
 def _steps(objectives: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {"key": "trial_selection", "label": "Finding the best 20 trials", "status": "waiting"},
@@ -249,6 +274,10 @@ class LightReportExecutor:
                     "The Light report job is missing its approved plan or brief.",
                     False,
                 )
+            # Light slots are evidence-prioritized rather than assigned by original row order:
+            # planner-declared Max-only objectives stay Max, then strong profile-eligible
+            # objectives take precedence over source-dependent profile-eligible objectives.
+            plan = prioritize_light_plan(plan)
             objectives = light_objectives(plan)
             progress = {
                 "version": 1,

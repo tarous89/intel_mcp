@@ -17,7 +17,7 @@ Production MCP service:
 - Unified ten-profile call limit: MCP PR #35 / squash `f3fa55b078f21d43b2a54cf9e34b2a4cfc5c127c`
 - MCP contract/documentation coherence audit: MCP PR #36 / squash `4a91f4b4352cd1e7064deedf6212f41383fd1015`
 - Light Report v3 execution: MCP PR #37 / squash `ad87d301ab33371dfb07bbae915d438d5ec51894`
-- Current production deploy: `dep-daejsu95efls73a0nau0`
+- Current production deploy before the coverage-priority change: `dep-daejsu95efls73a0nau0`
 
 ## `get_profiles` contract used by report selection
 
@@ -31,19 +31,28 @@ Light has **100 unique profile IDs per analysis**; Max remains 500. Re-reading t
 
 ## Planning and Light eligibility
 
-Step 2 planning remains `gpt-5.6-sol`. It returns 5–7 report categories with evidence-based `maxOnly`; the App applies the separate Light commercial/display limit.
+Step 2 planning remains `gpt-5.6-sol`. It returns 5–7 report categories with evidence-based `maxOnly` and `coverage`; the App applies the separate Light product limit.
 
-`maxOnly=true` means the category cannot be completed credibly from Trial Profile data alone and needs deeper protocol/document/extraction capability. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max.
+`maxOnly=true` means the category cannot be completed credibly from Trial Profile data alone and needs deeper protocol/document/extraction capability. Those categories are always Max regardless of coverage or original plan position. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max.
+
+For Light execution, eligible objectives are prioritized deterministically:
+1. profile-eligible (`maxOnly != true`) objectives with `coverage=strong`, preserving their planner order;
+2. profile-eligible objectives with `coverage=source_dependent`, preserving their planner order;
+3. planner-declared `maxOnly=true` objectives remain outside Light.
+
+The first **three** profile-eligible objectives after this prioritization become Light. This prevents an earlier Source-dependent objective from consuming a Light slot while a later Strong-coverage objective is available.
 
 ## Light Report v3 execution contract
 
-Light executes the first **three** categories with `maxOnly != true`, and each executed objective uses at most the first **three** planned sub-analyses. The approved plan itself may contain more categories/bullets for Max.
+Light executes the three coverage-prioritized profile-eligible objectives, and each executed objective uses at most the first **three** planned sub-analyses. The approved stored plan may contain more categories/bullets for Max; execution prioritization does not mutate the stored plan object.
 
 ### Stage 1 — Sol high evidence selection
 
 One `gpt-5.6-sol` Flex call with **high reasoning** selects exactly 20 relevant EU trials for the whole report. It may use only:
 - `filter_trials`
 - `get_profiles`
+
+Before the model call, the executor builds a stable prioritized execution view of the approved plan using the same Light rules above. Both `light_objectives` and the Sol selector therefore receive the same three Strong-first Light objectives.
 
 Selection workflow:
 1. use structured filtering across the Primary group first, then Adjacent groups where useful;
@@ -118,7 +127,7 @@ The selected-trial evidence IDs remain internal progress/provenance and are not 
 
 ## Execution lifecycle
 
-The App creates the stable report run and approved-plan snapshot. MCP starts/reuses the bounded `analysis_id`, executes the stages above, and writes progress/final output through the private report-execution endpoint.
+The App creates the stable report run and approved-plan snapshot. MCP starts/reuses the bounded `analysis_id`, applies coverage-prioritized Light objective selection, executes the stages above, and writes progress/final output through the private report-execution endpoint.
 
 Progress is dynamic: trial selection, one step per executed Light objective, then final report preparation. Only one active analysis lease per account is allowed at a time.
 
