@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from intel_mcp.report_plan import (
     REPORT_PLAN_INSTRUCTIONS,
@@ -42,6 +43,7 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         assert payload["reasoning"] == {"effort": "medium"}
         schema = payload["text"]["format"]["schema"]
         assert schema["$defs"]["reportSection"]["properties"]["maxOnly"] == {"type": "boolean"}
+        assert schema["$defs"]["reportSection"]["properties"]["analyses"]["maxItems"] == 4
         assert "maxOnly" in schema["$defs"]["reportSection"]["required"]
         developer_text = payload["input"][0]["content"][0]["text"]
         for tool_name in ("filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
@@ -58,12 +60,29 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         assert "answerable from evidence that Intel MCP can actually provide" in developer_text
         assert "Prefer graph-ready quantitative outputs" in developer_text
         assert "Do not invent a meaningless metric merely to force a chart" in developer_text
+        assert "There is no target count" in developer_text
+        assert "Apply a compression test" in developer_text
+        assert "Silently compare the final bullets pairwise" in developer_text
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": __import__("json").dumps(SAMPLE_PLAN)}]}]})
 
     configured = replace(settings, openai_api_key="test-key", report_plan_service_token="test-service-token")
     planner = SolReportPlanner(configured, transport=httpx.MockTransport(handler))
     plan = await planner.generate(context="Phase 2 gene therapy for inherited retinal disease", insights="Eligibility, endpoints and sites")
     assert plan.model_dump() == SAMPLE_PLAN
+
+
+def test_report_plan_allows_one_to_four_analyses_per_category() -> None:
+    raw = {
+        **SAMPLE_PLAN,
+        "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]],
+    }
+    raw["reportSections"][0]["analyses"] = ["A", "B", "C", "D"]
+    plan = ReportPlan.model_validate(raw)
+    assert len(plan.reportSections[0].analyses) == 4
+
+    raw["reportSections"][0]["analyses"] = ["A", "B", "C", "D", "E"]
+    with pytest.raises(ValidationError):
+        ReportPlan.model_validate(raw)
 
 
 def test_report_plan_orders_strong_eligible_before_source_dependent_and_max() -> None:
@@ -98,13 +117,16 @@ def test_report_plan_contract_documents_current_light_priority() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 2
     assert "1 to 4 trial groups" in REPORT_PLAN_INSTRUCTIONS
-    assert "Each analysis bullet should be independently answerable" in REPORT_PLAN_INSTRUCTIONS
+    assert "Each retained analysis bullet should be independently answerable" in REPORT_PLAN_INSTRUCTIONS
     assert "directly help answer the user's requested insights" in REPORT_PLAN_INSTRUCTIONS
     assert "answerable from evidence that Intel MCP can actually provide" in REPORT_PLAN_INSTRUCTIONS
     assert "concrete report output" in REPORT_PLAN_INSTRUCTIONS
     assert "Prefer graph-ready quantitative outputs" in REPORT_PLAN_INSTRUCTIONS
     assert "Do not invent a meaningless metric merely to force a chart" in REPORT_PLAN_INSTRUCTIONS
     assert "top 3/top 5 rankings" in REPORT_PLAN_INSTRUCTIONS
+    assert "There is no target count" in REPORT_PLAN_INSTRUCTIONS
+    assert "Apply a compression test" in REPORT_PLAN_INSTRUCTIONS
+    assert "Silently compare the final bullets pairwise" in REPORT_PLAN_INSTRUCTIONS
     assert "Coverage is independent from maxOnly" in REPORT_PLAN_INSTRUCTIONS
     assert "at most three profile-eligible objectives" in REPORT_PLAN_INSTRUCTIONS
     assert "prioritizes Strong coverage before Source dependent coverage" in REPORT_PLAN_INSTRUCTIONS

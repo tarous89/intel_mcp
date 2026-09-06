@@ -347,7 +347,6 @@ class LightReportExecutor:
                 "tier": "light",
                 "title": synthesis.title,
                 "executiveSummary": synthesis.executive_summary,
-                "keyTakeaways": synthesis.key_takeaways,
                 "closingNote": synthesis.closing_note,
                 "sections": [item.model_dump() for item in section_results],
             }

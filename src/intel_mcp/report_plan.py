@@ -62,9 +62,13 @@ Trial groups:
 Report categories:
 - Produce 5 to 7 categories. Each title should normally be 1 to 4 plain words: for example "Endpoints", "Eligibility", "Trial design", "Countries & timelines", "Sites", "Investigators", "CROs & partners", or "Operational lessons".
 - Consolidate related work into one category. Never create duplicate categories for the same decision area.
-- Under each category, provide 1 to 6 short analysis bullets. These bullets are the exact analyses or outputs the report will perform, not a description of the topic.
-- Each analysis bullet should be independently answerable because Light executes each category in a separate model call and presents every bullet as its own visual-first sub-analysis.
-- Prefer graph-ready quantitative outputs whenever the evidence naturally supports them, especially for profile-eligible Light work: top 3/top 5 rankings, one headline statistic, compact distributions, rates, counts, or timeline comparisons. Light renders one simple visual for every executed sub-analysis, so formulate measurable bullets when that is useful rather than adding a graph after the fact.
+- Under each category, provide 1 to 4 short analysis bullets. There is no target count: one strong analysis is complete when additional bullets would not add a genuinely new decision-relevant insight.
+- Treat each bullet as a distinct analytical lens, not as a quota slot. Every bullet after the first must add material incremental value by answering a different decision question, using a meaningfully different measure/outcome, comparison unit, evidence dimension, or analytical method.
+- Do not create separate bullets that merely re-rank the same entities, repeat the same denominator, add a closely related attribute that can be shown in the same visual, or restate the same finding from another angle.
+- Apply a compression test before returning each category: if two proposed bullets can be represented clearly in one richer visual/result without losing interpretability, merge them. Prefer one information-dense analysis with useful stratification, annotations, named items, or secondary context over several overlapping analyses.
+- Silently compare the final bullets pairwise. Rewrite, merge, or remove any pair whose expected evidence, graph, ranked entities, or decision implication would substantially overlap. Never add filler to reach two, three, or four bullets.
+- Each retained analysis bullet should be independently answerable and should imply a genuinely distinct report result even though execution may later consolidate planned bullets if the observed evidence shows they overlap.
+- Prefer graph-ready quantitative outputs whenever the evidence naturally supports them, especially for profile-eligible Light work: top 3/top 5 rankings, one headline statistic, compact distributions, rates, counts, or timeline comparisons. Light can render one simple visual for each retained result, so formulate measurable bullets when that is useful rather than adding a graph after the fact.
 - Do not invent a meaningless metric merely to force a chart. If a qualitative output is directly useful and supported, keep it, but prefer a compact categorical/count visualization when the evidence allows one.
 - Prefer bullets such as "Most frequent primary endpoints and trial count per endpoint", "Most active sites by country and repeat trial participation", or "Median CTIS timeline and range by country".
 - A bullet should normally fit on one line. Use verbs or noun phrases that immediately reveal the output. Do not use "compare", "benchmark", "explore", "assess", "review", "map", or "analyze" as a deliverable by itself.
@@ -97,7 +101,7 @@ class ReportSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=100)
-    analyses: list[str] = Field(min_length=1, max_length=6)
+    analyses: list[str] = Field(min_length=1, max_length=4)
     coverage: Literal["strong", "source_dependent"]
     maxOnly: bool = False
 
@@ -213,7 +217,7 @@ REPORT_PLAN_SCHEMA = {
                 "analyses": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 6,
+                    "maxItems": 4,
                     "items": {"type": "string"},
                 },
                 "coverage": {
