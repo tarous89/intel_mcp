@@ -14,7 +14,7 @@ Implemented tools:
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
-- `get_profiles` returns current approved Trial Profile 10.0.0 data for explicit EU trial numbers. With `sections`, it returns exact deterministic profile projections for up to 100 trials; with `sections` omitted or empty, it returns complete profiles for up to 20 trials.
+- `get_profiles` returns current approved Trial Profile 10.0.0 data for 1–10 explicit EU trial numbers per call. Optional `sections` returns exact deterministic profile projections; omitting `sections` returns the complete profile. Light may retrieve 100 unique profiles across an analysis.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
 - `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using its complete profile plus the single profile-listed protocol when available.
 
@@ -98,16 +98,17 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 
 `get_profiles` accepts `analysis_id`, `trial_ids`, and optional `sections`.
 
-- In **section mode**, request 1–100 EU trial numbers and one or more controlled Trial Profile sections.
-- In **complete-profile mode**, omit `sections` or pass `[]`; request at most 20 unique EU trial numbers.
+- Request **1–10 EU trial numbers per call**, regardless of whether `sections` is supplied.
 - Duplicate trial IDs and section names are removed while preserving first occurrence order.
-- Section mode is an exact deterministic projection of the stored profile. It performs no LLM summarization, rewriting or inference.
-- Complete-profile mode returns the complete stored current approved Trial Profile, including contacts, extracted-document inventory and results.
+- With `sections`, the tool returns an exact deterministic projection of the stored profile. It performs no LLM summarization, rewriting or inference.
+- With `sections` omitted or `[]`, the tool returns the complete stored current approved Trial Profile, including contacts, extracted-document inventory and results.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
-- Light analyses may retrieve **100 unique profiles**; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
+- Light analyses may retrieve **100 unique profiles across the analysis**; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
 - Every approved profile admitted by the allowance is returned without field-level truncation within the requested projection. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
+
+The only input added to the original tool is optional `sections`. The output contract is unchanged: `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, `counts`, and `analysis_allowance` remain exactly as before.
 
 ### Trial Profile 10.0.0 section vocabulary
 
@@ -126,7 +127,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 - `lifecycle` — complete dated `ctis_lifecycle` object.
 - `results` — complete results object, including participant flow, endpoint/safety results and operational findings.
 
-Example shortlist projection:
+Example projection request:
 
 ```json
 {
@@ -145,7 +146,7 @@ Example complete-profile request:
 }
 ```
 
-Production uses the restricted direct database read path. The legacy Engine HTTP rollback endpoint remains capped at ten trial IDs internally; MCP automatically batches larger public requests into groups of ten and preserves caller order. Detailed contract: `docs/get-profiles.md`.
+Production and the Engine profile-read boundary are both capped at ten trial IDs per request. Detailed contract: `docs/get-profiles.md`.
 
 ## `get_documents` contract
 
