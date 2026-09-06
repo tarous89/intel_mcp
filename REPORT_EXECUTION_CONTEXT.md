@@ -35,6 +35,17 @@ Light has **100 unique profile IDs per analysis**; Max remains 500. Re-reading t
 
 Step 2 planning remains `gpt-5.6-sol`. It returns 5–7 report categories with evidence-based `maxOnly` and `coverage`.
 
+### Planner objective quality gate
+
+Every planned category and sub-analysis must satisfy all of the following:
+
+1. **Direct user utility:** it directly answers the requested insight or materially supports the decision the user is trying to make. Generic benchmarking, landscape review or adjacent analysis is omitted unless it advances that query.
+2. **Evidence answerability:** the requested result can actually be supported by the evidence available to the relevant tier. The planner must not promise inaccessible facts, unsupported causal conclusions or rankings that the available Trial Profile/document evidence cannot establish.
+3. **Concrete output:** the bullet implies an answer the report can deliver, such as a count, rate, distribution, ranking, timeline, shortlist, evidence-backed option or recommendation, rather than a vague research activity.
+4. **Graph-first when natural:** quantitative, graph-ready outputs are preferred whenever the evidence supports them, especially for Light, because every executed Light sub-analysis renders one simple visual. Do not invent a meaningless metric solely to force a chart.
+
+The planner silently rewrites or omits bullets that fail the first three checks. This quality gate applies equally to new plans and revisions.
+
 `maxOnly=true` means the category cannot be completed credibly from Trial Profile data alone and needs deeper protocol/document/extraction capability. Those categories are always Max regardless of coverage or original plan position. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max.
 
 New and revised plans are normalized into the same stable order used by the App and Light executor:
