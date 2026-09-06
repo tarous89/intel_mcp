@@ -23,6 +23,8 @@ from intel_mcp.profiles import FullProfileItem, MAX_PROFILES_PER_CALL
 
 LOGGER = logging.getLogger("intel_mcp")
 V3_LIGHT_OBJECTIVE_COUNT = 5
+V4_MIN_ANALYSIS_PAIRS = 5
+V4_MAX_ANALYSIS_PAIRS = 7
 
 
 @dataclass(frozen=True)
@@ -116,7 +118,7 @@ class ReportExecutionControl:
 
 def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
     """Preserve the v2 Light ordering contract for already-approved legacy plans."""
-    if plan.get("version") == 3:
+    if plan.get("version") in {3, 4}:
         return plan
     sections = plan.get("reportSections")
     if not isinstance(sections, list):
@@ -137,15 +139,7 @@ def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
 
 
 def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Project a v3 plan onto the intentionally shallow Light product.
-
-    Light executes only the first structured-filterable trial group and the first
-    descriptive analysis from each of the first five objectives. Selection still
-    needs to choose one 20-trial cohort that is useful across all five shared analyses.
-    The legacy selection helper accepts only three objective containers, so the five
-    shared analysis requirements are packed into three selection-only containers while
-    the five execution objectives remain unchanged.
-    """
+    """Project a v3 plan onto its legacy five-objective Light contract."""
     cohorts = plan.get("studyCohorts")
     sections = plan.get("reportSections")
     if not isinstance(cohorts, list) or len(cohorts) < 3 or not isinstance(cohorts[0], dict):
@@ -170,11 +164,7 @@ def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
     objectives: list[dict[str, Any]] = []
     for raw in sections[:V3_LIGHT_OBJECTIVE_COUNT]:
         if not isinstance(raw, dict):
-            raise ReportExecutionError(
-                "LIGHT_REPORT_PLAN_INVALID",
-                "A v3 report objective is invalid.",
-                False,
-            )
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
         title = raw.get("title")
         analyses = raw.get("analyses")
         if (
@@ -183,18 +173,10 @@ def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
             or not isinstance(analyses, list)
             or len(analyses) < 3
         ):
-            raise ReportExecutionError(
-                "LIGHT_REPORT_PLAN_INVALID",
-                "A v3 report objective is invalid.",
-                False,
-            )
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
         first = analyses[0]
         if not isinstance(first, str) or not first.strip():
-            raise ReportExecutionError(
-                "LIGHT_REPORT_PLAN_INVALID",
-                "A v3 shared analysis is invalid.",
-                False,
-            )
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 shared analysis is invalid.", False)
         objectives.append({"title": title.strip(), "analyses": [first.strip()]})
 
     selection_sections = [
@@ -202,14 +184,8 @@ def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
         for item in objectives[:3]
     ]
     for index, extra in enumerate(objectives[3:]):
-        selection_sections[index]["analyses"].append(
-            f"{extra['title']}: {extra['analyses'][0]}"
-        )
+        selection_sections[index]["analyses"].append(f"{extra['title']}: {extra['analyses'][0]}")
 
-    # SolLightReportRunner's selection path is intentionally reused. Give it only
-    # the group that Light is allowed to search; Max cohorts never enter selection.
-    # The selection-only objective containers above preserve all five shared evidence
-    # needs despite the legacy helper's three-objective container limit.
     selection_plan = {
         "version": 3,
         "studyCohorts": [cohorts[0]],
@@ -219,7 +195,82 @@ def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
     return selection_plan, objectives
 
 
+def _v4_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Project paired v4 planning onto the shared Light layer only.
+
+    Every v4 pair has one shared analysis and one Max analysis. Light executes every
+    shared analysis (5-7), never the paired Max analysis, and searches only the first
+    single-dimension shared trial group. Selection receives compact summaries of every
+    shared analysis so the frozen 20-trial cohort remains useful across the whole Light
+    report without exposing any Max-only criteria to selection.
+    """
+    cohorts = plan.get("studyCohorts")
+    sections = plan.get("reportSections")
+    if not isinstance(cohorts, list) or len(cohorts) < 3 or not isinstance(cohorts[0], dict):
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v4 plan has no valid shared trial group.", False)
+    shared = cohorts[0]
+    if (
+        shared.get("role") != "primary"
+        or shared.get("maxOnly") is not False
+        or shared.get("filterDimension") not in {"disease", "therapeutic_area", "phase", "modality", "country"}
+    ):
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v4 shared trial group is invalid.", False)
+    if not isinstance(sections, list) or not V4_MIN_ANALYSIS_PAIRS <= len(sections) <= V4_MAX_ANALYSIS_PAIRS:
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v4 plan has an invalid number of analysis pairs.", False)
+
+    objectives: list[dict[str, Any]] = []
+    selection_requirements: list[str] = []
+    for raw in sections:
+        if not isinstance(raw, dict):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 analysis pair is invalid.", False)
+        title = raw.get("title")
+        shared_analysis = raw.get("sharedAnalysis")
+        max_analysis = raw.get("maxAnalysis")
+        if (
+            not isinstance(title, str)
+            or not title.strip()
+            or not isinstance(shared_analysis, dict)
+            or not isinstance(max_analysis, dict)
+        ):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 analysis pair is invalid.", False)
+        shared_title = shared_analysis.get("title")
+        details = shared_analysis.get("details")
+        if (
+            not isinstance(shared_title, str)
+            or not shared_title.strip()
+            or title.strip() != shared_title.strip()
+            or not isinstance(details, list)
+            or not 1 <= len(details) <= 4
+        ):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 shared analysis is invalid.", False)
+        cleaned_details = [item.strip() for item in details if isinstance(item, str) and item.strip()]
+        if len(cleaned_details) != len(details):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 shared analysis is invalid.", False)
+        objectives.append({"title": shared_title.strip(), "analyses": cleaned_details})
+        selection_requirements.append(f"{shared_title.strip()}: {'; '.join(cleaned_details)}")
+
+    # The legacy selector helper reads at most three objective containers. Distribute
+    # all 5-7 shared requirements across three compact containers; each container stays
+    # within the helper's four-analysis cap. Max titles/details are deliberately absent.
+    selection_sections = [
+        {"title": f"Shared evidence needs {index + 1}", "analyses": []}
+        for index in range(3)
+    ]
+    for index, requirement in enumerate(selection_requirements):
+        selection_sections[index % 3]["analyses"].append(requirement)
+
+    selection_plan = {
+        "version": 4,
+        "studyCohorts": [shared],
+        "exclusionSummary": plan.get("exclusionSummary"),
+        "reportSections": selection_sections,
+    }
+    return selection_plan, objectives
+
+
 def _light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if plan.get("version") == 4:
+        return _v4_light_execution_view(plan)
     if plan.get("version") == 3:
         return _v3_light_execution_view(plan)
     prioritized = prioritize_light_plan(plan)
@@ -242,19 +293,11 @@ def _analyzed_cohort_summary(
     buckets: list[dict[str, Any]] = []
     for index, raw in enumerate(cohorts):
         if not isinstance(raw, dict):
-            raise ReportExecutionError(
-                "LIGHT_REPORT_PLAN_INVALID",
-                "A study cohort is invalid.",
-                False,
-            )
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
         title = raw.get("title")
         role = raw.get("role")
         if not isinstance(title, str) or not title.strip() or role not in {"primary", "adjacent"}:
-            raise ReportExecutionError(
-                "LIGHT_REPORT_PLAN_INVALID",
-                "A study cohort is invalid.",
-                False,
-            )
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
         buckets.append(
             {
                 "title": title.strip(),
