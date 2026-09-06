@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from intel_mcp.light_report import LightTrialSelection
-from intel_mcp.light_report_execution import LightReportExecutor, _analyzed_cohort_summary
+from intel_mcp.light_report_execution import (
+    LightReportExecutor,
+    _analyzed_cohort_summary,
+    _v3_light_execution_view,
+)
 from intel_mcp.profiles import AppProfileAccessResponse, EngineProfilesResponse
 from intel_mcp.server import settings
 
@@ -92,6 +96,30 @@ def test_analyzed_cohort_summary_uses_final_selection_and_plan_titles() -> None:
             {"title": "Cross-setting lung trials", "role": "adjacent", "trialCount": 0},
         ],
     }
+
+
+def test_v3_light_execution_uses_only_shared_group_and_first_analysis_of_five_objectives() -> None:
+    plan = {
+        "version": 3,
+        "studyCohorts": [
+            {"role": "primary", "title": "Phase 2 oncology trials", "details": ["Phase 2", "Oncology"], "maxOnly": False},
+            {"role": "adjacent", "title": "Biomarker-matched trials", "details": ["Biomarker match"], "maxOnly": True},
+            {"role": "adjacent", "title": "Metastatic trials", "details": ["Metastatic setting"], "maxOnly": True},
+        ],
+        "exclusionSummary": "Unrelated trials excluded.",
+        "reportSections": [
+            {"title": f"Objective {index}", "analyses": [f"Shared {index}", f"Max A {index}", f"Max B {index}"]}
+            for index in range(1, 7)
+        ],
+    }
+
+    selection_plan, objectives = _v3_light_execution_view(plan)
+    assert len(selection_plan["studyCohorts"]) == 1
+    assert selection_plan["studyCohorts"][0]["title"] == "Phase 2 oncology trials"
+    assert len(objectives) == 5
+    assert objectives[0] == {"title": "Objective 1", "analyses": ["Shared 1"]}
+    assert objectives[-1] == {"title": "Objective 5", "analyses": ["Shared 5"]}
+    assert all(len(item["analyses"]) == 1 for item in objectives)
 
 
 @pytest.mark.anyio
