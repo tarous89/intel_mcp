@@ -43,20 +43,20 @@ DOCS_HTML = r"""<!doctype html>
     </div></section>
 
     <section id="tools"><div class="shell">
-      <div class="head"><div><div class="kicker">Tool map</div><h2>Use the lightest tool that answers the question</h2></div><p>Start with deterministic filtering. For larger shortlists, retrieve only relevant profile sections. Request complete profiles only for a smaller evidence set, then use document text or typed extraction when the structured profile is insufficient.</p></div>
+      <div class="head"><div><div class="kicker">Tool map</div><h2>Use the lightest tool that answers the question</h2></div><p>Start with deterministic filtering. Review shortlisted profiles in batches of up to ten, using only relevant profile sections when appropriate. Use document text or typed extraction when the structured profile is insufficient.</p></div>
       <div class="grid">
         <article class="card"><code>start_analysis</code><h3>Open the analysis lease</h3><p>Turns an approved report run into the active analysis ID used by every later tool.</p><span class="limit">One active 60-minute lease</span></article>
         <article class="card"><code>filter_trials</code><h3>Build a shortlist</h3><p>Applies structured Trial Profile filters and returns only EU number, trial title and sponsor.</p><span class="limit">Up to 100 results per page</span></article>
         <article class="card"><code>classify_trials</code><h3>Classify eligibility</h3><p>Uses complete contact-redacted profiles in independent Terra worker calls and returns eligible, ineligible and uncertain trial buckets.</p><span class="limit">Up to 25 trials per call</span></article>
-        <article class="card"><code>get_profiles</code><h3>Read relevant profile evidence</h3><p>Returns exact Trial Profile 10.0.0 sections for large shortlist review, or complete approved profiles when sections are omitted.</p><span class="limit">Up to 100 sectioned / 20 complete profiles</span></article>
+        <article class="card"><code>get_profiles</code><h3>Read relevant profile evidence</h3><p>Returns exact Trial Profile 10.0.0 sections when requested, or complete approved profiles when sections are omitted.</p><span class="limit">Up to 10 profiles per call</span></article>
         <article class="card"><code>get_documents</code><h3>Read one extracted document</h3><p>Uses an exact filename from <code>filtering_variables.available_extracted_documents</code> and returns bounded extracted text parts.</p><span class="limit">One document per call</span></article>
         <article class="card"><code>extract_variables</code><h3>Extract typed values</h3><p>Uses one complete profile plus its profile-listed protocol when available, returning only requested typed values.</p><span class="limit">Up to 20 variables per call</span></article>
       </div>
-      <div class="callout"><strong>Profile sections are projections, not summaries.</strong> `get_profiles` copies exact stored values and original nesting from approved Trial Profile 10.0.0. No model creates a card or rewrites the profile.</div>
+      <div class="callout"><strong>Profile sections are projections, not summaries.</strong> <code>get_profiles</code> copies exact stored values and original nesting from approved Trial Profile 10.0.0. No model creates a card or rewrites the profile.</div>
     </div></section>
 
     <section id="profiles"><div class="shell">
-      <div class="head"><div><div class="kicker">get_profiles</div><h2>Choose the profile evidence needed for the task</h2></div><p>Pass a non-empty <code>sections</code> array to inspect up to 100 shortlisted trials without loading every field. Omit <code>sections</code> or pass <code>[]</code> for complete profiles, bounded to 20 unique trial IDs.</p></div>
+      <div class="head"><div><div class="kicker">get_profiles</div><h2>Choose the profile evidence needed for the task</h2></div><p>Every call accepts up to 10 trial IDs. Pass a non-empty <code>sections</code> array to return only those deterministic profile sections, or omit <code>sections</code> / pass <code>[]</code> to return complete profiles. Light can retrieve up to 100 unique profiles across the analysis.</p></div>
       <table>
         <thead><tr><th>Section</th><th>Contains</th></tr></thead>
         <tbody>
@@ -76,13 +76,13 @@ DOCS_HTML = r"""<!doctype html>
           <tr><td><code>results</code></td><td>The complete results object: participant flow, country enrollment, endpoint/safety results and operational findings.</td></tr>
         </tbody>
       </table>
-      <div class="callout"><strong>Allowance:</strong> Light analyses may retrieve up to 100 unique profiles; Max analyses up to 500. Re-reading the same trial with different sections or later as a complete profile does not consume the profile allowance twice.</div>
+      <div class="callout"><strong>Simple contract:</strong> the only new input is optional <code>sections</code>. The output fields are unchanged. Light analyses may retrieve up to 100 unique profiles; Max analyses up to 500. Re-reading the same trial with different sections or later as a complete profile does not consume the profile allowance twice.</div>
     </div></section>
 
     <section id="examples"><div class="shell">
       <div class="head"><div><div class="kicker">Copyable calls</div><h2>Profile retrieval examples</h2></div><p>These are MCP tool arguments. Use the same <code>analysis_id</code> returned by <code>start_analysis</code>.</p></div>
       <div class="examples">
-        <div class="example"><div><h3>Review a larger shortlist</h3><p>Request only the exact profile sections relevant to the decision.</p></div><div class="code"><b>get_profiles · section mode</b><pre><code>{
+        <div class="example"><div><h3>Review selected profile sections</h3><p>Request only the exact profile sections relevant to the decision, in batches of up to ten trials.</p></div><div class="code"><b>get_profiles · sections</b><pre><code>{
   "analysis_id": "ana_...",
   "trial_ids": [
     "2024-500001-00-00",
@@ -95,7 +95,7 @@ DOCS_HTML = r"""<!doctype html>
     "countries"
   ]
 }</code></pre></div></div>
-        <div class="example"><div><h3>Read the complete evidence set</h3><p>Omit sections when the whole profile is needed. Complete mode is capped at 20 trials.</p></div><div class="code"><b>get_profiles · complete mode</b><pre><code>{
+        <div class="example"><div><h3>Read complete profiles</h3><p>Omit sections when the whole profile is needed. The same 10-profile per-call cap applies.</p></div><div class="code"><b>get_profiles · complete profile</b><pre><code>{
   "analysis_id": "ana_...",
   "trial_ids": ["2024-500001-00-00"]
 }</code></pre></div></div>
