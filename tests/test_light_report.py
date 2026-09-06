@@ -130,18 +130,30 @@ def test_light_trial_selection_requires_exactly_twenty_unique_trials() -> None:
 
 
 @pytest.mark.anyio
-async def test_selection_call_uses_sol_high_and_only_filter_and_profiles() -> None:
+async def test_selection_call_uses_sol_high_and_compact_scope_payload() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["model"] == LIGHT_SELECTION_MODEL
         assert payload["service_tier"] == LIGHT_REPORT_SERVICE_TIER
         assert payload["reasoning"] == {"effort": "high"}
         assert payload["max_tool_calls"] == 20
+        assert payload["text"]["format"]["name"] == "intel_light_trial_selection_v4"
         tool = payload["tools"][0]
         assert tool["allowed_tools"] == ["filter_trials", "get_profiles"]
+
         developer = payload["input"][0]["content"][0]["text"]
-        assert "candidate pool of up to 100 unique trials" in developer
-        assert "Every trial in the final 20 should have been profile-reviewed" in developer
+        assert "candidate pool of at most 100 trials" in developer
+        assert "every final selected trial should be profile-reviewed" in developer
+        assert len(developer) < 1800
+
+        user = json.loads(payload["input"][1]["content"][0]["text"])
+        assert "approved_plan" not in user
+        assert "candidate_pool_maximum" not in user
+        assert "required_selected_trial_count" not in user
+        assert user["study_cohorts"] == PLAN["studyCohorts"]
+        assert user["exclusion_summary"] == PLAN["exclusionSummary"]
+        assert len(user["light_objectives"]) == 3
+
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_selection())}]}]})
 
     configured = replace(settings, openai_api_key="test-key", mcp_inbound_service_token="internal-mcp-token", mcp_public_resource_url="https://mcp.example.test/mcp")
@@ -151,28 +163,37 @@ async def test_selection_call_uses_sol_high_and_only_filter_and_profiles() -> No
 
 
 @pytest.mark.anyio
-async def test_objective_call_uses_terra_high_full_profiles_and_no_mcp_tools() -> None:
+async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_rule() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["model"] == LIGHT_REPORT_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_objective_v4"
+        assert payload["text"]["format"]["name"] == "intel_light_objective_v5"
+
         developer = payload["input"][0]["content"][0]["text"]
         assert "candidate analytical lenses rather than mandatory output slots" in developer
-        assert "Return between 1 and" in developer
-        assert "Do not split one entity ranking" in developer
+        assert "Before collapsing to one result" in developer
+        assert "Shared trials, sites, investigators or other top entities do not make two analyses duplicates" in developer
+        assert "same entities may appear again when a different metric reveals a different insight" in developer
+        assert "Merge only when two lenses substantially answer the same decision question" in developer
+        assert len(developer) < 3000
+
         user = json.loads(payload["input"][1]["content"][0]["text"])
         evidence_trials = user["evidence_trials"]
         assert len(evidence_trials) == 20
         assert evidence_trials[0]["alias"] == "T01"
-        assert evidence_trials[0]["trial_id"] == "2026-000001-00-00"
+        assert evidence_trials[0]["group"] == "priority"
         assert "profile" in evidence_trials[0]
+        assert "trial_id" not in evidence_trials[0]
+        assert "profile_schema_version" not in evidence_trials[0]
+
         schema = payload["text"]["format"]["schema"]
         assert schema["properties"]["summary_sentences"]["maxItems"] == 1
         assert schema["properties"]["sub_analyses"]["maxItems"] == 4
         sub_analysis = schema["properties"]["sub_analyses"]["items"]
         assert sub_analysis["properties"]["trial_ids"]["items"]["enum"] == [f"T{index:02d}" for index in range(1, 21)]
+
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_objective_output("T01"))}]}]})
 
     configured = replace(settings, openai_api_key="test-key")
@@ -191,7 +212,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_no_mcp_tools() -
 
 
 @pytest.mark.anyio
-async def test_objective_can_collapse_redundant_planned_analyses_and_exact_duplicate_visuals() -> None:
+async def test_objective_can_collapse_exact_duplicate_visuals_without_forcing_one_analysis() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_duplicate_visual_output())}]}]})
 
@@ -211,20 +232,23 @@ async def test_objective_can_collapse_redundant_planned_analyses_and_exact_dupli
 
 
 @pytest.mark.anyio
-async def test_synthesis_uses_sol_high_and_binding_html_shell_without_takeaways_or_numbering() -> None:
+async def test_synthesis_uses_sol_high_without_sending_layout_shell() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["model"] == LIGHT_SYNTHESIS_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_synthesis_v4"
+        assert payload["text"]["format"]["name"] == "intel_light_synthesis_v5"
         schema = payload["text"]["format"]["schema"]
         assert "key_takeaways" not in schema["properties"]
+
         developer = payload["input"][0]["content"][0]["text"]
-        assert LIGHT_REPORT_SHELL_HTML in developer
-        assert "must NOT output HTML" in developer
-        assert "there is no executive-takeaways section" in developer
-        assert "not numbered" in developer
+        assert LIGHT_REPORT_SHELL_HTML not in developer
+        assert "Return only three fields" in developer
+        assert "Do not repeat the objectives as takeaways" in developer
+        assert "The App owns layout and numbering" in developer
+        assert len(developer) < 1000
+
         output = {
             "title": "NSCLC development evidence",
             "executive_summary": "The evidence supports a focused endpoint and site strategy.",
