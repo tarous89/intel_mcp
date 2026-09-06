@@ -6,130 +6,143 @@ Last updated: 2026-09-06
 
 ## Scope
 
-Light is the current profile-only report path. Max execution remains separate and is not implemented yet.
+Light is the live Trial-Profile-only report path. Max execution remains separate and is not implemented yet.
 
 Production MCP:
 - `https://mcp.trialagents.com/mcp`
 - service `srv-da7g4igae00c73bo6oe0`, Frankfurt
+- production Engine source = restricted read-only database adapter
 
 ## Report planning — Sol
 
-Planning uses `gpt-5.6-sol` with medium reasoning and no tools. The planner receives only the user brief, requested insights, and optional current plan/revision request plus a concise evidence-capability description.
+Planning uses `gpt-5.6-sol`, medium reasoning, no tools. The planner receives the user brief, requested insights, optional current plan/revision request and a concise evidence-capability description.
 
-New/revised plans use **`intel_agent_report_plan_v3`**.
+New/revised plans use **`intel_agent_report_plan_v4`**. The planner prompt is one clean current contract rather than accumulated amendments to v3.
 
 ### Trial groups
 
-A v3 plan has **3–5 groups**:
+A v4 plan contains **3–5 groups**:
 
-1. one shared Light + Max group first;
-2. **2–4 Max-only groups** after it.
+1. one shared Light + Max group;
+2. **2–4 Max groups**.
 
-The shared group must be realistically selectable with broad structured filtering alone. It should be as close as possible to the requested study population without pretending that fine-grained biomarker, disease-stage, line-of-therapy or protocol details are simple structured filters when they are not.
+The shared group uses exactly one structured selection dimension:
 
-The Max groups are chosen dynamically. Useful strategies include deeper matching to the exact requested population, clinically meaningful segmentation, isolating one component of the request, or adding an adjacent comparator. These are options, not fixed group categories.
+```text
+disease | therapeutic_area | phase | modality | country
+```
 
-Internal fields:
-- shared group: `role=primary`, `maxOnly=false`;
-- later groups: `role=adjacent`, `maxOnly=true`.
+Selection priority is disease when a meaningful disease is specified, then therapeutic area, then the more informative of phase/modality, with country as fallback. Multiple dimensions must not be combined in the shared group.
 
-Those role labels are implementation metadata and are not meant for user-facing display.
+`disease` is now a real `filter_trials` field. It matches individual persisted approved Trial Profile disease names case-insensitively through `mcp_serving.profile_diseases_v1`. Disease filtering does not infer stage, biomarker, molecular subtype, line of therapy or treatment setting.
 
-### Objectives and analyses
+Fine-grained disease stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy and multi-dimension combinations belong in Max groups. Max groups may recover the exact target, segment the evidence or add an adjacent comparator. Prefer compact `X vs Y` groups when that is the useful comparison and do not mention ignored dimensions with wording such as `regardless of` or `irrespective of`.
 
-A v3 plan has **5–7 objectives**. Every objective contains **3–5 analyses**:
+Internal group fields:
+- shared: `role=primary`, `maxOnly=false`, one non-null `filterDimension`;
+- Max: `role=adjacent`, `maxOnly=true`, `filterDimension=null`.
 
-1. first analysis = shared Light + Max descriptive analysis;
-2. next **2–4 analyses = Max**.
+These role labels are implementation metadata, not user-facing labels.
 
-The first analysis is a direct evidence summary such as a count, rank, distribution, frequency or observed timeline comparison that can be produced from Trial Profiles.
+### Paired analyses
 
-The Max analyses add decision depth through deeper matching, clinically relevant segmentation, competition, recency, disease/phase/modality fit, PI-site relationships, protocol/source detail, robustness/variation, trade-offs, or an evidence-supported shortlist/recommendation where appropriate.
+There is no user-facing Objectives layer in v4.
 
-Max analyses must not simply restate the first analysis. The planner uses 2 Max analyses when sufficient and 3–4 only when each contributes distinct value. No fixed display breadth such as top 5/top 10 is written into the plan.
+A v4 plan contains **5–7 analysis pairs**. Each pair contains:
 
-The old category-level `coverage` and objective-level `maxOnly` planning model is not used for v3.
+1. `sharedAnalysis` — shared Light + Max descriptive work;
+2. `maxAnalysis` — deeper decision work.
+
+Both use short declarative titles; question-style titles are rejected. Shared analyses are direct counts, rankings, distributions, frequencies, observed timeline comparisons or similar Trial-Profile outputs. Max analyses add at least two distinct decision factors: exact clinical fit, segmentation, recency, competition, PI-site relationships, source/protocol detail, variability/robustness, trade-offs or supported prioritization/recommendation.
+
+The v4 schema retains an internal top-level `title` equal to `sharedAnalysis.title` so existing progress/execution interfaces remain stable. It is not another product hierarchy level.
+
+No fixed presentation breadth such as top 5/top 10/top 100 is embedded in the plan.
 
 ### Backward compatibility
 
-Stored v2 plans remain executable/readable. The v3 planner does not rewrite stored v2 plans unless the user requests a new/revised plan.
+The current planner emits v4 only. The Pydantic model retains read compatibility for stored v3 plan objects used by existing server/control flows. Legacy v2 execution remains supported by the Light executor's old path.
 
-## Light execution for v3
+## Light execution for v4
 
-Light intentionally demonstrates the evidence without performing Max work.
+Light deliberately executes the shared layer only.
 
 ### Execution projection
 
-Before execution, a v3 approved plan is projected to:
-- **first/shared trial group only**;
-- **first five objectives only**;
-- **first analysis only** from each of those objectives.
+Before execution, an approved v4 plan is projected to:
 
-The remaining trial groups, analyses and objectives stay in the approved plan as Max promises and are never executed by the Light path.
+- the first/shared single-dimension trial group only;
+- **all 5–7 shared analyses**;
+- no Max trial groups;
+- no paired Max analyses.
+
+All shared analysis requirements inform selection of the frozen evidence cohort. Max titles, Max detail and Max group criteria do not cross the Light execution boundary.
 
 ### Selection
 
-The existing Sol Light selector is reused with only the shared group exposed to it. It may use only:
+The existing Sol Light selector is reused with only:
+
 - `filter_trials`
 - `get_profiles`
 
-The normal Light profile allowance remains 100 unique profiles. Sol freezes exactly 20 final trials. Since v3 Light selection receives only the shared group, every selected trial maps to `cohort_index=0` / the primary internal role.
+The Light profile/filter allowance remains 100 unique candidates. Sol freezes exactly 20 trials. Because the Light execution view contains only the shared group, selected trials map to that group only.
+
+Internally, the 5–7 shared evidence needs are compacted into three legacy-compatible selection containers so the existing selector helper can consider all of them without receiving Max work. This container shape is not user-facing.
 
 ### Evidence bundle
 
-After selection, MCP retrieves all 20 complete approved Trial Profiles in two bounded batches of 10. The same frozen profile bundle is reused for every Light objective.
+MCP retrieves all 20 complete approved Trial Profiles in bounded batches of 10. The same frozen 20-profile bundle is reused across every shared analysis.
 
-### Objective analysis
+### Shared analysis execution
 
-The first analysis from each of the first five objectives is executed independently using `gpt-5.6-terra`, high reasoning, Flex. Terra receives the same 20 complete profiles and no tools.
+Each v4 shared analysis runs independently using `gpt-5.6-terra`, high reasoning, Flex, with no MCP tools. The `sharedAnalysis.details` entries are passed as the approved analytical lenses for that row.
 
-The current objective output contract remains:
-- one objective intro sentence;
-- one retained sub-analysis for v3 Light because only one analysis is approved for Light;
-- simple stat/bar/donut visual;
-- concise interpretation;
-- optional named items;
+The existing structured Light result contract remains for renderer compatibility:
+- one short analysis intro sentence;
+- 1–N retained sub-analyses within the approved shared details;
+- simple stat/bar/donut visuals;
+- concise interpretation and optional named items;
 - one decision implication;
 - bounded evidence notes.
 
-Existing duplicate-visual/provenance guards remain in place.
+Duplicate-visual and provenance guards remain active.
 
 ### Final synthesis
 
-Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces only title, short introduction and closing note.
+Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces title, short introduction and closing note only.
 
-The completed report remains `final_report.version = 2` for renderer compatibility.
+Completed Light reports remain `final_report.version = 2` for renderer compatibility. The analyzed-cohort summary contains only the shared trial group and exact frozen 20 trials.
 
-The analyzed-cohort summary for v3 Light is generated from the Light execution view, so it shows only the shared trial group and the exact 20 selected trials.
+## Legacy v2/v3 execution
 
-## Legacy v2 Light execution
+Stored v2/v3 plans retain their previous execution projection. New/revised plans use v4 and do not alter already-approved legacy plans.
 
-Legacy v2 plans keep their previous execution behavior:
-- coverage/maxOnly prioritization;
-- first three profile-eligible objectives;
-- legacy planned analysis lists;
-- legacy multi-cohort selection where applicable.
+## Current filter addition
 
-This protects existing approved projects while v3 changes only new/revised plans.
+`filter_trials` now accepts `diseases` as a structured string-set filter with `contains_any | contains_all | contains_none` semantics. Matching is against persisted approved disease rows and is case-insensitive substring matching per disease name. Negative disease filtering requires known disease data.
+
+No Trial Profile schema/generation change was required; the Engine added the approved-only serving view `mcp_serving.profile_diseases_v1` and the MCP restricted reader receives SELECT access only.
 
 ## Current prompt/schema versions
 
-- planner: `intel_agent_report_plan_v3`
+- planner: `intel_agent_report_plan_v4`
 - selection: `intel_light_trial_selection_v5`
-- objective: `intel_light_objective_v5`
+- Light analysis: `intel_light_objective_v5`
 - synthesis: `intel_light_synthesis_v5`
 
-The v3 planner prompt was rewritten from scratch as one current contract instead of adding conditions to the old Priority/Adjacent/coverage rules.
+## Product/App boundary
 
-## Product boundary
-
-The current App presentation intentionally shows:
+The App presentation intentionally shows:
 - no Light labels;
 - no Priority/Adjacent labels;
 - no Strong coverage/Source dependent labels;
-- only Max tags on Max groups and Max analyses.
+- shared trial group unlabelled;
+- Max trial groups labelled `Max`;
+- every analysis pair as a shared row followed by a Max row;
+- Max badge visible in collapsed Max rows;
+- shared evidence breadth copy: `Analyzed across 20 selected trials in Light · up to 100 trials in Max`.
 
-MCP owns plan generation and bounded analysis execution. App remains authoritative for identity, plan approval, tier/entitlement, report runs and UI.
+MCP owns plan generation and bounded clinical analysis. App remains authoritative for identity, plan approval, tier/entitlement, report runs and UI.
 
 ## Current limitation / deferred work
 
