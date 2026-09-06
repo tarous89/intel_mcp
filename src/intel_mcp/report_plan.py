@@ -100,6 +100,15 @@ class StudyCohort(BaseModel):
     filterDimension: SharedFilterDimension | None
 
 
+class LegacyStudyCohort(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["primary", "adjacent"]
+    title: str = Field(min_length=1, max_length=120)
+    details: list[str] = Field(min_length=1, max_length=4)
+    maxOnly: bool
+
+
 class AnalysisCard(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -130,22 +139,48 @@ class ReportSection(BaseModel):
         return self
 
 
-class ReportPlan(BaseModel):
+class LegacyReportSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[4]
-    studyCohorts: list[StudyCohort] = Field(min_length=3, max_length=5)
+    title: str = Field(min_length=1, max_length=100)
+    analyses: list[str] = Field(min_length=1, max_length=6)
+
+
+class ReportPlan(BaseModel):
+    """Current v4 planner result with read compatibility for stored v3 plan objects."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: Literal[3, 4]
+    studyCohorts: list[StudyCohort | LegacyStudyCohort] = Field(min_length=3, max_length=5)
     exclusionSummary: str = Field(min_length=1, max_length=420)
-    reportSections: list[ReportSection] = Field(min_length=5, max_length=7)
+    reportSections: list[ReportSection | LegacyReportSection] = Field(min_length=5, max_length=7)
 
     @model_validator(mode="after")
-    def validate_tier_structure(self) -> "ReportPlan":
-        first = self.studyCohorts[0]
-        if first.role != "primary" or first.maxOnly or first.filterDimension is None:
-            raise ValueError("The first study cohort must be the shared single-filter group.")
-        for cohort in self.studyCohorts[1:]:
-            if cohort.role != "adjacent" or not cohort.maxOnly or cohort.filterDimension is not None:
-                raise ValueError("All later study cohorts must be Max groups.")
+    def validate_versioned_structure(self) -> "ReportPlan":
+        if self.version == 4:
+            if not all(isinstance(item, StudyCohort) for item in self.studyCohorts):
+                raise ValueError("v4 study cohorts must use the current group contract.")
+            if not all(isinstance(item, ReportSection) for item in self.reportSections):
+                raise ValueError("v4 report sections must use paired analyses.")
+            cohorts = [item for item in self.studyCohorts if isinstance(item, StudyCohort)]
+            first = cohorts[0]
+            if first.role != "primary" or first.maxOnly or first.filterDimension is None:
+                raise ValueError("The first study cohort must be the shared single-filter group.")
+            for cohort in cohorts[1:]:
+                if cohort.role != "adjacent" or not cohort.maxOnly or cohort.filterDimension is not None:
+                    raise ValueError("All later study cohorts must be Max groups.")
+            return self
+
+        if not all(isinstance(item, LegacyStudyCohort) for item in self.studyCohorts):
+            raise ValueError("v3 study cohorts must use the legacy group contract.")
+        if not all(isinstance(item, LegacyReportSection) for item in self.reportSections):
+            raise ValueError("v3 report sections must use the legacy analysis contract.")
+        cohorts = [item for item in self.studyCohorts if isinstance(item, LegacyStudyCohort)]
+        if cohorts[0].role != "primary" or cohorts[0].maxOnly:
+            raise ValueError("The first v3 study cohort must be shared.")
+        if any(item.role != "adjacent" or not item.maxOnly for item in cohorts[1:]):
+            raise ValueError("Later v3 study cohorts must be Max groups.")
         return self
 
 
