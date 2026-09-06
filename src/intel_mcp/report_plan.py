@@ -46,7 +46,7 @@ Report categories:
 - Keep an additional analysis when it answers a materially different decision question or uses a meaningfully different measure, comparison or evidence dimension. Shared trials, sites, investigators or other entities do NOT make two analyses redundant by themselves.
 - Merge analyses only when they would substantially answer the same decision question and lead to the same practical implication. A richer single visual is preferred when it can preserve both insights clearly.
 - It is valid to keep only one analysis, but only after checking that no other supported lens would add distinct decision value. Never add filler merely to reach two, three or four analyses.
-- Use compact outputs such as top 3/top 5 rankings, distributions, rates, timelines or supported option shortlists when appropriate.
+- Describe the analysis itself, not the display limit. Use tier-neutral outputs such as rankings, distributions, rates, timelines or supported option shortlists. Do not put fixed result counts such as "top 5", "top 10" or "top 100" into the plan; the report tier/executor decides how many results to display.
 - Do not call sites, investigators, CROs or partners "best" unless the evidence actually supports a quality/performance claim.
 
 Light versus Max:
