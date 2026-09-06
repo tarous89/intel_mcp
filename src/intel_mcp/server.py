@@ -54,7 +54,6 @@ from intel_mcp.models import (
     TrialSort,
 )
 from intel_mcp.profiles import (
-    MAX_FULL_PROFILES_PER_CALL,
     MAX_PROFILES_PER_CALL,
     PROFILE_SECTIONS,
     GetProfilesCounts,
@@ -76,8 +75,8 @@ mcp = MCPServer(
     instructions=(
         "Use start_analysis once after the Intel Agent app has created an approved report run. "
         "Pass the returned analysis_id to every later Intel tool. Use filter_trials for broad structured "
-        "screening. When reviewing many shortlisted trials, call get_profiles with only the profile sections "
-        "needed for the task; omit sections only when complete profiles are genuinely required."
+        "screening. When reviewing shortlisted trials, call get_profiles with only the profile sections "
+        "needed for the task; omit sections when the complete profile is required."
     ),
 )
 
@@ -485,10 +484,7 @@ async def get_profiles(
         Field(
             min_length=1,
             max_length=MAX_PROFILES_PER_CALL,
-            description=(
-                "One to 100 EU trial numbers. Duplicate values are removed while preserving order. "
-                "When sections is omitted or empty, at most 20 unique trial IDs may be requested."
-            ),
+            description="One to 10 EU trial numbers. Duplicate values are removed while preserving order.",
         ),
     ],
     sections: Annotated[
@@ -496,20 +492,20 @@ async def get_profiles(
         Field(
             max_length=len(PROFILE_SECTIONS),
             description=(
-                "Optional Trial Profile 10.0.0 sections. Choose only what the task needs for large shortlist "
-                "review. Supported values: overview, population, trial_design, interventions, eligibility, "
-                "objectives, endpoints, sponsor_and_organizations, contacts, countries, sites, documents, "
-                "lifecycle, results. Omit or pass [] to return complete profiles."
+                "Optional Trial Profile 10.0.0 sections. Choose only what the task needs. Supported values: "
+                "overview, population, trial_design, interventions, eligibility, objectives, endpoints, "
+                "sponsor_and_organizations, contacts, countries, sites, documents, lifecycle, results. "
+                "Omit or pass [] to return complete profiles."
             ),
         ),
     ] = None,
 ) -> GetProfilesOutput:
     """Return approved Trial Profiles in full or as exact section projections.
 
-    For broad shortlist review, request one or more relevant sections and retrieve up to 100 profiles in
-    one call. Section mode is a deterministic projection of the stored approved profile: it preserves the
-    original field values and nesting and performs no model summarization. For deep review, omit sections
-    (or pass an empty list) to return complete profiles; complete-profile mode is limited to 20 unique IDs.
+    Every call accepts up to ten trial IDs, whether sections are requested or complete profiles are requested.
+    Section mode is a deterministic projection of the stored approved profile: it preserves the original
+    field values and nesting and performs no model summarization. Omit sections (or pass an empty list) to
+    return the complete approved profile.
 
     The section vocabulary follows Trial Profile 10.0.0. Candidate and rejected profiles are treated as
     unavailable; there is no raw-CTIS fallback. The tool does not generate or refresh profiles, retrieve
@@ -518,12 +514,6 @@ async def get_profiles(
     """
     unique_trial_ids = list(dict.fromkeys(trial_ids))
     selected_sections = normalize_profile_sections(sections)
-    if not selected_sections and len(unique_trial_ids) > MAX_FULL_PROFILES_PER_CALL:
-        raise ToolError(
-            "PROFILE_REQUEST_TOO_LARGE: complete-profile requests are limited to "
-            f"{MAX_FULL_PROFILES_PER_CALL} unique trial IDs; request specific sections for up to "
-            f"{MAX_PROFILES_PER_CALL}."
-        )
 
     try:
         engine_result = await engine_client().get_profiles(unique_trial_ids)
