@@ -54,6 +54,10 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         assert "at most three profile-eligible objectives" in developer_text
         assert "prioritizes Strong coverage before Source dependent coverage" in developer_text
         assert "Do not use maxOnly because of count or position" in developer_text
+        assert "directly help answer the user's requested insights" in developer_text
+        assert "answerable from evidence that Intel MCP can actually provide" in developer_text
+        assert "Prefer graph-ready quantitative outputs" in developer_text
+        assert "Do not invent a meaningless metric merely to force a chart" in developer_text
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": __import__("json").dumps(SAMPLE_PLAN)}]}]})
 
     configured = replace(settings, openai_api_key="test-key", report_plan_service_token="test-service-token")
@@ -95,7 +99,12 @@ def test_report_plan_contract_documents_current_light_priority() -> None:
     assert REPORT_PLAN_VERSION == 2
     assert "1 to 4 trial groups" in REPORT_PLAN_INSTRUCTIONS
     assert "Each analysis bullet should be independently answerable" in REPORT_PLAN_INSTRUCTIONS
-    assert "top 3/top 5 ranking" in REPORT_PLAN_INSTRUCTIONS
+    assert "directly help answer the user's requested insights" in REPORT_PLAN_INSTRUCTIONS
+    assert "answerable from evidence that Intel MCP can actually provide" in REPORT_PLAN_INSTRUCTIONS
+    assert "concrete report output" in REPORT_PLAN_INSTRUCTIONS
+    assert "Prefer graph-ready quantitative outputs" in REPORT_PLAN_INSTRUCTIONS
+    assert "Do not invent a meaningless metric merely to force a chart" in REPORT_PLAN_INSTRUCTIONS
+    assert "top 3/top 5 rankings" in REPORT_PLAN_INSTRUCTIONS
     assert "Coverage is independent from maxOnly" in REPORT_PLAN_INSTRUCTIONS
     assert "at most three profile-eligible objectives" in REPORT_PLAN_INSTRUCTIONS
     assert "prioritizes Strong coverage before Source dependent coverage" in REPORT_PLAN_INSTRUCTIONS
