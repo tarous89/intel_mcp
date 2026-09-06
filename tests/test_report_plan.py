@@ -17,98 +17,131 @@ from intel_mcp.server import settings
 
 
 SAMPLE_PLAN = {
-    "version": 3,
+    "version": 4,
     "studyCohorts": [
         {
             "role": "primary",
-            "title": "Phase 2 retinal gene-therapy trials",
-            "details": ["Inherited retinal disease", "Phase 2", "Gene therapy"],
+            "title": "Inherited retinal disease trials",
+            "details": ["Disease contains inherited retinal disease"],
             "maxOnly": False,
+            "filterDimension": "disease",
         },
         {
             "role": "adjacent",
-            "title": "Biomarker-matched inherited retinal gene-therapy trials",
-            "details": ["Match the requested molecular subgroup using deeper profile evidence"],
+            "title": "Gene-therapy inherited retinal disease trials",
+            "details": ["Combine inherited retinal disease with gene therapy"],
             "maxOnly": True,
+            "filterDimension": None,
         },
         {
             "role": "adjacent",
-            "title": "Inherited retinal trials with related advanced therapies",
-            "details": ["Same disease space with clinically relevant advanced modalities"],
+            "title": "Pediatric vs adult inherited retinal disease trials",
+            "details": ["Compare age-defined populations"],
             "maxOnly": True,
+            "filterDimension": None,
         },
     ],
-    "exclusionSummary": "Healthy-volunteer, non-interventional, and unrelated ophthalmology studies will be excluded.",
+    "exclusionSummary": "Healthy-volunteer and unrelated ophthalmology studies will be excluded.",
     "reportSections": [
         {
-            "title": "Eligibility",
-            "analyses": [
-                "Rank the most common eligibility criteria",
-                "Identify criteria that differ most in the target molecular subgroup",
-                "Assess which restrictions may unnecessarily narrow recruitment",
-            ],
+            "title": "Most-used eligibility criteria",
+            "sharedAnalysis": {
+                "title": "Most-used eligibility criteria",
+                "details": ["Rank recurring inclusion and exclusion criteria across selected trials"],
+            },
+            "maxAnalysis": {
+                "title": "Eligibility strategy fit",
+                "details": [
+                    "Compare restrictions across the closest disease and treatment matches",
+                    "Identify protocol-level criteria most likely to narrow recruitment",
+                ],
+            },
         },
         {
-            "title": "Endpoints",
-            "analyses": [
-                "Rank the most commonly used primary endpoints",
-                "Compare endpoint choice across clinically relevant subgroups",
-                "Assess protocol-level endpoint definitions and timing",
-            ],
+            "title": "Most common primary endpoints",
+            "sharedAnalysis": {
+                "title": "Most common primary endpoints",
+                "details": ["Rank primary endpoints across selected trials"],
+            },
+            "maxAnalysis": {
+                "title": "Endpoint strategy fit",
+                "details": [
+                    "Compare endpoint choice across clinically relevant segments",
+                    "Assess endpoint definitions and timing from source documents where needed",
+                ],
+            },
         },
         {
-            "title": "Countries & timelines",
-            "analyses": [
-                "Compare observed CTIS timelines across countries",
-                "Assess timeline consistency within the closest-matched trials",
-                "Identify the country mix with the strongest evidence-supported trade-offs",
-            ],
+            "title": "Shortest observed country timelines",
+            "sharedAnalysis": {
+                "title": "Shortest observed country timelines",
+                "details": ["Compare observed CTIS timelines across represented countries"],
+            },
+            "maxAnalysis": {
+                "title": "Country strategy fit",
+                "details": [
+                    "Compare timeline consistency within closest-matched trials",
+                    "Balance relevant experience, variability and operational trade-offs",
+                ],
+            },
         },
         {
-            "title": "Sites",
-            "analyses": [
-                "Rank sites by relevant trial activity",
-                "Compare site experience in the closest disease and modality matches",
-                "Assess competitive trial pressure around the leading sites",
-            ],
+            "title": "Most active trial sites",
+            "sharedAnalysis": {
+                "title": "Most active trial sites",
+                "details": ["Rank sites by documented participation in selected trials"],
+            },
+            "maxAnalysis": {
+                "title": "Best-fitting trial sites",
+                "details": [
+                    "Compare exact disease, phase and modality experience",
+                    "Assess recency, competition and investigator-site relationships",
+                ],
+            },
         },
         {
-            "title": "Investigators",
-            "analyses": [
-                "Rank investigators by relevant trial activity",
-                "Compare investigator experience across the Max trial groups",
-                "Identify the strongest evidence-supported investigator-site combinations",
-            ],
+            "title": "Most active principal investigators",
+            "sharedAnalysis": {
+                "title": "Most active principal investigators",
+                "details": ["Rank investigators by documented participation in selected trials"],
+            },
+            "maxAnalysis": {
+                "title": "Most relevant principal investigators",
+                "details": [
+                    "Compare experience in the closest clinical setting",
+                    "Assess recency, modality experience and site relationships",
+                ],
+            },
         },
     ],
 }
 
 
 @pytest.mark.anyio
-async def test_report_plan_is_generated_by_sol_with_depth_first_contract() -> None:
+async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = __import__("json").loads(request.content)
         assert payload["model"] == REPORT_PLAN_MODEL
         assert "service_tier" not in payload
         assert payload["reasoning"] == {"effort": "medium"}
-        assert payload["text"]["format"]["name"] == "intel_agent_report_plan_v3"
+        assert payload["text"]["format"]["name"] == "intel_agent_report_plan_v4"
         schema = payload["text"]["format"]["schema"]
         assert schema["properties"]["studyCohorts"]["minItems"] == 3
         assert schema["properties"]["studyCohorts"]["maxItems"] == 5
-        assert schema["$defs"]["studyCohort"]["properties"]["maxOnly"] == {"type": "boolean"}
-        assert schema["$defs"]["reportSection"]["properties"]["analyses"]["minItems"] == 3
-        assert schema["$defs"]["reportSection"]["properties"]["analyses"]["maxItems"] == 5
+        assert "filterDimension" in schema["$defs"]["studyCohort"]["required"]
+        assert set(schema["$defs"]["reportSection"]["required"]) == {"title", "sharedAnalysis", "maxAnalysis"}
+        assert schema["$defs"]["maxAnalysisCard"]["properties"]["details"]["minItems"] == 2
 
         developer_text = payload["input"][0]["content"][0]["text"]
-        assert "exactly one shared group followed by 2 to 4 Max groups" in developer_text
-        assert "structured filtering alone" in developer_text
-        assert "do not pretend simple filtering can establish that detail" in developer_text
-        assert "Create 5 to 7 objectives" in developer_text
-        assert "The FIRST analysis is the shared Light/Max analysis" in developer_text
-        assert "remaining 2 to 4 analyses are Max analyses" in developer_text
-        assert "must not merely restate the first analysis" in developer_text
-        assert "Do not hard-code presentation breadth" in developer_text
-        assert "Do not use generic titles" in developer_text
+        assert "Use exactly ONE selection dimension" in developer_text
+        assert "Prefer disease when a meaningful disease is specified" in developer_text
+        assert "Do not use disease stage, biomarker, mutation, PD-L1" in developer_text
+        assert "prefer a compact \"X vs Y\" group" in developer_text
+        assert "Do not say \"regardless of\"" in developer_text
+        assert "There is no user-facing objective layer" in developer_text
+        assert "one shared analysis and one Max analysis" in developer_text
+        assert "Never phrase the title as a question" in developer_text
+        assert "Do not hard-code result breadth" in developer_text
 
         for tool_name in ("start_analysis", "filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
             assert tool_name not in developer_text
@@ -127,41 +160,59 @@ async def test_report_plan_is_generated_by_sol_with_depth_first_contract() -> No
     assert plan.model_dump() == SAMPLE_PLAN
 
 
-def test_report_plan_requires_one_shared_and_two_to_four_max_groups() -> None:
+def test_v4_requires_one_single_dimension_shared_group_and_two_to_four_max_groups() -> None:
     plan = ReportPlan.model_validate(SAMPLE_PLAN)
+    assert plan.studyCohorts[0].filterDimension == "disease"
     assert plan.studyCohorts[0].maxOnly is False
-    assert all(item.maxOnly for item in plan.studyCohorts[1:])
+    assert all(item.maxOnly and item.filterDimension is None for item in plan.studyCohorts[1:])
 
     too_few = {**SAMPLE_PLAN, "studyCohorts": SAMPLE_PLAN["studyCohorts"][:2]}
     with pytest.raises(ValidationError):
         ReportPlan.model_validate(too_few)
 
+    bad_shared = {**SAMPLE_PLAN, "studyCohorts": [dict(item) for item in SAMPLE_PLAN["studyCohorts"]]}
+    bad_shared["studyCohorts"][0]["filterDimension"] = None
+    with pytest.raises(ValidationError):
+        ReportPlan.model_validate(bad_shared)
 
-def test_report_plan_requires_one_shared_plus_two_to_four_max_analyses_per_objective() -> None:
+
+def test_v4_analysis_pairs_require_matching_internal_title_and_decision_depth() -> None:
     raw = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
-    raw["reportSections"][0]["analyses"] = ["Shared", "Max A", "Max B", "Max C", "Max D"]
-    plan = ReportPlan.model_validate(raw)
-    assert len(plan.reportSections[0].analyses) == 5
-
-    raw["reportSections"][0]["analyses"] = ["Shared", "Max A"]
+    raw["reportSections"][0] = {
+        **raw["reportSections"][0],
+        "title": "Different title",
+    }
     with pytest.raises(ValidationError):
         ReportPlan.model_validate(raw)
 
+    shallow = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
+    shallow["reportSections"][0] = {
+        **shallow["reportSections"][0],
+        "maxAnalysis": {"title": "Eligibility strategy fit", "details": ["Only one factor"]},
+    }
+    with pytest.raises(ValidationError):
+        ReportPlan.model_validate(shallow)
 
-def test_report_plan_rejects_mis_tiered_group_structure() -> None:
-    raw = {**SAMPLE_PLAN, "studyCohorts": [dict(item) for item in SAMPLE_PLAN["studyCohorts"]]}
-    raw["studyCohorts"][1]["maxOnly"] = False
+
+def test_v4_rejects_question_titles() -> None:
+    raw = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
+    raw["reportSections"][0] = {
+        **raw["reportSections"][0],
+        "sharedAnalysis": {
+            "title": "Which sites should we use?",
+            "details": ["Rank sites"],
+        },
+        "title": "Which sites should we use?",
+    }
     with pytest.raises(ValidationError):
         ReportPlan.model_validate(raw)
 
 
 def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
-    assert REPORT_PLAN_VERSION == 3
+    assert REPORT_PLAN_VERSION == 4
     assert "2 to 4 Max groups" in REPORT_PLAN_INSTRUCTIONS
-    assert "5 to 7 objectives" in REPORT_PLAN_INSTRUCTIONS
-    assert "remaining 2 to 4 analyses are Max analyses" in REPORT_PLAN_INSTRUCTIONS
+    assert "Create 5 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
-    assert "Priority" not in REPORT_PLAN_INSTRUCTIONS
-    assert len(REPORT_PLAN_INSTRUCTIONS) < 8000
+    assert len(REPORT_PLAN_INSTRUCTIONS) < 9000
