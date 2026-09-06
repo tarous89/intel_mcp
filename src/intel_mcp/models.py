@@ -357,6 +357,13 @@ class TrialFilters(BaseModel):
         description="Case-insensitive matching against individual available extracted document names.",
     )
     therapeutic_areas: TherapeuticAreaFilter | None = None
+    diseases: StringSetFilter | None = Field(
+        default=None,
+        description=(
+            "Case-insensitive substring matching against individual persisted Trial Profile disease names. "
+            "This filter does not infer stage, biomarker, line of therapy or treatment setting."
+        ),
+    )
     rare_disease_trial: BooleanFilter | None = None
     orphan_designation: BooleanFilter | None = None
     paediatric_trial: BooleanFilter | None = None
