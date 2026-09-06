@@ -62,6 +62,7 @@ class SelectedTrial(BaseModel):
 
     trial_id: str = Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")
     group: Literal["priority", "adjacent"]
+    cohort_index: int = Field(ge=0, le=3)
 
 
 class LightTrialSelection(BaseModel):
@@ -156,8 +157,9 @@ SELECTION_SCHEMA: dict[str, Any] = {
                 "properties": {
                     "trial_id": {"type": "string"},
                     "group": {"type": "string", "enum": ["priority", "adjacent"]},
+                    "cohort_index": {"type": "integer", "minimum": 0, "maximum": 3},
                 },
-                "required": ["trial_id", "group"],
+                "required": ["trial_id", "group", "cohort_index"],
             },
         }
     },
@@ -536,7 +538,7 @@ You may use only filter_trials and get_profiles. Pass the supplied analysis_id t
 - Start from the Primary cohort and broaden into Adjacent cohorts only when useful. Build a clinically plausible candidate pool of at most 100 trials.
 - Inspect enough Trial Profile evidence to distinguish the strongest candidates; every final selected trial should be profile-reviewed rather than chosen from a title alone.
 - Choose one coherent set of 20 that balances target-study relevance with usefulness across all Light objectives.
-- Label each trial priority or adjacent according to the cohort it best represents; there is no quota.
+- For every selected trial, set cohort_index to the zero-based index of the supplied study_cohorts entry it best represents. Set group to priority when that cohort's role is primary, otherwise adjacent. There is no quota by cohort.
 - Do not answer the report objectives. Return only the structured selection."""
         payload = {
             "analysis_id": analysis_id,
@@ -549,7 +551,7 @@ You may use only filter_trials and get_profiles. Pass the supplied analysis_id t
         body = await self._response(
             developer=developer,
             user_payload=payload,
-            schema_name="intel_light_trial_selection_v4",
+            schema_name="intel_light_trial_selection_v5",
             schema=SELECTION_SCHEMA,
             tools=["filter_trials", "get_profiles"],
             max_tool_calls=20,
@@ -558,13 +560,33 @@ You may use only filter_trials and get_profiles. Pass the supplied analysis_id t
             reasoning_effort="high",
         )
         try:
-            return LightTrialSelection.model_validate(json.loads(_extract_output_text(body)))
+            parsed = LightTrialSelection.model_validate(json.loads(_extract_output_text(body)))
         except (json.JSONDecodeError, ValidationError) as error:
             raise LightReportError(
                 "LIGHT_REPORT_SELECTION_INVALID",
                 "Sol returned an invalid 20-trial selection.",
                 True,
             ) from error
+
+        cohorts = plan.get("studyCohorts")
+        if not isinstance(cohorts, list) or not cohorts:
+            raise LightReportError("LIGHT_REPORT_PLAN_INVALID", "The approved plan has no study cohorts.", False)
+        for item in parsed.selected_trials:
+            if item.cohort_index >= len(cohorts) or not isinstance(cohorts[item.cohort_index], dict):
+                raise LightReportError(
+                    "LIGHT_REPORT_SELECTION_INVALID",
+                    "Sol returned an invalid study-cohort assignment.",
+                    True,
+                )
+            role = cohorts[item.cohort_index].get("role")
+            expected_group = "priority" if role == "primary" else "adjacent"
+            if item.group != expected_group:
+                raise LightReportError(
+                    "LIGHT_REPORT_SELECTION_INVALID",
+                    "Sol returned an inconsistent study-cohort assignment.",
+                    True,
+                )
+        return parsed
 
     async def analyze_objective(
         self,
@@ -587,6 +609,7 @@ You may use only filter_trials and get_profiles. Pass the supplied analysis_id t
             {
                 "alias": f"T{index:02d}",
                 "group": item.group,
+                "cohort_index": item.cohort_index,
                 "profile": profiles_by_id[item.trial_id].profile,
             }
             for index, item in enumerate(selected_trials, start=1)
