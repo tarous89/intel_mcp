@@ -42,6 +42,27 @@ def test_filter_contract_accepts_case_insensitive_structured_filters() -> None:
     assert offset == 0
 
 
+def test_filter_contract_supports_persisted_disease_names() -> None:
+    filters, _, _, _ = validate_request(
+        {"filters": {"diseases": {"operator": "contains_any", "values": ["NSCLC"]}}}
+    )
+    where_sql, params = build_where(filters)
+    assert "EXISTS (SELECT 1 FROM mcp_serving.profile_diseases_v1 d" in where_sql
+    assert "d.profile_id = p.id" in where_sql
+    assert "d.disease ILIKE" in where_sql
+    assert params == ["%NSCLC%"]
+
+
+def test_negative_disease_filter_requires_known_disease_rows() -> None:
+    filters, _, _, _ = validate_request(
+        {"filters": {"diseases": {"operator": "contains_none", "values": ["NSCLC"]}}}
+    )
+    where_sql, params = build_where(filters)
+    assert "EXISTS (SELECT 1 FROM mcp_serving.profile_diseases_v1 d WHERE d.profile_id = p.id)" in where_sql
+    assert "AND NOT" in where_sql
+    assert params == ["%NSCLC%"]
+
+
 def test_negative_text_filter_excludes_missing_values() -> None:
     where_sql, _ = build_where(
         {"trial_title": {"operator": "does_not_contain", "value": "cancer"}}
