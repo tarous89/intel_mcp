@@ -44,7 +44,7 @@ Light versus Max eligibility:
 - Do NOT mark a category Max merely because it is detailed, difficult, or results-oriented. Published results already present in the Trial Profile are valid Light evidence.
 - If the profile contains enough evidence for the requested output, maxOnly must be false even if deeper source review could add nuance.
 - If one requested sub-analysis would require deeper source evidence while the rest of a category is profile-supported, prefer moving that deep-only work into a separate coherent maxOnly category when that preserves the user's intent and fits within 5–7 total categories. Do not contaminate an otherwise useful Light category with an avoidable deep-only bullet.
-- Order all maxOnly=false categories before maxOnly=true categories. A separate product rule may later restrict Light to four categories; do not use maxOnly merely because a category is fifth or later. Your maxOnly decision is evidence-capability based, not count based.
+- Order all maxOnly=false categories before maxOnly=true categories. Light separately executes at most three profile-eligible objectives and prioritizes Strong coverage before Source dependent coverage. Do not use maxOnly because of count or position; maxOnly is evidence-capability based only.
 - The user-facing UI will show only a simple Max badge and will not explain which of these internal reasons caused it.
 
 Trial groups:
@@ -148,9 +148,18 @@ class ReportPlan(BaseModel):
         }
 
     @model_validator(mode="after")
-    def order_max_sections_last(self) -> "ReportPlan":
-        self.reportSections = [item for item in self.reportSections if not item.maxOnly] + [
-            item for item in self.reportSections if item.maxOnly
+    def order_report_sections_for_light_priority(self) -> "ReportPlan":
+        indexed = list(enumerate(self.reportSections))
+        self.reportSections = [
+            item
+            for _, item in sorted(
+                indexed,
+                key=lambda pair: (
+                    1 if pair[1].maxOnly else 0,
+                    0 if pair[1].coverage == "strong" else 1,
+                    pair[0],
+                ),
+            )
         ]
         return self
 
