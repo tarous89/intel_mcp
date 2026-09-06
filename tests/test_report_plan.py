@@ -9,6 +9,7 @@ from intel_mcp.report_plan import (
     REPORT_PLAN_INSTRUCTIONS,
     REPORT_PLAN_MODEL,
     REPORT_PLAN_VERSION,
+    ReportPlan,
     SolReportPlanner,
 )
 from intel_mcp.server import settings
@@ -50,7 +51,9 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         assert "omitting sections or passing an empty list returns the complete approved profile" in developer_text
         assert "Light execution can use ONLY structured filtering and complete approved Trial Profiles" in developer_text
         assert "maxOnly=true only when" in developer_text
-        assert "do not use maxOnly merely because a category is fifth or later" in developer_text
+        assert "at most three profile-eligible objectives" in developer_text
+        assert "prioritizes Strong coverage before Source dependent coverage" in developer_text
+        assert "Do not use maxOnly because of count or position" in developer_text
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": __import__("json").dumps(SAMPLE_PLAN)}]}]})
 
     configured = replace(settings, openai_api_key="test-key", report_plan_service_token="test-service-token")
@@ -59,10 +62,40 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
     assert plan.model_dump() == SAMPLE_PLAN
 
 
-def test_report_plan_keeps_max_sections_after_light_sections() -> None:
+def test_report_plan_orders_strong_eligible_before_source_dependent_and_max() -> None:
+    raw = {
+        "version": 2,
+        "studyCohorts": [
+            {"role": "primary", "title": "Target trials", "details": ["Target setting"]},
+        ],
+        "exclusionSummary": "Unrelated trials excluded.",
+        "reportSections": [
+            {"title": "Observed recruitment", "analyses": ["Recruitment outcomes"], "coverage": "source_dependent", "maxOnly": False},
+            {"title": "Endpoints", "analyses": ["Endpoint patterns"], "coverage": "strong", "maxOnly": False},
+            {"title": "Protocol detail", "analyses": ["Assay schedule"], "coverage": "strong", "maxOnly": True},
+            {"title": "Eligibility", "analyses": ["Eligibility patterns"], "coverage": "strong", "maxOnly": False},
+            {"title": "Operational results", "analyses": ["Operational findings"], "coverage": "source_dependent", "maxOnly": False},
+            {"title": "Deep results", "analyses": ["Document-only result detail"], "coverage": "source_dependent", "maxOnly": True},
+        ],
+    }
+
+    plan = ReportPlan.model_validate(raw)
+    assert [section.title for section in plan.reportSections] == [
+        "Endpoints",
+        "Eligibility",
+        "Observed recruitment",
+        "Operational results",
+        "Protocol detail",
+        "Deep results",
+    ]
+
+
+def test_report_plan_contract_documents_current_light_priority() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 2
     assert "1 to 4 trial groups" in REPORT_PLAN_INSTRUCTIONS
     assert "Each analysis bullet should be independently answerable" in REPORT_PLAN_INSTRUCTIONS
     assert "top 3/top 5 ranking" in REPORT_PLAN_INSTRUCTIONS
     assert "Coverage is independent from maxOnly" in REPORT_PLAN_INSTRUCTIONS
+    assert "at most three profile-eligible objectives" in REPORT_PLAN_INSTRUCTIONS
+    assert "prioritizes Strong coverage before Source dependent coverage" in REPORT_PLAN_INSTRUCTIONS
