@@ -77,6 +77,8 @@ Max analysis:
 - Move from superficial counting toward a medical/operational decision. Use 2 to 4 distinct decision factors or sub-analyses in details, such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, source-derived protocol detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
 - Do not simply repeat the shared analysis using different wording. The Max analysis must explain what additional evidence would change or strengthen the decision.
 
+For every pair, set the internal top-level title exactly equal to sharedAnalysis.title. This field is only an execution/progress label; it is not an additional user-facing objective.
+
 Across all analysis pairs:
 - Put the user's requested decisions first.
 - Keep titles short enough to scan in a collapsed row. Put necessary nuance in details.
@@ -115,11 +117,14 @@ class AnalysisCard(BaseModel):
 class ReportSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    title: str = Field(min_length=1, max_length=100)
     sharedAnalysis: AnalysisCard
     maxAnalysis: AnalysisCard
 
     @model_validator(mode="after")
-    def max_has_decision_depth(self) -> "ReportSection":
+    def validate_pair(self) -> "ReportSection":
+        if self.title != self.sharedAnalysis.title:
+            raise ValueError("The internal pair title must match the shared analysis title.")
         if len(self.maxAnalysis.details) < 2:
             raise ValueError("Max analyses require at least two distinct decision factors.")
         return self
@@ -219,10 +224,11 @@ REPORT_PLAN_SCHEMA = {
             "type": "object",
             "additionalProperties": False,
             "properties": {
+                "title": {"type": "string"},
                 "sharedAnalysis": {"$ref": "#/$defs/analysisCard"},
                 "maxAnalysis": {"$ref": "#/$defs/maxAnalysisCard"},
             },
-            "required": ["sharedAnalysis", "maxAnalysis"],
+            "required": ["title", "sharedAnalysis", "maxAnalysis"],
         },
     },
 }
