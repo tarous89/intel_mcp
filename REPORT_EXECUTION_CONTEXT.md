@@ -15,7 +15,8 @@ Production MCP service:
 - Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
 - Section-aware profile retrieval: MCP PR #34 / squash `b75039ca0ed2d13ce908c5888c24a5e8fd979976`
 - Unified ten-profile call limit: MCP PR #35 / squash `f3fa55b078f21d43b2a54cf9e34b2a4cfc5c127c`
-- Current production deploy: `dep-daeicgeq1p3s73d3dj20`
+- MCP contract/documentation coherence audit: MCP PR #36 / squash `4a91f4b4352cd1e7064deedf6212f41383fd1015`
+- Current production deploy: `dep-daeild67bikc73ddf25g`
 
 ## Profile-retrieval capability for the next report iteration
 
@@ -31,7 +32,7 @@ The paired App control-plane change is live in App PR #78 / squash `733bf38dd4a0
 
 ## Planning and Max eligibility
 
-Step 2 uses `gpt-5.6-sol`. The planner receives the complete Trial Profile 10.0.0 capability boundary and returns 5–7 report categories with `maxOnly` on each category.
+Step 2 uses `gpt-5.6-sol`. The planner receives the complete Trial Profile 10.0.0 capability boundary and returns 5–7 report categories with `maxOnly` on each category. The planner capability description is aligned with the live `get_profiles` contract: 1–10 profiles per call, optional deterministic section projections, omitted/empty sections for complete profiles.
 
 `maxOnly=true` means the category cannot be completed credibly from complete Trial Profile data alone and needs deeper protocol/document/extraction capability. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max. Profile-supported categories are ordered before source-document-only categories.
 
