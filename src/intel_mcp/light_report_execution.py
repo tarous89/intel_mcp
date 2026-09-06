@@ -22,6 +22,7 @@ from intel_mcp.profiles import FullProfileItem, MAX_PROFILES_PER_CALL
 
 
 LOGGER = logging.getLogger("intel_mcp")
+V3_LIGHT_OBJECTIVE_COUNT = 5
 
 
 @dataclass(frozen=True)
@@ -106,12 +107,9 @@ class ReportExecutionControl:
 
 
 def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
-    """Return a stable execution view that gives strong coverage the Light slots first.
-
-    Planner-declared Max-only objectives remain Max regardless of coverage. Among the
-    remaining profile-eligible objectives, strong coverage precedes source-dependent
-    coverage while preserving the planner's order inside each bucket.
-    """
+    """Preserve the v2 Light ordering contract for already-approved legacy plans."""
+    if plan.get("version") == 3:
+        return plan
     sections = plan.get("reportSections")
     if not isinstance(sections, list):
         return plan
@@ -128,6 +126,54 @@ def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
 
     ordered_sections = [section for _, section in sorted(indexed, key=priority)]
     return {**plan, "reportSections": ordered_sections}
+
+
+def _v3_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Project a v3 plan onto the intentionally shallow Light product.
+
+    Light uses only the first, structured-filterable trial group and only the first
+    descriptive analysis from each of the first five objectives. All later groups,
+    all later analyses and objectives beyond five remain Max-only promises in the
+    approved plan and are never executed by the Light runner.
+    """
+    cohorts = plan.get("studyCohorts")
+    sections = plan.get("reportSections")
+    if not isinstance(cohorts, list) or len(cohorts) < 3 or not isinstance(cohorts[0], dict):
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 plan has no valid shared trial group.", False)
+    if cohorts[0].get("role") != "primary" or cohorts[0].get("maxOnly") is not False:
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 shared trial group is invalid.", False)
+    if not isinstance(sections, list) or len(sections) < 5:
+        raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "The v3 plan has too few objectives.", False)
+
+    objectives: list[dict[str, Any]] = []
+    for raw in sections[:V3_LIGHT_OBJECTIVE_COUNT]:
+        if not isinstance(raw, dict):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
+        title = raw.get("title")
+        analyses = raw.get("analyses")
+        if not isinstance(title, str) or not title.strip() or not isinstance(analyses, list) or len(analyses) < 3:
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 report objective is invalid.", False)
+        first = analyses[0]
+        if not isinstance(first, str) or not first.strip():
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v3 shared analysis is invalid.", False)
+        objectives.append({"title": title.strip(), "analyses": [first.strip()]})
+
+    # SolLightReportRunner's selection path is intentionally reused. Give it only
+    # the group that Light is allowed to search; Max cohorts never enter selection.
+    selection_plan = {
+        "version": 3,
+        "studyCohorts": [cohorts[0]],
+        "exclusionSummary": plan.get("exclusionSummary"),
+        "reportSections": objectives,
+    }
+    return selection_plan, objectives
+
+
+def _light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if plan.get("version") == 3:
+        return _v3_light_execution_view(plan)
+    prioritized = prioritize_light_plan(plan)
+    return prioritized, light_objectives(prioritized)
 
 
 def _analyzed_cohort_summary(
@@ -234,12 +280,7 @@ class LightReportExecutor:
         analysis_id: str,
         selected_trials: list[SelectedTrial],
     ) -> list[FullProfileItem]:
-        """Fetch the complete frozen evidence cohort once, outside model tool use.
-
-        The read remains subject to the normal app-owned profile allowance. Because
-        selection section reads are ID-idempotent, later full reads of the same trial
-        do not consume a second profile unit.
-        """
+        """Fetch the complete frozen evidence cohort once, outside model tool use."""
         trial_ids = [item.trial_id for item in selected_trials]
         if len(trial_ids) != LIGHT_TRIAL_COUNT or len(set(trial_ids)) != LIGHT_TRIAL_COUNT:
             raise ReportExecutionError(
@@ -305,18 +346,15 @@ class LightReportExecutor:
                 )
             context = job.get("context")
             insights = job.get("insights")
-            plan = job.get("plan")
-            if not isinstance(context, str) or not isinstance(insights, str) or not isinstance(plan, dict):
+            approved_plan = job.get("plan")
+            if not isinstance(context, str) or not isinstance(insights, str) or not isinstance(approved_plan, dict):
                 raise ReportExecutionError(
                     "LIGHT_REPORT_JOB_INVALID",
                     "The Light report job is missing its approved plan or brief.",
                     False,
                 )
-            # Light slots are evidence-prioritized rather than assigned by original row order:
-            # planner-declared Max-only objectives stay Max, then strong profile-eligible
-            # objectives take precedence over source-dependent profile-eligible objectives.
-            plan = prioritize_light_plan(plan)
-            objectives = light_objectives(plan)
+
+            selection_plan, objectives = _light_execution_view(approved_plan)
             progress = {
                 "version": 1,
                 "stage": "starting",
@@ -340,15 +378,13 @@ class LightReportExecutor:
                 analysis_id=analysis_id,
                 context=context,
                 insights=insights,
-                plan=plan,
+                plan=selection_plan,
             )
             selected = [item.model_dump() for item in selection.selected_trials]
             progress["selectedTrials"] = selected
             progress = _mark(progress, "trial_selection", "completed", completed_units=20, total_units=20)
             await self._control.progress(report_run_id, progress)
 
-            # Freeze and load the 20 complete profiles once. Objective model calls receive
-            # this same in-context evidence bundle directly and have no MCP tools.
             full_profiles = await self._load_complete_evidence_profiles(
                 analysis_id,
                 selection.selected_trials,
@@ -385,7 +421,7 @@ class LightReportExecutor:
                 "tier": "light",
                 "title": synthesis.title,
                 "executiveSummary": synthesis.executive_summary,
-                "analyzedCohort": _analyzed_cohort_summary(plan, selection.selected_trials),
+                "analyzedCohort": _analyzed_cohort_summary(selection_plan, selection.selected_trials),
                 "closingNote": synthesis.closing_note,
                 "sections": [item.model_dump() for item in section_results],
             }
