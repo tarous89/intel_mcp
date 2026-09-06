@@ -14,7 +14,8 @@ Production MCP service:
 - Light Report v2: MCP PR #31 / squash `ff3ac13e241e7ee1aedd1af1493de97abde7b00a`
 - Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
 - Section-aware profile retrieval: MCP PR #34 / squash `b75039ca0ed2d13ce908c5888c24a5e8fd979976`
-- Current production deploy before the single-limit correction: `dep-dae9fq142hec73c7g9n0`
+- Unified ten-profile call limit: MCP PR #35 / squash `f3fa55b078f21d43b2a54cf9e34b2a4cfc5c127c`
+- Current production deploy: `dep-daeicgeq1p3s73d3dj20`
 
 ## Profile-retrieval capability for the next report iteration
 
