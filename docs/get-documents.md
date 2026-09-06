@@ -13,10 +13,7 @@
 }
 ```
 
-Exact filenames are available in the complete Trial Profile returned by
-`get_profiles`. `document_name` must exactly match, case-insensitively, one value
-in that profile's six `filtering_variables.available_extracted_documents` arrays. One document name
-is accepted per call. `part` defaults to `1`.
+Exact filenames are available from `get_profiles(sections=["documents"])` or from a complete Trial Profile returned by `get_profiles`. `document_name` must exactly match, case-insensitively, one value in that profile's six `filtering_variables.available_extracted_documents` arrays. One document name is accepted per call. `part` defaults to `1`.
 
 ## Output
 
