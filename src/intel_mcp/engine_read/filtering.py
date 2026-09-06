@@ -31,6 +31,7 @@ ARRAY_FIELDS = {
     "eligible_sexes",
     "comparator_types",
 }
+RELATION_SET_FIELDS = {"diseases"}
 SORT_FIELDS = DATE_FIELDS | NUMBER_FIELDS | {"eu_number"}
 
 CONTROLLED_VALUES: dict[str, set[str]] = {
@@ -184,7 +185,16 @@ def validate_request(request: Any) -> tuple[dict[str, Any], dict[str, str], int,
     if set(body) - {"filters", "sort", "limit", "offset"}:
         raise FilterRequestError("INVALID_REQUEST", "The request contains unsupported properties.")
     filters = _require_object(body.get("filters", {}), "filters")
-    allowed_fields = TEXT_FIELDS | DATE_FIELDS | NUMBER_FIELDS | BOOLEAN_FIELDS | CONTROLLED_SCALAR_FIELDS | ARRAY_FIELDS | {"phase", "countries"}
+    allowed_fields = (
+        TEXT_FIELDS
+        | DATE_FIELDS
+        | NUMBER_FIELDS
+        | BOOLEAN_FIELDS
+        | CONTROLLED_SCALAR_FIELDS
+        | ARRAY_FIELDS
+        | RELATION_SET_FIELDS
+        | {"phase", "countries"}
+    )
     unknown = sorted(set(filters) - allowed_fields)
     if unknown:
         raise FilterRequestError("UNSUPPORTED_FILTER_FIELD", f"Unsupported filter field(s): {', '.join(unknown)}.")
@@ -206,7 +216,7 @@ def validate_request(request: Any) -> tuple[dict[str, Any], dict[str, str], int,
             condition["value"] = _canonical_value(condition["value"], CONTROLLED_VALUES[field])
         elif field == "phase":
             _validate_set_filter(field, condition, numeric=True)
-        elif field in ARRAY_FIELDS:
+        elif field in ARRAY_FIELDS or field in RELATION_SET_FIELDS:
             _validate_set_filter(field, condition)
         elif field == "countries":
             if not isinstance(condition, list) or len(condition) > 20:
@@ -297,6 +307,37 @@ def _set_sql(alias: str, field: str, condition: dict[str, Any], params: list[Any
     return combined
 
 
+def _related_text_set_sql(
+    *,
+    relation: str,
+    relation_alias: str,
+    value_column: str,
+    parent_column: str,
+    condition: dict[str, Any],
+    params: list[Any],
+) -> str:
+    operator = condition.get("operator", "contains_any")
+    values = list(dict.fromkeys(condition["values"]))
+    matches: list[str] = []
+    for value in values:
+        params.append(f"%{_escape_like(value)}%")
+        matches.append(
+            f"EXISTS (SELECT 1 FROM {relation} {relation_alias} "
+            f"WHERE {relation_alias}.{parent_column} = p.id "
+            f"AND {relation_alias}.{value_column} ILIKE %s ESCAPE E'\\\\')"
+        )
+    if operator == "contains_all":
+        return f"({' AND '.join(matches)})"
+    combined = f"({' OR '.join(matches)})"
+    if operator == "contains_none":
+        presence = (
+            f"EXISTS (SELECT 1 FROM {relation} {relation_alias} "
+            f"WHERE {relation_alias}.{parent_column} = p.id)"
+        )
+        return f"({presence} AND NOT {combined})"
+    return combined
+
+
 def _scalar_set_sql(column: str, condition: dict[str, Any], params: list[Any]) -> str:
     operator = condition.get("operator", "contains_any")
     values = list(dict.fromkeys(condition["values"]))
@@ -346,6 +387,17 @@ def build_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
             conditions.append(_set_sql("p", field, condition, params, numeric=True))
         elif field in ARRAY_FIELDS:
             conditions.append(_set_sql("p", field, condition, params))
+        elif field == "diseases":
+            conditions.append(
+                _related_text_set_sql(
+                    relation="mcp_serving.profile_diseases_v1",
+                    relation_alias="d",
+                    value_column="disease",
+                    parent_column="profile_id",
+                    condition=condition,
+                    params=params,
+                )
+            )
         elif field == "countries":
             for group in condition:
                 child_sql = ["c.profile_id = p.id"]
