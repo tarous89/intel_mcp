@@ -16,6 +16,8 @@ Production MCP service:
 - Section-aware profile retrieval: MCP PR #34 / squash `b75039ca0ed2d13ce908c5888c24a5e8fd979976`
 - Unified ten-profile call limit: MCP PR #35 / squash `f3fa55b078f21d43b2a54cf9e34b2a4cfc5c127c`
 - MCP contract/documentation coherence audit: MCP PR #36 / squash `4a91f4b4352cd1e7064deedf6212f41383fd1015`
+- Light Report v3 execution: MCP PR #37 / squash `ad87d301ab33371dfb07bbae915d438d5ec51894`
+- Current production deploy: `dep-daejsu95efls73a0nau0`
 
 ## `get_profiles` contract used by report selection
 
