@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from intel_mcp.profiles import (
+    MAX_PROFILES_PER_CALL,
     PROFILE_SECTIONS,
     GetProfilesOutput,
     normalize_profile_sections,
@@ -47,6 +48,10 @@ def test_get_profiles_output_schema_is_minimal() -> None:
         "counts",
         "analysis_allowance",
     }
+
+
+def test_get_profiles_call_limit_is_ten() -> None:
+    assert MAX_PROFILES_PER_CALL == 10
 
 
 def test_profile_section_vocabulary_is_stable() -> None:
