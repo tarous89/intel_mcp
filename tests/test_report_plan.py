@@ -35,7 +35,7 @@ SAMPLE_PLAN = {
 
 
 @pytest.mark.anyio
-async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None:
+async def test_report_plan_is_generated_by_sol_with_current_light_max_contract() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = __import__("json").loads(request.content)
         assert payload["model"] == REPORT_PLAN_MODEL
@@ -45,24 +45,23 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         assert schema["$defs"]["reportSection"]["properties"]["maxOnly"] == {"type": "boolean"}
         assert schema["$defs"]["reportSection"]["properties"]["analyses"]["maxItems"] == 4
         assert "maxOnly" in schema["$defs"]["reportSection"]["required"]
+
         developer_text = payload["input"][0]["content"][0]["text"]
-        for tool_name in ("filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
-            assert tool_name in developer_text
-        assert "get_profiles reads 1–10 approved Trial Profiles per call" in developer_text
-        assert "Optional controlled sections return exact deterministic projections" in developer_text
-        assert "omitting sections or passing an empty list returns the complete approved profile" in developer_text
-        assert "Light execution can use ONLY structured filtering and complete approved Trial Profiles" in developer_text
-        assert "maxOnly=true only when" in developer_text
-        assert "at most three profile-eligible objectives" in developer_text
-        assert "prioritizes Strong coverage before Source dependent coverage" in developer_text
-        assert "Do not use maxOnly because of count or position" in developer_text
-        assert "directly help answer the user's requested insights" in developer_text
-        assert "answerable from evidence that Intel MCP can actually provide" in developer_text
-        assert "Prefer graph-ready quantitative outputs" in developer_text
-        assert "Do not invent a meaningless metric merely to force a chart" in developer_text
+        assert "approved Trial Profiles" in developer_text
+        assert "source-document/protocol analysis" in developer_text
         assert "There is no target count" in developer_text
-        assert "Apply a compression test" in developer_text
-        assert "Silently compare the final bullets pairwise" in developer_text
+        assert "actively consider other useful lenses" in developer_text
+        assert "Shared trials, sites, investigators or other entities do NOT make two analyses redundant" in developer_text
+        assert "Merge analyses only when" in developer_text
+        assert "only after checking that no other supported lens would add distinct decision value" in developer_text
+        assert "Do not invent a meaningless metric merely to force a chart" in developer_text
+        assert "maxOnly=true only when" in developer_text
+        assert "strong coverage before source-dependent coverage" in developer_text
+
+        # Planning has no tools; legacy MCP mechanics should not be explained to Sol here.
+        for legacy_tool_name in ("start_analysis", "filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
+            assert legacy_tool_name not in developer_text
+
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": __import__("json").dumps(SAMPLE_PLAN)}]}]})
 
     configured = replace(settings, openai_api_key="test-key", report_plan_service_token="test-service-token")
@@ -113,20 +112,14 @@ def test_report_plan_orders_strong_eligible_before_source_dependent_and_max() ->
     ]
 
 
-def test_report_plan_contract_documents_current_light_priority() -> None:
+def test_report_plan_prompt_is_compact_and_encourages_distinct_lenses() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 2
-    assert "1 to 4 trial groups" in REPORT_PLAN_INSTRUCTIONS
-    assert "Each retained analysis bullet should be independently answerable" in REPORT_PLAN_INSTRUCTIONS
-    assert "directly help answer the user's requested insights" in REPORT_PLAN_INSTRUCTIONS
-    assert "answerable from evidence that Intel MCP can actually provide" in REPORT_PLAN_INSTRUCTIONS
-    assert "concrete report output" in REPORT_PLAN_INSTRUCTIONS
-    assert "Prefer graph-ready quantitative outputs" in REPORT_PLAN_INSTRUCTIONS
-    assert "Do not invent a meaningless metric merely to force a chart" in REPORT_PLAN_INSTRUCTIONS
-    assert "top 3/top 5 rankings" in REPORT_PLAN_INSTRUCTIONS
-    assert "There is no target count" in REPORT_PLAN_INSTRUCTIONS
-    assert "Apply a compression test" in REPORT_PLAN_INSTRUCTIONS
-    assert "Silently compare the final bullets pairwise" in REPORT_PLAN_INSTRUCTIONS
-    assert "Coverage is independent from maxOnly" in REPORT_PLAN_INSTRUCTIONS
-    assert "at most three profile-eligible objectives" in REPORT_PLAN_INSTRUCTIONS
-    assert "prioritizes Strong coverage before Source dependent coverage" in REPORT_PLAN_INSTRUCTIONS
+    assert "1 to 4 groups" in REPORT_PLAN_INSTRUCTIONS
+    assert "5 to 7 categories" in REPORT_PLAN_INSTRUCTIONS
+    assert "1 to 4 analyses" in REPORT_PLAN_INSTRUCTIONS
+    assert "actively consider other useful lenses" in REPORT_PLAN_INSTRUCTIONS
+    assert "Shared trials, sites, investigators or other entities do NOT make two analyses redundant" in REPORT_PLAN_INSTRUCTIONS
+    assert "same decision question" in REPORT_PLAN_INSTRUCTIONS
+    assert "Never add filler" in REPORT_PLAN_INSTRUCTIONS
+    assert len(REPORT_PLAN_INSTRUCTIONS) < 7000
