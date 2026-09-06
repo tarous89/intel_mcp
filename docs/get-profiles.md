@@ -4,16 +4,11 @@
 
 Return current approved Trial Profile 10.0.0 data for explicit EU trial numbers. The tool is a bounded deterministic read path: it performs no model work, summarization, semantic search or profile generation.
 
-`get_profiles` has two modes:
+Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light may retrieve up to **100 unique profiles** across calls and Max up to 500.
 
-- **Section mode** — request one or more named profile sections and retrieve up to **100** profiles in one call.
-- **Complete-profile mode** — omit `sections` or pass `[]` and retrieve up to **20** complete profiles in one call.
-
-Use section mode when comparing a larger shortlist. Use complete-profile mode only when the task genuinely needs the whole structured profile.
+Use `sections` when only part of the structured profile is needed. Omit `sections` or pass `[]` when the complete profile is needed. There is no separate allowance or call-size tier for section versus complete-profile reads.
 
 ## Input
-
-### Section mode
 
 ```json
 {
@@ -26,7 +21,7 @@ Use section mode when comparing a larger shortlist. Use complete-profile mode on
 }
 ```
 
-### Complete-profile mode
+Complete-profile request:
 
 ```json
 {
@@ -36,12 +31,12 @@ Use section mode when comparing a larger shortlist. Use complete-profile mode on
 ```
 
 - `analysis_id`: active 60-minute analysis lease.
-- `trial_ids`: 1–100 syntactically valid EU trial numbers in section mode; 1–20 unique EU trial numbers in complete-profile mode.
+- `trial_ids`: 1–10 syntactically valid EU trial numbers.
 - Duplicate IDs are removed while preserving first occurrence order.
 - `sections`: optional array of the controlled section names below. Duplicate section names are removed while preserving caller order.
 - Omitting `sections` and passing `sections: []` are equivalent: both request complete profiles.
 
-If a caller requests more than 20 unique IDs without sections, the tool returns `PROFILE_REQUEST_TOO_LARGE` rather than silently projecting or truncating profiles.
+The only input added to the original `get_profiles` contract is optional `sections`. `analysis_id` and `trial_ids` retain their original meaning.
 
 ## Current profile contract
 
@@ -77,7 +72,7 @@ The `sections` field does **not** introduce a second summary schema. It is an ex
 
 The mapping is versioned against Trial Profile 10.0.0. Older approved profiles may naturally lack fields that were introduced later; absent stored fields are simply absent from the projection.
 
-## Projection examples
+## Projection example
 
 Request:
 
@@ -120,7 +115,7 @@ This is a projection of the stored profile, not a generated card or model summar
 
 Production MCP reads from the Engine-owned approved-only `mcp_serving` PostgreSQL contract using the restricted MCP reader. Projection is applied inside MCP **after** the approved-only read and after app control-plane authorization.
 
-The legacy Engine HTTP rollback endpoint remains unchanged at ten IDs per request. If MCP is switched back to that path, a larger `get_profiles` request is split internally into batches of ten and reassembled in caller order. The public MCP contract therefore remains the same in both production and rollback modes.
+The Engine profile-read boundary is also capped at ten IDs per request. The HTTP rollback path therefore uses the same ten-profile batch size as the public MCP call.
 
 Missing, candidate and rejected records are indistinguishable to the MCP caller and appear only in `unavailable_trial_ids`. There is no raw CTIS fallback.
 
@@ -132,7 +127,7 @@ The app control plane meters unique successfully returned EU trial numbers throu
 POST /api/internal/mcp/profile-access
 ```
 
-Current intended per-analysis limits are:
+Current per-analysis limits are:
 
 - **Light: 100 unique profiles**
 - **Max: 500 unique profiles**
@@ -142,6 +137,8 @@ Repeated retrieval of the same trial ID does not consume allowance again, even w
 The profile allowance counts profile IDs, not sections. A section-projected read and a later full read of the same trial therefore count as one unique profile against the analysis allowance.
 
 ## Output
+
+The output contract is unchanged from the original `get_profiles` tool:
 
 ```json
 {
@@ -162,23 +159,22 @@ The profile allowance counts profile IDs, not sections. A section-projected read
 }
 ```
 
-Every returned profile item contains:
+Every returned profile item still contains exactly:
 
 - `eu_number`
 - `profile_schema_version`
 - `approved_at`
 - `profile`
 
-In section mode, `profile` contains only the requested deterministic projection. In complete-profile mode, `profile` contains the complete approved structured profile.
+When `sections` is supplied, `profile` contains the requested deterministic projection. When `sections` is omitted or empty, `profile` contains the complete approved structured profile. No output field was added, removed or renamed.
 
 ## Guidance
 
-Prefer the smallest evidence surface that can answer the decision:
-
 1. Use `filter_trials` for broad structured screening.
-2. Use `get_profiles(..., sections=[...])` to inspect the relevant profile data across a larger shortlist.
-3. Use complete `get_profiles` only for the final smaller evidence set or when cross-domain profile context is necessary.
-4. Use `get_documents` or `extract_variables` only when the profile is insufficient for the needed fact.
+2. Use `get_profiles(..., sections=[...])` when only selected profile domains are needed.
+3. Repeat `get_profiles` in batches of up to ten while the analysis needs additional profiles, up to the plan's unique-profile allowance.
+4. Omit `sections` when the complete profile is needed.
+5. Use `get_documents` or `extract_variables` only when the profile is insufficient for the needed fact.
 
 ## Exclusions
 
