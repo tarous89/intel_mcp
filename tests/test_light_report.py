@@ -16,6 +16,7 @@ from intel_mcp.light_report import (
     LIGHT_SELECTION_MODEL,
     LIGHT_SYNTHESIS_MODEL,
     LIGHT_TRIAL_COUNT,
+    LightReportError,
     LightTrialSelection,
     ObjectiveResult,
     SolLightReportRunner,
@@ -51,7 +52,11 @@ PLAN = {
 def _selection() -> dict:
     return {
         "selected_trials": [
-            {"trial_id": f"2026-{index:06d}-00-00", "group": "priority" if index <= 12 else "adjacent"}
+            {
+                "trial_id": f"2026-{index:06d}-00-00",
+                "group": "priority" if index <= 12 else "adjacent",
+                "cohort_index": 0 if index <= 12 else 1,
+            }
             for index in range(1, 21)
         ]
     }
@@ -122,7 +127,10 @@ def test_light_report_runtime_uses_sol_selection_terra_objectives_and_sol_synthe
 
 
 def test_light_trial_selection_requires_exactly_twenty_unique_trials() -> None:
-    assert len(LightTrialSelection.model_validate(_selection()).selected_trials) == LIGHT_TRIAL_COUNT
+    parsed = LightTrialSelection.model_validate(_selection())
+    assert len(parsed.selected_trials) == LIGHT_TRIAL_COUNT
+    assert parsed.selected_trials[0].cohort_index == 0
+    assert parsed.selected_trials[-1].cohort_index == 1
     invalid = _selection()
     invalid["selected_trials"][-1] = invalid["selected_trials"][0]
     with pytest.raises(ValidationError):
@@ -137,14 +145,16 @@ async def test_selection_call_uses_sol_high_and_compact_scope_payload() -> None:
         assert payload["service_tier"] == LIGHT_REPORT_SERVICE_TIER
         assert payload["reasoning"] == {"effort": "high"}
         assert payload["max_tool_calls"] == 20
-        assert payload["text"]["format"]["name"] == "intel_light_trial_selection_v4"
+        assert payload["text"]["format"]["name"] == "intel_light_trial_selection_v5"
         tool = payload["tools"][0]
         assert tool["allowed_tools"] == ["filter_trials", "get_profiles"]
 
         developer = payload["input"][0]["content"][0]["text"]
         assert "candidate pool of at most 100 trials" in developer
         assert "every final selected trial should be profile-reviewed" in developer
-        assert len(developer) < 1800
+        assert "cohort_index" in developer
+        assert "zero-based index" in developer
+        assert len(developer) < 2000
 
         user = json.loads(payload["input"][1]["content"][0]["text"])
         assert "approved_plan" not in user
@@ -154,12 +164,31 @@ async def test_selection_call_uses_sol_high_and_compact_scope_payload() -> None:
         assert user["exclusion_summary"] == PLAN["exclusionSummary"]
         assert len(user["light_objectives"]) == 3
 
+        schema_item = payload["text"]["format"]["schema"]["properties"]["selected_trials"]["items"]
+        assert schema_item["properties"]["cohort_index"] == {"type": "integer", "minimum": 0, "maximum": 3}
+        assert "cohort_index" in schema_item["required"]
+
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_selection())}]}]})
 
     configured = replace(settings, openai_api_key="test-key", mcp_inbound_service_token="internal-mcp-token", mcp_public_resource_url="https://mcp.example.test/mcp")
     runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
     result = await runner.select_trials(analysis_id="analysis-12345678901234567890", context="Adjuvant NSCLC", insights="Endpoints", plan=PLAN)
     assert len(result.selected_trials) == 20
+
+
+@pytest.mark.anyio
+async def test_selection_rejects_cohort_assignment_outside_approved_plan() -> None:
+    invalid = _selection()
+    invalid["selected_trials"][0]["cohort_index"] = 3
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(invalid)}]}]})
+
+    configured = replace(settings, openai_api_key="test-key", mcp_inbound_service_token="internal-mcp-token", mcp_public_resource_url="https://mcp.example.test/mcp")
+    runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
+    with pytest.raises(LightReportError) as exc_info:
+        await runner.select_trials(analysis_id="analysis-12345678901234567890", context="Adjuvant NSCLC", insights="Endpoints", plan=PLAN)
+    assert exc_info.value.code == "LIGHT_REPORT_SELECTION_INVALID"
 
 
 @pytest.mark.anyio
@@ -184,6 +213,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert len(evidence_trials) == 20
         assert evidence_trials[0]["alias"] == "T01"
         assert evidence_trials[0]["group"] == "priority"
+        assert evidence_trials[0]["cohort_index"] == 0
         assert "profile" in evidence_trials[0]
         assert "trial_id" not in evidence_trials[0]
         assert "profile_schema_version" not in evidence_trials[0]
