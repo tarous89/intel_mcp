@@ -6,175 +6,133 @@ Last updated: 2026-09-06
 
 ## Scope
 
-Light Report is the current profile-only report path. Max execution is separate and not implemented yet.
+Light is the current profile-only report path. Max execution remains separate and is not implemented yet.
 
-Production MCP service:
+Production MCP:
 - `https://mcp.trialagents.com/mcp`
-- Render service `srv-da7g4igae00c73bo6oe0`, Frankfurt
+- service `srv-da7g4igae00c73bo6oe0`, Frankfurt
 
 ## Report planning — Sol
 
-Planning uses `gpt-5.6-sol`.
+Planning uses `gpt-5.6-sol` with medium reasoning and no tools. The planner receives only the user brief, requested insights, and optional current plan/revision request plus a concise evidence-capability description.
 
-The planner receives only the user brief, requested insights, optional existing plan/revision request, and a concise description of what Trial Profiles can support. It does **not** receive MCP tool mechanics, call limits, section-read rules, or other execution details.
+New/revised plans use **`intel_agent_report_plan_v3`**.
 
-The planner returns:
-- 1–4 study cohorts, exactly one Primary;
-- 5–7 report categories;
-- 1–4 analyses per category;
-- `coverage` (`strong` or `source_dependent`);
-- `maxOnly`.
+### Trial groups
 
-Planned analyses are tier-neutral. They describe what should be ranked, compared, distributed or shortlisted and must not hard-code a result count such as top 5, top 10 or top 100. Output breadth belongs to the selected report tier/executor.
+A v3 plan has **3–5 groups**:
 
-### Analysis breadth rule
+1. one shared Light + Max group first;
+2. **2–4 Max-only groups** after it.
 
-There is no target analysis count, but one-analysis categories are not the default safe answer.
+The shared group must be realistically selectable with broad structured filtering alone. It should be as close as possible to the requested study population without pretending that fine-grained biomarker, disease-stage, line-of-therapy or protocol details are simple structured filters when they are not.
 
-Before settling on one analysis, Sol must actively consider other useful lenses supported by the Trial Profile data. Relevant dimensions can include disease fit, treatment setting, phase, modality, recency, sponsor diversity, geography, design, population, endpoints, eligibility, site/investigator history and partner relationships.
+The Max groups are chosen dynamically. Useful strategies include deeper matching to the exact requested population, clinically meaningful segmentation, isolating one component of the request, or adding an adjacent comparator. These are options, not fixed group categories.
 
-Keep another analysis when it answers a materially different decision question or uses a meaningfully different measure, comparison or evidence dimension.
+Internal fields:
+- shared group: `role=primary`, `maxOnly=false`;
+- later groups: `role=adjacent`, `maxOnly=true`.
 
-**Shared entities do not make analyses redundant.** The same sites, investigators, sponsors or trials may legitimately appear in more than one analysis when a different metric reveals a different decision-relevant insight.
+Those role labels are implementation metadata and are not meant for user-facing display.
 
-Merge analyses only when they substantially answer the same decision question and lead to the same practical implication, or when both insights can be preserved clearly in one richer result.
+### Objectives and analyses
 
-One analysis is valid only after checking that no other supported lens adds distinct decision value. Never add filler to reach two, three or four analyses.
+A v3 plan has **5–7 objectives**. Every objective contains **3–5 analyses**:
 
-## Light versus Max
+1. first analysis = shared Light + Max descriptive analysis;
+2. next **2–4 analyses = Max**.
 
-Light can use approved Trial Profiles, including profile-supported trial identity/sponsor, disease/population/setting, phase/design/interventions, endpoints/eligibility, countries/lifecycle, sites/investigators, partner organisations and structured results when present.
+The first analysis is a direct evidence summary such as a count, rank, distribution, frequency or observed timeline comparison that can be produced from Trial Profiles.
 
-Set `maxOnly=false` when the category can be completed credibly from Trial Profiles alone.
+The Max analyses add decision depth through deeper matching, clinically relevant segmentation, competition, recency, disease/phase/modality fit, PI-site relationships, protocol/source detail, robustness/variation, trade-offs, or an evidence-supported shortlist/recommendation where appropriate.
 
-Set `maxOnly=true` only when the category genuinely requires source-document/protocol detail beyond the Trial Profile.
+Max analyses must not simply restate the first analysis. The planner uses 2 Max analyses when sufficient and 3–4 only when each contributes distinct value. No fixed display breadth such as top 5/top 10 is written into the plan.
 
-Published results already stored in Trial Profiles remain valid Light evidence.
+The old category-level `coverage` and objective-level `maxOnly` planning model is not used for v3.
 
-Profile-eligible Strong categories are ordered first, then profile-eligible Source-dependent categories, then Max categories. The first three profile-eligible objectives become Light.
+### Backward compatibility
 
-## Light execution
+Stored v2 plans remain executable/readable. The v3 planner does not rewrite stored v2 plans unless the user requests a new/revised plan.
 
-### Stage 1 — Sol trial selection
+## Light execution for v3
 
-One `gpt-5.6-sol` call with high reasoning selects exactly 20 EU trials for the whole report.
+Light intentionally demonstrates the evidence without performing Max work.
 
-The selection call may use only:
+### Execution projection
+
+Before execution, a v3 approved plan is projected to:
+- **first/shared trial group only**;
+- **first five objectives only**;
+- **first analysis only** from each of those objectives.
+
+The remaining trial groups, analyses and objectives stay in the approved plan as Max promises and are never executed by the Light path.
+
+### Selection
+
+The existing Sol Light selector is reused with only the shared group exposed to it. It may use only:
 - `filter_trials`
 - `get_profiles`
 
-Its prompt is intentionally short. It tells Sol to:
-1. start from the Primary cohort and broaden into Adjacent cohorts only when useful;
-2. build a clinically plausible candidate pool of at most 100 trials;
-3. profile-review every final selected trial;
-4. choose one coherent 20-trial set that balances target relevance and usefulness across all Light objectives;
-5. assign every selected trial to the zero-based approved `studyCohorts` entry it best represents, while also retaining the broad `priority`/`adjacent` role; there is no quota by cohort.
+The normal Light profile allowance remains 100 unique profiles. Sol freezes exactly 20 final trials. Since v3 Light selection receives only the shared group, every selected trial maps to `cohort_index=0` / the primary internal role.
 
-The user payload contains only:
-- analysis ID;
-- trial context;
-- requested insights;
-- study cohorts;
-- exclusion summary;
-- the three Light objectives.
+### Evidence bundle
 
-The redundant full approved plan and duplicated numeric count fields are no longer sent.
+After selection, MCP retrieves all 20 complete approved Trial Profiles in two bounded batches of 10. The same frozen profile bundle is reused for every Light objective.
 
-### Analyzed cohort summary
+### Objective analysis
 
-The report-level cohort statistics are derived **after Sol has chosen the final 20**, not from the earlier filter candidate pool. This ensures the displayed numbers describe the exact frozen evidence set that Terra analyzes.
+The first analysis from each of the first five objectives is executed independently using `gpt-5.6-terra`, high reasoning, Flex. Terra receives the same 20 complete profiles and no tools.
 
-The selector returns `cohort_index` for every selected trial. MCP validates that each index exists in the approved plan and that its broad `group` matches the cohort role.
+The current objective output contract remains:
+- one objective intro sentence;
+- one retained sub-analysis for v3 Light because only one analysis is approved for Light;
+- simple stat/bar/donut visual;
+- concise interpretation;
+- optional named items;
+- one decision implication;
+- bounded evidence notes.
 
-The executor then deterministically writes only aggregate statistics into the final report:
+Existing duplicate-visual/provenance guards remain in place.
 
-```json
-{
-  "analyzedCohort": {
-    "totalTrials": 20,
-    "cohorts": [
-      {"title": "...", "role": "primary", "trialCount": 0},
-      {"title": "...", "role": "adjacent", "trialCount": 0}
-    ]
-  }
-}
-```
+### Final synthesis
 
-All approved study cohorts are represented, including a zero count when none of the final selected trials came from that cohort. No trial identities are exposed in this summary and no additional model call is used.
+Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces only title, short introduction and closing note.
 
-### Frozen complete-profile bundle
+The completed report remains `final_report.version = 2` for renderer compatibility.
 
-After selection, the executor retrieves the complete approved Trial Profiles for the frozen 20 trials. The same 20-profile bundle is reused unchanged for every Light objective.
+The analyzed-cohort summary for v3 Light is generated from the Light execution view, so it shows only the shared trial group and the exact 20 selected trials.
 
-### Stage 2 — Terra objective analysis
+## Legacy v2 Light execution
 
-Each objective runs as one independent `gpt-5.6-terra` Flex call with high reasoning.
+Legacy v2 plans keep their previous execution behavior:
+- coverage/maxOnly prioritization;
+- first three profile-eligible objectives;
+- legacy planned analysis lists;
+- legacy multi-cohort selection where applicable.
 
-Terra receives directly in context:
-- target trial/project context;
-- one objective with its 1–4 planned analyses;
-- all 20 complete Trial Profiles using aliases `T01`–`T20`.
+This protects existing approved projects while v3 changes only new/revised plans.
 
-Each evidence item also carries its broad `group` and validated `cohort_index`. Terra receives no tools.
+## Current prompt/schema versions
 
-The prompt is intentionally compact:
-- consider all 20 profiles before cohort-level conclusions;
-- use only supplied evidence;
-- planned analyses are candidate lenses, not mandatory slots;
-- return 1 to the number planned;
-- before collapsing to one, test whether each planned lens produces a materially different decision question, metric/comparison or practical implication;
-- shared top entities are not duplication by themselves;
-- merge only when decision question and practical implication substantially overlap;
-- do not invent analyses outside the approved objective.
+- planner: `intel_agent_report_plan_v3`
+- selection: `intel_light_trial_selection_v5`
+- objective: `intel_light_objective_v5`
+- synthesis: `intel_light_synthesis_v5`
 
-Each retained sub-analysis uses one simple `stat`, `bar` or `donut` visual with at most five items, plus concise interpretation and optional named-item context.
+The v3 planner prompt was rewritten from scratch as one current contract instead of adding conditions to the old Priority/Adjacent/coverage rules.
 
-Terra payload does not include EU trial IDs or profile schema versions because those are not needed for analysis. Provenance uses only `T01`–`T20` aliases and is mapped back internally after the model call.
+## Product boundary
 
-### Exact duplicate safety guard
+The current App presentation intentionally shows:
+- no Light labels;
+- no Priority/Adjacent labels;
+- no Strong coverage/Source dependent labels;
+- only Max tags on Max groups and Max analyses.
 
-A deterministic post-model guard compares visual kind, unit, labels and values. If two returned sub-analyses contain the exact same chart data, only the first is kept and useful unique item/provenance context is merged into it.
+MCP owns plan generation and bounded analysis execution. App remains authoritative for identity, plan approval, tier/entitlement, report runs and UI.
 
-This guard prevents literal duplicate charts without suppressing genuinely different analyses that happen to involve the same entities.
+## Current limitation / deferred work
 
-### Stage 3 — Sol final synthesis
-
-A final `gpt-5.6-sol` call with high reasoning receives the completed structured objective sections and no tools.
-
-It returns only:
-- report title;
-- one short introductory paragraph;
-- one short decision-facing closing note.
-
-The HTML/layout shell is no longer sent to Sol. The App already owns layout and numbering, so sending the shell was redundant context.
-
-Sol must not introduce new facts or repeat the objectives as a separate takeaway section.
-
-## Final report contract
-
-`report_runs.final_report.version = 2` remains structurally compatible.
-
-New reports contain:
-- title;
-- short introduction in the existing `executiveSummary` compatibility field;
-- deterministic `analyzedCohort` total and per-study-cohort trial counts for the exact selected evidence set;
-- up to three Light objective sections;
-- 1–4 retained analyses per objective when genuinely distinct;
-- closing note.
-
-There is no `keyTakeaways` generation for new reports.
-
-Objectives, sub-analyses and ranked items are not numbered. The App renderer controls typography, colors and layout; graphs are the only boxed elements inside objective content.
-
-## Prompt/schema versions after 2026-09-06 cleanup
-
-- planner schema: `intel_agent_report_plan_v2`
-- selection schema: `intel_light_trial_selection_v5`
-- objective schema: `intel_light_objective_v5`
-- synthesis schema: `intel_light_synthesis_v5`
-
-Prompt simplification is implemented in MCP PR #41, tier-neutral planning in PR #42, and analyzed-cohort tracking in PR #43.
-
-## Current operational limitation
-
-Execution still runs as an in-process async task on the MCP web service. A service restart can interrupt an active run. Durable worker/claim-heartbeat-retry execution remains future work.
+- Max execution/fulfilment is not implemented.
+- Stripe live mode remains blocked until Max fulfilment is ready.
+- Durable worker/claim-heartbeat-retry report execution remains future work.
