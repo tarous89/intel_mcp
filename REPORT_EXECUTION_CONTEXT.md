@@ -17,7 +17,9 @@ Production MCP service:
 - Unified ten-profile call limit: MCP PR #35 / squash `f3fa55b078f21d43b2a54cf9e34b2a4cfc5c127c`
 - MCP contract/documentation coherence audit: MCP PR #36 / squash `4a91f4b4352cd1e7064deedf6212f41383fd1015`
 - Light Report v3 execution: MCP PR #37 / squash `ad87d301ab33371dfb07bbae915d438d5ec51894`
-- Current production deploy before the coverage-priority change: `dep-daejsu95efls73a0nau0`
+- Coverage-prioritized Light execution: MCP PR #38 / squash `a61e84a3b994c2a082895cdf1fb0033aad77a087`
+- Coverage-prioritized Report-plan output: MCP PR #39 / squash `5b7084a96de8c91df6e96fdc896b3364c374a333`
+- Current production deploy: `dep-daeklh3bc2fs73cegu60`
 
 ## `get_profiles` contract used by report selection
 
@@ -31,16 +33,16 @@ Light has **100 unique profile IDs per analysis**; Max remains 500. Re-reading t
 
 ## Planning and Light eligibility
 
-Step 2 planning remains `gpt-5.6-sol`. It returns 5–7 report categories with evidence-based `maxOnly` and `coverage`; the App applies the separate Light product limit.
+Step 2 planning remains `gpt-5.6-sol`. It returns 5–7 report categories with evidence-based `maxOnly` and `coverage`.
 
 `maxOnly=true` means the category cannot be completed credibly from Trial Profile data alone and needs deeper protocol/document/extraction capability. Those categories are always Max regardless of coverage or original plan position. Published results already stored in Trial Profile are valid Light evidence and are not automatically Max.
 
-For Light execution, eligible objectives are prioritized deterministically:
-1. profile-eligible (`maxOnly != true`) objectives with `coverage=strong`, preserving their planner order;
-2. profile-eligible objectives with `coverage=source_dependent`, preserving their planner order;
-3. planner-declared `maxOnly=true` objectives remain outside Light.
+New and revised plans are normalized into the same stable order used by the App and Light executor:
+1. profile-eligible (`maxOnly != true`) objectives with `coverage=strong`, preserving planner order within that bucket;
+2. profile-eligible objectives with `coverage=source_dependent`, preserving planner order within that bucket;
+3. planner-declared `maxOnly=true` objectives, which remain outside Light.
 
-The first **three** profile-eligible objectives after this prioritization become Light. This prevents an earlier Source-dependent objective from consuming a Light slot while a later Strong-coverage objective is available.
+The first **three** profile-eligible objectives after this prioritization become Light. This prevents an earlier Source-dependent objective from consuming a Light slot while a later Strong-coverage objective is available. `maxOnly` remains evidence-capability based only and is never set because of count or position.
 
 ## Light Report v3 execution contract
 
