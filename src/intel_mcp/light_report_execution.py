@@ -130,6 +130,44 @@ def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return {**plan, "reportSections": ordered_sections}
 
 
+def _analyzed_cohort_summary(
+    plan: dict[str, Any],
+    selected_trials: list[SelectedTrial],
+) -> dict[str, Any]:
+    """Summarize the exact frozen evidence cohort without exposing trial identities."""
+    cohorts = plan.get("studyCohorts")
+    if not isinstance(cohorts, list) or not cohorts:
+        raise ReportExecutionError(
+            "LIGHT_REPORT_PLAN_INVALID",
+            "The approved plan has no study cohorts.",
+            False,
+        )
+
+    buckets: list[dict[str, Any]] = []
+    for index, raw in enumerate(cohorts):
+        if not isinstance(raw, dict):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
+        title = raw.get("title")
+        role = raw.get("role")
+        if not isinstance(title, str) or not title.strip() or role not in {"primary", "adjacent"}:
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A study cohort is invalid.", False)
+        buckets.append(
+            {
+                "title": title.strip(),
+                "role": role,
+                "trialCount": sum(1 for item in selected_trials if item.cohort_index == index),
+            }
+        )
+
+    if sum(bucket["trialCount"] for bucket in buckets) != len(selected_trials):
+        raise ReportExecutionError(
+            "LIGHT_REPORT_EVIDENCE_SET_INVALID",
+            "The selected trials do not map cleanly to the approved study cohorts.",
+            False,
+        )
+    return {"totalTrials": len(selected_trials), "cohorts": buckets}
+
+
 def _steps(objectives: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {"key": "trial_selection", "label": "Finding the best 20 trials", "status": "waiting"},
@@ -347,6 +385,7 @@ class LightReportExecutor:
                 "tier": "light",
                 "title": synthesis.title,
                 "executiveSummary": synthesis.executive_summary,
+                "analyzedCohort": _analyzed_cohort_summary(plan, selection.selected_trials),
                 "closingNote": synthesis.closing_note,
                 "sections": [item.model_dump() for item in section_results],
             }

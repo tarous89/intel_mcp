@@ -25,6 +25,8 @@ The planner returns:
 - `coverage` (`strong` or `source_dependent`);
 - `maxOnly`.
 
+Planned analyses are tier-neutral. They describe what should be ranked, compared, distributed or shortlisted and must not hard-code a result count such as top 5, top 10 or top 100. Output breadth belongs to the selected report tier/executor.
+
 ### Analysis breadth rule
 
 There is no target analysis count, but one-analysis categories are not the default safe answer.
@@ -66,7 +68,7 @@ Its prompt is intentionally short. It tells Sol to:
 2. build a clinically plausible candidate pool of at most 100 trials;
 3. profile-review every final selected trial;
 4. choose one coherent 20-trial set that balances target relevance and usefulness across all Light objectives;
-5. label each trial `priority` or `adjacent` with no quota.
+5. assign every selected trial to the zero-based approved `studyCohorts` entry it best represents, while also retaining the broad `priority`/`adjacent` role; there is no quota by cohort.
 
 The user payload contains only:
 - analysis ID;
@@ -77,6 +79,28 @@ The user payload contains only:
 - the three Light objectives.
 
 The redundant full approved plan and duplicated numeric count fields are no longer sent.
+
+### Analyzed cohort summary
+
+The report-level cohort statistics are derived **after Sol has chosen the final 20**, not from the earlier filter candidate pool. This ensures the displayed numbers describe the exact frozen evidence set that Terra analyzes.
+
+The selector returns `cohort_index` for every selected trial. MCP validates that each index exists in the approved plan and that its broad `group` matches the cohort role.
+
+The executor then deterministically writes only aggregate statistics into the final report:
+
+```json
+{
+  "analyzedCohort": {
+    "totalTrials": 20,
+    "cohorts": [
+      {"title": "...", "role": "primary", "trialCount": 0},
+      {"title": "...", "role": "adjacent", "trialCount": 0}
+    ]
+  }
+}
+```
+
+All approved study cohorts are represented, including a zero count when none of the final selected trials came from that cohort. No trial identities are exposed in this summary and no additional model call is used.
 
 ### Frozen complete-profile bundle
 
@@ -91,7 +115,7 @@ Terra receives directly in context:
 - one objective with its 1–4 planned analyses;
 - all 20 complete Trial Profiles using aliases `T01`–`T20`.
 
-Terra receives no tools.
+Each evidence item also carries its broad `group` and validated `cohort_index`. Terra receives no tools.
 
 The prompt is intentionally compact:
 - consider all 20 profiles before cohort-level conclusions;
@@ -105,7 +129,7 @@ The prompt is intentionally compact:
 
 Each retained sub-analysis uses one simple `stat`, `bar` or `donut` visual with at most five items, plus concise interpretation and optional named-item context.
 
-Terra payload no longer includes EU trial IDs or profile schema versions because those are not needed for analysis. Provenance uses only `T01`–`T20` aliases and is mapped back internally after the model call.
+Terra payload does not include EU trial IDs or profile schema versions because those are not needed for analysis. Provenance uses only `T01`–`T20` aliases and is mapped back internally after the model call.
 
 ### Exact duplicate safety guard
 
@@ -133,6 +157,7 @@ Sol must not introduce new facts or repeat the objectives as a separate takeaway
 New reports contain:
 - title;
 - short introduction in the existing `executiveSummary` compatibility field;
+- deterministic `analyzedCohort` total and per-study-cohort trial counts for the exact selected evidence set;
 - up to three Light objective sections;
 - 1–4 retained analyses per objective when genuinely distinct;
 - closing note.
@@ -141,14 +166,14 @@ There is no `keyTakeaways` generation for new reports.
 
 Objectives, sub-analyses and ranked items are not numbered. The App renderer controls typography, colors and layout; graphs are the only boxed elements inside objective content.
 
-## Prompt versions after 2026-09-06 cleanup
+## Prompt/schema versions after 2026-09-06 cleanup
 
 - planner schema: `intel_agent_report_plan_v2`
-- selection schema: `intel_light_trial_selection_v4`
+- selection schema: `intel_light_trial_selection_v5`
 - objective schema: `intel_light_objective_v5`
 - synthesis schema: `intel_light_synthesis_v5`
 
-The prompt cleanup is implemented in MCP PR #41.
+Prompt simplification is implemented in MCP PR #41, tier-neutral planning in PR #42, and analyzed-cohort tracking in PR #43.
 
 ## Current operational limitation
 

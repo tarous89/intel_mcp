@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from intel_mcp.light_report import LightTrialSelection
-from intel_mcp.light_report_execution import LightReportExecutor
+from intel_mcp.light_report_execution import LightReportExecutor, _analyzed_cohort_summary
 from intel_mcp.profiles import AppProfileAccessResponse, EngineProfilesResponse
 from intel_mcp.server import settings
 
@@ -67,11 +67,31 @@ def _selection() -> LightTrialSelection:
                 {
                     "trial_id": f"2026-{index:06d}-00-00",
                     "group": "priority" if index <= 12 else "adjacent",
+                    "cohort_index": 0 if index <= 12 else 1,
                 }
                 for index in range(1, 21)
             ]
         }
     )
+
+
+def test_analyzed_cohort_summary_uses_final_selection_and_plan_titles() -> None:
+    plan = {
+        "studyCohorts": [
+            {"role": "primary", "title": "Resected NSCLC trials"},
+            {"role": "adjacent", "title": "Broader NSCLC trials"},
+            {"role": "adjacent", "title": "Cross-setting lung trials"},
+        ]
+    }
+    summary = _analyzed_cohort_summary(plan, _selection().selected_trials)
+    assert summary == {
+        "totalTrials": 20,
+        "cohorts": [
+            {"title": "Resected NSCLC trials", "role": "primary", "trialCount": 12},
+            {"title": "Broader NSCLC trials", "role": "adjacent", "trialCount": 8},
+            {"title": "Cross-setting lung trials", "role": "adjacent", "trialCount": 0},
+        ],
+    }
 
 
 @pytest.mark.anyio
