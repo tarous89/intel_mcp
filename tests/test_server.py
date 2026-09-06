@@ -642,15 +642,69 @@ async def test_report_plan_route_requires_its_service_token_and_returns_sol_outp
             assert kwargs["insights"] == "Compare endpoints and sites"
             return ReportPlan.model_validate(
                 {
-                    "studyCohorts": [{"title": "Retinal gene therapy", "description": "Comparable European interventional trials."}],
-                    "inclusionSummary": "European interventional retinal gene-therapy trials are prioritized.",
+                    "version": 3,
+                    "studyCohorts": [
+                        {
+                            "role": "primary",
+                            "title": "Phase 2 retinal gene-therapy trials",
+                            "details": ["Inherited retinal disease", "Phase 2", "Gene therapy"],
+                            "maxOnly": False,
+                        },
+                        {
+                            "role": "adjacent",
+                            "title": "Biomarker-matched retinal gene-therapy trials",
+                            "details": ["Match the requested molecular subgroup using deeper evidence"],
+                            "maxOnly": True,
+                        },
+                        {
+                            "role": "adjacent",
+                            "title": "Related advanced-therapy retinal trials",
+                            "details": ["Same disease space with clinically relevant advanced modalities"],
+                            "maxOnly": True,
+                        },
+                    ],
                     "exclusionSummary": "Unrelated and non-interventional studies are excluded.",
                     "reportSections": [
-                        {"title": "Eligibility", "description": "Compare eligibility patterns.", "coverage": "strong"},
-                        {"title": "Endpoints", "description": "Compare endpoint strategies.", "coverage": "strong"},
-                        {"title": "Countries", "description": "Compare EU participation and timelines.", "coverage": "strong"},
-                        {"title": "Sites", "description": "Identify experienced sites.", "coverage": "strong"},
-                        {"title": "Operations", "description": "Review reported operational lessons.", "coverage": "source_dependent"},
+                        {
+                            "title": "Eligibility",
+                            "analyses": [
+                                "Rank common eligibility criteria",
+                                "Compare criteria in the closest molecular matches",
+                                "Identify potentially recruitment-limiting restrictions",
+                            ],
+                        },
+                        {
+                            "title": "Endpoints",
+                            "analyses": [
+                                "Rank commonly used endpoints",
+                                "Compare endpoint choice across relevant subgroups",
+                                "Review protocol-level endpoint timing",
+                            ],
+                        },
+                        {
+                            "title": "Countries",
+                            "analyses": [
+                                "Compare observed country timelines",
+                                "Assess timeline consistency in closest-matched trials",
+                                "Identify evidence-supported country trade-offs",
+                            ],
+                        },
+                        {
+                            "title": "Sites",
+                            "analyses": [
+                                "Rank sites by relevant trial activity",
+                                "Compare disease and modality experience",
+                                "Assess competitive trial pressure",
+                            ],
+                        },
+                        {
+                            "title": "Operations",
+                            "analyses": [
+                                "Summarize reported operational patterns",
+                                "Review source-documented operational changes",
+                                "Identify recurring evidence-supported operational risks",
+                            ],
+                        },
                     ],
                 }
             )
@@ -671,7 +725,8 @@ async def test_report_plan_route_requires_its_service_token_and_returns_sol_outp
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
     assert authorized.json()["source"] == "sol"
-    assert authorized.json()["plan"]["studyCohorts"][0]["title"] == "Retinal gene therapy"
+    assert authorized.json()["plan"]["version"] == 3
+    assert authorized.json()["plan"]["studyCohorts"][0]["title"] == "Phase 2 retinal gene-therapy trials"
 
 
 @pytest.mark.anyio
