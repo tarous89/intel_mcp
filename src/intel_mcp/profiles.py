@@ -8,8 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from intel_mcp.models import AnalysisAllowance
 
 
-MAX_PROFILES_PER_CALL = 100
-MAX_FULL_PROFILES_PER_CALL = 20
+MAX_PROFILES_PER_CALL = 10
 
 ProfileSection = Literal[
     "overview",
