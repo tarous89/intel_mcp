@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 > This file is the current source of truth for Intel Agent report execution and supersedes older report-execution statements in `PROJECT_CONTEXT.md` where they conflict. General MCP tool/data-plane rules in `PROJECT_CONTEXT.md` remain authoritative.
 
@@ -14,17 +14,19 @@ Production MCP service:
 - Light Report v2: MCP PR #31 / squash `ff3ac13e241e7ee1aedd1af1493de97abde7b00a`
 - Non-blocking provenance hardening: MCP PR #33 / squash `886c47d0952df8575462c2594db7966e0b367f46`
 - Section-aware profile retrieval: MCP PR #34 / squash `b75039ca0ed2d13ce908c5888c24a5e8fd979976`
-- Current production deploy: `dep-dae9fq142hec73c7g9n0`
+- Current production deploy before the single-limit correction: `dep-dae9fq142hec73c7g9n0`
 
 ## Profile-retrieval capability for the next report iteration
 
-MCP PR #34 is live and adds section-aware `get_profiles` without changing the report runner in this release. The tool supports exact deterministic Trial Profile 10.0.0 projections for up to 100 trial IDs when a non-empty `sections` list is supplied, and complete profiles for up to 20 trial IDs when `sections` is omitted or empty.
+`get_profiles` keeps the original bounded read shape and adds only optional `sections`. Every call accepts **1–10 trial IDs**, regardless of whether sections are requested or complete profiles are requested. A non-empty `sections` list returns exact deterministic Trial Profile 10.0.0 projections; omitted or empty `sections` returns the complete approved profile. There is no section-versus-complete per-call tier.
 
 The controlled sections are: `overview`, `population`, `trial_design`, `interventions`, `eligibility`, `objectives`, `endpoints`, `sponsor_and_organizations`, `contacts`, `countries`, `sites`, `documents`, `lifecycle`, and `results`. These are field projections of the approved stored profile, not generated cards or summaries.
 
-The paired App control-plane change is live in App PR #78 / squash `733bf38dd4a02ad5a9d336485bf924b1916d94f7`, Render deploy `dep-dae9errm8hqs73cufdh0`, raising the Light unique-profile allowance from 50 to 100. Re-reading the same trial with different sections or later as a complete profile remains allowance-idempotent.
+The public `get_profiles` output contract remains unchanged: `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, `counts`, and `analysis_allowance`. Each returned item still contains `eu_number`, `profile_schema_version`, `approved_at`, and `profile`.
 
-**Important:** the current Light execution stages below are intentionally unchanged by MCP PR #34. Stage 1 still selects one frozen 20-trial evidence set and Stage 2 still analyzes that same set. The 100-candidate section-projection workflow discussed for the next report iteration will be implemented separately after this MCP capability rollout.
+The paired App control-plane change is live in App PR #78 / squash `733bf38dd4a02ad5a9d336485bf924b1916d94f7`, Render deploy `dep-dae9errm8hqs73cufdh0`, setting the Light allowance to **100 unique profiles per analysis**; Max remains 500. Re-reading the same trial with different sections or later as a complete profile remains allowance-idempotent. The 100-profile value is an analysis allowance, not a per-call payload size.
+
+**Important:** the current Light execution stages below are intentionally unchanged by this MCP capability work. Stage 1 still selects one frozen 20-trial evidence set and Stage 2 still analyzes that same set. The future section-assisted selection workflow will be implemented separately after the MCP contract is finalized.
 
 ## Planning and Max eligibility
 
