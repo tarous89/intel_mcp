@@ -45,6 +45,9 @@ async def test_report_plan_is_generated_by_sol_with_light_max_contract() -> None
         developer_text = payload["input"][0]["content"][0]["text"]
         for tool_name in ("filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
             assert tool_name in developer_text
+        assert "get_profiles reads 1–10 approved Trial Profiles per call" in developer_text
+        assert "Optional controlled sections return exact deterministic projections" in developer_text
+        assert "omitting sections or passing an empty list returns the complete approved profile" in developer_text
         assert "Light execution can use ONLY structured filtering and complete approved Trial Profiles" in developer_text
         assert "maxOnly=true only when" in developer_text
         assert "do not use maxOnly merely because a category is fifth or later" in developer_text
