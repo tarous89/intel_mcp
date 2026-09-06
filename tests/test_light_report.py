@@ -35,7 +35,7 @@ PLAN = {
     "reportSections": [
         {
             "title": "Endpoints",
-            "analyses": ["Endpoint frequency", "Endpoint timing", "Endpoint hierarchy", "Fourth bullet"],
+            "analyses": ["Endpoint frequency", "Endpoint timing", "Endpoint hierarchy", "Fourth distinct lens"],
             "coverage": "strong",
             "maxOnly": False,
         },
@@ -90,12 +90,24 @@ def _objective_output(trial_reference: str) -> dict:
     }
 
 
-def test_light_report_uses_first_three_non_max_categories_and_three_subanalyses() -> None:
+def _duplicate_visual_output() -> dict:
+    output = _objective_output("T01")
+    output["sub_analyses"].append({
+        "title": "Endpoint ranking restated",
+        "visual": {"kind": "bar", "title": "Same ranking, different title", "unit": "trials", "labels": ["PFS", "OS"], "values": [8, 5], "note": "Same trial count per endpoint."},
+        "interpretation": "The same ranking appears again.",
+        "items": [{"label": "OS", "value": "5 trials", "explanation": "Retained as useful context in the consolidated result.", "trial_ids": ["T02"]}],
+        "trial_ids": ["T02"],
+    })
+    return output
+
+
+def test_light_report_uses_first_three_non_max_categories_and_up_to_four_analyses() -> None:
     objectives = light_objectives(PLAN)
     assert LIGHT_OBJECTIVE_COUNT == 3
-    assert LIGHT_MAX_SUBANALYSES == 3
+    assert LIGHT_MAX_SUBANALYSES == 4
     assert [item["title"] for item in objectives] == ["Endpoints", "Eligibility", "Sites"]
-    assert objectives[0]["analyses"] == ["Endpoint frequency", "Endpoint timing", "Endpoint hierarchy"]
+    assert objectives[0]["analyses"] == ["Endpoint frequency", "Endpoint timing", "Endpoint hierarchy", "Fourth distinct lens"]
 
 
 def test_light_report_runtime_uses_sol_selection_terra_objectives_and_sol_synthesis() -> None:
@@ -103,7 +115,9 @@ def test_light_report_runtime_uses_sol_selection_terra_objectives_and_sol_synthe
     assert LIGHT_REPORT_MODEL == "gpt-5.6-terra"
     assert LIGHT_REPORT_SERVICE_TIER == "flex"
     assert LIGHT_SYNTHESIS_MODEL == "gpt-5.6-sol"
-    assert "1.1" in LIGHT_REPORT_SHELL_HTML
+    assert "1.1" not in LIGHT_REPORT_SHELL_HTML
+    assert "objective-number" not in LIGHT_REPORT_SHELL_HTML
+    assert "executive-takeaways" not in LIGHT_REPORT_SHELL_HTML
     assert "graph-box" in LIGHT_REPORT_SHELL_HTML
 
 
@@ -143,7 +157,11 @@ async def test_objective_call_uses_terra_high_full_profiles_and_no_mcp_tools() -
         assert payload["model"] == LIGHT_REPORT_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_objective_v3"
+        assert payload["text"]["format"]["name"] == "intel_light_objective_v4"
+        developer = payload["input"][0]["content"][0]["text"]
+        assert "candidate analytical lenses rather than mandatory output slots" in developer
+        assert "Return between 1 and" in developer
+        assert "Do not split one entity ranking" in developer
         user = json.loads(payload["input"][1]["content"][0]["text"])
         evidence_trials = user["evidence_trials"]
         assert len(evidence_trials) == 20
@@ -152,7 +170,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_no_mcp_tools() -
         assert "profile" in evidence_trials[0]
         schema = payload["text"]["format"]["schema"]
         assert schema["properties"]["summary_sentences"]["maxItems"] == 1
-        assert schema["properties"]["sub_analyses"]["maxItems"] == 3
+        assert schema["properties"]["sub_analyses"]["maxItems"] == 4
         sub_analysis = schema["properties"]["sub_analyses"]["items"]
         assert sub_analysis["properties"]["trial_ids"]["items"]["enum"] == [f"T{index:02d}" for index in range(1, 21)]
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_objective_output("T01"))}]}]})
@@ -173,19 +191,43 @@ async def test_objective_call_uses_terra_high_full_profiles_and_no_mcp_tools() -
 
 
 @pytest.mark.anyio
-async def test_synthesis_uses_sol_high_and_binding_html_shell_without_returning_html() -> None:
+async def test_objective_can_collapse_redundant_planned_analyses_and_exact_duplicate_visuals() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_duplicate_visual_output())}]}]})
+
+    configured = replace(settings, openai_api_key="test-key")
+    runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
+    result = await runner.analyze_objective(
+        context="Adjuvant NSCLC",
+        objective={"title": "Endpoints", "analyses": ["Endpoint frequency", "Endpoint ranking by trial count"], "coverage": "strong"},
+        selected_trials=LightTrialSelection.model_validate(_selection()).selected_trials,
+        full_profiles=_profiles(),
+    )
+
+    assert len(result.sub_analyses) == 1
+    assert [item.label for item in result.sub_analyses[0].items] == ["PFS", "OS"]
+    assert result.sub_analyses[0].trial_ids == ["2026-000001-00-00", "2026-000002-00-00"]
+    assert result.qa_warnings == ["duplicate_subanalysis_visual_removed"]
+
+
+@pytest.mark.anyio
+async def test_synthesis_uses_sol_high_and_binding_html_shell_without_takeaways_or_numbering() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert payload["model"] == LIGHT_SYNTHESIS_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
+        assert payload["text"]["format"]["name"] == "intel_light_synthesis_v4"
+        schema = payload["text"]["format"]["schema"]
+        assert "key_takeaways" not in schema["properties"]
         developer = payload["input"][0]["content"][0]["text"]
         assert LIGHT_REPORT_SHELL_HTML in developer
         assert "must NOT output HTML" in developer
+        assert "there is no executive-takeaways section" in developer
+        assert "not numbered" in developer
         output = {
             "title": "NSCLC development evidence",
             "executive_summary": "The evidence supports a focused endpoint and site strategy.",
-            "key_takeaways": ["Endpoint patterns are concentrated.", "Site experience is uneven."],
             "closing_note": "Use the strongest recurring patterns as the design starting point.",
         }
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output)}]}]})
@@ -198,6 +240,7 @@ async def test_synthesis_uses_sol_high_and_binding_html_shell_without_returning_
         sections=[ObjectiveResult.model_validate(_objective_output("T01"))],
     )
     assert result.title == "NSCLC development evidence"
+    assert result.executive_summary == "The evidence supports a focused endpoint and site strategy."
 
 
 @pytest.mark.anyio
