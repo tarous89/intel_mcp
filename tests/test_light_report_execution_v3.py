@@ -116,10 +116,27 @@ def test_v3_light_execution_uses_only_shared_group_and_first_analysis_of_five_ob
     selection_plan, objectives = _v3_light_execution_view(plan)
     assert len(selection_plan["studyCohorts"]) == 1
     assert selection_plan["studyCohorts"][0]["title"] == "Phase 2 oncology trials"
+
     assert len(objectives) == 5
     assert objectives[0] == {"title": "Objective 1", "analyses": ["Shared 1"]}
     assert objectives[-1] == {"title": "Objective 5", "analyses": ["Shared 5"]}
     assert all(len(item["analyses"]) == 1 for item in objectives)
+
+    # The reused selector has a legacy three-container helper, but its selection-only
+    # projection must still contain all five shared evidence needs.
+    assert len(selection_plan["reportSections"]) == 3
+    selection_analysis_text = [
+        analysis
+        for section in selection_plan["reportSections"]
+        for analysis in section["analyses"]
+    ]
+    assert selection_analysis_text == [
+        "Shared 1",
+        "Objective 4: Shared 4",
+        "Shared 2",
+        "Objective 5: Shared 5",
+        "Shared 3",
+    ]
 
 
 @pytest.mark.anyio
