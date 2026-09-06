@@ -34,19 +34,22 @@ compute: 0.5c-512mb paid always-on
 
 `/mcp` accepts either the dedicated internal-App service bearer or a scoped TrialAgents OAuth token. `/health` is public and non-sensitive.
 
-Current report-plan v3 / Light-execution contract is live in production. Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
+Current report-plan v4 / Light-execution contract is live in production. Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 
 ## Engine read data plane
 
-Production MCP reads only these Engine-owned approved-only views/contracts:
+Production MCP reads only Engine-owned approved-only views/contracts, including:
 
 ```text
 mcp_serving.profile_filter_v1
 mcp_serving.profile_countries_v1
+mcp_serving.profile_diseases_v1
 mcp_serving.approved_profiles_v1
 mcp_serving.documents_v1
 mcp_serving.document_text_v1
 ```
+
+`profile_diseases_v1` is the approved-only projection added for deterministic disease filtering. It exposes persisted Trial Profile disease names only; it does not derive stage, biomarker, molecular subtype, line of therapy or treatment setting.
 
 The database adapter validates that the login is `intel_mcp_reader_v1`, uses read-only transactions and cannot query Engine base tables or perform writes.
 
@@ -73,16 +76,19 @@ The App enables tools per active analysis. Server-side App authorization remains
 
 ### `filter_trials`
 
-Deterministic approved-profile filtering. Use it first for broad structured screening; complex semantic inclusion/exclusion belongs in `classify_trials`.
+Deterministic approved-profile filtering. Use it first for structured screening; complex semantic inclusion/exclusion belongs in `classify_trials`.
 
 Important boundaries:
 - explicit field/operator/value allowlists only;
 - page size 1–100;
 - output shortlist items only expose EU number, trial title and sponsor name;
 - no raw-CTIS fallback;
+- `diseases` is supported as case-insensitive substring matching against individual persisted approved disease names;
+- disease filter operators: `contains_any`, `contains_all`, `contains_none`; negative disease filtering requires known disease rows;
+- disease filtering does **not** infer stage/biomarker/molecular subtype/line/setting;
 - current unique-returned-profile allowance: Light 100, Max 1,000.
 
-Exact filter vocabulary/operator contract lives in code and tool docs.
+Exact filter vocabulary/operator contract lives in code and `docs`/Engine filter documentation.
 
 ### `classify_trials`
 
@@ -136,75 +142,74 @@ Extracts a caller-defined typed schema from one approved trial using its complet
 
 Canonical detail: `docs/extract-variables.md`.
 
-## Report planning — v3
+## Report planning — v4
 
 Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 
 Planning uses `gpt-5.6-sol`, medium reasoning, no tools. The planner receives only the user brief, requested insights, optional current plan/revision request and a concise evidence-capability description.
 
-New/revised plans use `intel_agent_report_plan_v3`.
+New/revised plans use `intel_agent_report_plan_v4`.
 
 ### Trial groups
 
-Every new v3 plan contains **3–5 trial groups**:
+Every new v4 plan contains **3–5 groups**:
 
-1. one shared Light + Max group first;
-2. **2–4 Max-only groups** after it.
+1. one shared Light + Max group;
+2. **2–4 Max groups**.
 
-The shared group must be honestly selectable with broad structured filtering alone. It should be as close as possible to the user request without pretending that fine-grained biomarker, disease-stage, line-of-therapy or protocol concepts are simple filters.
+The shared group is deliberately simple and uses exactly **one** structured dimension:
 
-Max groups are chosen dynamically for decision value. They may recover a fine-grained target with deeper matching, segment evidence by a clinically meaningful dimension, isolate one useful component or add an adjacent comparator. There are no fixed user-facing labels such as target/adjacent/broader.
+```text
+disease | therapeutic_area | phase | modality | country
+```
 
-Internal compatibility metadata:
-- shared group: `role=primary`, `maxOnly=false`;
-- later groups: `role=adjacent`, `maxOnly=true`.
+Priority is disease when a meaningful disease is specified, then therapeutic area, then the more informative of phase/modality, with country as fallback. The shared group never combines multiple dimensions.
 
-Those role labels are not user-facing.
+Fine-grained disease stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy, treatment setting and multi-dimension combinations belong in Max groups. Max groups may recover the exact target, segment evidence or add an adjacent comparator. Prefer compact `X vs Y` wording when comparison is the useful lens; do not state ignored dimensions with `regardless of`/`irrespective of` wording.
 
-### Objectives and analyses
+### Paired analyses
 
-Every new v3 plan contains **5–7 objectives**, each with **3–5 analyses** in product order:
+There is **no user-facing Objectives layer** in v4.
 
-1. first analysis = shared Light + Max descriptive analysis;
-2. next **2–4 analyses = Max**.
+Every v4 plan contains **5–7 analysis pairs**. Each pair has:
 
-The first analysis should directly summarize the evidence through a useful count, ranking, distribution, frequency or observed timeline comparison.
+1. one shared descriptive analysis available in Light + Max;
+2. one paired Max analysis that adds decision depth.
 
-Max analyses must add real decision depth rather than restating the first analysis. Useful dimensions include deeper matching, clinically meaningful segmentation, competition, recency, disease/phase/modality fit, PI-site relationships, protocol/source detail, robustness/variation, trade-offs and evidence-supported recommendations/shortlists.
+Both titles are short and declarative; question-style titles are rejected. The shared analysis uses direct Trial Profile outputs such as counts, rankings, frequencies, distributions and observed timeline comparisons. The Max analysis adds at least two distinct decision factors such as exact clinical fit, recency, competition, PI-site relationships, protocol/source detail, variability, trade-offs or evidence-supported prioritization/recommendation.
 
-Result breadth such as top 5/top 10 is never hard-coded into the plan; the executor/tier decides display breadth.
+The schema keeps an internal top-level `title` equal to the shared analysis title for existing progress/execution compatibility. It is not a user-facing hierarchy layer.
 
-Old category-level coverage/objective-level Max planning is **not** part of v3. Stored v2 plans remain readable/executable with legacy semantics.
+Result breadth such as top 5/top 10/top 100 is never hard-coded into the plan; the product tier controls breadth.
 
-## Light report execution — v3
+The current planner emits v4 only. Its Pydantic model retains v3 read compatibility for stored server/control flows; the Light executor also retains legacy v2/v3 execution paths.
 
-Light intentionally demonstrates the evidence without performing Max work.
+## Light report execution — v4
 
-Before execution, an approved v3 plan is projected to:
-- **first/shared trial group only**;
-- **first five objectives only**;
-- **first analysis only** from each of those objectives.
+Light intentionally executes the shared layer and no Max work.
 
-The remaining groups, objectives and analyses stay visible in the approved plan as Max promises and are never executed by the Light path.
+Before execution, an approved v4 plan is projected to:
+- first/shared single-dimension trial group only;
+- **all 5–7 shared analyses**;
+- no Max trial groups;
+- no paired Max analyses.
 
 Execution:
 
-1. Sol/high/Flex selects exactly 20 trials using only `filter_trials` and `get_profiles`, from up to 100 screened profiles.
+1. Sol/high/Flex selects exactly 20 trials using only `filter_trials` and `get_profiles`, from up to 100 screened profiles. All 5–7 shared evidence needs inform cohort selection; Max criteria are absent.
 2. MCP retrieves the same 20 complete approved Trial Profiles in two bounded batches of 10.
-3. The first analysis from each of the first five objectives runs independently in Terra/high/Flex with the same 20-profile bundle and no tools.
+3. Every shared analysis runs independently in Terra/high/Flex with the same 20-profile bundle and no tools. Shared analysis details become its approved analytical lenses.
 4. Final Sol/high synthesis produces only title, short introduction and closing note.
-5. The completed report remains `final_report.version = 2` for renderer compatibility.
+5. Completed reports remain `final_report.version = 2` for renderer compatibility.
 
-The v3 analyzed-cohort summary shows only the shared group because Max groups are outside the Light evidence set.
-
-Legacy v2 Light plans retain their prior coverage/maxOnly prioritization and three-objective execution behavior.
+The v4 analyzed-cohort summary contains only the shared group because Max groups are outside the Light evidence set.
 
 Current prompt/schema names:
 
 ```text
-planner:   intel_agent_report_plan_v3
+planner:   intel_agent_report_plan_v4
 selection: intel_light_trial_selection_v5
-objective: intel_light_objective_v5
+analysis:  intel_light_objective_v5
 synthesis: intel_light_synthesis_v5
 ```
 
@@ -238,14 +243,14 @@ Classification/extraction worker model/config are App-controlled and resolved at
 
 ## Verification state
 
-The report-plan v3 planner, Light projection boundary and compatibility tests are committed on main. Production Render deploy `dep-daesambm8hqs73dd59ug` is live from commit `1f794afc27454932c3e79eb9507e480ea4011a9a`.
+Engine disease-filter migration/view is live and was verified directly in production. Engine validation passed. The MCP v4 planner, disease filter adapter/schema, v4 Light projection and compatibility tests are on main.
 
-GitHub CI is configured for PRs/main pushes, but no workflow run is attached to the final direct documentation commit; production deploy completed successfully. Do not claim a fresh CI pass unless a run is verified.
+MCP GitHub CI for commit `1bfc9987255a49ebab0aa3a9be3b50627691437d` passed the full test suite and live-health job. Production Render deploy `dep-daetaqh5efls73a9gfa0` is live.
 
 ## Immediate next implementation work
 
-1. Keep v3 Light execution stable and move execution to a durable worker/claim-heartbeat-retry loop.
-2. Implement Max fulfilment against the v3 promise: deeper groups, broader evidence, deeper analyses, source review, downloads and revisions.
+1. Keep v4 Light execution stable and move execution to a durable worker/claim-heartbeat-retry loop.
+2. Implement Max fulfilment against the v4 promise: 2–4 deeper groups, up to 100 analyzed trials, paired deeper analyses, source review, downloads and revisions.
 3. Keep Stripe live mode disabled until Max execution/fulfilment is verified.
 4. Complete Light-to-Max upgrade/revision flow.
 5. Continue OAuth/connector dogfooding and public-directory preparation without weakening App/Engine boundaries.
