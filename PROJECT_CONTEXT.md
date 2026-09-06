@@ -5,7 +5,7 @@
 Last updated: 2026-09-06
 Repository: `tarous89/intel_mcp`
 
-> This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here.
+> This file contains current truth. Superseded planning detail belongs in git history, not as competing active instructions here. For report planning and execution, `REPORT_EXECUTION_CONTEXT.md` is the detailed canonical contract and this file must remain consistent with it.
 
 ## Purpose and boundaries
 
@@ -541,28 +541,42 @@ Report-plan schema version 2 is optimized for rapid approval rather than expert 
 - each group has a short headline `title` plus 1–4 expandable scope `details`;
 - one concise `exclusionSummary`;
 - 5–7 consolidated report categories;
-- each category has a short `title`, 1–6 exact `analyses` bullets and category-level
-  `strong | source_dependent` coverage.
+- each category has a short `title`, 1–6 exact `analyses` bullets, category-level
+  `strong | source_dependent` coverage and evidence-capability `maxOnly`.
 
-Requested outputs come first, duplicate themes stay consolidated, and practical
-recommendations remain inside the relevant category instead of becoming duplicate rows.
-Trial Profile, CTIS lifecycle and protocol evidence count as strong planning coverage. A
-category is `strong` when at least one core analysis is normally supported by those
-sources. `source_dependent` is reserved for categories whose useful analyses all depend
-on observed/post-study evidence such as actual recruitment or country/site performance,
-endpoints met or missed, observed safety outcomes or reported execution problems. A
-strong category may still include an outcome-dependent bullet. CTIS lifecycle dates can
-support timing calculations directly; causal delay claims still require documented
-source evidence.
+Planner quality is binding for both new and revised plans. Every category and analysis
+bullet must directly help answer the user's requested insight or decision, be answerable
+from evidence available to the relevant tier, and imply a concrete output such as a count,
+rate, distribution, ranking, timeline, shortlist, evidence-backed option or recommendation.
+Generic benchmarking or landscape review is omitted unless it materially advances the
+user's query. Quantitative graph-ready outputs are preferred when the evidence naturally
+supports them, especially for Light because every executed Light sub-analysis renders one
+simple visual; the planner must never invent a meaningless metric merely to force a chart.
+
+`maxOnly=true` is used only when the category cannot be completed credibly from complete
+Trial Profile data and needs deeper source-document/protocol/extraction capability. New and
+revised plans normalize profile-eligible Strong-coverage objectives before profile-eligible
+Source-dependent objectives, then Max-only objectives. The first three profile-eligible
+objectives become the Light objective set; `maxOnly` is never assigned because of count or
+position.
 
 The strict OpenAI output schema is v2-only. A Pydantic compatibility validator upgrades
 legacy server-side plan payloads to v2 when encountered, while the App intentionally
 rejects old browser-cached plan shapes and asks for regeneration rather than rendering
 ambiguous stale content.
 
-Report-plan v2 shipped in MCP PR #27 / squash
-`acd34d3304f821344baedf790c035495fe11f55d` and is live in Render deploy
-`dep-dactnr9srm7s73de545g`. PR CI and main push CI passed.
+Current planner hardening is on main in commits `5b30915f3ab3f6c8fbc3d04e2ef3d9fa1d4f3df2`
+(prompt contract) and `cb05abbb238ef827edcb9bb403ae3c4f0eef1bff` (regression assertions).
+
+### Current Light report execution
+
+Detailed contract: `REPORT_EXECUTION_CONTEXT.md`.
+
+- Stage 1: one `gpt-5.6-sol` high-reasoning Flex selection call uses only structured filtering and profile retrieval, may inspect up to 100 unique candidates, and freezes one coherent 20-trial evidence cohort for all Light objectives.
+- MCP then retrieves the same 20 complete approved Trial Profiles in two batches of 10 and reuses that frozen bundle unchanged.
+- Stage 2: up to three coverage-prioritized profile-eligible objectives run as independent `gpt-5.6-terra` high-reasoning Flex calls with no MCP/tools; each objective uses at most three planned sub-analyses and each executed sub-analysis returns one simple graph plus concise interpretation.
+- Stage 3: a final `gpt-5.6-sol` high-reasoning call receives only completed objective sections and produces editorial structure; the App owns the actual renderer.
+- Current execution remains an in-process async task on the MCP web service, so a service restart can still interrupt an active run. A durable worker is the next reliability step.
 
 ## Runtime model selection and telemetry — implemented 2026-08-28
 
@@ -625,29 +639,17 @@ integrations may continue to use only explicitly issued service credentials.
 
 ## Verification
 
-MCP CI (`.github/workflows/ci.yml`) now runs the Python unit/contract suite on PRs and main pushes. On main it also checks the deployed `/health` response and requires `classifier_configured=true`.
+MCP CI (`.github/workflows/ci.yml`) runs the Python unit/contract suite on PRs and main pushes. On main it also checks the deployed `/health` response and requires `classifier_configured=true`.
 
-Verification after the 2026-08-27 API-key configuration:
-
-```text
-unit/contract tests: PASS
-live classifier configuration check: PASS
-MCP Render deployment: LIVE
-app classification-access deployment: LIVE
-```
-
-Latest Report-plan v2 verification passed 69 unit/contract tests and the main live-health
-check. The previously verified restricted serving-view data path remains unchanged by the
-planner release; no paid classification/extraction call or Trial Profile generation was
-performed for this change.
+The current report execution contract is documented in `REPORT_EXECUTION_CONTEXT.md`; planner prompt requirements are additionally protected by `tests/test_report_plan.py` assertions so query utility, evidence answerability and graph-first guidance cannot silently disappear.
 
 ## Immediate next implementation work
 
-1. Upgrade the MCP Render web service when production traffic is enabled; keep the already-live restricted database source.
-2. Add report completion/system-failure lifecycle in the app so reserved analysis entitlements are consumed/restored correctly.
-3. Wire the approved background SOL report execution now that the required MCP business-tool surface is complete.
+1. Move report execution from the MCP web process to a durable worker/claim-heartbeat-retry loop and revisit the 60-minute lease.
+2. Implement Max report execution, fulfilment and revision/upgrade flow; keep Stripe live mode disabled until that path is verified.
+3. Upgrade the MCP Render web service when production traffic requires it while keeping the restricted database source.
 4. Submit the MCP-backed TrialAgents plugin/connector for public directory review after OAuth dogfooding.
 
 ## Context discipline
 
-Update this file after material MCP tool-contract, auth, entitlement, deployment or production changes. Keep current truth concise; use git history for superseded detail rather than accumulating contradictory active sections.
+Update this file after material MCP tool-contract, auth, entitlement, report-workflow, deployment or production changes. Keep current truth concise; use git history for superseded detail rather than accumulating contradictory active sections.
