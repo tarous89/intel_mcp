@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import pytest
+
+from intel_mcp.light_report import LightTrialSelection
+from intel_mcp.light_report_execution import LightReportExecutor
+from intel_mcp.profiles import AppProfileAccessResponse, EngineProfilesResponse
+from intel_mcp.server import settings
+
+
+class StubEngine:
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
+        self.calls.append(list(trial_ids))
+        return EngineProfilesResponse.model_validate(
+            {
+                "data": [
+                    {
+                        "eu_number": trial_id,
+                        "profile_schema_version": "10.0.0",
+                        "approved_at": "2026-09-01T00:00:00+00:00",
+                        "profile": {
+                            "filtering_variables": {"phase": [3]},
+                            "classification_variables": {"trial_title": trial_id},
+                            "ctis_lifecycle": {"overall_updates": [], "countries": []},
+                            "results": {},
+                        },
+                    }
+                    for trial_id in trial_ids
+                ],
+                "unavailable_trial_ids": [],
+                "schema_version": "1.0.0",
+            }
+        )
+
+
+class StubProfileControl:
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    async def authorize_profiles(
+        self,
+        analysis_id: str,
+        trial_ids: list[str],
+    ) -> AppProfileAccessResponse:
+        assert analysis_id == "ana_123456789012345678901234"
+        self.calls.append(list(trial_ids))
+        return AppProfileAccessResponse.model_validate(
+            {
+                "access": {
+                    "allowedTrialIds": trial_ids,
+                    "limit": 100,
+                    "used": 20,
+                    "remaining": 80,
+                    "exhausted": False,
+                }
+            }
+        )
+
+
+def _selection() -> LightTrialSelection:
+    return LightTrialSelection.model_validate(
+        {
+            "selected_trials": [
+                {
+                    "trial_id": f"2026-{index:06d}-00-00",
+                    "group": "priority" if index <= 12 else "adjacent",
+                }
+                for index in range(1, 21)
+            ]
+        }
+    )
+
+
+@pytest.mark.anyio
+async def test_executor_loads_complete_frozen_evidence_once_in_two_ten_profile_batches() -> None:
+    executor = LightReportExecutor(settings)
+    engine = StubEngine()
+    control = StubProfileControl()
+    executor._engine = engine  # type: ignore[assignment]
+    executor._analysis_control = control  # type: ignore[assignment]
+
+    profiles = await executor._load_complete_evidence_profiles(
+        "ana_123456789012345678901234",
+        _selection().selected_trials,
+    )
+
+    expected_ids = [f"2026-{index:06d}-00-00" for index in range(1, 21)]
+    assert [item.eu_number for item in profiles] == expected_ids
+    assert engine.calls == [expected_ids[:10], expected_ids[10:]]
+    assert control.calls == [expected_ids[:10], expected_ids[10:]]

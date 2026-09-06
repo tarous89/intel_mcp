@@ -9,7 +9,16 @@ import httpx
 
 from intel_mcp.config import Settings
 from intel_mcp.control_plane import ControlPlaneClient, ControlPlaneError
-from intel_mcp.light_report import LightReportError, SolLightReportRunner, light_objectives
+from intel_mcp.engine import EngineClient, EngineError
+from intel_mcp.engine_database import DatabaseEngineClient
+from intel_mcp.light_report import (
+    LIGHT_TRIAL_COUNT,
+    LightReportError,
+    SelectedTrial,
+    SolLightReportRunner,
+    light_objectives,
+)
+from intel_mcp.profiles import FullProfileItem, MAX_PROFILES_PER_CALL
 
 
 LOGGER = logging.getLogger("intel_mcp")
@@ -145,18 +154,80 @@ class LightReportExecutor:
         *,
         openai_transport: httpx.AsyncBaseTransport | None = None,
         control_transport: httpx.AsyncBaseTransport | None = None,
+        engine_transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._settings = settings
         self._runner = SolLightReportRunner(settings, transport=openai_transport)
         self._control = ReportExecutionControl(settings, transport=control_transport)
         self._analysis_control = ControlPlaneClient(settings, transport=control_transport)
+        self._engine: EngineClient | DatabaseEngineClient = (
+            DatabaseEngineClient(settings)
+            if settings.engine_source == "database"
+            else EngineClient(settings, transport=engine_transport)
+        )
+
+    async def _load_complete_evidence_profiles(
+        self,
+        analysis_id: str,
+        selected_trials: list[SelectedTrial],
+    ) -> list[FullProfileItem]:
+        """Fetch the complete frozen evidence cohort once, outside model tool use.
+
+        The read remains subject to the normal app-owned profile allowance. Because
+        selection section reads are ID-idempotent, later full reads of the same trial
+        do not consume a second profile unit.
+        """
+        trial_ids = [item.trial_id for item in selected_trials]
+        if len(trial_ids) != LIGHT_TRIAL_COUNT or len(set(trial_ids)) != LIGHT_TRIAL_COUNT:
+            raise ReportExecutionError(
+                "LIGHT_REPORT_EVIDENCE_SET_INVALID",
+                "The selected Light evidence set is invalid.",
+                False,
+            )
+
+        profiles: list[FullProfileItem] = []
+        for start in range(0, len(trial_ids), MAX_PROFILES_PER_CALL):
+            batch = trial_ids[start:start + MAX_PROFILES_PER_CALL]
+            try:
+                engine_result = await self._engine.get_profiles(batch)
+                if engine_result.unavailable_trial_ids:
+                    raise ReportExecutionError(
+                        "LIGHT_REPORT_PROFILE_UNAVAILABLE",
+                        "One or more selected Trial Profiles are no longer available.",
+                        True,
+                    )
+                access_result = await self._analysis_control.authorize_profiles(
+                    analysis_id,
+                    [item.eu_number for item in engine_result.data],
+                )
+            except ControlPlaneError as error:
+                raise ReportExecutionError(error.code, error.message, error.status_code >= 500) from error
+            except EngineError as error:
+                raise ReportExecutionError(error.code, error.message, error.status_code >= 500) from error
+
+            returned_ids = [item.eu_number for item in engine_result.data]
+            if returned_ids != batch or access_result.access.allowed_trial_ids != batch:
+                raise ReportExecutionError(
+                    "LIGHT_REPORT_PROFILE_ACCESS_INCOMPLETE",
+                    "The complete selected Trial Profiles could not all be authorized.",
+                    True,
+                )
+            profiles.extend(engine_result.data)
+
+        if [item.eu_number for item in profiles] != trial_ids:
+            raise ReportExecutionError(
+                "LIGHT_REPORT_EVIDENCE_INCOMPLETE",
+                "The complete 20-profile evidence bundle is incomplete.",
+                True,
+            )
+        return profiles
 
     async def execute(self, report_run_id: str) -> None:
         progress: dict[str, Any] = {
             "version": 1,
             "stage": "starting",
             "completedSteps": 0,
-            "totalSteps": 6,
+            "totalSteps": 5,
             "steps": [],
         }
         try:
@@ -209,16 +280,23 @@ class LightReportExecutor:
             progress = _mark(progress, "trial_selection", "completed", completed_units=20, total_units=20)
             await self._control.progress(report_run_id, progress)
 
+            # Freeze and load the 20 complete profiles once. Objective model calls receive
+            # this same in-context evidence bundle directly and have no MCP tools.
+            full_profiles = await self._load_complete_evidence_profiles(
+                analysis_id,
+                selection.selected_trials,
+            )
+
             section_results = []
             for index, objective in enumerate(objectives):
                 key = f"objective_{index + 1}"
                 progress = _mark(progress, key, "in_progress")
                 await self._control.progress(report_run_id, progress)
                 section = await self._runner.analyze_objective(
-                    analysis_id=analysis_id,
                     context=context,
                     objective=objective,
                     selected_trials=selection.selected_trials,
+                    full_profiles=full_profiles,
                 )
                 section_results.append(section)
                 progress["sectionsCompleted"] = len(section_results)
