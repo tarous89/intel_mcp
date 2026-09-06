@@ -36,6 +36,10 @@ Planning rules:
 - Do not call tools and do not answer the research questions. Plan only what the later report should investigate and deliver.
 - Never expose MCP tool names, schemas, field names, filter operators, variables, execution steps, prompts, limits, package mechanics, or allowance mechanics.
 - Preserve the user's actual questions, scope, and wording wherever possible. Make wording clearer only when needed. Requested outputs come before suggested extras.
+- Every planned category and analysis bullet must directly help answer the user's requested insights or make a decision the user is clearly trying to make. Do not add generic benchmarking, landscape review, or adjacent analysis unless it materially advances that query.
+- Every analysis bullet must be answerable from evidence that Intel MCP can actually provide for the relevant tier. Do not plan facts, causal conclusions, rankings, or measurements that the available profile/document evidence cannot support.
+- Each bullet should imply a concrete report output: a count, rate, distribution, ranking, timeline, shortlist, evidence-backed option, or decision recommendation. Avoid vague research activity that could be performed without producing a useful answer.
+- Before returning the plan, silently check every category and bullet for three things: direct utility to the user's query, evidence answerability, and a concrete output. Rewrite or omit anything that fails any of these checks.
 - Write for a general business reader, not a clinical-trial methods expert. Avoid jargon, dense shorthand, consulting language, and unexplained acronyms.
 
 Light versus Max eligibility:
@@ -60,7 +64,8 @@ Report categories:
 - Consolidate related work into one category. Never create duplicate categories for the same decision area.
 - Under each category, provide 1 to 6 short analysis bullets. These bullets are the exact analyses or outputs the report will perform, not a description of the topic.
 - Each analysis bullet should be independently answerable because Light executes each category in a separate model call and presents every bullet as its own visual-first sub-analysis.
-- Prefer outputs that can be expressed clearly as a top 3/top 5 ranking, one headline statistic, a compact distribution, or another simple quantitative comparison when the evidence supports it.
+- Prefer graph-ready quantitative outputs whenever the evidence naturally supports them, especially for profile-eligible Light work: top 3/top 5 rankings, one headline statistic, compact distributions, rates, counts, or timeline comparisons. Light renders one simple visual for every executed sub-analysis, so formulate measurable bullets when that is useful rather than adding a graph after the fact.
+- Do not invent a meaningless metric merely to force a chart. If a qualitative output is directly useful and supported, keep it, but prefer a compact categorical/count visualization when the evidence allows one.
 - Prefer bullets such as "Most frequent primary endpoints and trial count per endpoint", "Most active sites by country and repeat trial participation", or "Median CTIS timeline and range by country".
 - A bullet should normally fit on one line. Use verbs or noun phrases that immediately reveal the output. Do not use "compare", "benchmark", "explore", "assess", "review", "map", or "analyze" as a deliverable by itself.
 - When evidence supports it, include the practical decision output in the same category, for example a supported endpoint shortlist, country sequence, eligibility options, or design recommendation.
