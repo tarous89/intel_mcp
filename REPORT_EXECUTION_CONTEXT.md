@@ -17,7 +17,7 @@ Production MCP:
 
 Planning uses `gpt-5.6-sol`, medium reasoning, no tools. The planner receives the user brief, requested insights, optional current plan/revision request and a concise evidence-capability description.
 
-New/revised plans use **`intel_agent_report_plan_v4`**. The planner prompt is one clean current contract rather than accumulated amendments to v3.
+New/revised plans use **`intel_agent_report_plan_v4`**. The planner prompt is maintained as one clean current contract; product changes should rewrite stale prompt language rather than append conflicting rules.
 
 ### Trial groups
 
@@ -36,7 +36,7 @@ Selection priority is disease when a meaningful disease is specified, then thera
 
 `disease` is a real `filter_trials` field. It matches individual persisted approved Trial Profile disease names case-insensitively through `mcp_serving.profile_diseases_v1`. Disease filtering does not infer stage, biomarker, molecular subtype, line of therapy or treatment setting.
 
-Fine-grained disease stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy and multi-dimension combinations belong in Max groups. Max groups may recover the exact target, segment the evidence or add an adjacent comparator. Prefer compact `X vs Y` groups when that is the useful comparison and do not mention ignored dimensions with wording such as `regardless of` or `irrespective of`.
+Fine-grained stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy and multi-dimension combinations belong in Max groups. Max groups may recover the exact target, segment evidence or add an adjacent comparator. Prefer compact `X vs Y` groups when that is the useful comparison. Do not mention ignored dimensions with `regardless of` / `irrespective of` wording.
 
 Internal group fields:
 - shared: `role=primary`, `maxOnly=false`, one non-null `filterDimension`;
@@ -44,7 +44,7 @@ Internal group fields:
 
 These role labels are implementation metadata, not user-facing labels.
 
-### Paired analyses
+### Paired analyses and action verbs
 
 There is no user-facing Objectives layer in v4.
 
@@ -53,11 +53,37 @@ A v4 plan contains **5–7 analysis pairs**. Each pair contains:
 1. `sharedAnalysis` — shared Light + Max descriptive work;
 2. `maxAnalysis` — deeper decision work.
 
-Shared titles state what will actually be counted, ranked, compared or summarized. They describe the visible output rather than the methodology. Examples: `Most active trial sites`, `Most-used exclusion criteria`, `Observed enrollment in similar trials`, `Most common primary endpoints`.
+Shared titles intentionally use direct retrieval/calculation verbs and should normally begin with:
 
-Max titles state the concrete result/deliverable the deeper analysis gives the user for their own trial, project, target population or rollout. Slightly longer titles are preferred when they make the outcome understandable before expansion. Examples: `Recommended trial sites for your planned study`, `Principal investigators most relevant to your planned trial`, `Exclusion criteria most likely to restrict recruitment in your target population`, `Expected enrollment range for your planned trial`, `Countries most suitable for your planned rollout`.
+```text
+List · Name · Count · Rank · Report · Calculate · Summarize · Show · Compare · Collect
+```
 
-Do not use abstract consultant-style labels such as `Eligibility strategy fit`, `Enrollment benchmark fit`, `Endpoint strategy fit`, `Country strategy fit`, `Best-fitting trial sites`, or `Operational fit`. The current v4 Pydantic validator rejects `strategy fit`, `benchmark fit`, `best-fitting` / `best fitting`, and `operational fit` in Max titles. Question-style titles are also rejected.
+These titles communicate straightforward evidence retrieval, counting, ranking or calculation. `Quantify` and `Describe` are excluded from the shared title vocabulary. High-interpretation verbs should not be used for shared titles.
+
+Examples:
+- `Rank trial sites by documented activity`
+- `Name the most active principal investigators`
+- `List the most-used exclusion criteria`
+- `Report observed enrollment in similar trials`
+- `Calculate observed country timelines`
+
+Max titles intentionally use interpretation/decision verbs and should normally begin with:
+
+```text
+Analyze · Assess · Evaluate · Prioritize · Recommend · Estimate · Determine · Identify · Match · Synthesize
+```
+
+The verb must reflect the actual deliverable; `Analyze` should not be repeated mechanically. `Benchmark` is not used as a Max title verb.
+
+Examples:
+- `Prioritize trial sites for your planned study`
+- `Identify principal investigators most relevant to your planned trial`
+- `Assess exclusion criteria likely to restrict recruitment in your target population`
+- `Estimate enrollment range for your planned trial`
+- `Recommend countries for your planned rollout`
+
+Generic Max labels remain invalid, including `strategy fit`, `benchmark fit`, `best-fitting` / `best fitting`, and `operational fit`. Question-style titles are also rejected.
 
 Max analyses still add at least two distinct decision factors: exact clinical fit, segmentation, recency, competition, PI-site relationships, source/protocol detail, variability/robustness, trade-offs or supported prioritization/recommendation.
 
@@ -73,10 +99,7 @@ The current planner emits v4 only. The Pydantic model retains read compatibility
 
 Light deliberately executes the shared layer only.
 
-### Execution projection
-
 Before execution, an approved v4 plan is projected to:
-
 - the first/shared single-dimension trial group only;
 - **all 5–7 shared analyses**;
 - no Max trial groups;
@@ -87,7 +110,6 @@ All shared analysis requirements inform selection of the frozen evidence cohort.
 ### Selection
 
 The existing Sol Light selector is reused with only:
-
 - `filter_trials`
 - `get_profiles`
 
@@ -95,39 +117,19 @@ The Light profile/filter allowance remains 100 unique candidates. Sol freezes ex
 
 Internally, the 5–7 shared evidence needs are compacted into three legacy-compatible selection containers so the existing selector helper can consider all of them without receiving Max work. This container shape is not user-facing.
 
-### Evidence bundle
+### Evidence bundle and shared analysis execution
 
 MCP retrieves all 20 complete approved Trial Profiles in bounded batches of 10. The same frozen 20-profile bundle is reused across every shared analysis.
 
-### Shared analysis execution
-
 Each v4 shared analysis runs independently using `gpt-5.6-terra`, high reasoning, Flex, with no MCP tools. The `sharedAnalysis.details` entries are passed as the approved analytical lenses for that row.
 
-The existing structured Light result contract remains for renderer compatibility:
-- one short analysis intro sentence;
-- 1–N retained sub-analyses within the approved shared details;
-- simple stat/bar/donut visuals;
-- concise interpretation and optional named items;
-- one decision implication;
-- bounded evidence notes.
-
-Duplicate-visual and provenance guards remain active.
+The existing structured Light result contract remains for renderer compatibility, including duplicate-visual and provenance guards.
 
 ### Final synthesis
 
 Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces title, short introduction and closing note only.
 
 Completed Light reports remain `final_report.version = 2` for renderer compatibility. The analyzed-cohort summary contains only the shared trial group and exact frozen 20 trials.
-
-## Legacy v2/v3 execution
-
-Stored v2/v3 plans retain their previous execution projection. New/revised plans use v4 and do not alter already-approved legacy plans.
-
-## Current filter addition
-
-`filter_trials` accepts `diseases` as a structured string-set filter with `contains_any | contains_all | contains_none` semantics. Matching is against persisted approved disease rows and is case-insensitive substring matching per disease name. Negative disease filtering requires known disease data.
-
-No Trial Profile schema/generation change was required; the Engine added the approved-only serving view `mcp_serving.profile_diseases_v1` and the MCP restricted reader receives SELECT access only.
 
 ## Current prompt/schema versions
 
@@ -136,21 +138,19 @@ No Trial Profile schema/generation change was required; the Engine added the app
 - Light analysis: `intel_light_objective_v5`
 - synthesis: `intel_light_synthesis_v5`
 
-The 2026-09-07 planner refinement changed title semantics/validation only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
+The 2026-09-07 verb refinement changed planner language/title semantics only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
 
 ## Product/App boundary
 
 The App presentation intentionally shows:
-- heading `Trial selection` for trial groups;
-- no Light labels;
-- no Priority/Adjacent labels;
-- no Strong coverage/Source dependent labels;
-- shared trial group unlabelled;
-- Max trial groups labelled `Max`;
-- v4 analysis pairs in one compact continuous list;
-- shared row followed immediately by a slightly indented Max row;
-- neutral gray Max badge and no yellow Max-row background;
-- evidence breadth only inside expanded shared rows: `Evidence scope: 20 selected trials in Light · up to 100 trials in Max.`.
+- `Trial selection` and `Analyses` headings;
+- scope tags at the section level (`Light · up to 20 trials`, `Max · up to 100 trials`, plus dynamic analysis totals);
+- no Light/Priority/Adjacent/coverage row labels;
+- shared rows unbadged because they belong to both tiers;
+- Max-exclusive rows labeled with a green `Max only` badge;
+- all analysis rows in one equal-alignment list box with no Max indentation or pair/objective separators.
+
+The App's customer-facing workspace unit is called **Report** (`New report`, `Reports`, `Report N`), while internal `projectId`/project records remain unchanged for compatibility.
 
 MCP owns plan generation and bounded clinical analysis. App remains authoritative for identity, plan approval, tier/entitlement, report runs and UI.
 
