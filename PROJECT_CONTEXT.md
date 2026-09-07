@@ -220,6 +220,15 @@ The 2026-09-07 verb change is planner-title semantics only. It does not alter Li
 
 Execution still runs as an in-process async task on the MCP web service; a service restart can interrupt a run. Durable worker/claim-heartbeat-retry execution remains future work.
 
+## Site Agent deterministic project slice
+
+Site Agent uses one Terra/low planning call to extract only controlled therapeutic areas and
+literal keywords. The App stores those criteria, then calls a model-free exhaustive search:
+therapeutic area is the sole eligibility filter; keywords only rank and explain separate
+top-10 Sites and PI-candidate previews. Recorded emails are returned, while explicit versus
+unconfirmed PI role is preserved. Candidate profiles are never sent to a model. See
+`SITE_AGENT_CONTEXT.md`.
+
 ## App control-plane boundary
 
 MCP reaches the App only through service-authenticated internal endpoints for analysis lifecycle, allowances and report execution state. MCP never trusts model/browser assertions for user ID, email, tier, payment state or remaining allowance.

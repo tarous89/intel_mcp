@@ -1,7 +1,8 @@
-"""PI-first, contact-redacted aggregation of approved Trial Profile evidence.
+"""Deterministic Site.agent aggregation over approved Trial Profiles.
 
-No warehouse access or model calls live here. Scores measure observed relevance,
-not performance, patient availability, exclusivity, or site-level recruitment.
+Therapeutic area eligibility is applied before profiles reach this module. The
+planner's keywords only order and explain the eligible sites and investigators;
+they never remove a trial, site, or investigator from the cohort.
 """
 from __future__ import annotations
 
@@ -10,10 +11,30 @@ from datetime import date
 import hashlib
 import re
 import unicodedata
-from typing import Any
+from typing import Any, Iterable
 
-VERSION = "pi-site-relevance-v1"
+VERSION = "therapeutic-area-keywords-v1"
+PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
+
+# Compact, approved Trial Profile sections used for literal keyword evidence.
+# Candidate profiles are never sent to a model.
+KEYWORD_FIELDS = (
+    "trial_title",
+    "diseases",
+    "biomarkers",
+    "disease_stages_or_severity",
+    "interventional_products",
+    "non_interventional_products",
+    "mechanisms_of_action",
+    "molecular_targets",
+    "population_characteristics",
+    "target_population_summary",
+    "treatment_settings",
+    "primary_objectives",
+    "secondary_objectives",
+    "endpoints",
+)
 
 
 def normalized(value: Any) -> str:
@@ -27,154 +48,222 @@ def phrase_in(term: str, text: str) -> bool:
 
 
 def key(*parts: str) -> str:
-    return hashlib.sha256("\x1f".join(normalized(p) for p in parts).encode()).hexdigest()[:24]
+    return hashlib.sha256("\x1f".join(normalized(part) for part in parts).encode()).hexdigest()[:24]
 
 
-def pi_role(contact: dict) -> bool | None:
+def _strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for child in value.values():
+            yield from _strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _strings(child)
+
+
+def _pi_role(contact: dict) -> bool | None:
     flag = contact.get("principal_investigator")
     if isinstance(flag, bool):
         return flag
-    if normalized(contact.get("function")) in {"pi", "principal investigator", "lead principal investigator"}:
+    role = normalized(contact.get("function") or contact.get("role"))
+    if role in {"pi", "principal investigator", "lead principal investigator"}:
         return True
     return None
 
 
-def country_activity(profile: dict, country: str, today: date) -> tuple[bool | None, int | None]:
-    """Only actual country recruitment/operation events; authorisation is not recruitment."""
-    entries = [entry for item in profile.get("ctis_lifecycle", {}).get("countries", [])
-               if item.get("country_code") == country for entry in item.get("updates", [])]
-    events = []
-    starts = []
-    for entry in entries:
-        try:
-            day = date.fromisoformat(str(entry.get("date", ""))[:10])
-        except ValueError:
-            continue
-        if day > today:
-            continue
-        label = normalized(entry.get("label"))
-        if "estimated" in label or "planned" in label:
-            continue
-        if label in {"start of trial", "trial started", "start of clinical trial"}:
-            starts.append(day)
-        if label in {"recruitment started", "start of recruitment", "recruitment restarted", "restart of recruitment"}:
-            events.append((day, True))
-        elif label in {"recruitment ended", "end of recruitment", "trial ended", "end of trial", "early termination", "trial temporarily halted", "temporary halt"}:
-            events.append((day, False))
-    # A stopping event wins a same-day ambiguity. Never treat an authorisation as active.
-    events.sort(key=lambda item: (item[0], not item[1]))
-    return (events[-1][1] if events else None, min(starts).year if starts else None)
+def _contact_name(contact: dict) -> str:
+    first = str(contact.get("first_name") or "").strip()
+    last = str(contact.get("last_name") or "").strip()
+    return " ".join(part for part in (first, last) if part)
 
 
-def relevance(profile: dict, criteria: dict) -> tuple[bool, bool, bool]:
-    variables = profile.get("classification_variables", {})
-    filters = profile.get("filtering_variables", {})
-    text = " ".join([str(variables.get("trial_title") or ""), *map(str, variables.get("diseases", []))])
-    relevant = any(phrase_in(term, text) for term in criteria.get("indication_terms", []))
-    phase = bool(set(filters.get("phase", [])) & set(criteria.get("phases", [])))
-    modality = bool(criteria.get("modality")) and normalized(filters.get("modality")) == normalized(criteria["modality"])
-    return relevant, phase, modality
+def _email(contact: dict) -> str:
+    value = str(contact.get("email") or "").strip().casefold()
+    return value if "@" in value and len(value) <= 320 else ""
 
 
-def metrics(trials: dict[str, dict], criteria: dict) -> dict:
-    relevant = [t for t in trials.values() if t["relevant"]]
-    phase = sum(t["phase"] for t in relevant)
-    modality = sum(t["modality"] for t in relevant)
-    weights = [(60, min(len(relevant) / 5, 1), "Indication experience", len(relevant))]
-    if criteria.get("phases"):
-        weights.append((20, min(phase / 3, 1), "Same-phase indication experience", phase))
-    if criteria.get("modality"):
-        weights.append((20, min(modality / 3, 1), "Same-modality indication experience", modality))
-    score = round(100 * sum(w * value for w, value, _, _ in weights) / sum(w for w, _, _, _ in weights))
-    sponsors = Counter(t["sponsor"] for t in trials.values() if t["sponsor"])
-    years = Counter(str(t["start_year"]) for t in trials.values() if t["start_year"] is not None)
+def _trial_year(profile: dict, trial_id: str) -> int | None:
+    years: list[int] = []
+    for country in (profile.get("ctis_lifecycle") or {}).get("countries", []):
+        for update in country.get("updates", []):
+            value = str(update.get("date") or "")[:4]
+            if value.isdigit():
+                year = int(value)
+                if 2000 <= year <= date.today().year:
+                    years.append(year)
+    if years:
+        return max(years)
+    prefix = trial_id[:4]
+    return int(prefix) if prefix.isdigit() else None
+
+
+def _keyword_hits(profile: dict, keywords: list[str]) -> list[str]:
+    variables = profile.get("classification_variables") or {}
+    text = " ".join(
+        text
+        for field in KEYWORD_FIELDS
+        for text in _strings(variables.get(field))
+    )
+    return [keyword for keyword in keywords if phrase_in(keyword, text)]
+
+
+def _trial(profile: dict, trial_id: str, keywords: list[str]) -> dict:
+    variables = profile.get("classification_variables") or {}
+    sponsor = variables.get("sponsor") or {}
     return {
-        "total": len(trials), "relevant": len(relevant), "samePhase": phase,
-        "sameModality": modality, "score": score,
-        "recruitingInCountry": sum(t["active"] is True for t in trials.values()),
-        "potentialOverlap": sum(t["active"] is True for t in relevant),
-        "unknownActivity": sum(t["active"] is None for t in relevant),
-        "sponsors": [{"name": name, "trials": count} for name, count in sorted(sponsors.items(), key=lambda p: (-p[1], p[0]))[:8]],
-        "countryTrialStartsByYear": dict(sorted(years.items())),
-        "scoreComponents": [{"label": label, "trials": count, "weight": round(100 * w / sum(x[0] for x in weights))} for w, _, label, count in weights],
-        "evidence": [{"id": t["id"], "title": t["title"], "relevant": t["relevant"], "recruitingInCountry": t["active"]} for t in sorted(trials.values(), key=lambda t: (not t["relevant"], t["id"]))[:12]],
+        "id": trial_id,
+        "title": str(variables.get("trial_title") or trial_id),
+        "keywords": _keyword_hits(profile, keywords),
+        "sponsor": str(sponsor.get("name") or "") if isinstance(sponsor, dict) else str(sponsor),
+        "year": _trial_year(profile, trial_id),
     }
 
 
-def rank_profiles(items: list[dict], criteria: dict, *, today: date | None = None,
-                  preview_limit: int = 50, per_country: int = 10) -> dict:
-    today = today or date.today()
-    institutions: dict[str, dict] = {}
-    people: dict[str, dict] = {}
-    seen_trials: set[str] = set()
-    country_filter = set(criteria.get("countries", []))
-    for item in items:
-        trial_id = str(item.get("eu_number", ""))
-        if not EU_NUMBER.fullmatch(trial_id) or trial_id in seen_trials:
-            continue
-        seen_trials.add(trial_id)
-        profile = item.get("profile") or {}
-        variables = profile.get("classification_variables") or {}
-        similar, phase, modality = relevance(profile, criteria)
-        sponsor = (variables.get("sponsor") or {}).get("name") or ""
-        for site in variables.get("sites", []):
-            name, country = str(site.get("name") or "").strip(), str(site.get("country_code") or "").upper()
-            if not name or not re.fullmatch(r"[A-Z]{2}", country) or (country_filter and country not in country_filter):
+def _metrics(trials: dict[str, dict]) -> dict:
+    matched = [trial for trial in trials.values() if trial["keywords"]]
+    keyword_counts = Counter(keyword for trial in trials.values() for keyword in trial["keywords"])
+    sponsor_counts = Counter(trial["sponsor"] for trial in trials.values() if trial["sponsor"])
+    years = [trial["year"] for trial in trials.values() if trial["year"] is not None]
+    evidence = sorted(
+        trials.values(),
+        key=lambda trial: (-bool(trial["keywords"]), -(trial["year"] or 0), trial["id"]),
+    )[:8]
+    return {
+        "therapeuticAreaTrials": len(trials),
+        "keywordMatchedTrials": len(matched),
+        "matchedKeywords": [
+            {"keyword": keyword, "trials": count}
+            for keyword, count in sorted(keyword_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))
+        ],
+        "sponsors": [
+            {"name": name, "trials": count}
+            for name, count in sorted(sponsor_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))[:6]
+        ],
+        "latestTrialYear": max(years) if years else None,
+        "evidence": [
+            {"id": trial["id"], "title": trial["title"], "matchedKeywords": trial["keywords"]}
+            for trial in evidence
+        ],
+    }
+
+
+def _rank_key(record: dict) -> tuple:
+    metrics = record["metrics"]
+    return (
+        -metrics["keywordMatchedTrials"],
+        -len(metrics["matchedKeywords"]),
+        -metrics["therapeuticAreaTrials"],
+        -(metrics["latestTrialYear"] or 0),
+        normalized(record["name"]),
+        record["id"],
+    )
+
+
+class ProfileRanker:
+    """Incrementally aggregate profiles so the full cohort is never held in memory."""
+
+    def __init__(self, criteria: dict):
+        self.keywords = list(criteria.get("keywords") or [])
+        self.sites: dict[str, dict] = {}
+        self.people: dict[str, dict] = {}
+        self.seen_trials: set[str] = set()
+
+    def add(self, items: Iterable[dict]) -> None:
+        for item in items:
+            trial_id = str(item.get("eu_number") or "")
+            if not EU_NUMBER.fullmatch(trial_id) or trial_id in self.seen_trials:
                 continue
-            site_id = key(country, name)
-            institution = institutions.setdefault(site_id, {"id": site_id, "name": name, "country": country, "trials": {}})
-            active, start_year = country_activity(profile, country, today)
-            trial = {"id": trial_id, "title": str(variables.get("trial_title") or trial_id),
-                     "sponsor": str(sponsor), "relevant": similar, "phase": phase,
-                     "modality": modality, "active": active, "start_year": start_year}
-            institution["trials"][trial_id] = trial
-            for contact in site.get("site_contacts", []):
-                first, last = str(contact.get("first_name") or "").strip(), str(contact.get("last_name") or "").strip()
-                role = pi_role(contact)
-                # A department mailbox or explicitly non-PI contact is not a candidate PI.
-                if not first or not last or role is False:
+            self.seen_trials.add(trial_id)
+            profile = item.get("profile") or {}
+            variables = profile.get("classification_variables") or {}
+            trial = _trial(profile, trial_id, self.keywords)
+            for raw_site in variables.get("sites") or []:
+                if not isinstance(raw_site, dict):
                     continue
-                department = str(contact.get("department_or_division") or "").strip()
-                person_id = key(site_id, first, last, department)
-                person = people.setdefault(person_id, {
-                    "id": person_id, "name": f"{first} {last}", "department": department,
-                    "siteId": site_id, "confirmed": {}, "linked": {}, "contactAvailable": False,
+                name = str(raw_site.get("name") or raw_site.get("site_name") or "").strip()
+                country = str(raw_site.get("country_code") or "").strip().upper()
+                if not name or not re.fullmatch(r"[A-Z]{2}", country):
+                    continue
+                site_id = key(country, name)
+                site = self.sites.setdefault(site_id, {
+                    "id": site_id, "name": name, "country": country,
+                    "trials": {}, "contacts": Counter(),
                 })
-                person["linked"][trial_id] = trial
-                if role is True:
-                    person["confirmed"][trial_id] = trial
-                person["contactAvailable"] = person["contactAvailable"] or bool(contact.get("email"))
-    rows = []
-    site_metrics = {site_id: metrics(site["trials"], criteria) for site_id, site in institutions.items()}
-    for person in people.values():
-        if not any(t["relevant"] for t in person["linked"].values()):
-            continue
-        institution = institutions[person["siteId"]]
-        confirmed = bool(person["confirmed"])
-        pi = metrics(person["confirmed"], criteria) if confirmed else None
-        rows.append({
-            "id": person["id"], "name": person["name"], "department": person["department"],
-            "role": "confirmed_pi" if confirmed else "unconfirmed_contact",
-            "pi": pi, "linkedRelevantTrials": sum(t["relevant"] for t in person["linked"].values()),
-            "site": {"id": institution["id"], "name": institution["name"], "country": institution["country"], "metrics": site_metrics[institution["id"]]},
-            "contactAvailable": person["contactAvailable"], "contactsLocked": True,
-        })
-    rows.sort(key=lambda r: (r["pi"] is None, -(r["pi"]["score"] if r["pi"] else -1),
-                             -(r["pi"]["relevant"] if r["pi"] else 0), -r["site"]["metrics"]["score"],
-                             r["name"].casefold(), r["id"]))
-    selected = []
-    countries: Counter = Counter()
-    for index, row in enumerate(rows, 1):
-        row["rank"] = index
-        country = row["site"]["country"]
-        if countries[country] >= per_country:
-            continue
-        selected.append(row)
-        countries[country] += 1
-        if len(selected) >= preview_limit:
-            break
-    return {"rows": selected, "scoringVersion": VERSION, "counts": {
-        "matchedRecords": len(rows), "confirmedPIRecords": sum(r["pi"] is not None for r in rows),
-        "unconfirmedContacts": sum(r["pi"] is None for r in rows),
-        "uniqueSites": len({r["site"]["id"] for r in rows}), "previewRows": len(selected),
-    }}
+                site["trials"][trial_id] = trial
+                for contact in raw_site.get("site_contacts") or []:
+                    if not isinstance(contact, dict):
+                        continue
+                    email = _email(contact)
+                    contact_name = _contact_name(contact)
+                    department = str(contact.get("department_or_division") or contact.get("department") or "").strip()
+                    is_pi = _pi_role(contact)
+                    if email:
+                        role = "Principal investigator" if is_pi else str(contact.get("function") or contact.get("role") or "Site contact").strip()
+                        site["contacts"][(not is_pi, contact_name, email, role)] += 1
+                    # Named contacts with an unspecified role remain useful PI
+                    # candidates, but are never presented as confirmed PIs.
+                    if is_pi is False or not contact_name:
+                        continue
+                    # A stable email is the strongest available cross-site identity.
+                    # Without one, keep the identity scoped to the recorded site.
+                    person_id = key("email", email) if email else key("site", site_id, contact_name, department)
+                    person = self.people.setdefault(person_id, {
+                        "id": person_id, "name": contact_name, "department": department,
+                        "trials": {}, "sites": {}, "emails": Counter(), "confirmed": False,
+                    })
+                    person["trials"][trial_id] = trial
+                    person["sites"][site_id] = site
+                    person["confirmed"] = person["confirmed"] or is_pi is True
+                    if email:
+                        person["emails"][email] += 1
+
+    def result(self, limit: int = PREVIEW_LIMIT) -> dict:
+        site_rows = []
+        for site in self.sites.values():
+            contact = None
+            if site["contacts"]:
+                chosen = sorted(site["contacts"], key=lambda value: (value[0], -site["contacts"][value], normalized(value[1]), value[2]))[0]
+                contact = {"name": chosen[1], "email": chosen[2], "role": chosen[3]}
+            site_rows.append({
+                "id": site["id"], "name": site["name"], "country": site["country"],
+                "contact": contact, "metrics": _metrics(site["trials"]),
+            })
+        site_rows.sort(key=_rank_key)
+        for rank, record in enumerate(site_rows, 1):
+            record["rank"] = rank
+
+        pi_rows = []
+        for person in self.people.values():
+            affiliations = sorted(
+                ({"id": site["id"], "name": site["name"], "country": site["country"],
+                  "trials": len(set(site["trials"]) & set(person["trials"]))} for site in person["sites"].values()),
+                key=lambda site: (-site["trials"], normalized(site["name"]), site["country"]),
+            )
+            email = sorted(person["emails"], key=lambda value: (-person["emails"][value], value))[0] if person["emails"] else None
+            pi_rows.append({
+                "id": person["id"], "name": person["name"], "department": person["department"],
+                "email": email, "role": "confirmed_pi" if person["confirmed"] else "role_unconfirmed",
+                "sites": affiliations, "metrics": _metrics(person["trials"]),
+            })
+        pi_rows.sort(key=_rank_key)
+        for rank, record in enumerate(pi_rows, 1):
+            record["rank"] = rank
+
+        return {
+            "sites": site_rows[:limit],
+            "pis": pi_rows[:limit],
+            "scoringVersion": VERSION,
+            "counts": {
+                "sites": len(site_rows), "pis": len(pi_rows),
+                "confirmedPIs": sum(row["role"] == "confirmed_pi" for row in pi_rows),
+                "unconfirmedContacts": sum(row["role"] == "role_unconfirmed" for row in pi_rows),
+                "previewSites": min(limit, len(site_rows)), "previewPIs": min(limit, len(pi_rows)),
+            },
+        }
+
+
+def rank_profiles(items: list[dict], criteria: dict, *, preview_limit: int = PREVIEW_LIMIT) -> dict:
+    ranker = ProfileRanker(criteria)
+    ranker.add(items)
+    return ranker.result(preview_limit)
