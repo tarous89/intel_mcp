@@ -33,11 +33,11 @@ def criteria_schema() -> dict:
     props = {
         "sufficient_context": {"type": "boolean"},
         "therapeutic_areas": {
-            "type": "array", "maxItems": 4, "uniqueItems": True,
+            "type": "array", "maxItems": 4,
             "items": {"type": "string", "enum": list(TherapeuticAreaFilter.canonical_values)},
         },
         "keywords": {
-            "type": "array", "maxItems": MAX_KEYWORDS, "uniqueItems": True,
+            "type": "array", "maxItems": MAX_KEYWORDS,
             "items": {"type": "string", "minLength": 2, "maxLength": 120},
         },
     }

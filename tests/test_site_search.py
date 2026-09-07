@@ -43,6 +43,14 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(set(payload["text"]["format"]["schema"]["properties"]), {
                 "sufficient_context", "therapeutic_areas", "keywords",
             })
+            self.assertNotIn(
+                "uniqueItems",
+                payload["text"]["format"]["schema"]["properties"]["therapeutic_areas"],
+            )
+            self.assertNotIn(
+                "uniqueItems",
+                payload["text"]["format"]["schema"]["properties"]["keywords"],
+            )
             return httpx.Response(200, json=completion(PLANNER_OUTPUT))
 
         criteria, usage = await interpret_context(
