@@ -13,28 +13,29 @@ POST /internal/site-agent/search
 ```
 
 The interpret route makes exactly one `gpt-5.6-terra` Responses request at low reasoning.
-Its strict schema returns only one to four controlled therapeutic areas and up to 24 literal
-search keywords. Keywords may cover the indication, precise synonyms/acronyms, subtype,
-biomarker, molecular target, named intervention, mechanism and distinctive population terms.
-It retrieves no clinical data and receives no candidate profile.
+Its strict schema returns only one to four controlled therapeutic areas, up to 16 short disease
+terms and explicitly requested supported country codes. Disease terms are limited to names,
+synonyms/acronyms and useful anatomical or malignancy wording for literal comparison with the
+Trial Profile `diseases` field. Biomarkers, products, mechanisms, phase, prior therapy and other
+study details are intentionally excluded. It retrieves no clinical data and receives no profile.
 
-The search route accepts stored criteria and makes no model request. Therapeutic area is the
-only eligibility filter. It exhaustively pages every available approved Trial Profile matching
-any selected area, reads profiles in batches of ten, and incrementally aggregates them so the
-full profile cohort is not retained in memory. No country, phase, modality or keyword filter
-removes a trial.
+The search route accepts stored criteria and makes no model request. Any selected therapeutic
+area is required; explicitly requested countries are also required. With no requested country,
+all covered EU/EEA countries remain eligible. It exhaustively pages every approved matching
+Trial Profile and incrementally aggregates sites/PIs, excluding affiliations outside requested
+countries. Disease terms affect priority only and never remove a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-keywords-v1` returns separate Sites and PI-candidate lists. Both are ordered
-by keyword-matched trial count, distinct keyword coverage, total therapeutic-area trials,
+`therapeutic-area-disease-country-v2` returns separate Sites and PI-candidate lists. Both are
+ordered by disease-matched trial count, distinct disease-term coverage, total eligible trials,
 latest recorded trial year, then stable name/ID tie-breaks. The free response contains the top
 10 of each list while preserving full site and person counts.
 
-Each result explains therapeutic-area trial count, keyword-matched trial count, matched
-keywords, observed sponsors, latest trial year and up to eight supporting trials. These are
-relevance signals, never performance, recruitment capacity, patient availability or current
-affiliation claims.
+Each result retains deterministic disease-match metrics, observed sponsors, recency and up to
+eight supporting trials for downstream use. The current App intentionally displays only rank,
+identity/contact and supporting trials. These are relevance signals, never performance,
+recruitment capacity, patient availability or current-affiliation claims.
 
 Recorded email routes are returned. Site contacts prefer an explicitly marked PI, then a
 stable frequency/name/email tie-break. A named contact is a confirmed PI only when
@@ -54,17 +55,13 @@ approved-only Engine reads. Public MCP tools, report allowances, OAuth, Engine s
 clinical warehouse remain unchanged. No documents, raw CTIS fallback, outreach, payment or
 candidate enrichment is added.
 
-The first authenticated production attempt on 2026-09-07 exposed an OpenAI 400 before any
-criteria were returned: the v2 strict schema used the unsupported `uniqueItems` keyword.
-The schema now leaves deduplication to `_clean_criteria`, which already normalizes both lists,
-while retaining application-side count and value validation. Projects that failed before this
-fix have no stored criteria and must be recreated; they cannot accidentally spend a second
-planner attempt under the same project ID.
+Strict-schema list deduplication remains application-side because the Responses schema subset
+does not accept `uniqueItems`. Legacy stored `{therapeutic_areas, keywords}` criteria remain
+retryable: `keywords` are interpreted as disease terms and countries default to all coverage.
 
 ## Validation and remaining work
 
-The focused Site Agent suite and the complete MCP suite pass locally. A representative stored
-Trial Profile confirmed current site/contact field shapes and the prevalence of null PI flags.
-A real authenticated production search, exhaustive-cohort latency measurement, exact CTIS
-investigator-path audit, stronger institution/person identity and any candidate enrichment
-remain follow-up work.
+The focused Site Agent suite passes locally. The first authenticated production search returned
+more than 1,500 sites and 4,000 PI candidates and motivated disease-specific prioritization.
+Exhaustive-cohort latency measurement, exact CTIS investigator-path audit, stronger
+institution/person identity and candidate enrichment remain follow-up work.

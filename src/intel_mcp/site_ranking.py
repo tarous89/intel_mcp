@@ -1,7 +1,7 @@
-"""Deterministic Site.agent aggregation over approved Trial Profiles.
+"""Deterministic Site Agent aggregation over approved Trial Profiles.
 
 Therapeutic area eligibility is applied before profiles reach this module. The
-planner's keywords only order and explain the eligible sites and investigators;
+planner's disease terms only order the eligible sites and investigators;
 they never remove a trial, site, or investigator from the cohort.
 """
 from __future__ import annotations
@@ -13,28 +13,13 @@ import re
 import unicodedata
 from typing import Any, Iterable
 
-VERSION = "therapeutic-area-keywords-v1"
+VERSION = "therapeutic-area-disease-country-v2"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 
-# Compact, approved Trial Profile sections used for literal keyword evidence.
+# Approved Trial Profile section used for literal disease evidence.
 # Candidate profiles are never sent to a model.
-KEYWORD_FIELDS = (
-    "trial_title",
-    "diseases",
-    "biomarkers",
-    "disease_stages_or_severity",
-    "interventional_products",
-    "non_interventional_products",
-    "mechanisms_of_action",
-    "molecular_targets",
-    "population_characteristics",
-    "target_population_summary",
-    "treatment_settings",
-    "primary_objectives",
-    "secondary_objectives",
-    "endpoints",
-)
+DISEASE_FIELDS = ("diseases",)
 
 
 def normalized(value: Any) -> str:
@@ -98,43 +83,43 @@ def _trial_year(profile: dict, trial_id: str) -> int | None:
     return int(prefix) if prefix.isdigit() else None
 
 
-def _keyword_hits(profile: dict, keywords: list[str]) -> list[str]:
+def _disease_hits(profile: dict, disease_terms: list[str]) -> list[str]:
     variables = profile.get("classification_variables") or {}
     text = " ".join(
         text
-        for field in KEYWORD_FIELDS
+        for field in DISEASE_FIELDS
         for text in _strings(variables.get(field))
     )
-    return [keyword for keyword in keywords if phrase_in(keyword, text)]
+    return [term for term in disease_terms if phrase_in(term, text)]
 
 
-def _trial(profile: dict, trial_id: str, keywords: list[str]) -> dict:
+def _trial(profile: dict, trial_id: str, disease_terms: list[str]) -> dict:
     variables = profile.get("classification_variables") or {}
     sponsor = variables.get("sponsor") or {}
     return {
         "id": trial_id,
         "title": str(variables.get("trial_title") or trial_id),
-        "keywords": _keyword_hits(profile, keywords),
+        "disease_terms": _disease_hits(profile, disease_terms),
         "sponsor": str(sponsor.get("name") or "") if isinstance(sponsor, dict) else str(sponsor),
         "year": _trial_year(profile, trial_id),
     }
 
 
 def _metrics(trials: dict[str, dict]) -> dict:
-    matched = [trial for trial in trials.values() if trial["keywords"]]
-    keyword_counts = Counter(keyword for trial in trials.values() for keyword in trial["keywords"])
+    matched = [trial for trial in trials.values() if trial["disease_terms"]]
+    disease_counts = Counter(term for trial in trials.values() for term in trial["disease_terms"])
     sponsor_counts = Counter(trial["sponsor"] for trial in trials.values() if trial["sponsor"])
     years = [trial["year"] for trial in trials.values() if trial["year"] is not None]
     evidence = sorted(
         trials.values(),
-        key=lambda trial: (-bool(trial["keywords"]), -(trial["year"] or 0), trial["id"]),
+        key=lambda trial: (-bool(trial["disease_terms"]), -(trial["year"] or 0), trial["id"]),
     )[:8]
     return {
         "therapeuticAreaTrials": len(trials),
-        "keywordMatchedTrials": len(matched),
-        "matchedKeywords": [
-            {"keyword": keyword, "trials": count}
-            for keyword, count in sorted(keyword_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))
+        "diseaseMatchedTrials": len(matched),
+        "matchedDiseaseTerms": [
+            {"term": term, "trials": count}
+            for term, count in sorted(disease_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))
         ],
         "sponsors": [
             {"name": name, "trials": count}
@@ -142,7 +127,7 @@ def _metrics(trials: dict[str, dict]) -> dict:
         ],
         "latestTrialYear": max(years) if years else None,
         "evidence": [
-            {"id": trial["id"], "title": trial["title"], "matchedKeywords": trial["keywords"]}
+            {"id": trial["id"], "title": trial["title"]}
             for trial in evidence
         ],
     }
@@ -151,8 +136,8 @@ def _metrics(trials: dict[str, dict]) -> dict:
 def _rank_key(record: dict) -> tuple:
     metrics = record["metrics"]
     return (
-        -metrics["keywordMatchedTrials"],
-        -len(metrics["matchedKeywords"]),
+        -metrics["diseaseMatchedTrials"],
+        -len(metrics["matchedDiseaseTerms"]),
         -metrics["therapeuticAreaTrials"],
         -(metrics["latestTrialYear"] or 0),
         normalized(record["name"]),
@@ -164,7 +149,8 @@ class ProfileRanker:
     """Incrementally aggregate profiles so the full cohort is never held in memory."""
 
     def __init__(self, criteria: dict):
-        self.keywords = list(criteria.get("keywords") or [])
+        self.disease_terms = list(criteria.get("disease_terms") or criteria.get("keywords") or [])
+        self.countries = set(criteria.get("countries") or [])
         self.sites: dict[str, dict] = {}
         self.people: dict[str, dict] = {}
         self.seen_trials: set[str] = set()
@@ -177,13 +163,13 @@ class ProfileRanker:
             self.seen_trials.add(trial_id)
             profile = item.get("profile") or {}
             variables = profile.get("classification_variables") or {}
-            trial = _trial(profile, trial_id, self.keywords)
+            trial = _trial(profile, trial_id, self.disease_terms)
             for raw_site in variables.get("sites") or []:
                 if not isinstance(raw_site, dict):
                     continue
                 name = str(raw_site.get("name") or raw_site.get("site_name") or "").strip()
                 country = str(raw_site.get("country_code") or "").strip().upper()
-                if not name or not re.fullmatch(r"[A-Z]{2}", country):
+                if not name or not re.fullmatch(r"[A-Z]{2}", country) or (self.countries and country not in self.countries):
                     continue
                 site_id = key(country, name)
                 site = self.sites.setdefault(site_id, {

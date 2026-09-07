@@ -1,4 +1,4 @@
-"""Private Site.agent routes. Public MCP tools and Engine ownership are unchanged."""
+"""Private Site Agent routes. Public MCP tools and Engine ownership are unchanged."""
 from __future__ import annotations
 
 import asyncio
@@ -59,7 +59,7 @@ def register_site_search(mcp, settings, engine_factory):
         except TimeoutError:
             return response({"error": "The search service is busy. Please retry."}, 429 if not acquired else 503)
         except Exception as error:
-            LOGGER.warning("Site.agent failed: %s", type(error).__name__)
+            LOGGER.warning("Site Agent failed: %s", type(error).__name__)
             return response({"error": "The search could not be completed. Please retry."}, 503)
         finally:
             if acquired:

@@ -42,20 +42,21 @@ class RouteTests(unittest.TestCase):
     def test_interpret_route_returns_storable_criteria_and_usage(self):
         with patch(
             "intel_mcp.site_search_routes.interpret_context", new_callable=AsyncMock,
-            return_value=({"therapeutic_areas": ["Neurology"], "keywords": ["migraine"]}, {"model": "terra"}),
+            return_value=({"therapeutic_areas": ["Neurology"], "disease_terms": ["migraine"], "countries": ["DE"]}, {"model": "terra"}),
         ):
             response = self.client.post(
                 "/internal/site-agent/interpret", json={"context": "Preventive migraine study"}, headers=self.headers,
             )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["criteria"]["keywords"], ["migraine"])
+        self.assertEqual(response.json()["criteria"]["disease_terms"], ["migraine"])
+        self.assertEqual(response.json()["criteria"]["countries"], ["DE"])
         self.assertEqual(response.headers["cache-control"], "no-store")
 
     def test_search_route_with_stored_criteria_is_model_free(self):
         with patch("intel_mcp.site_search_routes.search_deterministically", new_callable=AsyncMock, return_value={"sites": [], "pis": []}) as search, patch("intel_mcp.site_search_routes.interpret_context", new_callable=AsyncMock) as planner:
             response = self.client.post(
                 "/internal/site-agent/search",
-                json={"criteria": {"therapeutic_areas": ["Neurology"], "keywords": ["migraine"]}},
+                json={"criteria": {"therapeutic_areas": ["Neurology"], "disease_terms": ["migraine"], "countries": []}},
                 headers=self.headers,
             )
         self.assertEqual(response.status_code, 200)
@@ -66,7 +67,7 @@ class RouteTests(unittest.TestCase):
         with patch("intel_mcp.site_search_routes.search_deterministically", new_callable=AsyncMock, side_effect=RuntimeError("private secret")):
             response = self.client.post(
                 "/internal/site-agent/search",
-                json={"criteria": {"therapeutic_areas": ["Neurology"], "keywords": ["migraine"]}},
+                json={"criteria": {"therapeutic_areas": ["Neurology"], "disease_terms": ["migraine"], "countries": []}},
                 headers=self.headers,
             )
         self.assertEqual(response.status_code, 503)

@@ -19,9 +19,14 @@ SETTINGS = SimpleNamespace(
 PLANNER_OUTPUT = {
     "sufficient_context": True,
     "therapeutic_areas": [AREA],
-    "keywords": ["NSCLC", "EGFR", "osimertinib"],
+    "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
+    "countries": ["DE"],
 }
-CRITERIA = {"therapeutic_areas": [AREA], "keywords": ["NSCLC", "EGFR", "osimertinib"]}
+CRITERIA = {
+    "therapeutic_areas": [AREA],
+    "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
+    "countries": ["DE"],
+}
 
 
 def completion(criteria):
@@ -33,7 +38,7 @@ def completion(criteria):
 
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
-    async def test_planner_extracts_only_areas_and_keywords_with_terra(self):
+    async def test_planner_extracts_only_areas_disease_terms_and_countries_with_terra(self):
         def handler(request):
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "gpt-5.6-terra")
@@ -41,7 +46,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(payload["store"])
             self.assertNotIn("tools", payload)
             self.assertEqual(set(payload["text"]["format"]["schema"]["properties"]), {
-                "sufficient_context", "therapeutic_areas", "keywords",
+                "sufficient_context", "therapeutic_areas", "disease_terms", "countries",
             })
             self.assertNotIn(
                 "uniqueItems",
@@ -49,7 +54,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             )
             self.assertNotIn(
                 "uniqueItems",
-                payload["text"]["format"]["schema"]["properties"]["keywords"],
+                payload["text"]["format"]["schema"]["properties"]["disease_terms"],
             )
             return httpx.Response(200, json=completion(PLANNER_OUTPUT))
 
@@ -60,13 +65,14 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(criteria, CRITERIA)
         self.assertEqual(usage, {"model": "gpt-5.6-terra", "inputTokens": 10, "outputTokens": 20})
 
-    async def test_planner_deduplicates_keywords(self):
-        output = {**PLANNER_OUTPUT, "keywords": [" NSCLC ", "nsclc", "EGFR"]}
+    async def test_planner_deduplicates_disease_terms_and_countries(self):
+        output = {**PLANNER_OUTPUT, "disease_terms": [" NSCLC ", "nsclc", "lung"], "countries": ["de", "DE"]}
         criteria, _ = await interpret_context(
             SETTINGS, "EGFR-mutated non-small-cell lung cancer",
             transport=httpx.MockTransport(lambda request: httpx.Response(200, json=completion(output))),
         )
-        self.assertEqual(criteria["keywords"], ["NSCLC", "EGFR"])
+        self.assertEqual(criteria["disease_terms"], ["NSCLC", "lung"])
+        self.assertEqual(criteria["countries"], ["DE"])
 
     async def test_refusal_fails_closed(self):
         payload = {"status": "completed", "output": [{"content": [{"type": "refusal", "refusal": "No"}]}]}
@@ -91,7 +97,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
                 await interpret_context(SETTINGS, "short")
             request.assert_not_called()
 
-    async def test_search_reads_every_therapeutic_area_profile_in_ten_trial_batches(self):
+    async def test_search_applies_area_and_country_and_reads_every_matching_profile(self):
         class Engine:
             def __init__(self):
                 self.offsets = []
@@ -116,10 +122,22 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum(map(len, engine.batches)), 250)
         self.assertTrue(all(len(batch) <= 10 for batch in engine.batches))
         self.assertEqual(engine.filters.therapeutic_areas.values, [AREA])
-        self.assertIsNone(engine.filters.country_codes)
+        self.assertEqual(engine.filters.country_codes.values, ["DE"])
         self.assertEqual(result["coverage"]["profilesReviewed"], 250)
         self.assertFalse(result["coverage"]["partial"])
         self.assertNotIn("usage", result)
+
+    async def test_legacy_keyword_criteria_remain_retryable(self):
+        engine = SimpleNamespace(filter_trials=AsyncMock(return_value=SimpleNamespace(
+            counts=SimpleNamespace(total_matches=0, total_profiles=0), data=[],
+        )))
+        result = await search_deterministically(engine, {
+            "therapeutic_areas": [AREA], "keywords": ["NSCLC"],
+        })
+        self.assertEqual(result["criteria"], {
+            "therapeutic_areas": [AREA], "disease_terms": ["NSCLC"], "countries": [],
+        })
+        self.assertIsNone(engine.filter_trials.await_args.kwargs["filters"].country_codes)
 
     async def test_deterministic_search_never_calls_planner(self):
         engine = SimpleNamespace(filter_trials=AsyncMock(return_value=SimpleNamespace(
