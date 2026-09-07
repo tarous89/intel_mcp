@@ -15,7 +15,7 @@ Repository boundaries:
 
 - `tarous89/intel-agent` owns CTIS ingestion, documents, extracted text, Trial Profiles, versioned `mcp_serving` views and all clinical-store writes.
 - `tarous89/intel_mcp` owns MCP protocol/auth, restricted Engine reads, bounded tools and report-analysis orchestration.
-- `tarous89/intel_agent_app` owns users, projects, approved plans/report runs, purchases, entitlements, analysis leases and usage accounting.
+- `tarous89/intel_agent_app` owns users, internal projects, approved plans/report runs, purchases, entitlements, analysis leases and usage accounting.
 
 MCP has no clinical-warehouse owner credential and no App database credential. Production clinical reads use the exact restricted PostgreSQL role `intel_mcp_reader_v1`, limited to approved-only versioned serving views. The retained authenticated Engine HTTP path is rollback compatibility only.
 
@@ -146,80 +146,66 @@ Canonical detail: `docs/extract-variables.md`.
 
 Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 
-Planning uses `gpt-5.6-sol`, medium reasoning, no tools. The planner receives only the user brief, requested insights, optional current plan/revision request and a concise evidence-capability description.
-
-New/revised plans use `intel_agent_report_plan_v4`.
+Planning uses `gpt-5.6-sol`, medium reasoning, no tools. New/revised plans use `intel_agent_report_plan_v4`.
 
 ### Trial groups
 
-Every new v4 plan contains **3–5 groups**:
+Every new v4 plan contains one shared Light + Max group using exactly one structured dimension (`disease`, `therapeutic_area`, `phase`, `modality`, or `country`) plus 2–4 Max groups. Fine-grained stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy, treatment setting and multi-dimension combinations belong in Max.
 
-1. one shared Light + Max group;
-2. **2–4 Max groups**.
+### Paired analyses and title vocabulary
 
-The shared group is deliberately simple and uses exactly **one** structured dimension:
+There is no user-facing Objectives layer. Every v4 plan contains 5–7 analysis pairs: one shared analysis plus one Max analysis.
+
+Shared titles intentionally use direct retrieval/calculation verbs and should normally begin with:
 
 ```text
-disease | therapeutic_area | phase | modality | country
+List · Name · Count · Rank · Report · Calculate · Summarize · Show · Compare · Collect
 ```
 
-Priority is disease when a meaningful disease is specified, then therapeutic area, then the more informative of phase/modality, with country as fallback. The shared group never combines multiple dimensions.
+`Quantify` and `Describe` are excluded from the shared title vocabulary.
 
-Fine-grained disease stage, biomarker/mutation, PD-L1, molecular subtype, line of therapy, treatment setting and multi-dimension combinations belong in Max groups. Max groups may recover the exact target, segment evidence or add an adjacent comparator. Prefer compact `X vs Y` wording when comparison is the useful lens; do not state ignored dimensions with `regardless of`/`irrespective of` wording.
+Max titles intentionally use interpretation/decision verbs and should normally begin with:
 
-### Paired analyses
+```text
+Analyze · Assess · Evaluate · Prioritize · Recommend · Estimate · Determine · Identify · Match · Synthesize
+```
 
-There is **no user-facing Objectives layer** in v4.
-
-Every v4 plan contains **5–7 analysis pairs**. Each pair has:
-
-1. one shared descriptive analysis available in Light + Max;
-2. one paired Max analysis that adds decision depth.
-
-Shared titles state exactly what will be counted, ranked, compared or summarized. Max titles state the concrete result/deliverable for the user's own trial, project, population or rollout and should be understandable without expanding the row. Slightly longer descriptive titles are preferred over short abstract labels.
+`Benchmark` is not used as a Max title verb. `Analyze` should not be repeated mechanically; choose the verb that best matches the deliverable.
 
 Examples:
 
 ```text
-Shared: Most active trial sites
-Max:    Recommended trial sites for your planned study
+Shared: Rank trial sites by documented activity
+Max:    Prioritize trial sites for your planned study
 
-Shared: Most-used exclusion criteria
-Max:    Exclusion criteria most likely to restrict recruitment in your target population
+Shared: Name the most active principal investigators
+Max:    Identify principal investigators most relevant to your planned trial
 
-Shared: Observed enrollment in similar trials
-Max:    Expected enrollment range for your planned trial
+Shared: Report observed enrollment in similar trials
+Max:    Estimate enrollment range for your planned trial
 ```
 
-Question titles are rejected. Generic Max labels containing `strategy fit`, `benchmark fit`, `best-fitting` / `best fitting`, or `operational fit` are also rejected. Avoid consultant-style labels such as `Endpoint strategy fit`, `Country strategy fit`, or `Enrollment benchmark fit` even when the details underneath are valid.
+Question titles are rejected. Generic Max labels containing `strategy fit`, `benchmark fit`, `best-fitting` / `best fitting`, or `operational fit` are also rejected. Slightly longer descriptive titles are preferred over short abstract labels.
 
-The Max analysis still adds at least two distinct decision factors such as exact clinical fit, recency, competition, PI-site relationships, protocol/source detail, variability, trade-offs or evidence-supported prioritization/recommendation.
-
-The schema keeps an internal top-level `title` equal to the shared analysis title for existing progress/execution compatibility. It is not a user-facing hierarchy layer.
-
-Result breadth such as top 5/top 10/top 100 is never hard-coded into the plan; the product tier controls breadth.
+The schema keeps an internal top-level `title` equal to the shared analysis title for progress/execution compatibility. Result breadth such as top 5/top 10/top 100 is never hard-coded into the plan; the product tier controls breadth.
 
 The current planner emits v4 only. Its Pydantic model retains v3 read compatibility for stored server/control flows; the Light executor also retains legacy v2/v3 execution paths.
 
 ## Light report execution — v4
 
-Light intentionally executes the shared layer and no Max work.
-
 Before execution, an approved v4 plan is projected to:
 - first/shared single-dimension trial group only;
-- **all 5–7 shared analyses**;
+- all 5–7 shared analyses;
 - no Max trial groups;
 - no paired Max analyses.
 
 Execution:
 
-1. Sol/high/Flex selects exactly 20 trials using only `filter_trials` and `get_profiles`, from up to 100 screened profiles. All 5–7 shared evidence needs inform cohort selection; Max criteria are absent.
+1. Sol/high/Flex selects exactly 20 trials using only `filter_trials` and `get_profiles`, from up to 100 screened profiles. All shared evidence needs inform cohort selection; Max criteria are absent.
 2. MCP retrieves the same 20 complete approved Trial Profiles in two bounded batches of 10.
-3. Every shared analysis runs independently in Terra/high/Flex with the same 20-profile bundle and no tools. Shared analysis details become its approved analytical lenses.
+3. Every shared analysis runs independently in Terra/high/Flex with the same 20-profile bundle and no tools.
 4. Final Sol/high synthesis produces only title, short introduction and closing note.
 5. Completed reports remain `final_report.version = 2` for renderer compatibility.
-
-The v4 analyzed-cohort summary contains only the shared group because Max groups are outside the Light evidence set.
 
 Current prompt/schema names:
 
@@ -230,7 +216,7 @@ analysis:  intel_light_objective_v5
 synthesis: intel_light_synthesis_v5
 ```
 
-The 2026-09-07 planner change is title/plan-quality only. It does not alter the Light execution projection, evidence counts, tool allowances, or Max fulfilment state.
+The 2026-09-07 verb change is planner-title semantics only. It does not alter Light execution, evidence counts, tool allowances, or Max fulfilment state.
 
 Execution still runs as an in-process async task on the MCP web service; a service restart can interrupt a run. Durable worker/claim-heartbeat-retry execution remains future work.
 
@@ -238,13 +224,15 @@ Execution still runs as an in-process async task on the MCP web service; a servi
 
 MCP reaches the App only through service-authenticated internal endpoints for analysis lifecycle, allowances and report execution state. MCP never trusts model/browser assertions for user ID, email, tier, payment state or remaining allowance.
 
-The App reaches MCP through the private planning route:
+The App reaches MCP through:
 
 ```text
 POST /internal/report-plan
 ```
 
 This route is protected by `REPORT_PLAN_SERVICE_TOKEN` and performs planning only; it calls no MCP clinical tools.
+
+The App's customer-facing workspace unit is now called **Report** (`New report`, `Reports`, `Report N`). Internal `projectId`/project records remain unchanged for compatibility.
 
 ## OAuth / external distribution
 
@@ -259,10 +247,6 @@ The App owns OAuth sessions/tokens/consent; MCP introspects tokens through the A
 ## Runtime models and telemetry
 
 Classification/extraction worker model/config are App-controlled and resolved at reservation time. Tool telemetry is best-effort and contains routing/timing/success/error/aggregate token usage only; it never contains clinical payloads, trial IDs, criteria, documents, variables or prompts. Telemetry failure never changes a tool result.
-
-## Verification state
-
-The 2026-09-07 planner code and title-contract tests are on main. GitHub CI for code commit `a7ea1161db68ef351b2ac39f041cffdb2d63f58c` passed. Verify the latest Render/docs-only deploy live before reporting a mutable deployment ID.
 
 ## Immediate next implementation work
 
