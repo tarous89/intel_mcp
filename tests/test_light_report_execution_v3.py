@@ -189,12 +189,16 @@ def test_v4_light_execution_runs_all_shared_analyses_and_no_max_work() -> None:
     assert objectives[0] == {
         "title": "Shared analysis 1",
         "analyses": ["Shared metric 1A", "Shared metric 1B"],
+        "pairedMaxAnalysis": {
+            "title": "Max decision analysis 1",
+            "details": ["Max factor 1A", "Max factor 1B"],
+        },
     }
     assert objectives[-1]["title"] == "Shared analysis 7"
 
     # The selector still receives every shared evidence need, compacted into three
-    # legacy-compatible containers. No Max group or Max analysis text crosses the
-    # Light execution boundary.
+    # legacy-compatible containers. The paired Max card reaches only the objective
+    # writer; no Max group or Max analysis text crosses into trial selection.
     assert len(selection_plan["reportSections"]) == 3
     selection_text = " ".join(
         analysis
