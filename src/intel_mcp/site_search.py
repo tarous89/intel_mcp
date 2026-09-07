@@ -61,8 +61,9 @@ Return only short disease terms suitable for literal matching against the Trial 
 Include the stated disease, standard disease synonyms/acronyms and discriminating anatomical or malignancy
 terms that help find the same disease wording. For SCLC, useful terms can include SCLC, small cell lung cancer
 and lung; do not include NSCLC. For a gastrointestinal cancer, terms can include the stated organ/disease plus
-cancer, carcinoma, malignancy or neoplasm when appropriate. Do not include biomarkers, products, mechanisms,
-phase, prior treatment, line of therapy, population, endpoints or generic study words.
+the corresponding cancer or malignancy phrase. Do not return cancer, carcinoma, malignancy or neoplasm alone
+when more discriminating disease wording is available. Do not include biomarkers, products, mechanisms, phase,
+prior treatment, line of therapy, population, endpoints or generic study words.
 
 Return ISO alpha-2 countries only when the sponsor explicitly requests them. Do not infer geography. An empty
 country list means all supported EU/EEA countries. If the context requests only an unsupported geography, set
