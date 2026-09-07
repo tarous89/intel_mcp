@@ -4,7 +4,11 @@ import unittest
 from intel_mcp.site_ranking import phrase_in, rank_profiles
 
 
-CRITERIA = {"therapeutic_areas": ["Solid Tumor Oncology"], "keywords": ["NSCLC", "EGFR", "osimertinib"]}
+CRITERIA = {
+    "therapeutic_areas": ["Solid Tumor Oncology"],
+    "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
+    "countries": [],
+}
 
 
 def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", function=""):
@@ -18,12 +22,12 @@ def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", 
     }
 
 
-def item(number=1, *, title="NSCLC study", biomarker="EGFR", site="Example hospital",
+def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site="Example hospital",
          country="DE", contacts=None, sponsor="Example sponsor"):
     return {"eu_number": f"2024-{number:06d}-00-00", "profile": {
         "classification_variables": {
             "trial_title": title,
-            "diseases": [title],
+            "diseases": diseases if diseases is not None else ["Non-small cell lung cancer"],
             "biomarkers": [biomarker] if biomarker else [],
             "sponsor": {"name": sponsor},
             "sites": [{
@@ -37,14 +41,31 @@ def item(number=1, *, title="NSCLC study", biomarker="EGFR", site="Example hospi
 
 
 class RankingTests(unittest.TestCase):
-    def test_keywords_rank_but_do_not_filter_therapeutic_area_cohort(self):
+    def test_disease_terms_rank_but_do_not_filter_therapeutic_area_cohort(self):
         result = rank_profiles([
-            item(1, site="No keyword hospital", title="Other condition", biomarker=""),
-            item(2, site="Matched hospital"),
+            item(1, site="Other disease hospital", diseases=["Breast cancer"]),
+            item(2, site="Matched hospital", diseases=["Non-small cell lung cancer"]),
         ], CRITERIA)
         self.assertEqual(result["counts"]["sites"], 2)
-        self.assertEqual([row["name"] for row in result["sites"]], ["Matched hospital", "No keyword hospital"])
-        self.assertEqual(result["sites"][1]["metrics"]["keywordMatchedTrials"], 0)
+        self.assertEqual([row["name"] for row in result["sites"]], ["Matched hospital", "Other disease hospital"])
+        self.assertEqual(result["sites"][1]["metrics"]["diseaseMatchedTrials"], 0)
+
+    def test_non_disease_profile_fields_do_not_influence_ranking(self):
+        result = rank_profiles([
+            item(1, site="Title-only hospital", title="NSCLC study", diseases=["Breast cancer"], biomarker="NSCLC"),
+            item(2, site="Disease hospital", title="Other study", diseases=["Lung carcinoma"], biomarker=""),
+        ], CRITERIA)
+        self.assertEqual(result["sites"][0]["name"], "Disease hospital")
+        self.assertEqual(result["sites"][1]["metrics"]["diseaseMatchedTrials"], 0)
+
+    def test_requested_countries_limit_sites_and_pi_affiliations(self):
+        criteria = {**CRITERIA, "countries": ["DE"]}
+        result = rank_profiles([
+            item(1, site="German hospital", country="DE"),
+            item(2, site="French hospital", country="FR"),
+        ], criteria)
+        self.assertEqual([row["name"] for row in result["sites"]], ["German hospital"])
+        self.assertEqual(result["pis"][0]["sites"][0]["country"], "DE")
 
     def test_site_and_pi_trials_are_distinct_and_aggregated(self):
         record = item()
@@ -96,13 +117,14 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(result["counts"]["sites"], 15)
         self.assertEqual(result["counts"]["previewSites"], 10)
 
-    def test_keyword_evidence_and_sponsors_are_explainable(self):
+    def test_disease_evidence_and_sponsors_are_explainable(self):
         result = rank_profiles([item(1), item(2, biomarker="", sponsor="Other sponsor")], CRITERIA)
         metrics = result["sites"][0]["metrics"]
-        self.assertEqual(metrics["keywordMatchedTrials"], 2)
-        self.assertEqual(metrics["matchedKeywords"][0], {"keyword": "NSCLC", "trials": 2})
+        self.assertEqual(metrics["diseaseMatchedTrials"], 2)
+        self.assertEqual(metrics["matchedDiseaseTerms"][0], {"term": "lung", "trials": 2})
         self.assertEqual({sponsor["name"] for sponsor in metrics["sponsors"]}, {"Example sponsor", "Other sponsor"})
         self.assertEqual(metrics["latestTrialYear"], 2024)
+        self.assertEqual(set(metrics["evidence"][0]), {"id", "title"})
 
     def test_sclc_is_not_a_substring_match_for_nsclc(self):
         self.assertFalse(phrase_in("SCLC", "NSCLC study"))
