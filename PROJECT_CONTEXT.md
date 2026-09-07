@@ -197,7 +197,7 @@ Before execution, an approved v4 plan is projected to:
 - first/shared single-dimension trial group only;
 - all 5–7 shared analyses;
 - no Max trial groups;
-- no paired Max analyses.
+- no paired Max analyses are executed; the paired Max card is visible only to the objective writer for dynamic upgrade copy.
 
 Execution:
 
@@ -211,14 +211,14 @@ Investigator analyses receive a deterministic flattening of nested site contacts
 PI roles are recognized even when the nullable PI flag is unset. Names, affiliations,
 selected-cohort activity and recorded public CTIS emails are preserved; unconfirmed roles are
 never promoted to confirmed PIs. Completed v4 sections carry concise objective-specific
-`maxUpgrade` presentation copy derived from their paired Max analysis.
+`maxUpgrade` presentation copy is generated dynamically by the objective-analysis LLM from the actual Light result and its paired Max analysis. It describes future Max capability and must not claim that Max work or outcomes already exist.
 
 Current prompt/schema names:
 
 ```text
 planner:   intel_agent_report_plan_v4
 selection: intel_light_trial_selection_v5
-analysis:  intel_light_objective_v5
+analysis:  intel_light_objective_v6
 synthesis: intel_light_synthesis_v5
 ```
 
