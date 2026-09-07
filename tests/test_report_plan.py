@@ -50,7 +50,7 @@ SAMPLE_PLAN = {
                 "details": ["Rank recurring inclusion and exclusion criteria across selected trials"],
             },
             "maxAnalysis": {
-                "title": "Eligibility strategy fit",
+                "title": "Eligibility criteria most likely to restrict recruitment in your target population",
                 "details": [
                     "Compare restrictions across the closest disease and treatment matches",
                     "Identify protocol-level criteria most likely to narrow recruitment",
@@ -64,7 +64,7 @@ SAMPLE_PLAN = {
                 "details": ["Rank primary endpoints across selected trials"],
             },
             "maxAnalysis": {
-                "title": "Endpoint strategy fit",
+                "title": "Primary endpoints most suitable for your planned study",
                 "details": [
                     "Compare endpoint choice across clinically relevant segments",
                     "Assess endpoint definitions and timing from source documents where needed",
@@ -78,7 +78,7 @@ SAMPLE_PLAN = {
                 "details": ["Compare observed CTIS timelines across represented countries"],
             },
             "maxAnalysis": {
-                "title": "Country strategy fit",
+                "title": "Countries most suitable for your planned rollout",
                 "details": [
                     "Compare timeline consistency within closest-matched trials",
                     "Balance relevant experience, variability and operational trade-offs",
@@ -92,7 +92,7 @@ SAMPLE_PLAN = {
                 "details": ["Rank sites by documented participation in selected trials"],
             },
             "maxAnalysis": {
-                "title": "Best-fitting trial sites",
+                "title": "Recommended trial sites for your planned study",
                 "details": [
                     "Compare exact disease, phase and modality experience",
                     "Assess recency, competition and investigator-site relationships",
@@ -106,7 +106,7 @@ SAMPLE_PLAN = {
                 "details": ["Rank investigators by documented participation in selected trials"],
             },
             "maxAnalysis": {
-                "title": "Most relevant principal investigators",
+                "title": "Principal investigators most relevant to your planned trial",
                 "details": [
                     "Compare experience in the closest clinical setting",
                     "Assess recency, modality experience and site relationships",
@@ -140,6 +140,10 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert "Do not say \"regardless of\"" in developer_text
         assert "There is no user-facing objective layer" in developer_text
         assert "one shared analysis and one Max analysis" in developer_text
+        assert "The collapsed title must tell the user what this deeper analysis will actually give them" in developer_text
+        assert "Slightly longer titles are preferable to vague short labels" in developer_text
+        assert "Eligibility strategy fit" in developer_text
+        assert "Expected enrollment range for your planned trial" in developer_text
         assert "Never phrase the title as a question" in developer_text
         assert "Do not hard-code result breadth" in developer_text
 
@@ -188,7 +192,7 @@ def test_v4_analysis_pairs_require_matching_internal_title_and_decision_depth() 
     shallow = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
     shallow["reportSections"][0] = {
         **shallow["reportSections"][0],
-        "maxAnalysis": {"title": "Eligibility strategy fit", "details": ["Only one factor"]},
+        "maxAnalysis": {"title": "Criteria most likely to restrict recruitment", "details": ["Only one factor"]},
     }
     with pytest.raises(ValidationError):
         ReportPlan.model_validate(shallow)
@@ -208,11 +212,31 @@ def test_v4_rejects_question_titles() -> None:
         ReportPlan.model_validate(raw)
 
 
+def test_v4_rejects_generic_max_fit_labels() -> None:
+    for title in (
+        "Eligibility strategy fit",
+        "Enrollment benchmark fit",
+        "Best-fitting trial sites",
+        "Operational fit",
+    ):
+        raw = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
+        raw["reportSections"][0] = {
+            **raw["reportSections"][0],
+            "maxAnalysis": {
+                "title": title,
+                "details": ["Compare closest evidence", "Assess decision-relevant differences"],
+            },
+        }
+        with pytest.raises(ValidationError):
+            ReportPlan.model_validate(raw)
+
+
 def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 4
     assert "2 to 4 Max groups" in REPORT_PLAN_INSTRUCTIONS
     assert "Create 5 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
+    assert "consultant-style labels" in REPORT_PLAN_INSTRUCTIONS
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
-    assert len(REPORT_PLAN_INSTRUCTIONS) < 9000
+    assert len(REPORT_PLAN_INSTRUCTIONS) < 10500
