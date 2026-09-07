@@ -202,7 +202,9 @@ def _v4_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
     shared analysis (5-7), never the paired Max analysis, and searches only the first
     single-dimension shared trial group. Selection receives compact summaries of every
     shared analysis so the frozen 20-trial cohort remains useful across the whole Light
-    report without exposing any Max-only criteria to selection.
+    report without exposing any Max-only criteria to selection. The paired Max card is
+    passed only to the objective writer so it can describe the objective-specific value
+    of upgrading after the Light result is known.
     """
     cohorts = plan.get("studyCohorts")
     sections = plan.get("reportSections")
@@ -246,7 +248,28 @@ def _v4_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
         cleaned_details = [item.strip() for item in details if isinstance(item, str) and item.strip()]
         if len(cleaned_details) != len(details):
             raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 shared analysis is invalid.", False)
-        objectives.append({"title": shared_title.strip(), "analyses": cleaned_details})
+        max_title = max_analysis.get("title")
+        max_details = max_analysis.get("details")
+        if (
+            not isinstance(max_title, str)
+            or not max_title.strip()
+            or not isinstance(max_details, list)
+            or not 2 <= len(max_details) <= 4
+        ):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 Max analysis is invalid.", False)
+        cleaned_max_details = [item.strip() for item in max_details if isinstance(item, str) and item.strip()]
+        if len(cleaned_max_details) != len(max_details):
+            raise ReportExecutionError("LIGHT_REPORT_PLAN_INVALID", "A v4 Max analysis is invalid.", False)
+        objectives.append(
+            {
+                "title": shared_title.strip(),
+                "analyses": cleaned_details,
+                "pairedMaxAnalysis": {
+                    "title": max_title.strip(),
+                    "details": cleaned_max_details,
+                },
+            }
+        )
         selection_requirements.append(f"{shared_title.strip()}: {'; '.join(cleaned_details)}")
 
     # The legacy selector helper reads at most three objective containers. Distribute
@@ -542,7 +565,7 @@ class LightReportExecutor:
                 rendered_sections.append(
                     {
                         **item.model_dump(),
-                        "maxUpgrade": _max_upgrade_copy(approved_plan, index),
+                        "maxUpgrade": item.max_upgrade or _max_upgrade_copy(approved_plan, index),
                     }
                 )
             final_report = {
