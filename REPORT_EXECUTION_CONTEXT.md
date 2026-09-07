@@ -103,9 +103,9 @@ Before execution, an approved v4 plan is projected to:
 - the first/shared single-dimension trial group only;
 - **all 5–7 shared analyses**;
 - no Max trial groups;
-- no paired Max analyses.
+- no paired Max analyses are executed.
 
-All shared analysis requirements inform selection of the frozen evidence cohort. Max titles, Max detail and Max group criteria do not cross the Light execution boundary.
+All shared analysis requirements inform selection of the frozen evidence cohort. Max titles, Max detail and Max group criteria do not cross into trial selection or Light evidence analysis. After the Light result is known, the objective writer receives its paired Max card solely to generate concise, objective-specific upgrade copy; the Max card cannot alter findings, visuals, rankings, conclusions or provenance.
 
 ### Selection
 
@@ -144,7 +144,7 @@ Max analysis. This is presentation metadata only and does not execute Max work.
 
 - planner: `intel_agent_report_plan_v4`
 - selection: `intel_light_trial_selection_v5`
-- Light analysis: `intel_light_objective_v5`
+- Light analysis: `intel_light_objective_v6`
 - synthesis: `intel_light_synthesis_v5`
 
 The 2026-09-07 verb refinement changed planner language/title semantics only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
