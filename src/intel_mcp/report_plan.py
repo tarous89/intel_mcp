@@ -36,9 +36,9 @@ REPORT_PLAN_INSTRUCTIONS = f"""Plan a concise clinical-trial intelligence report
 
 GENERAL
 - Preserve the user's actual indication, population, intervention, phase, geography and requested outputs.
-- Prefer short clinical language over jargon or generic benchmarking prose.
+- Prefer clear clinical language over jargon, consultant-style labels or generic benchmarking prose.
 - Do not promise causal explanations, performance claims, private data or recommendations that the evidence cannot support.
-- Activity and experience are not quality. A title such as "Best-fitting trial sites" is acceptable when the analysis explicitly means fit to the planned trial; do not call an entity objectively "best" without performance evidence.
+- Activity and experience are not quality. Use words such as recommended, relevant or suitable only when the planned analysis explicitly compares evidence relevant to the user's own trial or decision.
 
 TRIAL GROUPS
 Create 3 to 5 groups total: one shared group first, followed by 2 to 4 Max groups.
@@ -66,22 +66,27 @@ Create 5 to 7 analysis pairs. There is no user-facing objective layer. Every pai
 
 Shared analysis:
 - Available in both Light and Max.
-- Use a short declarative title in the same style throughout the plan, for example "Most active trial sites", "Most-used exclusion criteria", "Planned versus actual enrollment", "Most common primary endpoints".
+- State exactly what will be counted, ranked, compared or summarized. The title should describe the visible output, not the method used to produce it.
+- Good examples: "Most active trial sites", "Most-used exclusion criteria", "Observed enrollment in similar trials", "Most common primary endpoints", "Shortest observed country timelines".
 - Never phrase the title as a question and never end it with a question mark.
 - It should be a direct descriptive output that can be produced from Trial Profiles: count, rank, distribution, frequency, observed timeline comparison, or another straightforward evidence summary.
 - details contain 1 to 3 concise lines describing the metric/scope. They support the title; they are not separate objectives.
 
 Max analysis:
-- Use a short declarative title in the same grammatical style, for example "Best-fitting trial sites", "Most relevant principal investigators", "Enrollment risk factors", "Endpoint strategy fit".
+- The collapsed title must tell the user what this deeper analysis will actually give them for their own trial, project, population or decision. Describe the result/deliverable, not an abstract category name.
+- Connect the title naturally to the user's request. Use wording such as "for your planned trial", "for your study", "in your target population" or an equivalent specific referent when it improves clarity, but vary the wording rather than repeating the same suffix mechanically.
+- Good examples: "Recommended trial sites for your planned study", "Principal investigators most relevant to your planned trial", "Exclusion criteria most likely to restrict recruitment in your target population", "Expected enrollment range for your planned trial", "Countries most suitable for your planned rollout".
+- Bad examples: "Best-fitting trial sites", "Eligibility strategy fit", "Enrollment benchmark fit", "Endpoint strategy fit", "Country strategy fit", "Operational fit". These are labels, not outcomes.
+- If the title cannot be understood without expanding the details, rewrite it until the deliverable is clear from the title alone. Slightly longer titles are preferable to vague short labels.
 - Never phrase the title as a question and never end it with a question mark.
 - Move from superficial counting toward a medical/operational decision. Use 2 to 4 distinct decision factors or sub-analyses in details, such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, source-derived protocol detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
-- Do not simply repeat the shared analysis using different wording. The Max analysis must explain what additional evidence would change or strengthen the decision.
+- Do not simply repeat the shared analysis using different wording. The Max analysis must explain what additional evidence would change or strengthen the user's decision.
 
 For every pair, set the internal top-level title exactly equal to sharedAnalysis.title. This field is only an execution/progress label; it is not an additional user-facing objective.
 
 Across all analysis pairs:
 - Put the user's requested decisions first.
-- Keep titles short enough to scan in a collapsed row. Put necessary nuance in details.
+- Prefer an immediately understandable title over an artificially short one; necessary nuance may stay in details.
 - Do not hard-code result breadth such as top 5, top 10 or top 100. The product tier controls result breadth.
 - Avoid redundant analyses likely to produce the same result and same practical implication.
 - The same site, investigator, country, endpoint or trial may appear in multiple analyses only when a different metric or evidence dimension answers a genuinely different decision.
@@ -112,7 +117,7 @@ class LegacyStudyCohort(BaseModel):
 class AnalysisCard(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=140)
     details: list[str] = Field(min_length=1, max_length=4)
 
     @field_validator("title")
@@ -126,7 +131,7 @@ class AnalysisCard(BaseModel):
 class ReportSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=140)
     sharedAnalysis: AnalysisCard
     maxAnalysis: AnalysisCard
 
@@ -136,6 +141,10 @@ class ReportSection(BaseModel):
             raise ValueError("The internal pair title must match the shared analysis title.")
         if len(self.maxAnalysis.details) < 2:
             raise ValueError("Max analyses require at least two distinct decision factors.")
+        max_title = self.maxAnalysis.title.casefold()
+        for generic_phrase in ("strategy fit", "benchmark fit", "best-fitting", "best fitting", "operational fit"):
+            if generic_phrase in max_title:
+                raise ValueError("Max analysis titles must describe the concrete user-facing outcome, not a generic fit label.")
         return self
 
 
