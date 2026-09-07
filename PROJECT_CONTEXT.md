@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for `tarous89/intel_mcp`.**
 
-Last updated: 2026-09-06
+Last updated: 2026-09-07
 Repository: `tarous89/intel_mcp`
 
 > Read this file first, then `REPORT_EXECUTION_CONTEXT.md` for report planning/execution and the tool-specific docs for exact public contracts. Current context wins over git/history.
@@ -176,7 +176,24 @@ Every v4 plan contains **5–7 analysis pairs**. Each pair has:
 1. one shared descriptive analysis available in Light + Max;
 2. one paired Max analysis that adds decision depth.
 
-Both titles are short and declarative; question-style titles are rejected. The shared analysis uses direct Trial Profile outputs such as counts, rankings, frequencies, distributions and observed timeline comparisons. The Max analysis adds at least two distinct decision factors such as exact clinical fit, recency, competition, PI-site relationships, protocol/source detail, variability, trade-offs or evidence-supported prioritization/recommendation.
+Shared titles state exactly what will be counted, ranked, compared or summarized. Max titles state the concrete result/deliverable for the user's own trial, project, population or rollout and should be understandable without expanding the row. Slightly longer descriptive titles are preferred over short abstract labels.
+
+Examples:
+
+```text
+Shared: Most active trial sites
+Max:    Recommended trial sites for your planned study
+
+Shared: Most-used exclusion criteria
+Max:    Exclusion criteria most likely to restrict recruitment in your target population
+
+Shared: Observed enrollment in similar trials
+Max:    Expected enrollment range for your planned trial
+```
+
+Question titles are rejected. Generic Max labels containing `strategy fit`, `benchmark fit`, `best-fitting` / `best fitting`, or `operational fit` are also rejected. Avoid consultant-style labels such as `Endpoint strategy fit`, `Country strategy fit`, or `Enrollment benchmark fit` even when the details underneath are valid.
+
+The Max analysis still adds at least two distinct decision factors such as exact clinical fit, recency, competition, PI-site relationships, protocol/source detail, variability, trade-offs or evidence-supported prioritization/recommendation.
 
 The schema keeps an internal top-level `title` equal to the shared analysis title for existing progress/execution compatibility. It is not a user-facing hierarchy layer.
 
@@ -213,6 +230,8 @@ analysis:  intel_light_objective_v5
 synthesis: intel_light_synthesis_v5
 ```
 
+The 2026-09-07 planner change is title/plan-quality only. It does not alter the Light execution projection, evidence counts, tool allowances, or Max fulfilment state.
+
 Execution still runs as an in-process async task on the MCP web service; a service restart can interrupt a run. Durable worker/claim-heartbeat-retry execution remains future work.
 
 ## App control-plane boundary
@@ -243,9 +262,7 @@ Classification/extraction worker model/config are App-controlled and resolved at
 
 ## Verification state
 
-Engine disease-filter migration/view is live and was verified directly in production. Engine validation passed. The MCP v4 planner, disease filter adapter/schema, v4 Light projection and compatibility tests are on main.
-
-MCP GitHub CI for commit `1bfc9987255a49ebab0aa3a9be3b50627691437d` passed the full test suite and live-health job. Production Render deploy `dep-daetaqh5efls73a9gfa0` is live.
+The 2026-09-07 planner code and title-contract tests are on main. GitHub CI for code commit `a7ea1161db68ef351b2ac39f041cffdb2d63f58c` passed. Verify the latest Render/docs-only deploy live before reporting a mutable deployment ID.
 
 ## Immediate next implementation work
 
