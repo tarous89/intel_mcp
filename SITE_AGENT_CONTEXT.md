@@ -54,6 +54,13 @@ approved-only Engine reads. Public MCP tools, report allowances, OAuth, Engine s
 clinical warehouse remain unchanged. No documents, raw CTIS fallback, outreach, payment or
 candidate enrichment is added.
 
+The first authenticated production attempt on 2026-09-07 exposed an OpenAI 400 before any
+criteria were returned: the v2 strict schema used the unsupported `uniqueItems` keyword.
+The schema now leaves deduplication to `_clean_criteria`, which already normalizes both lists,
+while retaining application-side count and value validation. Projects that failed before this
+fix have no stored criteria and must be recreated; they cannot accidentally spend a second
+planner attempt under the same project ID.
+
 ## Validation and remaining work
 
 The focused Site Agent suite and the complete MCP suite pass locally. A representative stored
