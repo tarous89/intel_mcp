@@ -44,13 +44,13 @@ SAMPLE_PLAN = {
     "exclusionSummary": "Healthy-volunteer and unrelated ophthalmology studies will be excluded.",
     "reportSections": [
         {
-            "title": "Most-used eligibility criteria",
+            "title": "List the most-used eligibility criteria",
             "sharedAnalysis": {
-                "title": "Most-used eligibility criteria",
+                "title": "List the most-used eligibility criteria",
                 "details": ["Rank recurring inclusion and exclusion criteria across selected trials"],
             },
             "maxAnalysis": {
-                "title": "Eligibility criteria most likely to restrict recruitment in your target population",
+                "title": "Assess exclusion criteria likely to restrict recruitment in your target population",
                 "details": [
                     "Compare restrictions across the closest disease and treatment matches",
                     "Identify protocol-level criteria most likely to narrow recruitment",
@@ -58,13 +58,13 @@ SAMPLE_PLAN = {
             },
         },
         {
-            "title": "Most common primary endpoints",
+            "title": "Summarize the most common primary endpoints",
             "sharedAnalysis": {
-                "title": "Most common primary endpoints",
+                "title": "Summarize the most common primary endpoints",
                 "details": ["Rank primary endpoints across selected trials"],
             },
             "maxAnalysis": {
-                "title": "Primary endpoints most suitable for your planned study",
+                "title": "Evaluate primary endpoints for your planned study",
                 "details": [
                     "Compare endpoint choice across clinically relevant segments",
                     "Assess endpoint definitions and timing from source documents where needed",
@@ -72,13 +72,13 @@ SAMPLE_PLAN = {
             },
         },
         {
-            "title": "Shortest observed country timelines",
+            "title": "Calculate observed country timelines",
             "sharedAnalysis": {
-                "title": "Shortest observed country timelines",
+                "title": "Calculate observed country timelines",
                 "details": ["Compare observed CTIS timelines across represented countries"],
             },
             "maxAnalysis": {
-                "title": "Countries most suitable for your planned rollout",
+                "title": "Recommend countries for your planned rollout",
                 "details": [
                     "Compare timeline consistency within closest-matched trials",
                     "Balance relevant experience, variability and operational trade-offs",
@@ -86,13 +86,13 @@ SAMPLE_PLAN = {
             },
         },
         {
-            "title": "Most active trial sites",
+            "title": "Rank trial sites by documented activity",
             "sharedAnalysis": {
-                "title": "Most active trial sites",
+                "title": "Rank trial sites by documented activity",
                 "details": ["Rank sites by documented participation in selected trials"],
             },
             "maxAnalysis": {
-                "title": "Recommended trial sites for your planned study",
+                "title": "Prioritize trial sites for your planned study",
                 "details": [
                     "Compare exact disease, phase and modality experience",
                     "Assess recency, competition and investigator-site relationships",
@@ -100,13 +100,13 @@ SAMPLE_PLAN = {
             },
         },
         {
-            "title": "Most active principal investigators",
+            "title": "Name the most active principal investigators",
             "sharedAnalysis": {
-                "title": "Most active principal investigators",
+                "title": "Name the most active principal investigators",
                 "details": ["Rank investigators by documented participation in selected trials"],
             },
             "maxAnalysis": {
-                "title": "Principal investigators most relevant to your planned trial",
+                "title": "Identify principal investigators most relevant to your planned trial",
                 "details": [
                     "Compare experience in the closest clinical setting",
                     "Assess recency, modality experience and site relationships",
@@ -136,14 +136,16 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert "Use exactly ONE selection dimension" in developer_text
         assert "Prefer disease when a meaningful disease is specified" in developer_text
         assert "Do not use disease stage, biomarker, mutation, PD-L1" in developer_text
-        assert "prefer a compact \"X vs Y\" group" in developer_text
+        assert "prefer one compact \"X vs Y\" group" in developer_text
         assert "Do not say \"regardless of\"" in developer_text
         assert "There is no user-facing objective layer" in developer_text
         assert "one shared analysis and one Max analysis" in developer_text
-        assert "The collapsed title must tell the user what this deeper analysis will actually give them" in developer_text
-        assert "Slightly longer titles are preferable to vague short labels" in developer_text
-        assert "Eligibility strategy fit" in developer_text
-        assert "Expected enrollment range for your planned trial" in developer_text
+        assert "List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect" in developer_text
+        assert "Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize" in developer_text
+        assert "Do not use Quantify or Describe" in developer_text
+        assert "Do not use Benchmark as a title verb" in developer_text
+        assert "Prioritize trial sites for your planned study" in developer_text
+        assert "Estimate enrollment range for your planned trial" in developer_text
         assert "Never phrase the title as a question" in developer_text
         assert "Do not hard-code result breadth" in developer_text
 
@@ -192,7 +194,7 @@ def test_v4_analysis_pairs_require_matching_internal_title_and_decision_depth() 
     shallow = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
     shallow["reportSections"][0] = {
         **shallow["reportSections"][0],
-        "maxAnalysis": {"title": "Criteria most likely to restrict recruitment", "details": ["Only one factor"]},
+        "maxAnalysis": {"title": "Assess recruitment restrictions", "details": ["Only one factor"]},
     }
     with pytest.raises(ValidationError):
         ReportPlan.model_validate(shallow)
@@ -236,7 +238,9 @@ def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_VERSION == 4
     assert "2 to 4 Max groups" in REPORT_PLAN_INSTRUCTIONS
     assert "Create 5 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
+    assert "List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect" in REPORT_PLAN_INSTRUCTIONS
+    assert "Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize" in REPORT_PLAN_INSTRUCTIONS
     assert "consultant-style labels" in REPORT_PLAN_INSTRUCTIONS
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
-    assert len(REPORT_PLAN_INSTRUCTIONS) < 10500
+    assert len(REPORT_PLAN_INSTRUCTIONS) < 9500
