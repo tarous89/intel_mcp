@@ -8,6 +8,7 @@ from intel_mcp.light_report_execution import (
     _analyzed_cohort_summary,
     _v3_light_execution_view,
     _v4_light_execution_view,
+    _max_upgrade_copy,
 )
 from intel_mcp.profiles import AppProfileAccessResponse, EngineProfilesResponse
 from intel_mcp.server import settings
@@ -227,3 +228,22 @@ async def test_executor_loads_complete_frozen_evidence_once_in_two_ten_profile_b
     assert [item.eu_number for item in profiles] == expected_ids
     assert engine.calls == [expected_ids[:10], expected_ids[10:]]
     assert control.calls == [expected_ids[:10], expected_ids[10:]]
+
+
+def test_v4_max_upgrade_copy_uses_paired_analysis() -> None:
+    plan = {
+        "version": 4,
+        "reportSections": [{
+            "title": "Name investigators",
+            "sharedAnalysis": {"title": "Name investigators", "details": ["Rank activity"]},
+            "maxAnalysis": {
+                "title": "Identify investigators most relevant to the planned trial",
+                "details": ["Compare disease and phase experience"],
+            },
+        }],
+    }
+    copy = _max_upgrade_copy(plan, 0)
+    assert copy.startswith("Limited to 20 Trial Profiles")
+    assert "Upgrade to Max to identify investigators most relevant" in copy
+    assert "up to 100 analyzed trials" in copy
+    assert "source documents" in copy

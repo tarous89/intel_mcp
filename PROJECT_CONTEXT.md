@@ -207,6 +207,12 @@ Execution:
 4. Final Sol/high synthesis produces only title, short introduction and closing note.
 5. Completed reports remain `final_report.version = 2` for renderer compatibility.
 
+Investigator analyses receive a deterministic flattening of nested site contacts so explicit
+PI roles are recognized even when the nullable PI flag is unset. Names, affiliations,
+selected-cohort activity and recorded public CTIS emails are preserved; unconfirmed roles are
+never promoted to confirmed PIs. Completed v4 sections carry concise objective-specific
+`maxUpgrade` presentation copy derived from their paired Max analysis.
+
 Current prompt/schema names:
 
 ```text

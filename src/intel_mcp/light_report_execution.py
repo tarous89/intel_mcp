@@ -315,6 +315,26 @@ def _analyzed_cohort_summary(
     return {"totalTrials": len(selected_trials), "cohorts": buckets}
 
 
+def _max_upgrade_copy(plan: dict[str, Any], section_index: int) -> str:
+    """Build concise objective-specific Max value without another model call."""
+    sections = plan.get("reportSections")
+    if plan.get("version") == 4 and isinstance(sections, list) and section_index < len(sections):
+        pair = sections[section_index]
+        max_analysis = pair.get("maxAnalysis") if isinstance(pair, dict) else None
+        title = max_analysis.get("title") if isinstance(max_analysis, dict) else None
+        if isinstance(title, str) and title.strip():
+            action = title.strip().rstrip(".")
+            action = action[:1].lower() + action[1:]
+            return (
+                "Limited to 20 Trial Profiles and Light-depth rankings. "
+                f"Upgrade to Max to {action}, using deeper evidence from up to 100 analyzed trials and source documents."
+            )
+    return (
+        "Limited to 20 Trial Profiles and Light-depth rankings. "
+        "Upgrade to Max for deeper analysis across up to 100 trials with source-document review."
+    )
+
+
 def _steps(objectives: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {"key": "trial_selection", "label": "Finding the best 20 trials", "status": "waiting"},
@@ -517,6 +537,14 @@ class LightReportExecutor:
             )
             progress = _mark(progress, "final_report", "completed")
             progress["stage"] = "completed"
+            rendered_sections = []
+            for index, item in enumerate(section_results):
+                rendered_sections.append(
+                    {
+                        **item.model_dump(),
+                        "maxUpgrade": _max_upgrade_copy(approved_plan, index),
+                    }
+                )
             final_report = {
                 "version": 2,
                 "tier": "light",
@@ -524,7 +552,7 @@ class LightReportExecutor:
                 "executiveSummary": synthesis.executive_summary,
                 "analyzedCohort": _analyzed_cohort_summary(selection_plan, selection.selected_trials),
                 "closingNote": synthesis.closing_note,
-                "sections": [item.model_dump() for item in section_results],
+                "sections": rendered_sections,
             }
             await self._control.complete(report_run_id, progress, final_report)
         except (LightReportError, ReportExecutionError) as error:

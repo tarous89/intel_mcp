@@ -131,6 +131,15 @@ Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces tit
 
 Completed Light reports remain `final_report.version = 2` for renderer compatibility. The analyzed-cohort summary contains only the shared trial group and exact frozen 20 trials.
 
+For investigator analyses, the executor deterministically flattens nested Trial Profile site
+contacts before the Terra call. A true PI flag or explicit Principal Investigator role confirms
+the PI; a null flag is not treated as negative. Names, affiliations, selected-cohort activity
+and recorded public CTIS emails are included. A deterministic safeguard inserts named results
+when structured evidence exists, while role-unconfirmed contacts remain explicitly unconfirmed.
+
+Each completed v4 section also receives deterministic `maxUpgrade` copy derived from its paired
+Max analysis. This is presentation metadata only and does not execute Max work.
+
 ## Current prompt/schema versions
 
 - planner: `intel_agent_report_plan_v4`

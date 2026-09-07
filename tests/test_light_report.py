@@ -20,6 +20,8 @@ from intel_mcp.light_report import (
     LightTrialSelection,
     ObjectiveResult,
     SolLightReportRunner,
+    _ensure_named_investigators,
+    _investigator_evidence,
     light_objectives,
 )
 from intel_mcp.profiles import FullProfileItem
@@ -77,6 +79,23 @@ def _profiles() -> list[FullProfileItem]:
         )
         for index in range(1, 21)
     ]
+
+
+def _profiles_with_investigator() -> list[FullProfileItem]:
+    profiles = _profiles()
+    profiles[0].profile["classification_variables"]["sites"] = [{
+        "name": "University Hospital Berlin",
+        "country_code": "DE",
+        "site_contacts": [{
+            "first_name": "Ada",
+            "last_name": "Example",
+            "email": "ada@example.org",
+            "principal_investigator": None,
+            "function": "Principal investigator",
+            "department_or_division": "Oncology",
+        }],
+    }]
+    return profiles
 
 
 def _objective_output(trial_reference: str) -> dict:
@@ -259,6 +278,43 @@ async def test_objective_can_collapse_exact_duplicate_visuals_without_forcing_on
     assert [item.label for item in result.sub_analyses[0].items] == ["PFS", "OS"]
     assert result.sub_analyses[0].trial_ids == ["2026-000001-00-00", "2026-000002-00-00"]
     assert result.qa_warnings == ["duplicate_subanalysis_visual_removed"]
+
+
+def test_investigator_evidence_uses_explicit_role_when_pi_flag_is_null() -> None:
+    evidence = _investigator_evidence(
+        {"title": "Name the most active principal investigators", "analyses": ["Rank by activity"]},
+        _profiles_with_investigator(),
+        {f"2026-{index:06d}-00-00": f"T{index:02d}" for index in range(1, 21)},
+    )
+    assert evidence is not None
+    assert evidence["confirmed_pi_count"] == 1
+    assert evidence["candidates"][0]["name"] == "Ada Example"
+    assert evidence["candidates"][0]["email"] == "ada@example.org"
+    assert evidence["candidates"][0]["affiliations"][0]["name"] == "University Hospital Berlin"
+
+
+def test_named_investigator_result_replaces_false_zero() -> None:
+    evidence = _investigator_evidence(
+        {"title": "Name principal investigators", "analyses": ["Rank by activity"]},
+        _profiles_with_investigator(),
+        {f"2026-{index:06d}-00-00": f"T{index:02d}" for index in range(1, 21)},
+    )
+    parsed = ObjectiveResult.model_validate({
+        **_objective_output("T01"),
+        "title": "Name principal investigators",
+        "sub_analyses": [{
+            "title": "Recorded investigators",
+            "visual": {"kind": "stat", "title": "Confirmed investigators", "unit": "investigators", "labels": ["Confirmed PIs"], "values": [0], "note": "No investigators were found."},
+            "interpretation": "No principal investigators were identified.",
+            "items": [],
+            "trial_ids": [],
+        }],
+    })
+    result = _ensure_named_investigators(parsed, evidence, maximum_sub_analyses=1)
+    assert result.sub_analyses[0].items[0].label == "Ada Example"
+    assert "University Hospital Berlin" in result.sub_analyses[0].items[0].value
+    assert "ada@example.org" in result.sub_analyses[0].items[0].explanation
+    assert result.qa_warnings == ["named_investigator_result_added"]
 
 
 @pytest.mark.anyio
