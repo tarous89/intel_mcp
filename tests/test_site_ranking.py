@@ -1,13 +1,16 @@
 import copy
 import unittest
+from datetime import UTC, datetime, timedelta
 
 from intel_mcp.site_ranking import phrase_in, rank_profiles
-
 
 CRITERIA = {
     "therapeutic_areas": ["Solid Tumor Oncology"],
     "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
     "countries": [],
+    "phases": [3],
+    "modalities": ["Monoclonal antibody"],
+    "paediatric_relevant": False,
 }
 
 
@@ -23,8 +26,15 @@ def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", 
 
 
 def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site="Example hospital",
-         country="DE", contacts=None, sponsor="Example sponsor", year=2024):
+         country="DE", contacts=None, sponsor="Example sponsor", year=2024,
+         authorization_date=None, phases=None, modality="Monoclonal antibody", paediatric=False):
+    authorization_date = authorization_date or f"{year}-02-01"
     return {"eu_number": f"{year}-{number:06d}-00-00", "profile": {
+        "filtering_variables": {
+            "phase": phases if phases is not None else [3],
+            "modality": modality,
+            "paediatric_trial": paediatric,
+        },
         "classification_variables": {
             "trial_title": title,
             "diseases": diseases if diseases is not None else ["Non-small cell lung cancer"],
@@ -36,7 +46,9 @@ def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site
                 "site_contacts": contacts if contacts is not None else [contact()],
             }],
         },
-        "ctis_lifecycle": {"countries": [{"country_code": country, "updates": [{"date": f"{year}-02-01", "label": "Start of trial"}]}]},
+        "ctis_lifecycle": {"countries": [{"country_code": country, "updates": [{
+            "date": authorization_date, "label": "Initial country decision", "outcome": "Authorised",
+        }]}]},
     }}
 
 
@@ -144,6 +156,41 @@ class RankingTests(unittest.TestCase):
         self.assertEqual({sponsor["name"] for sponsor in metrics["sponsors"]}, {"Example sponsor", "Other sponsor"})
         self.assertEqual(metrics["latestTrialYear"], 2024)
         self.assertEqual(set(metrics["evidence"][0]), {"id", "title"})
+
+    def test_experience_metrics_use_five_year_window_and_activity_uses_six_months(self):
+        today = datetime.now(UTC).date()
+        recent_date = (today - timedelta(days=30)).isoformat()
+        old_year = today.year - 6
+        result = rank_profiles([
+            item(1, year=today.year, authorization_date=recent_date, paediatric=True),
+            item(2, year=old_year, authorization_date=f"{old_year}-01-01", paediatric=True),
+        ], {**CRITERIA, "paediatric_relevant": True})
+        metrics = result["sites"][0]["metrics"]
+        self.assertEqual(metrics["therapeuticAreaTrials"], 1)
+        self.assertEqual(metrics["diseaseMatchedTrials"], 1)
+        self.assertEqual(metrics["phaseMatchedTrials"], 1)
+        self.assertEqual(metrics["modalityMatchedTrials"], 1)
+        self.assertEqual(metrics["paediatricMatchedTrials"], 1)
+        self.assertEqual(metrics["recentActivityTrials"], 1)
+
+    def test_phase_modality_and_paediatric_experience_break_disease_ties(self):
+        criteria = {**CRITERIA, "paediatric_relevant": True}
+        result = rank_profiles([
+            item(1, site="Broad match", phases=[2], modality="Small molecule", paediatric=False),
+            item(2, site="Priority match", phases=[3], modality="Monoclonal antibody", paediatric=True),
+        ], criteria)
+        self.assertEqual(result["sites"][0]["name"], "Priority match")
+
+    def test_cohort_bands_are_calculated_before_preview_and_zero_is_neutral_bottom(self):
+        rows = []
+        for index in range(12):
+            for trial in range(index + 1):
+                rows.append(item(1000 + index * 20 + trial, site=f"Hospital {index:02d}"))
+        result = rank_profiles(rows, CRITERIA)
+        self.assertEqual(result["sites"][0]["metrics"]["bands"]["therapeuticAreaTrials"], "leading_10")
+        self.assertEqual(len(result["sites"]), 10)
+        unmatched = rank_profiles([item(1, diseases=["Breast cancer"])], CRITERIA)
+        self.assertEqual(unmatched["sites"][0]["metrics"]["bands"]["diseaseMatchedTrials"], "bottom_25")
 
     def test_sclc_is_not_a_substring_match_for_nsclc(self):
         self.assertFalse(phrase_in("SCLC", "NSCLC study"))
