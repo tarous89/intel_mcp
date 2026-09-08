@@ -13,7 +13,7 @@ import re
 import unicodedata
 from typing import Any, Iterable
 
-VERSION = "therapeutic-area-disease-country-v2"
+VERSION = "therapeutic-area-disease-country-v3"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 
@@ -191,18 +191,29 @@ class ProfileRanker:
                     # candidates, but are never presented as confirmed PIs.
                     if is_pi is False or not contact_name:
                         continue
-                    # A stable email is the strongest available cross-site identity.
-                    # Without one, keep the identity scoped to the recorded site.
-                    person_id = key("email", email) if email else key("site", site_id, contact_name, department)
+                    # Site Agent presents one row per normalized recorded name.
+                    # Email remains the preferred contact route, but is not used as
+                    # the display identity because CTIS can record the same person
+                    # with different addresses across institutions and years.
+                    person_id = key("person", contact_name)
                     person = self.people.setdefault(person_id, {
-                        "id": person_id, "name": contact_name, "department": department,
-                        "trials": {}, "sites": {}, "emails": Counter(), "confirmed": False,
+                        "id": person_id, "names": Counter(), "trials": {}, "sites": {},
+                        "site_trials": {}, "departments": {}, "emails": Counter(),
+                        "email_years": {}, "confirmed": False,
                     })
+                    person["names"][contact_name] += 1
                     person["trials"][trial_id] = trial
                     person["sites"][site_id] = site
+                    person["site_trials"].setdefault(site_id, {})[trial_id] = trial
                     person["confirmed"] = person["confirmed"] or is_pi is True
+                    if department:
+                        candidate = (trial["year"] or 0, normalized(department), department)
+                        current = person["departments"].get(site_id)
+                        if current is None or candidate[:2] > current[:2]:
+                            person["departments"][site_id] = candidate
                     if email:
                         person["emails"][email] += 1
+                        person["email_years"][email] = max(person["email_years"].get(email, 0), trial["year"] or 0)
 
     def result(self, limit: int = PREVIEW_LIMIT) -> dict:
         site_rows = []
@@ -223,14 +234,23 @@ class ProfileRanker:
         for person in self.people.values():
             affiliations = sorted(
                 ({"id": site["id"], "name": site["name"], "country": site["country"],
-                  "trials": len(set(site["trials"]) & set(person["trials"]))} for site in person["sites"].values()),
-                key=lambda site: (-site["trials"], normalized(site["name"]), site["country"]),
+                  "trials": len(person["site_trials"][site["id"]]),
+                  "latest": max((trial["year"] or 0) for trial in person["site_trials"][site["id"]].values())}
+                 for site in person["sites"].values()),
+                key=lambda site: (-site["latest"], -site["trials"], normalized(site["name"]), site["country"]),
             )
-            email = sorted(person["emails"], key=lambda value: (-person["emails"][value], value))[0] if person["emails"] else None
+            latest_affiliation = affiliations[0]
+            department = person["departments"].get(latest_affiliation["id"], (0, "", ""))[2]
+            public_affiliation = {key: value for key, value in latest_affiliation.items() if key != "latest"}
+            email = sorted(
+                person["emails"],
+                key=lambda value: (-person["email_years"][value], -person["emails"][value], value),
+            )[0] if person["emails"] else None
+            name = sorted(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))[0]
             pi_rows.append({
-                "id": person["id"], "name": person["name"], "department": person["department"],
+                "id": person["id"], "name": name, "department": department,
                 "email": email, "role": "confirmed_pi" if person["confirmed"] else "role_unconfirmed",
-                "sites": affiliations, "metrics": _metrics(person["trials"]),
+                "sites": [public_affiliation], "metrics": _metrics(person["trials"]),
             })
         pi_rows.sort(key=_rank_key)
         for rank, record in enumerate(pi_rows, 1):
