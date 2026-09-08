@@ -228,7 +228,7 @@ Execution still runs as an in-process async task on the MCP web service; a servi
 
 ## Site Agent deterministic project slice
 
-Site Agent uses one Terra/low planning call to extract controlled TA, disease, country, phase, modality and paediatric criteria. The model-free exhaustive search ranks eligible Sites and PIs with five-year expertise signals and six-month activity. Version v5 ranks confirmed PIs within each site for the contact and top-three investigator evidence, and consolidates sponsor spelling/legal variants through conservative curated aliases without fuzzy parent-company matching. Candidate profiles are never sent to a model. See `SITE_AGENT_CONTEXT.md`.
+Site Agent uses one Terra/low planning call to extract controlled TA, disease, country, phase, modality and paediatric criteria. The model-free exhaustive search ranks eligible Sites and PIs with five-year expertise signals and six-month activity. Version v5 ranks confirmed PIs within each site for the contact and top-three investigator evidence, and consolidates sponsor case, punctuation and common legal-suffix variants with curated ambiguity exceptions and no fuzzy parent-company matching. Candidate profiles are never sent to a model. See `SITE_AGENT_CONTEXT.md`.
 
 ## App control-plane boundary
 

@@ -177,12 +177,22 @@ class RankingTests(unittest.TestCase):
             item(3, sponsor="Astra Zeneca LLC"),
             item(4, sponsor="Merck & Co"),
             item(5, sponsor="Merck KGaA"),
+            item(6, sponsor="Example Biopharma Inc."),
+            item(7, sponsor="example biopharma LLC"),
         ], CRITERIA)
         sponsors = result["sites"][0]["metrics"]["sponsors"]
         self.assertEqual(sponsors[0]["name"], "AstraZeneca")
         self.assertEqual(sponsors[0]["trials"], 3)
         self.assertEqual(set(sponsors[0]["variants"]), {"Astra Zeneca LLC", "AstraZeneca", "ASTRAZENECA AB"})
-        self.assertEqual({sponsor["name"] for sponsor in sponsors[1:]}, {"Merck & Co", "Merck KGaA"})
+        self.assertEqual(sponsors[1]["name"], "Example Biopharma")
+        self.assertEqual(sponsors[1]["trials"], 2)
+        merck_result = rank_profiles([
+            item(20, sponsor="Merck & Co"), item(21, sponsor="Merck KGaA"),
+        ], CRITERIA)
+        self.assertEqual(
+            {sponsor["name"] for sponsor in merck_result["sites"][0]["metrics"]["sponsors"]},
+            {"Merck & Co.", "Merck KGaA"},
+        )
 
     def test_experience_metrics_use_five_year_window_and_activity_uses_six_months(self):
         today = datetime.now(UTC).date()
