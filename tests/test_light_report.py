@@ -110,7 +110,7 @@ def _objective_output(trial_reference: str) -> dict:
             "trial_ids": [trial_reference],
         }],
         "conclusion": "PFS is the strongest profile-supported benchmark.",
-        "max_upgrade": "This report is limited to endpoint frequency in 20 profiles; Max would add endpoint hierarchy and source-document context across the broader evidence set.",
+        "max_upgrade": "This report is limited to endpoint frequency in 20 profiles. Upgrade to Max to add endpoint hierarchy and source-document context across up to 1,000 trials.",
         "limitations": [],
     }
 
@@ -218,7 +218,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert payload["model"] == LIGHT_REPORT_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_objective_v7"
+        assert payload["text"]["format"]["name"] == "intel_light_objective_v8"
 
         developer = payload["input"][0]["content"][0]["text"]
         assert "candidate analytical lenses rather than mandatory output slots" in developer
@@ -227,7 +227,9 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert "same entities may appear again when a different metric reveals a different insight" in developer
         assert "Merge only when two lenses substantially answer the same decision question" in developer
         assert "This report is limited to" in developer
-        assert "exactly one concise, objective-specific sentence" in developer
+        assert "exactly two concise, objective-specific sentences" in developer
+        assert "Upgrade to Max to" in developer
+        assert "up to 1,000 trials" in developer
         assert "must never change the Light findings" in developer
         assert len(developer) < 3600
 
@@ -275,7 +277,8 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
     assert result.sub_analyses[0].items[0].trial_ids == ["2026-000001-00-00"]
     assert len(result.summary_sentences) == 1
     assert result.max_upgrade.startswith("This report is limited to")
-    assert result.max_upgrade.count(".") == 1
+    assert result.max_upgrade.count(".") == 2
+    assert ". Upgrade to Max to " in result.max_upgrade
     assert result.qa_warnings == []
 
 

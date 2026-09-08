@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 > Canonical current-state contract for Intel Agent report planning and Light execution. Superseded implementation history belongs in git history.
 
@@ -138,15 +138,16 @@ and recorded public CTIS emails are included. A deterministic safeguard inserts 
 when structured evidence exists, while role-unconfirmed contacts remain explicitly unconfirmed.
 
 Each completed v4 section receives dynamically generated `maxUpgrade` copy from the Terra
-objective-analysis call. It is exactly one sentence beginning `This report is limited to`,
-followed by a semicolon and one `Max would` clause grounded in the actual Light result and paired
-Max analysis. This is presentation metadata only and does not execute Max work.
+objective-analysis call. It is exactly two sentences grounded in the actual Light result and
+paired Max analysis: sentence one begins `This report is limited to`; sentence two begins
+`Upgrade to Max to` and may describe broader evidence across up to 1,000 trials. This is
+presentation metadata only and does not execute Max work.
 
 ## Current prompt/schema versions
 
 - planner: `intel_agent_report_plan_v4`
 - selection: `intel_light_trial_selection_v5`
-- Light analysis: `intel_light_objective_v7`
+- Light analysis: `intel_light_objective_v8`
 - synthesis: `intel_light_synthesis_v5`
 
 The 2026-09-07 verb refinement changed planner language/title semantics only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
@@ -155,7 +156,7 @@ The 2026-09-07 verb refinement changed planner language/title semantics only. It
 
 The App presentation intentionally shows:
 - `Trial selection` and `Analyses` headings;
-- scope tags at the section level (`Light · up to 20 trials`, `Max · up to 100 trials`, plus dynamic analysis totals);
+- scope tags at the section level (`Light · up to 20 trials`, `Max · up to 1,000 trials`, plus dynamic analysis totals);
 - no Light/Priority/Adjacent/coverage row labels;
 - shared rows unbadged because they belong to both tiers;
 - Max-exclusive rows labeled with a green `Max only` badge;

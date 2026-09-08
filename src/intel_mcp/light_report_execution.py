@@ -349,12 +349,12 @@ def _max_upgrade_copy(plan: dict[str, Any], section_index: int) -> str:
             action = title.strip().rstrip(".")
             action = action[:1].lower() + action[1:]
             return (
-                "This report is limited to 20 Trial Profiles and Light-depth ranking; "
-                f"Max would {action}, using deeper evidence from up to 100 analyzed trials and source documents."
+                "This report is limited to 20 Trial Profiles and Light-depth ranking. "
+                f"Upgrade to Max to {action}, using broader evidence from up to 1,000 trials and source documents."
             )
     return (
-        "This report is limited to 20 Trial Profiles and Light-depth ranking; "
-        "Max would add deeper analysis across up to 100 trials with source-document review."
+        "This report is limited to 20 Trial Profiles and Light-depth ranking. "
+        "Upgrade to Max to add deeper analysis across up to 1,000 trials with source-document review."
     )
 
 

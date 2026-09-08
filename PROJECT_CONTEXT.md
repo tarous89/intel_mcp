@@ -2,7 +2,7 @@
 
 **Canonical current-state handoff for `tarous89/intel_mcp`.**
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 Repository: `tarous89/intel_mcp`
 
 > Read this file first, then `REPORT_EXECUTION_CONTEXT.md` for report planning/execution and the tool-specific docs for exact public contracts. Current context wins over git/history.
@@ -211,14 +211,14 @@ Investigator analyses receive a deterministic flattening of nested site contacts
 PI roles are recognized even when the nullable PI flag is unset. Names, affiliations,
 selected-cohort activity and recorded public CTIS emails are preserved; unconfirmed roles are
 never promoted to confirmed PIs. Completed v4 sections carry concise objective-specific
-`maxUpgrade` presentation copy is generated dynamically by the objective-analysis LLM from the actual Light result and its paired Max analysis. It is exactly one sentence beginning `This report is limited to`, followed by a semicolon and one `Max would` clause describing the additional insight. It describes future Max capability and must not claim that Max work or outcomes already exist.
+`maxUpgrade` presentation copy is generated dynamically by the objective-analysis LLM from the actual Light result and its paired Max analysis. It is exactly two sentences: the first begins `This report is limited to` and states the material Light limitation; the second begins `Upgrade to Max to` and describes the additional objective-specific insight across up to 1,000 trials. It describes future Max capability and must not claim that Max work or outcomes already exist.
 
 Current prompt/schema names:
 
 ```text
 planner:   intel_agent_report_plan_v4
 selection: intel_light_trial_selection_v5
-analysis:  intel_light_objective_v7
+analysis:  intel_light_objective_v8
 synthesis: intel_light_synthesis_v5
 ```
 
@@ -266,7 +266,7 @@ Classification/extraction worker model/config are App-controlled and resolved at
 ## Immediate next implementation work
 
 1. Keep v4 Light execution stable and move execution to a durable worker/claim-heartbeat-retry loop.
-2. Implement Max fulfilment against the v4 promise: 2–4 deeper groups, up to 100 analyzed trials, paired deeper analyses, source review, downloads and revisions.
+2. Implement Max fulfilment against the v4 promise: 2–4 deeper groups, up to 1,000 analyzed trials, paired deeper analyses, source review, downloads and revisions.
 3. Keep Stripe live mode disabled until Max execution/fulfilment is verified.
 4. Complete Light-to-Max upgrade/revision flow.
 5. Continue OAuth/connector dogfooding and public-directory preparation without weakening App/Engine boundaries.
