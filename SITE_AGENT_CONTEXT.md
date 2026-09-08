@@ -14,10 +14,14 @@ POST /internal/site-agent/search
 
 The interpret route makes exactly one `gpt-5.6-terra` Responses request at low reasoning.
 Its strict schema returns only one to four controlled therapeutic areas, up to 16 short disease
-terms and explicitly requested supported country codes. Disease terms are limited to names,
+terms, explicitly requested supported country codes and one short display-only `Prioritized
+experience` sentence. Disease terms are limited to names,
 synonyms/acronyms and useful anatomical or malignancy wording for literal comparison with the
 Trial Profile `diseases` field. Biomarkers, products, mechanisms, phase, prior therapy and other
-study details are intentionally excluded. It retrieves no clinical data and receives no profile.
+study details are intentionally excluded from deterministic criteria. The sentence consolidates the
+actual therapeutic-area, disease and country criteria into readable language. It never introduces
+phase, stage or other dimensions that the current search does not use. It retrieves no clinical data
+and receives no profile.
 
 The search route accepts stored criteria and makes no model request. Any selected therapeutic
 area is required; explicitly requested countries are also required. With no requested country,
@@ -61,7 +65,8 @@ candidate enrichment is added.
 
 Strict-schema list deduplication remains application-side because the Responses schema subset
 does not accept `uniqueItems`. Legacy stored `{therapeutic_areas, keywords}` criteria remain
-retryable: `keywords` are interpreted as disease terms and countries default to all coverage.
+retryable: `keywords` are interpreted as disease terms, countries default to all coverage and a
+short disease-based prioritized-experience sentence is derived without another model call.
 
 ## Validation and remaining work
 
