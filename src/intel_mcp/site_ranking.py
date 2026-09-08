@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
-VERSION = "therapeutic-area-experience-v4"
+VERSION = "therapeutic-area-experience-v5"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 EXPERIENCE_YEARS = 5
@@ -29,6 +29,22 @@ METRIC_FIELDS = (
 # Candidate profiles are never sent to a model.
 DISEASE_FIELDS = ("diseases",)
 
+# Sponsor consolidation is intentionally conservative. Case, spacing and
+# punctuation variants always share a key. Legal suffixes are stripped only
+# for explicitly curated brands, avoiding unsafe merges such as Merck & Co
+# and Merck KGaA.
+SPONSOR_BRANDS = {
+    "astra zeneca": "AstraZeneca",
+    "astrazeneca": "AstraZeneca",
+    "astrazeneca pharmaceuticals": "AstraZeneca",
+    "astrazeneca uk": "AstraZeneca",
+}
+SPONSOR_LEGAL_SUFFIXES = {
+    "ab", "ag", "aps", "bv", "gmbh", "inc", "incorporated", "limited",
+    "llc", "lp", "ltd", "nv", "oy", "plc", "pte", "sa", "sas", "spa",
+    "srl",
+}
+
 
 def normalized(value: Any) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).casefold()
@@ -38,6 +54,22 @@ def normalized(value: Any) -> str:
 def phrase_in(term: str, text: str) -> bool:
     needle = normalized(term)
     return bool(needle) and f" {needle} " in f" {normalized(text)} "
+
+
+def _canonical_sponsor(value: str) -> tuple[str, str]:
+    raw = str(value or "").strip()
+    sponsor_key = normalized(raw)
+    canonical = SPONSOR_BRANDS.get(sponsor_key)
+    if canonical:
+        return normalized(canonical), canonical
+    tokens = sponsor_key.split()
+    while tokens and tokens[-1] in SPONSOR_LEGAL_SUFFIXES:
+        tokens.pop()
+    root = " ".join(tokens)
+    canonical = SPONSOR_BRANDS.get(root)
+    if canonical:
+        return normalized(canonical), canonical
+    return sponsor_key, raw
 
 
 def key(*parts: str) -> str:
@@ -147,11 +179,15 @@ def _trial(profile: dict, trial_id: str, disease_terms: list[str]) -> dict:
     sponsor = variables.get("sponsor") or {}
     phases = sorted({value for value in filtering.get("phase") or [] if isinstance(value, int) and 1 <= value <= 4})
     authorization_dates = _authorization_dates(profile)
+    sponsor_name = str(sponsor.get("name") or "") if isinstance(sponsor, dict) else str(sponsor)
+    sponsor_key, sponsor_display = _canonical_sponsor(sponsor_name)
     return {
         "id": trial_id,
         "title": str(variables.get("trial_title") or trial_id),
         "disease_terms": _disease_hits(profile, disease_terms),
-        "sponsor": str(sponsor.get("name") or "") if isinstance(sponsor, dict) else str(sponsor),
+        "sponsor": sponsor_display,
+        "sponsor_key": sponsor_key,
+        "sponsor_raw": sponsor_name,
         "phases": phases,
         "modality": str(filtering.get("modality") or "").strip(),
         "paediatric": filtering.get("paediatric_trial") is True,
@@ -180,7 +216,15 @@ def _metrics(trials: dict[str, dict], criteria: dict, *, today: date) -> dict:
         trial for trial in trials.values()
         if trial["authorization_date"] is not None and activity_start <= trial["authorization_date"] <= today
     ]
-    sponsor_counts = Counter(trial["sponsor"] for trial in recent if trial["sponsor"])
+    sponsor_counts = Counter(trial["sponsor_key"] for trial in recent if trial["sponsor_key"])
+    sponsor_names: dict[str, Counter] = {}
+    sponsor_variants: dict[str, Counter] = {}
+    for trial in recent:
+        sponsor_key = trial["sponsor_key"]
+        if not sponsor_key:
+            continue
+        sponsor_names.setdefault(sponsor_key, Counter())[trial["sponsor"]] += 1
+        sponsor_variants.setdefault(sponsor_key, Counter())[trial["sponsor_raw"]] += 1
     years = [trial["year"] for trial in trials.values() if trial["year"] is not None]
     evidence = sorted(
         trials.values(),
@@ -198,8 +242,15 @@ def _metrics(trials: dict[str, dict], criteria: dict, *, today: date) -> dict:
             for term, count in sorted(disease_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))
         ],
         "sponsors": [
-            {"name": name, "trials": count}
-            for name, count in sorted(sponsor_counts.items(), key=lambda pair: (-pair[1], normalized(pair[0])))[:3]
+            {
+                "name": min(
+                    sponsor_names[sponsor_key],
+                    key=lambda value: (-sponsor_names[sponsor_key][value], len(value), normalized(value), value),
+                ),
+                "trials": count,
+                "variants": sorted(sponsor_variants[sponsor_key], key=lambda value: (normalized(value), value)),
+            }
+            for sponsor_key, count in sorted(sponsor_counts.items(), key=lambda pair: (-pair[1], pair[0]))[:3]
         ],
         "latestTrialYear": max(years) if years else None,
         "evidence": [
@@ -277,7 +328,7 @@ class ProfileRanker:
                 site_id = key(country, name)
                 site = self.sites.setdefault(site_id, {
                     "id": site_id, "name": name, "country": country,
-                    "trials": {}, "contacts": Counter(),
+                    "trials": {}, "contacts": Counter(), "matched_pis": [],
                 })
                 site_trial = {
                     **trial,
@@ -306,7 +357,8 @@ class ProfileRanker:
                     person = self.people.setdefault(person_id, {
                         "id": person_id, "names": Counter(), "trials": {}, "sites": {},
                         "site_trials": {}, "departments": {}, "emails": Counter(),
-                        "email_years": {}, "confirmed": False,
+                        "email_years": {}, "site_emails": {}, "site_email_years": {},
+                        "confirmed": False, "confirmed_sites": set(),
                     })
                     person["names"][contact_name] += 1
                     existing_trial = person["trials"].get(trial_id)
@@ -319,6 +371,8 @@ class ProfileRanker:
                     person["sites"][site_id] = site
                     person["site_trials"].setdefault(site_id, {})[trial_id] = site_trial
                     person["confirmed"] = person["confirmed"] or is_pi is True
+                    if is_pi is True:
+                        person["confirmed_sites"].add(site_id)
                     if department:
                         candidate = (trial["year"] or 0, normalized(department), department)
                         current = person["departments"].get(site_id)
@@ -327,18 +381,55 @@ class ProfileRanker:
                     if email:
                         person["emails"][email] += 1
                         person["email_years"][email] = max(person["email_years"].get(email, 0), trial["year"] or 0)
+                        person["site_emails"].setdefault(site_id, Counter())[email] += 1
+                        site_years = person["site_email_years"].setdefault(site_id, {})
+                        site_years[email] = max(site_years.get(email, 0), trial["year"] or 0)
 
     def result(self, limit: int = PREVIEW_LIMIT) -> dict:
         today = datetime.now(UTC).date()
+        for person in self.people.values():
+            name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
+            for site_id in person["confirmed_sites"]:
+                site_metrics = _metrics(person["site_trials"][site_id], self.criteria, today=today)
+                site_emails = person["site_emails"].get(site_id, Counter())
+                email_years = person["site_email_years"].get(site_id, {})
+                email = min(
+                    site_emails,
+                    key=lambda value: (-email_years[value], -site_emails[value], value),
+                ) if site_emails else None
+                self.sites[site_id]["matched_pis"].append({
+                    "id": person["id"], "name": name,
+                    "department": person["departments"].get(site_id, (0, "", ""))[2],
+                    "email": email, "metrics": site_metrics,
+                })
+
         site_rows = []
         for site in self.sites.values():
             contact = None
-            if site["contacts"]:
+            matched_pis = sorted(site["matched_pis"], key=_rank_key)
+            matched_contact = next((person for person in matched_pis if person["email"]), None)
+            if matched_contact:
+                contact = {
+                    "name": matched_contact["name"], "email": matched_contact["email"],
+                    "role": "Principal investigator",
+                }
+            elif site["contacts"]:
                 chosen = min(site["contacts"], key=lambda value: (value[0], -site["contacts"][value], normalized(value[1]), value[2]))
                 contact = {"name": chosen[1], "email": chosen[2], "role": chosen[3]}
             site_rows.append({
                 "id": site["id"], "name": site["name"], "country": site["country"],
-                "contact": contact, "metrics": _metrics(site["trials"], self.criteria, today=today),
+                "contact": contact,
+                "matchedPICount": len(matched_pis),
+                "matchedPIs": [
+                    {
+                        "id": person["id"], "name": person["name"],
+                        "department": person["department"], "email": person["email"],
+                        "taTrials": person["metrics"]["therapeuticAreaTrials"],
+                        "indicationTrials": person["metrics"]["diseaseMatchedTrials"],
+                    }
+                    for person in matched_pis[:3]
+                ],
+                "metrics": _metrics(site["trials"], self.criteria, today=today),
             })
         _apply_bands(site_rows)
         site_rows.sort(key=_rank_key)

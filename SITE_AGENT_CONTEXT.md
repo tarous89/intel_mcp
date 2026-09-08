@@ -32,7 +32,7 @@ a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-experience-v4` returns separate Sites and PI-candidate lists. Both are ordered by
+`therapeutic-area-experience-v5` returns separate Sites and PI-candidate lists. Both are ordered by
 five-year indication trial count, requested-phase count, requested-modality count, paediatric
 count when relevant, therapeutic-area count, recency, then stable
 name/ID tie-breaks. A disease synonym can match a trial only once. The free response contains the top
@@ -46,8 +46,11 @@ the preview is truncated. Zero is always Bottom 25%; positive counts use tied mi
 placement. The bands are evidence context, never performance, recruitment capacity, patient
 availability or current-affiliation claims. Treatment setting is not read or scored.
 
-Recorded email routes are returned. Site contacts prefer an explicitly marked PI, then a
-stable frequency/name/email tie-break. A named contact is a confirmed PI only when
+Recorded email routes are returned. Confirmed PIs are ranked within each site using the same
+indication, phase, modality, paediatric and TA criteria. The highest-ranked confirmed PI with an
+email becomes the site-row contact, while the top three and the full confirmed-PI count are
+returned as matched-investigator evidence. With no confirmed PI email, a stable site-contact
+frequency/name/email tie-break is used. A named contact is a confirmed PI only when
 `principal_investigator=true` or an exact PI role string is present. Null role remains
 `role_unconfirmed`; explicit false is excluded from the PI-candidate list. Stable email is
 not treated as the display identity because CTIS can record different addresses over time.
@@ -55,6 +58,11 @@ PI candidates are grouped by normalized recorded name, return only the most rece
 affiliation, and prefer the most recent recorded email. This deliberately favors a compact
 deduplicated workspace while retaining the known collision risk for different people with the
 same normalized name.
+
+Sponsor experience is consolidated deterministically before counting. Case, punctuation and
+spacing variants share a key; legal suffix consolidation is applied only to versioned curated
+brand aliases. No fuzzy or parent-company matching is used, preventing unsupported corporate
+merges. Original sponsor strings remain attached to the internal metric evidence.
 
 ## Reliability and boundaries
 
