@@ -21,11 +21,13 @@ PLANNER_OUTPUT = {
     "therapeutic_areas": [AREA],
     "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
     "countries": ["DE"],
+    "prioritized_experience": "Experience in NSCLC trials in Germany.",
 }
 CRITERIA = {
     "therapeutic_areas": [AREA],
     "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
     "countries": ["DE"],
+    "prioritized_experience": "Experience in NSCLC trials in Germany.",
 }
 
 
@@ -38,7 +40,7 @@ def completion(criteria):
 
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
-    async def test_planner_extracts_only_areas_disease_terms_and_countries_with_terra(self):
+    async def test_planner_extracts_criteria_and_display_summary_with_terra(self):
         def handler(request):
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "gpt-5.6-terra")
@@ -46,7 +48,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(payload["store"])
             self.assertNotIn("tools", payload)
             self.assertEqual(set(payload["text"]["format"]["schema"]["properties"]), {
-                "sufficient_context", "therapeutic_areas", "disease_terms", "countries",
+                "sufficient_context", "therapeutic_areas", "disease_terms", "countries", "prioritized_experience",
             })
             self.assertNotIn(
                 "uniqueItems",
@@ -136,6 +138,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertEqual(result["criteria"], {
             "therapeutic_areas": [AREA], "disease_terms": ["NSCLC"], "countries": [],
+            "prioritized_experience": "Experience in NSCLC trials.",
         })
         self.assertIsNone(engine.filter_trials.await_args.kwargs["filters"].country_codes)
 
