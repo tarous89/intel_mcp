@@ -182,7 +182,7 @@ export MCP_ENGINE_DATABASE_HOST=engine-db.internal
 export MCP_ENGINE_DATABASE_NAME=intel
 export MCP_ENGINE_DATABASE_USER=intel_mcp_reader_v1
 export MCP_ENGINE_DATABASE_PASSWORD=replace-with-a-long-random-reader-password
-# Temporary rollback compatibility while the database path is canaried:
+# Optional authenticated HTTP rollback path:
 export INTEL_ENGINE_API_URL=http://localhost:10000
 export INTEL_ENGINE_SERVICE_TOKEN=replace-with-a-separate-engine-service-token
 export MCP_INBOUND_SERVICE_TOKEN=replace-me-too
@@ -204,7 +204,7 @@ Required production settings:
 - `MCP_ENGINE_DATABASE_USER`: must be exactly `intel_mcp_reader_v1`; the service rejects owner or broader logins.
 - `MCP_ENGINE_DATABASE_PASSWORD`: separate long reader password provisioned by the Engine migration tooling.
 - `MCP_ENGINE_DATABASE_SSLMODE`: defaults to `require`.
-- `INTEL_ENGINE_API_URL` and `INTEL_ENGINE_SERVICE_TOKEN`: temporary authenticated HTTP rollback path; do not reuse the extraction run token.
+- `INTEL_ENGINE_API_URL` and `INTEL_ENGINE_SERVICE_TOKEN`: authenticated HTTP rollback path; do not reuse the extraction run token.
 - `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the Intel Agent backend.
 - `REPORT_PLAN_SERVICE_TOKEN`: separate private bearer used only by the App's Report-plan endpoint.
 - `MCP_PUBLIC_RESOURCE_URL`: canonical OAuth protected-resource audience for `/mcp`.
@@ -216,9 +216,11 @@ Required production settings:
 
 The private `POST /internal/report-plan` route accepts only
 `REPORT_PLAN_SERVICE_TOKEN`. It sends the user's brief, requested insights and the
-versioned description of all six MCP capabilities to `gpt-5.6-terra`, and returns only
+versioned description of all six MCP capabilities to `gpt-5.6-sol`, and returns only
 the strict user-facing Report-plan structure. It is not an MCP tool and does not execute
-clinical-data operations.
+clinical-data operations. New plans are v4. Planned and executed analyses must stay medical,
+clinical-development or trial-operational; database-completeness analyses are prohibited and
+unsupported requests are replaced with supported medical alternatives.
 
 ## Engine read isolation
 
@@ -228,4 +230,4 @@ web hop. Engine still owns ingestion, extraction, profile generation, approval, 
 schema migrations and all writes. PostgreSQL enforces the split: the MCP role can select
 only `mcp_serving.*_v1`, every MCP checkout begins `SET TRANSACTION READ ONLY`, and MCP
 startup rejects any database URL whose username is not the restricted role. See
-`docs/ENGINE_READ_CUTOVER.md` for the staged rollout and one-variable rollback.
+`docs/ENGINE_READ_CUTOVER.md` for the current boundary and deliberate rollback.

@@ -132,7 +132,7 @@ Current classifier defaults:
 ```text
 model: gpt-5.6-terra
 reasoning effort: high
-service tier: standard
+service tier: flex
 max output tokens: 12,000
 worker concurrency: 4
 per-worker timeout: 300 seconds
