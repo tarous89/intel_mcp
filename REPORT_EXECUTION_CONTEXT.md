@@ -87,6 +87,8 @@ Generic Max labels remain invalid, including `strategy fit`, `benchmark fit`, `b
 
 Max analyses still add at least two distinct decision factors: exact clinical fit, segmentation, recency, competition, PI-site relationships, source/protocol detail, variability/robustness, trade-offs or supported prioritization/recommendation.
 
+Every planned analysis must answer a medical, clinical-development or trial-operational question. Database coverage, data completeness, missingness, field availability and reporting/documentation rates are never plan analyses. If a requested analysis cannot be supported, the planner substitutes the closest medically relevant analysis supported by the available evidence.
+
 The v4 schema retains an internal top-level `title` equal to `sharedAnalysis.title` so existing progress/execution interfaces remain stable. It is not another product hierarchy level.
 
 No fixed presentation breadth such as top 5/top 10/top 100 is embedded in the plan.
@@ -123,13 +125,15 @@ MCP retrieves all 20 complete approved Trial Profiles in bounded batches of 10. 
 
 Each v4 shared analysis runs independently using `gpt-5.6-terra`, high reasoning, Flex, with no MCP tools. The `sharedAnalysis.details` entries are passed as the approved analytical lenses for that row.
 
+Terra may not return database/data-completeness commentary, reporting-subset counts or missing-field analyses. Unsupported lenses are replaced with the closest medically relevant calculation, comparison, ranking or pattern within the approved objective. New calls require an empty legacy `limitations` array. A deterministic content gate retries one violating draft with an explicit medical-substitution correction; a second violation fails safely and is never returned.
+
 The existing structured Light result contract remains for renderer compatibility, including duplicate-visual and provenance guards.
 
 ### Final synthesis
 
 Final synthesis remains `gpt-5.6-sol`, high reasoning, no tools. It produces title, short introduction and closing note only.
 
-Completed Light reports remain `final_report.version = 2` for renderer compatibility. The analyzed-cohort summary contains only the shared trial group and exact frozen 20 trials.
+Completed Light reports remain `final_report.version = 2` for renderer compatibility. The analyzed-cohort summary contains only the shared trial group and exact frozen 20 trials. The App renders this once, immediately after the title and introduction, as the high-level report evidence base; objective sections do not render database/completeness notes.
 
 For investigator analyses, the executor deterministically flattens nested Trial Profile site
 contacts before the Terra call. A true PI flag or explicit Principal Investigator role confirms
@@ -150,7 +154,7 @@ presentation metadata only and does not execute Max work.
 - Light analysis: `intel_light_objective_v8`
 - synthesis: `intel_light_synthesis_v5`
 
-The 2026-09-07 verb refinement changed planner language/title semantics only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
+The 2026-09-08 medical-relevance rule changed planner/executor output semantics only. It did not change the v4 plan schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.
 
 ## Product/App boundary
 

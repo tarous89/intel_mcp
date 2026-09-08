@@ -109,8 +109,8 @@ def _objective_output(trial_reference: str) -> dict:
             "items": [{"label": "PFS", "value": "8 trials", "explanation": "It was the most recurrent endpoint.", "trial_ids": [trial_reference]}],
             "trial_ids": [trial_reference],
         }],
-        "conclusion": "PFS is the strongest profile-supported benchmark.",
-        "max_upgrade": "This report is limited to endpoint frequency in 20 profiles. Upgrade to Max to add endpoint hierarchy and source-document context across up to 1,000 trials.",
+        "conclusion": "PFS is the strongest recurring endpoint benchmark.",
+        "max_upgrade": "This report is limited to descriptive endpoint frequency. Upgrade to Max to add endpoint hierarchy and source-document context across up to 1,000 trials.",
         "limitations": [],
     }
 
@@ -231,6 +231,9 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert "Upgrade to Max to" in developer
         assert "up to 1,000 trials" in developer
         assert "must never change the Light findings" in developer
+        assert "closest medically relevant calculation" in developer
+        assert "Never analyze database coverage" in developer
+        assert "Return limitations as an empty array" in developer
         assert len(developer) < 3600
 
         user = json.loads(payload["input"][1]["content"][0]["text"])
@@ -251,6 +254,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert schema["properties"]["summary_sentences"]["maxItems"] == 1
         assert schema["properties"]["sub_analyses"]["maxItems"] == 4
         assert schema["properties"]["max_upgrade"]["maxLength"] == 420
+        assert schema["properties"]["limitations"]["maxItems"] == 0
         assert "max_upgrade" in schema["required"]
         sub_analysis = schema["properties"]["sub_analyses"]["items"]
         assert sub_analysis["properties"]["trial_ids"]["items"]["enum"] == [f"T{index:02d}" for index in range(1, 21)]
@@ -280,6 +284,59 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
     assert result.max_upgrade.count(".") == 2
     assert ". Upgrade to Max to " in result.max_upgrade
     assert result.qa_warnings == []
+
+
+@pytest.mark.anyio
+async def test_objective_replaces_data_completeness_draft_with_medical_analysis() -> None:
+    calls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        payload = json.loads(request.content)
+        developer = payload["input"][0]["content"][0]["text"]
+        output = _objective_output("T01")
+        if calls == 1:
+            output["summary_sentences"] = ["Endpoint reporting coverage was limited."]
+            output["sub_analyses"][0]["title"] = "Endpoint data completeness"
+            output["sub_analyses"][0]["visual"]["note"] = "Reported in 2 out of 20 trials."
+        else:
+            assert "QUALITY CORRECTION" in developer
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output)}]}]})
+
+    configured = replace(settings, openai_api_key="test-key")
+    runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
+    result = await runner.analyze_objective(
+        context="Adjuvant NSCLC",
+        objective={"title": "Endpoints", "analyses": ["Endpoint frequency"]},
+        selected_trials=LightTrialSelection.model_validate(_selection()).selected_trials,
+        full_profiles=_profiles(),
+    )
+
+    assert calls == 2
+    assert result.sub_analyses[0].title == "Endpoint frequency"
+    assert result.limitations == []
+
+
+@pytest.mark.anyio
+async def test_objective_never_returns_repeated_data_completeness_output() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        output = _objective_output("T01")
+        output["sub_analyses"][0]["title"] = "Endpoint reporting coverage"
+        output["sub_analyses"][0]["interpretation"] = "Endpoints were documented in only 2 of 20 trials."
+        return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output)}]}]})
+
+    configured = replace(settings, openai_api_key="test-key")
+    runner = SolLightReportRunner(configured, transport=httpx.MockTransport(handler))
+    with pytest.raises(LightReportError) as exc_info:
+        await runner.analyze_objective(
+            context="Adjuvant NSCLC",
+            objective={"title": "Endpoints", "analyses": ["Endpoint frequency"]},
+            selected_trials=LightTrialSelection.model_validate(_selection()).selected_trials,
+            full_profiles=_profiles(),
+        )
+
+    assert exc_info.value.code == "LIGHT_REPORT_COMPLETENESS_ANALYSIS_REJECTED"
 
 
 @pytest.mark.anyio
