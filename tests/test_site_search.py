@@ -1,13 +1,12 @@
 import json
-from types import SimpleNamespace
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
 
 from intel_mcp.models import TherapeuticAreaFilter
 from intel_mcp.site_search import SiteSearchError, interpret_context, search_deterministically
-
 
 AREA = TherapeuticAreaFilter.canonical_values[0]
 SETTINGS = SimpleNamespace(
@@ -21,12 +20,18 @@ PLANNER_OUTPUT = {
     "therapeutic_areas": [AREA],
     "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
     "countries": ["DE"],
+    "phases": [3],
+    "modalities": ["Monoclonal antibody"],
+    "paediatric_relevant": False,
     "prioritized_experience": "Experience in NSCLC trials in Germany.",
 }
 CRITERIA = {
     "therapeutic_areas": [AREA],
     "disease_terms": ["NSCLC", "non-small cell lung cancer", "lung"],
     "countries": ["DE"],
+    "phases": [3],
+    "modalities": ["Monoclonal antibody"],
+    "paediatric_relevant": False,
     "prioritized_experience": "Experience in NSCLC trials in Germany.",
 }
 
@@ -48,7 +53,8 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(payload["store"])
             self.assertNotIn("tools", payload)
             self.assertEqual(set(payload["text"]["format"]["schema"]["properties"]), {
-                "sufficient_context", "therapeutic_areas", "disease_terms", "countries", "prioritized_experience",
+                "sufficient_context", "therapeutic_areas", "disease_terms", "countries", "phases",
+                "modalities", "paediatric_relevant", "prioritized_experience",
             })
             self.assertNotIn(
                 "uniqueItems",
@@ -138,6 +144,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertEqual(result["criteria"], {
             "therapeutic_areas": [AREA], "disease_terms": ["NSCLC"], "countries": [],
+            "phases": [], "modalities": [], "paediatric_relevant": False,
             "prioritized_experience": "Experience in NSCLC trials.",
         })
         self.assertIsNone(engine.filter_trials.await_args.kwargs["filters"].country_codes)

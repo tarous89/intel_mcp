@@ -13,33 +13,38 @@ POST /internal/site-agent/search
 ```
 
 The interpret route makes exactly one `gpt-5.6-terra` Responses request at low reasoning.
-Its strict schema returns only one to four controlled therapeutic areas, up to 16 short disease
-terms, explicitly requested supported country codes and one short display-only `Prioritized
+Its strict schema returns one to four controlled therapeutic areas, up to 16 short disease
+terms, explicitly requested supported country codes, integer phase components, one controlled
+modality when known, a paediatric-relevance flag and one short display-only `Prioritized
 experience` sentence. Disease terms are limited to names,
 synonyms/acronyms and useful anatomical or malignancy wording for literal comparison with the
-Trial Profile `diseases` field. Biomarkers, products, mechanisms, phase, prior therapy and other
-study details are intentionally excluded from deterministic criteria. The sentence consolidates the
-actual therapeutic-area, disease and country criteria into readable language. It never introduces
-phase, stage or other dimensions that the current search does not use. It retrieves no clinical data
-and receives no profile.
+Trial Profile `diseases` field. Biomarkers, products, mechanisms, prior therapy, treatment setting
+and other free-text study details are intentionally excluded from deterministic criteria. The
+sentence consolidates the core criteria into readable language. It retrieves no clinical data and
+receives no profile.
 
 The search route accepts stored criteria and makes no model request. Any selected therapeutic
 area is required; explicitly requested countries are also required. With no requested country,
 all covered EU/EEA countries remain eligible. It exhaustively pages every approved matching
 Trial Profile and incrementally aggregates sites/PIs, excluding affiliations outside requested
-countries. Disease terms affect priority only and never remove a candidate.
+countries. Disease, phase, modality and paediatric experience affect priority only and never remove
+a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-disease-country-v3` returns separate Sites and PI-candidate lists. Both are
-ordered by disease-matched trial count, distinct disease-term coverage, total eligible trials,
-latest recorded trial year, then stable name/ID tie-breaks. The free response contains the top
+`therapeutic-area-experience-v4` returns separate Sites and PI-candidate lists. Both are ordered by
+five-year indication trial count, requested-phase count, requested-modality count, paediatric
+count when relevant, therapeutic-area count, recency, then stable
+name/ID tie-breaks. A disease synonym can match a trial only once. The free response contains the top
 10 of each list while preserving full site and person counts.
 
-Each result retains deterministic disease-match metrics, observed sponsors, recency and up to
-eight supporting trials for downstream use. The current App intentionally displays only rank,
-identity/contact and supporting trials. These are relevance signals, never performance,
-recruitment capacity, patient availability or current-affiliation claims.
+Each result retains distinct-trial counts for therapeutic area, indication, phase, modality,
+paediatric experience when relevant, six-month activity, the top three recorded sponsors and up
+to eight supporting trials. Experience uses a rolling five-year authorization window; activity
+uses six months. Cohort bands are calculated across the full eligible Site or PI cohort before
+the preview is truncated. Zero is always Bottom 25%; positive counts use tied mid-rank percentile
+placement. The bands are evidence context, never performance, recruitment capacity, patient
+availability or current-affiliation claims. Treatment setting is not read or scored.
 
 Recorded email routes are returned. Site contacts prefer an explicitly marked PI, then a
 stable frequency/name/email tie-break. A named contact is a confirmed PI only when
