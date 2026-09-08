@@ -60,9 +60,10 @@ deduplicated workspace while retaining the known collision risk for different pe
 same normalized name.
 
 Sponsor experience is consolidated deterministically before counting. Case, punctuation and
-spacing variants share a key; legal suffix consolidation is applied only to versioned curated
-brand aliases. No fuzzy or parent-company matching is used, preventing unsupported corporate
-merges. Original sponsor strings remain attached to the internal metric evidence.
+spacing variants share a key, common trailing legal suffixes are removed, and versioned curated
+exceptions keep ambiguous corporate roots separate. No fuzzy or parent-company matching is used,
+preventing unsupported corporate merges. Original sponsor strings remain attached to the internal
+metric evidence.
 
 ## Reliability and boundaries
 
