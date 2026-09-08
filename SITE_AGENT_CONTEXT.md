@@ -27,7 +27,7 @@ countries. Disease terms affect priority only and never remove a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-disease-country-v2` returns separate Sites and PI-candidate lists. Both are
+`therapeutic-area-disease-country-v3` returns separate Sites and PI-candidate lists. Both are
 ordered by disease-matched trial count, distinct disease-term coverage, total eligible trials,
 latest recorded trial year, then stable name/ID tie-breaks. The free response contains the top
 10 of each list while preserving full site and person counts.
@@ -41,7 +41,11 @@ Recorded email routes are returned. Site contacts prefer an explicitly marked PI
 stable frequency/name/email tie-break. A named contact is a confirmed PI only when
 `principal_investigator=true` or an exact PI role string is present. Null role remains
 `role_unconfirmed`; explicit false is excluded from the PI-candidate list. Stable email is
-used for cross-site identity; without email, a person remains site-scoped.
+not treated as the display identity because CTIS can record different addresses over time.
+PI candidates are grouped by normalized recorded name, return only the most recently evidenced
+affiliation, and prefer the most recent recorded email. This deliberately favors a compact
+deduplicated workspace while retaining the known collision risk for different people with the
+same normalized name.
 
 ## Reliability and boundaries
 
