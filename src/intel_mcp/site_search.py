@@ -2,20 +2,24 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from intel_mcp.models import TrialFilters, TrialSort, TherapeuticAreaFilter
+from intel_mcp.models import ModalityFilter, TherapeuticAreaFilter, TrialFilters, TrialSort
 from intel_mcp.site_ranking import DISEASE_FIELDS, ProfileRanker
 
 MAX_CONTEXT = 12000
 MAX_DISEASE_TERMS = 16
 MAX_PRIORITIZED_EXPERIENCE = 160
 SITE_AGENT_MODEL = "gpt-5.6-terra"
-COUNTRIES = tuple("AT BE BG HR CY CZ DK EE FI FR DE GR HU IS IE IT LV LI LT LU MT NL NO PL PT RO SK SI ES SE".split())
+COUNTRIES = (
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
+    "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL", "PT", "RO",
+    "SK", "SI", "ES", "SE",
+)
 
 
 class SiteSearchError(Exception):
@@ -30,6 +34,9 @@ class Criteria(BaseModel):
     therapeutic_areas: list[str] = Field(max_length=4)
     disease_terms: list[str] = Field(max_length=MAX_DISEASE_TERMS)
     countries: list[str] = Field(max_length=len(COUNTRIES))
+    phases: list[int] = Field(default_factory=list, max_length=4)
+    modalities: list[str] = Field(default_factory=list, max_length=len(ModalityFilter.canonical_values))
+    paediatric_relevant: bool = False
     prioritized_experience: str = Field(default="", max_length=MAX_PRIORITIZED_EXPERIENCE)
 
 
@@ -48,6 +55,15 @@ def criteria_schema() -> dict:
             "type": "array", "maxItems": len(COUNTRIES),
             "items": {"type": "string", "enum": list(COUNTRIES)},
         },
+        "phases": {
+            "type": "array", "maxItems": 4,
+            "items": {"type": "integer", "enum": [1, 2, 3, 4]},
+        },
+        "modalities": {
+            "type": "array", "maxItems": len(ModalityFilter.canonical_values),
+            "items": {"type": "string", "enum": list(ModalityFilter.canonical_values)},
+        },
+        "paediatric_relevant": {"type": "boolean"},
         "prioritized_experience": {
             "type": "string", "minLength": 8, "maxLength": MAX_PRIORITIZED_EXPERIENCE,
         },
@@ -67,8 +83,14 @@ Include the stated disease, standard disease synonyms/acronyms and discriminatin
 terms that help find the same disease wording. For SCLC, useful terms can include SCLC, small cell lung cancer
 and lung; do not include NSCLC. For a gastrointestinal cancer, terms can include the stated organ/disease plus
 the corresponding cancer or malignancy phrase. Do not return cancer, carcinoma, malignancy or neoplasm alone
-when more discriminating disease wording is available. Do not include biomarkers, products, mechanisms, phase,
-prior treatment, line of therapy, population, endpoints or generic study words.
+when more discriminating disease wording is available. Do not include biomarkers, products, mechanisms, prior
+treatment, line of therapy, treatment setting, endpoints or generic study words in disease_terms.
+
+Return every explicitly stated trial phase as integer components 1 through 4; split combined phases such as
+Phase I/II into [1, 2]. Return the single controlled modality of the main tested intervention only when it is
+stated or strongly entailed by the supplied context. Return [] when phase or modality is unavailable. Set
+paediatric_relevant=true only when participants younger than 18 are explicitly eligible; do not infer it from
+the disease alone. Treatment setting is never extracted.
 
 Return ISO alpha-2 countries only when the sponsor explicitly requests them. Do not infer geography. An empty
 country list means all supported EU/EEA countries. If the context requests only an unsupported geography, set
@@ -76,9 +98,10 @@ sufficient_context=false. Do not create facts not present or strongly entailed b
 sufficient_context=false when no usable disease or therapeutic area can be identified.
 
 Write prioritized_experience as one short, natural sentence describing the core prior clinical trial
-experience actually represented by the therapeutic-area, disease and country criteria. Consolidate disease
+experience actually represented by the therapeutic-area, disease, phase, modality, paediatric and country
+criteria. Consolidate disease
 synonyms into one readable clinical description instead of listing them. Prefer wording such as "Experience
-in NSCLC trials in Spain." Keep it under 160 characters. Do not include phase, biomarkers, products, stage,
+in Phase III NSCLC trials in Spain." Keep it under 160 characters. Do not include biomarkers, products,
 treatment setting or any other detail that is not used by the deterministic search. Do not output keywords,
 counts, scores, selection logic, ranking logic, or phrases such as "we prioritized," "selected by" or
 "matched by." Focus on the relevant experience, not the method used to find candidates.
@@ -96,6 +119,8 @@ def _clean_criteria(parsed: Criteria) -> dict:
             seen.add(folded)
             disease_terms.append(value)
     countries = list(dict.fromkeys(country.strip().upper() for country in parsed.countries if country.strip()))
+    phases = sorted(set(parsed.phases))
+    modalities = list(dict.fromkeys(value.strip() for value in parsed.modalities if value.strip()))
     summary = " ".join(parsed.prioritized_experience.split()).strip()
     if not parsed.sufficient_context or not areas or not disease_terms:
         raise SiteSearchError("Include the trial's target disease so Site Agent can identify relevant experience.", 422)
@@ -105,6 +130,10 @@ def _clean_criteria(parsed: Criteria) -> dict:
         raise SiteSearchError("The planner returned invalid disease terms.", 422)
     if any(country not in COUNTRIES for country in countries):
         raise SiteSearchError("Site Agent currently covers CTIS countries in the EU/EEA.", 422)
+    if any(phase not in {1, 2, 3, 4} for phase in phases):
+        raise SiteSearchError("The planner returned an unsupported trial phase.", 422)
+    if any(value not in ModalityFilter.canonical_values for value in modalities):
+        raise SiteSearchError("The planner returned an unsupported trial modality.", 422)
     if not summary:
         summary = f"Experience in {disease_terms[0]} trials."
     elif any(marker in parsed.prioritized_experience for marker in ("\n", "\r", "•")):
@@ -117,6 +146,9 @@ def _clean_criteria(parsed: Criteria) -> dict:
         "therapeutic_areas": areas,
         "disease_terms": disease_terms,
         "countries": countries,
+        "phases": phases,
+        "modalities": modalities,
+        "paediatric_relevant": parsed.paediatric_relevant,
         "prioritized_experience": summary,
     }
 
@@ -169,6 +201,9 @@ def validate_criteria(value: object) -> dict:
         if "disease_terms" not in compatible and isinstance(compatible.get("keywords"), list):
             compatible["disease_terms"] = compatible.pop("keywords")[:MAX_DISEASE_TERMS]
         compatible.setdefault("countries", [])
+        compatible.setdefault("phases", [])
+        compatible.setdefault("modalities", [])
+        compatible.setdefault("paediatric_relevant", False)
         parsed = Criteria.model_validate({"sufficient_context": True, **compatible})
         return _clean_criteria(parsed)
     except SiteSearchError:
@@ -213,9 +248,9 @@ async def search_deterministically(engine, criteria_value: object) -> dict:
             "approvedProfiles": total_profiles, "therapeuticAreaTrials": total_matches,
             "profilesReviewed": reviewed, "unavailableProfiles": unavailable,
             "partial": len(seen) < total_matches or unavailable > 0,
-            "scope": "All available approved Trial Profiles matching the selected therapeutic areas and any explicitly requested countries; disease terms affect order only.",
-            "profileSections": list(DISEASE_FIELDS),
-            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "scope": "All available approved Trial Profiles matching the selected therapeutic areas and any explicitly requested countries; indication, phase, modality and paediatric experience affect order only.",
+            "profileSections": [*DISEASE_FIELDS, "sponsor", "phase", "modality", "paediatric_trial", "ctis_lifecycle"],
+            "generatedAt": datetime.now(UTC).isoformat(),
         },
     }
 
