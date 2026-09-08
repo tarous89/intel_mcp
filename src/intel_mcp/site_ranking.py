@@ -30,20 +30,24 @@ METRIC_FIELDS = (
 DISEASE_FIELDS = ("diseases",)
 
 # Sponsor consolidation is intentionally conservative. Case, spacing and
-# punctuation variants always share a key. Legal suffixes are stripped only
-# for explicitly curated brands, avoiding unsafe merges such as Merck & Co
-# and Merck KGaA.
+# punctuation variants always share a key. Common trailing legal suffixes are
+# removed, with curated exceptions for ambiguous corporate roots such as the
+# unrelated Merck companies. No fuzzy or parent-company matching is used.
 SPONSOR_BRANDS = {
     "astra zeneca": "AstraZeneca",
     "astrazeneca": "AstraZeneca",
     "astrazeneca pharmaceuticals": "AstraZeneca",
     "astrazeneca uk": "AstraZeneca",
+    "merck co": "Merck & Co.",
+    "merck co inc": "Merck & Co.",
+    "merck kgaa": "Merck KGaA",
 }
 SPONSOR_LEGAL_SUFFIXES = {
-    "ab", "ag", "aps", "bv", "gmbh", "inc", "incorporated", "limited",
-    "llc", "lp", "ltd", "nv", "oy", "plc", "pte", "sa", "sas", "spa",
-    "srl",
+    "ab", "ag", "aps", "bv", "co", "company", "corp", "corporation",
+    "gmbh", "inc", "incorporated", "kgaa", "limited", "llc", "lp", "ltd",
+    "nv", "oy", "plc", "pte", "sa", "sas", "se", "spa", "srl",
 }
+SPONSOR_AMBIGUOUS_ROOTS = {"merck"}
 
 
 def normalized(value: Any) -> str:
@@ -62,13 +66,17 @@ def _canonical_sponsor(value: str) -> tuple[str, str]:
     canonical = SPONSOR_BRANDS.get(sponsor_key)
     if canonical:
         return normalized(canonical), canonical
-    tokens = sponsor_key.split()
-    while tokens and tokens[-1] in SPONSOR_LEGAL_SUFFIXES:
-        tokens.pop()
-    root = " ".join(tokens)
-    canonical = SPONSOR_BRANDS.get(root)
-    if canonical:
-        return normalized(canonical), canonical
+    normalized_tokens = sponsor_key.split()
+    display_tokens = raw.split()
+    while normalized_tokens and normalized_tokens[-1] in SPONSOR_LEGAL_SUFFIXES:
+        normalized_tokens.pop()
+        if display_tokens:
+            display_tokens.pop()
+    root = " ".join(normalized_tokens)
+    if root and root not in SPONSOR_AMBIGUOUS_ROOTS:
+        canonical = SPONSOR_BRANDS.get(root)
+        display = canonical or " ".join(display_tokens).strip(" ,.;")
+        return normalized(canonical or root), display
     return sponsor_key, raw
 
 
