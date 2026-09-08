@@ -98,6 +98,19 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(result["sites"][0]["contact"]["email"], "pi@example.org")
         self.assertEqual(result["sites"][0]["contact"]["role"], "Principal investigator")
         self.assertEqual(result["pis"][0]["email"], "pi@example.org")
+        self.assertEqual(result["sites"][0]["matchedPICount"], 1)
+        self.assertEqual(result["sites"][0]["matchedPIs"][0]["name"], "Ada Example")
+
+    def test_site_contact_is_the_best_matching_confirmed_pi_with_an_email(self):
+        result = rank_profiles([
+            item(1, diseases=["Breast cancer"], contacts=[contact("Broad", email="broad@example.org")]),
+            item(2, diseases=["Non-small cell lung cancer"], contacts=[contact("Lung", email="lung@example.org")]),
+        ], CRITERIA)
+        site = result["sites"][0]
+        self.assertEqual(site["matchedPICount"], 2)
+        self.assertEqual([person["name"] for person in site["matchedPIs"]], ["Lung Example", "Broad Example"])
+        self.assertEqual(site["contact"]["email"], "lung@example.org")
+        self.assertEqual(site["matchedPIs"][0]["indicationTrials"], 1)
 
     def test_unknown_contact_is_labelled_and_explicit_non_pi_is_excluded(self):
         result = rank_profiles([item(contacts=[
@@ -156,6 +169,20 @@ class RankingTests(unittest.TestCase):
         self.assertEqual({sponsor["name"] for sponsor in metrics["sponsors"]}, {"Example sponsor", "Other sponsor"})
         self.assertEqual(metrics["latestTrialYear"], 2024)
         self.assertEqual(set(metrics["evidence"][0]), {"id", "title"})
+
+    def test_sponsor_spelling_and_legal_variants_are_consolidated_conservatively(self):
+        result = rank_profiles([
+            item(1, sponsor="AstraZeneca"),
+            item(2, sponsor="ASTRAZENECA AB"),
+            item(3, sponsor="Astra Zeneca LLC"),
+            item(4, sponsor="Merck & Co"),
+            item(5, sponsor="Merck KGaA"),
+        ], CRITERIA)
+        sponsors = result["sites"][0]["metrics"]["sponsors"]
+        self.assertEqual(sponsors[0]["name"], "AstraZeneca")
+        self.assertEqual(sponsors[0]["trials"], 3)
+        self.assertEqual(set(sponsors[0]["variants"]), {"Astra Zeneca LLC", "AstraZeneca", "ASTRAZENECA AB"})
+        self.assertEqual({sponsor["name"] for sponsor in sponsors[1:]}, {"Merck & Co", "Merck KGaA"})
 
     def test_experience_metrics_use_five_year_window_and_activity_uses_six_months(self):
         today = datetime.now(UTC).date()
