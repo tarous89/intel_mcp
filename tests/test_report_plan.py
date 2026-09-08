@@ -148,6 +148,8 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert "Estimate enrollment range for your planned trial" in developer_text
         assert "Never phrase the title as a question" in developer_text
         assert "Do not hard-code result breadth" in developer_text
+        assert "Never create an analysis about database coverage" in developer_text
+        assert "replace it with the closest medically relevant analysis" in developer_text
 
         for tool_name in ("start_analysis", "filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
             assert tool_name not in developer_text
@@ -243,4 +245,6 @@ def test_report_plan_prompt_is_compact_and_current() -> None:
     assert "consultant-style labels" in REPORT_PLAN_INSTRUCTIONS
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
+    assert "data completeness" in REPORT_PLAN_INSTRUCTIONS
+    assert "closest medically relevant analysis" in REPORT_PLAN_INSTRUCTIONS
     assert len(REPORT_PLAN_INSTRUCTIONS) < 9500

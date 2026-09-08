@@ -90,6 +90,8 @@ For every pair, set the internal top-level title exactly equal to sharedAnalysis
 
 ACROSS THE PLAN
 - Put the user's requested decisions first.
+- Every analysis must answer a medical, clinical-development or trial-operational question. Never create an analysis about database coverage, data completeness, field availability, missingness, documentation rates, or how many trials reported a field.
+- If the available Trial Profile evidence cannot support a requested analysis, replace it with the closest medically relevant analysis that can be performed with the available evidence. Do not turn the unsupported request into a completeness or availability analysis.
 - Prefer an immediately understandable title over an artificially short one.
 - Do not hard-code result breadth such as top 5, top 10 or top 100; the product tier controls breadth.
 - Avoid analyses likely to produce the same result and practical implication.

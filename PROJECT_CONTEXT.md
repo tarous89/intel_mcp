@@ -222,7 +222,7 @@ analysis:  intel_light_objective_v8
 synthesis: intel_light_synthesis_v5
 ```
 
-The 2026-09-07 verb change is planner-title semantics only. It does not alter Light execution, evidence counts, tool allowances, or Max fulfilment state.
+The 2026-09-08 report-quality rule keeps planned and executed analyses medical, clinical-development or trial-operational. Unsupported lenses are replaced with supported medical alternatives; Terra completeness-focused output is conditionally regenerated and never returned. Per-objective completeness notes are suppressed, while the App keeps one high-level overall analyzed-trial count after the introduction. This does not alter evidence counts, tool allowances or Max fulfilment state.
 
 Execution still runs as an in-process async task on the MCP web service; a service restart can interrupt a run. Durable worker/claim-heartbeat-retry execution remains future work.
 
