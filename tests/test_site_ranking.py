@@ -23,8 +23,8 @@ def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", 
 
 
 def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site="Example hospital",
-         country="DE", contacts=None, sponsor="Example sponsor"):
-    return {"eu_number": f"2024-{number:06d}-00-00", "profile": {
+         country="DE", contacts=None, sponsor="Example sponsor", year=2024):
+    return {"eu_number": f"{year}-{number:06d}-00-00", "profile": {
         "classification_variables": {
             "trial_title": title,
             "diseases": diseases if diseases is not None else ["Non-small cell lung cancer"],
@@ -36,7 +36,7 @@ def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site
                 "site_contacts": contacts if contacts is not None else [contact()],
             }],
         },
-        "ctis_lifecycle": {"countries": [{"country_code": country, "updates": [{"date": "2024-02-01", "label": "Start of trial"}]}]},
+        "ctis_lifecycle": {"countries": [{"country_code": country, "updates": [{"date": f"{year}-02-01", "label": "Start of trial"}]}]},
     }}
 
 
@@ -108,8 +108,27 @@ class RankingTests(unittest.TestCase):
             item(2, site="Hospital B", country="FR", contacts=[contact(email="ADA@example.org")]),
         ], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
-        self.assertEqual(len(result["pis"][0]["sites"]), 2)
+        self.assertEqual(len(result["pis"][0]["sites"]), 1)
         self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
+
+    def test_same_normalized_pi_name_is_not_duplicated_when_emails_change(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", contacts=[contact(email="ada.old@example.org")]),
+            item(2, site="Hospital B", contacts=[contact(email="ada.new@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
+        self.assertEqual(len(result["pis"]), 1)
+
+    def test_pi_exposes_only_the_latest_recorded_affiliation(self):
+        result = rank_profiles([
+            item(1, site="Older Hospital", country="DE", contacts=[contact(email="ada.old@example.org")], year=2023),
+            item(2, site="Latest Hospital", country="FR", contacts=[contact(email="ada.new@example.org")], year=2025),
+        ], CRITERIA)
+        self.assertEqual(result["pis"][0]["sites"], [{
+            "id": result["pis"][0]["sites"][0]["id"],
+            "name": "Latest Hospital", "country": "FR", "trials": 1,
+        }])
+        self.assertEqual(result["pis"][0]["email"], "ada.new@example.org")
 
     def test_preview_is_top_ten_but_counts_cover_full_list(self):
         result = rank_profiles([item(index + 1, site=f"Hospital {index:02d}") for index in range(15)], CRITERIA)
