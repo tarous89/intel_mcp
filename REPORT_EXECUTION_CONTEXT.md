@@ -137,14 +137,16 @@ the PI; a null flag is not treated as negative. Names, affiliations, selected-co
 and recorded public CTIS emails are included. A deterministic safeguard inserts named results
 when structured evidence exists, while role-unconfirmed contacts remain explicitly unconfirmed.
 
-Each completed v4 section also receives deterministic `maxUpgrade` copy derived from its paired
+Each completed v4 section receives dynamically generated `maxUpgrade` copy from the Terra
+objective-analysis call. It is exactly one sentence beginning `This report is limited to`,
+followed by a semicolon and one `Max would` clause grounded in the actual Light result and paired
 Max analysis. This is presentation metadata only and does not execute Max work.
 
 ## Current prompt/schema versions
 
 - planner: `intel_agent_report_plan_v4`
 - selection: `intel_light_trial_selection_v5`
-- Light analysis: `intel_light_objective_v6`
+- Light analysis: `intel_light_objective_v7`
 - synthesis: `intel_light_synthesis_v5`
 
 The 2026-09-07 verb refinement changed planner language/title semantics only. It did not change the v4 schema shape, Light execution projection, trial counts, allowances, or Max fulfilment state.

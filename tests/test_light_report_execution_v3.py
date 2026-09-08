@@ -247,7 +247,8 @@ def test_v4_max_upgrade_copy_uses_paired_analysis() -> None:
         }],
     }
     copy = _max_upgrade_copy(plan, 0)
-    assert copy.startswith("Limited to 20 Trial Profiles")
-    assert "Upgrade to Max to identify investigators most relevant" in copy
+    assert copy.startswith("This report is limited to 20 Trial Profiles")
+    assert "Max would identify investigators most relevant" in copy
+    assert copy.count(".") == 1
     assert "up to 100 analyzed trials" in copy
     assert "source documents" in copy

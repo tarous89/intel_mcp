@@ -22,6 +22,7 @@ LIGHT_OBJECTIVE_COUNT = 3
 LIGHT_MAX_SUBANALYSES = 4
 LIGHT_TRIAL_COUNT = 20
 MAX_LIGHT_VISUAL_ITEMS = 5
+MAX_UPGRADE_PATTERN = r"^This report is limited to [^.!?]+; Max would [^.!?]+\.$"
 LOGGER = logging.getLogger("intel_mcp")
 
 
@@ -132,7 +133,12 @@ class ObjectiveResult(BaseModel):
         max_length=LIGHT_MAX_SUBANALYSES,
     )
     conclusion: str
-    max_upgrade: str = Field(min_length=1, max_length=420, exclude=True)
+    max_upgrade: str = Field(
+        min_length=1,
+        max_length=420,
+        pattern=MAX_UPGRADE_PATTERN,
+        exclude=True,
+    )
     limitations: list[str] = Field(max_length=4)
     qa_warnings: list[str] = Field(default_factory=list, exclude=True)
 
@@ -243,7 +249,12 @@ OBJECTIVE_SCHEMA: dict[str, Any] = {
             },
         },
         "conclusion": {"type": "string"},
-        "max_upgrade": {"type": "string", "minLength": 1, "maxLength": 420},
+        "max_upgrade": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 420,
+            "pattern": MAX_UPGRADE_PATTERN,
+        },
         "limitations": {
             "type": "array",
             "maxItems": 4,
@@ -775,7 +786,7 @@ For an investigator analysis, use investigator_evidence as the authoritative det
 
 summary_sentences must contain exactly one sentence summarizing the objective. conclusion is one evidence-supported decision implication. limitations are brief evidence gaps or constraints.
 
-Write max_upgrade as one or two concise sentences specific to this objective. Explain the material limitation of the Light result actually produced, then how the pairedMaxAnalysis would extend that result in Max. The paired Max plan is a product promise only: do not imply its work has already been performed or that its outcome is known. Use it only for max_upgrade; it must never change the Light findings, visuals, rankings, conclusions, or trial evidence. If pairedMaxAnalysis is absent, write a similarly specific extension based on the objective and observed Light evidence constraints. Refer to the product as Max and avoid generic boilerplate.
+Write max_upgrade as exactly one concise, objective-specific sentence with this structure: "This report is limited to [the material limitation of the Light result]; Max would [the additional insight the pairedMaxAnalysis would provide]." Begin with the exact words "This report is limited to", join the two clauses with one semicolon, end with one period, and use no other sentence-ending punctuation or abbreviations. The paired Max plan is a product promise only: do not imply its work has already been performed or that its outcome is known. Use it only for max_upgrade; it must never change the Light findings, visuals, rankings, conclusions, or trial evidence. If pairedMaxAnalysis is absent, write a similarly specific extension based on the objective and observed Light evidence constraints. Avoid generic boilerplate.
 
 Use only T01-T20 aliases in trial_ids fields. If provenance is uncertain, leave trial_ids empty rather than guessing. Return only structured data."""
         payload = {
@@ -787,7 +798,7 @@ Use only T01-T20 aliases in trial_ids fields. If provenance is uncertain, leave 
         body = await self._response(
             developer=developer,
             user_payload=payload,
-            schema_name="intel_light_objective_v6",
+            schema_name="intel_light_objective_v7",
             schema=_objective_schema_for_aliases(aliases),
             tools=None,
             max_tool_calls=0,

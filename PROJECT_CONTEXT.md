@@ -211,14 +211,14 @@ Investigator analyses receive a deterministic flattening of nested site contacts
 PI roles are recognized even when the nullable PI flag is unset. Names, affiliations,
 selected-cohort activity and recorded public CTIS emails are preserved; unconfirmed roles are
 never promoted to confirmed PIs. Completed v4 sections carry concise objective-specific
-`maxUpgrade` presentation copy is generated dynamically by the objective-analysis LLM from the actual Light result and its paired Max analysis. It describes future Max capability and must not claim that Max work or outcomes already exist.
+`maxUpgrade` presentation copy is generated dynamically by the objective-analysis LLM from the actual Light result and its paired Max analysis. It is exactly one sentence beginning `This report is limited to`, followed by a semicolon and one `Max would` clause describing the additional insight. It describes future Max capability and must not claim that Max work or outcomes already exist.
 
 Current prompt/schema names:
 
 ```text
 planner:   intel_agent_report_plan_v4
 selection: intel_light_trial_selection_v5
-analysis:  intel_light_objective_v6
+analysis:  intel_light_objective_v7
 synthesis: intel_light_synthesis_v5
 ```
 
