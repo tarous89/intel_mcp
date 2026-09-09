@@ -1,0 +1,42 @@
+name: Validate Site Premium revision UX
+on:
+  push:
+    branches: [fix/site-premium-revision-ux]
+    paths:
+      - src/intel_mcp/site_revision.py
+      - tests/test_site_revision.py
+      - tests/test_site_paged_results.py
+      - scripts/apply_site_premium_ux.py
+      - .github/workflows/site-premium-revision-ux.yml
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply reviewed paging/context patch
+        run: |
+          python scripts/apply_site_premium_ux.py
+          git diff --check
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Focused Site Agent tests
+        run: |
+          pytest -q tests/test_site_revision.py tests/test_site_paged_results.py tests/test_site_search_routes.py tests/test_site_search.py
+      - name: Full MCP suite
+        run: pytest -q
+      - name: Publish only validated source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm scripts/apply_site_premium_ux.py .github/workflows/site-premium-revision-ux.yml
+          git add src/intel_mcp/site_search.py SITE_AGENT_CONTEXT.md
+          git add -u scripts/apply_site_premium_ux.py .github/workflows/site-premium-revision-ux.yml
+          git diff --cached --check
+          git commit -m 'Use 10-row Premium pages and best-effort revisions'
+          git push origin HEAD:fix/site-premium-revision-ux
