@@ -1,0 +1,33 @@
+name: Validate bounded Site Premium pages
+on:
+  push:
+    branches: [fix/site-premium-paged-results]
+    paths: ['.site-paged-transform.py', 'tests/test_site_paged_results.py', '.github/workflows/site-paged-apply.yml']
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+      - name: Apply bounded page transport
+        run: python .site-paged-transform.py && git diff --check
+      - name: Site search and route tests
+        run: pytest -q tests/test_site_search.py tests/test_site_search_routes.py tests/test_site_paged_results.py tests/test_site_ranking.py
+      - name: Full MCP regression suite
+        run: pytest -q
+      - name: Publish validated source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .site-paged-transform.py .github/workflows/site-paged-apply.yml
+          git add src/intel_mcp/site_search.py src/intel_mcp/site_search_routes.py tests/test_site_paged_results.py
+          git add -u .site-paged-transform.py .github/workflows/site-paged-apply.yml
+          git diff --cached --check
+          git commit -m 'Return Site Premium full-cohort results in bounded pages'
+          git push origin HEAD:fix/site-premium-paged-results
