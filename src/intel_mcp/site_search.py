@@ -212,7 +212,7 @@ def validate_criteria(value: object) -> dict:
         raise SiteSearchError("Stored project criteria are invalid.", 400) from error
 
 
-async def search_deterministically(engine, criteria_value: object) -> dict:
+async def search_deterministically(engine, criteria_value: object, *, full_list: bool = False) -> dict:
     criteria = validate_criteria(criteria_value)
     filter_data = {
         "therapeutic_areas": {"operator": "contains_any", "values": criteria["therapeutic_areas"]},
@@ -240,7 +240,7 @@ async def search_deterministically(engine, criteria_value: object) -> dict:
         offset += len(page.data)
         if not page.data or offset >= total_matches:
             break
-    result = ranker.result()
+    result = ranker.result(limit=None) if full_list else ranker.result()
     reviewed = len(ranker.seen_trials)
     return {
         **result, "criteria": criteria,

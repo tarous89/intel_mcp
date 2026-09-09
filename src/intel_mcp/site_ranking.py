@@ -288,8 +288,19 @@ def _band(value: int | None, values: list[int]) -> str | None:
 def _apply_bands(rows: list[dict]) -> None:
     for field in METRIC_FIELDS:
         values = [row["metrics"][field] for row in rows if row["metrics"][field] is not None]
+        # One distribution per metric, rather than rescanning the full cohort for every row.
+        counts = Counter(values)
+        bands: dict[int | None, str | None] = {None: None}
+        lower = 0
+        for value in sorted(counts):
+            percentile = 100 * (lower + 0.5 * counts[value]) / max(1, len(values))
+            bands[value] = (
+                "bottom_25" if value == 0 or percentile < 25 else
+                "leading_10" if percentile >= 90 else "upper_25" if percentile >= 75 else "typical"
+            )
+            lower += counts[value]
         for row in rows:
-            row["metrics"].setdefault("bands", {})[field] = _band(row["metrics"][field], values)
+            row["metrics"].setdefault("bands", {})[field] = bands[row["metrics"][field]]
 
 
 def _rank_key(record: dict) -> tuple:
@@ -393,7 +404,7 @@ class ProfileRanker:
                         site_years = person["site_email_years"].setdefault(site_id, {})
                         site_years[email] = max(site_years.get(email, 0), trial["year"] or 0)
 
-    def result(self, limit: int = PREVIEW_LIMIT) -> dict:
+    def result(self, limit: int | None = PREVIEW_LIMIT) -> dict:
         today = datetime.now(UTC).date()
         for person in self.people.values():
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
@@ -479,7 +490,8 @@ class ProfileRanker:
                 "sites": len(site_rows), "pis": len(pi_rows),
                 "confirmedPIs": sum(row["role"] == "confirmed_pi" for row in pi_rows),
                 "unconfirmedContacts": sum(row["role"] == "role_unconfirmed" for row in pi_rows),
-                "previewSites": min(limit, len(site_rows)), "previewPIs": min(limit, len(pi_rows)),
+                "previewSites": len(site_rows) if limit is None else min(limit, len(site_rows)),
+                "previewPIs": len(pi_rows) if limit is None else min(limit, len(pi_rows)),
             },
         }
 

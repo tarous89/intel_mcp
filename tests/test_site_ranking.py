@@ -236,3 +236,17 @@ class RankingTests(unittest.TestCase):
     def test_order_is_stable(self):
         records = [item(1, site="A"), item(2, site="B")]
         self.assertEqual(rank_profiles(records, CRITERIA), rank_profiles(list(reversed(records)), CRITERIA))
+
+class FullListTests(unittest.TestCase):
+    def test_premium_returns_all_matching_sites_and_pis_without_truncation(self):
+        from intel_mcp.site_ranking import ProfileRanker
+        items = [item(i + 1, site=f"Hospital {i}", contacts=[contact(first=f"PI{i}", email=f"pi{i}@example.org")]) for i in range(65)]
+        preview = rank_profiles(items, CRITERIA)
+        full = ProfileRanker(CRITERIA)
+        full.add(items)
+        result = full.result(None)
+        self.assertEqual(len(preview["sites"]), 10)
+        self.assertEqual(len(result["sites"]), 65)
+        self.assertEqual(len(result["pis"]), 65)
+        self.assertEqual(result["counts"]["sites"], 65)
+        self.assertEqual(result["sites"][:10], preview["sites"])

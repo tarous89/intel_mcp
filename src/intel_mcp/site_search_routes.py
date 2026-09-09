@@ -15,6 +15,8 @@ from intel_mcp.site_search import (
     search_deterministically,
 )
 
+from intel_mcp.site_revision import interpret_revision
+
 LOGGER = logging.getLogger("intel_mcp.site_agent")
 
 
@@ -76,9 +78,17 @@ def register_site_search(mcp, settings, engine_factory):
     async def site_search(request):
         async def operation(body):
             if "criteria" in body:
-                return await search_deterministically(engine_factory(), body["criteria"])
+                if set(body) - {"criteria", "full_list"} or type(body.get("full_list", False)) is not bool:
+                    raise SiteSearchError("Unsupported search parameters.", 400)
+                return await search_deterministically(engine_factory(), body["criteria"], full_list=body.get("full_list", False))
             # Compatibility for the existing deployed app during a rolling release.
             return await create_project_search(settings, engine_factory(), body)
         return await run(request, operation, 300)
+
+    @mcp.custom_route("/internal/site-agent/revise", methods=["POST"])
+    async def site_revise(request):
+        async def operation(body):
+            return await interpret_revision(settings, body)
+        return await run(request, operation, 100)
 
     return site_search
