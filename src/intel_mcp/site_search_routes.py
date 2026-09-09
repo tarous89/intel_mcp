@@ -13,6 +13,7 @@ from intel_mcp.site_search import (
     create_project_search,
     interpret_context,
     search_deterministically,
+    search_page_deterministically,
 )
 
 from intel_mcp.site_revision import interpret_revision
@@ -78,8 +79,12 @@ def register_site_search(mcp, settings, engine_factory):
     async def site_search(request):
         async def operation(body):
             if "criteria" in body:
-                if set(body) - {"criteria", "full_list"} or type(body.get("full_list", False)) is not bool:
+                if set(body) - {"criteria", "full_list", "page"} or type(body.get("full_list", False)) is not bool:
                     raise SiteSearchError("Unsupported search parameters.", 400)
+                if "page" in body:
+                    if body.get("full_list") is True:
+                        raise SiteSearchError("Choose a bounded page or a compatibility full list, not both.", 400)
+                    return await search_page_deterministically(engine_factory(), body["criteria"], body["page"])
                 return await search_deterministically(engine_factory(), body["criteria"], full_list=body.get("full_list", False))
             # Compatibility for the existing deployed app during a rolling release.
             return await create_project_search(settings, engine_factory(), body)
