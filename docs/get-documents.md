@@ -35,6 +35,6 @@ Exact filenames are available from `get_profiles(sections=["documents"])` or fro
 
 Each part is limited to 200,000 characters. Continue with the returned `next_part` until it is `null`. Parts preserve page markers inside the text. No PDF, binary, link, page count or character count is returned.
 
-Allowance counts unique documents, not parts or calls. Additional parts and exact retries for the same document do not consume another unit. Current limits are Light 10 and Max 50.
+Allowance counts unique documents, not parts or calls. Additional parts and exact retries for the same document do not consume another unit. The current Light limit is 10. Max v1 leases disable this tool and set document allowances to zero.
 
 The tool performs no download, OCR, extraction, semantic search or model work. Missing/unapproved/unextracted documents return `DOCUMENT_UNAVAILABLE`; a part after the end returns `DOCUMENT_PART_UNAVAILABLE`.

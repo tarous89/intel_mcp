@@ -227,8 +227,7 @@ class StubEngine:
         return EngineExtractionSourceResponse(
             trial_id=trial_id,
             profile={"planned_sample_size": 420},
-            protocol_text="Complete protocol",
-            schema_version="1.0.0",
+            schema_version="2.0.0",
         )
 
 
@@ -468,8 +467,8 @@ async def test_extract_variables_uses_one_trial_and_returns_values_only(
 
         async def extract(self, **kwargs):
             assert kwargs["trial_id"] == "2024-500001-00-00"
-            assert kwargs["profile"] == {"planned_sample_size": 420}
-            assert kwargs["protocol_text"] == "Complete protocol"
+            assert kwargs["profile"] == _trial_profile_v10("2024-500001-00-00")
+            assert "protocol_text" not in kwargs
             assert len(kwargs["variables"]) == 2
             return {
                 "planned_sample_size": 420,

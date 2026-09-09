@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -19,6 +19,13 @@ REPORT_PLAN_VERSION = 4
 LOGGER = logging.getLogger("intel_mcp")
 
 SharedFilterDimension = Literal["disease", "therapeutic_area", "phase", "modality", "country"]
+DiscoveryFilterField = Literal[
+    "diseases",
+    "therapeutic_areas",
+    "phase",
+    "modalities",
+    "country_codes",
+]
 
 
 PROFILE_EVIDENCE_DESCRIPTION = """Available evidence:
@@ -26,7 +33,7 @@ PROFILE_EVIDENCE_DESCRIPTION = """Available evidence:
 - Disease filtering matches persisted Trial Profile disease names case-insensitively. It does not establish disease stage, biomarker, molecular subtype, line of therapy, treatment setting, or another fine-grained protocol concept.
 - Therapeutic area, phase, modality and country use their structured Trial Profile fields.
 - Shared descriptive analyses use approved Trial Profiles.
-- Max can additionally combine dimensions, perform deeper semantic matching, compare clinically meaningful segments, and use source-document/protocol analysis when needed."""
+- Max can additionally combine dimensions, perform deeper semantic matching, and compare clinically meaningful segments, but its current execution evidence is limited to approved Trial Profiles. It does not use protocol or source-document text."""
 
 
 # One current contract. Rewrite this prompt when product semantics change rather than stacking old rules.
@@ -35,10 +42,10 @@ REPORT_PLAN_INSTRUCTIONS = f"""Plan a concise clinical-trial intelligence report
 {PROFILE_EVIDENCE_DESCRIPTION}
 
 GENERAL
-- Preserve the user's actual indication, population, intervention, phase, geography and requested outputs.
+- Preserve the user's indication, population, intervention, phase, geography and requested outputs.
 - Use direct clinical language. Avoid jargon, consultant-style labels, generic benchmarking language and vague abstractions.
 - Do not promise causal explanations, performance claims, private data or recommendations that the evidence cannot support.
-- Activity and experience are not quality. Recommendation language is valid only when the planned analysis actually evaluates evidence relevant to the user's trial or decision.
+- Activity and experience are not quality. Recommend only when the planned analysis evaluates relevant evidence.
 
 TRIAL GROUPS
 Create 3 to 5 groups total: one shared group first, followed by 2 to 4 Max groups.
@@ -51,6 +58,8 @@ Shared group:
 - Do not use disease stage, biomarker, mutation, PD-L1, molecular subtype, line of therapy, treatment setting, eligibility detail or another fine-grained concept in the shared group.
 - The title mentions only the selected dimension, for example "NSCLC trials", "Solid tumor oncology trials", "Phase II trials", "ADC trials", or "Trials in Germany".
 - details briefly state the single selection rule and must not smuggle in additional filters.
+- discoveryFilter must encode that same single broad rule using one supported field and exact values. Use diseases for disease, therapeutic_areas for therapeutic area, phase for phase, modalities for modality, or country_codes for country. Phase values are strings such as "2"; country values are ISO alpha-2 codes.
+- selectionSegments contains exactly one stable backend segment. Give it a short unique snake_case key, a plain clinical label, and literal inclusion/exclusion criteria.
 
 Max groups:
 - role="adjacent", maxOnly=true, filterDimension=null.
@@ -60,6 +69,13 @@ Max groups:
 - Mention only dimensions actually used to define the group. Do not say "regardless of", "irrespective of", or list ignored dimensions.
 - Titles state the real clinical group; never use generic category names such as Target, Adjacent, Broader, Core or Max group.
 - Do not create near-duplicate groups merely to reach the minimum.
+- discoveryFilter is a single broad, high-recall structured condition used only to find possible members. It may overlap the shared group and does not need to express the full semantic definition.
+- selectionSegments contains one segment for an ordinary group and two separately labeled segments for an "X vs Y" comparison. Every key must be globally unique snake_case. Each segment's inclusionCriteria and exclusionCriteria must be literal and classifiable from a complete Trial Profile; keep their combined text at or below 240 characters per segment so the executable rule is never truncated, and do not refer to the group title as shorthand.
+- Use only supported discovery values. Therapeutic area values must use the exact controlled vocabulary exposed below; modality values must use the exact controlled vocabulary; country values must be ISO alpha-2 codes.
+
+CONTROLLED DISCOVERY VALUES
+- therapeutic_areas: Solid Tumor Oncology; Haematological Malignancies; Blood Disorders; Cardiology; Neurology; Immunology; Rheumatology; Allergy; Infectious Disease; Endocrinology; Metabolic Disorders; Respiratory; Gastroenterology; Hepatology; Dermatology; Musculoskeletal; Ophthalmology; Otolaryngology; Oral Health and Dentistry; Nephrology; Psychiatry; Pain Medicine; Gynecology; Obstetrics; Reproductive Medicine; Urology; Emergency Medicine; Critical Care; Surgery and Perioperative Care; Transplantation; Trauma and Injury; Genetic and Congenital Disorders; Nutrition; Other.
+- modalities: Small molecule; Monoclonal antibody; Bispecific antibody; ADC; Other antibody; Cell therapy; Gene therapy; mRNA; Oligonucleotide; Other RNA; Peptide/protein/enzyme; Vaccine; Radiopharmaceutical; Diagnostic agent; Other biologic; Medical device; Procedure; Other.
 
 ANALYSES
 Create 5 to 7 analysis pairs. There is no user-facing objective layer. Every pair contains one shared analysis and one Max analysis.
@@ -69,7 +85,7 @@ Shared analysis — direct retrieval/counting layer:
 - The title should normally start with one of these verbs: List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect.
 - These verbs intentionally communicate direct, low-complexity evidence retrieval or calculation. Do not use Quantify or Describe.
 - State exactly what will be listed, counted, ranked, reported, calculated, summarized, shown, compared or collected.
-- Good examples: "Rank trial sites by documented activity", "Name the most active principal investigators", "List the most-used exclusion criteria", "Report observed enrollment in similar trials", "Calculate observed country timelines", "Summarize the most common primary endpoints".
+- Examples: "Rank trial sites by documented activity", "Name the most active principal investigators", "Report observed enrollment in similar trials", "Summarize the most common primary endpoints".
 - Do not use high-interpretation verbs such as Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match or Synthesize in a shared title.
 - Never phrase the title as a question or end it with a question mark.
 - details contain 1 to 3 concise lines describing the metric/scope; they are not separate objectives.
@@ -79,11 +95,11 @@ Max analysis — interpretation/decision layer:
 - Choose the verb that best reflects the actual deliverable. Do not mechanically start every Max title with Analyze.
 - Do not use Benchmark as a title verb.
 - The collapsed title must tell the user what the deeper analysis will do for their own trial, study, target population, rollout or decision. Describe the deliverable, not an abstract category.
-- Good examples: "Prioritize trial sites for your planned study", "Identify principal investigators most relevant to your planned trial", "Assess exclusion criteria likely to restrict recruitment in your target population", "Estimate enrollment range for your planned trial", "Recommend countries for your planned rollout", "Analyze endpoint choices for your target population".
-- Bad examples: "Best-fitting trial sites", "Eligibility strategy fit", "Enrollment benchmark fit", "Endpoint strategy fit", "Country strategy fit", "Operational fit".
+- Examples: "Prioritize trial sites for your planned study", "Assess exclusion criteria likely to restrict recruitment", "Estimate enrollment range for your planned trial", "Recommend countries for your rollout".
+- Avoid: "Best-fitting trial sites", "Eligibility strategy fit", "Enrollment benchmark fit", "Operational fit".
 - Slightly longer titles are preferable when they make the deliverable clear without expansion.
 - Never phrase the title as a question or end it with a question mark.
-- details contain 2 to 4 distinct decision factors or sub-analyses such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, source-derived protocol detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
+- details contain 2 to 4 distinct decision factors or sub-analyses such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, profile-derived eligibility or endpoint detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
 - Do not simply repeat the shared analysis with stronger wording. Max must add evidence or reasoning that can change or strengthen the user's decision.
 
 For every pair, set the internal top-level title exactly equal to sharedAnalysis.title. This field is only an execution/progress label, not an additional user-facing objective.
@@ -101,6 +117,56 @@ ACROSS THE PLAN
 Return only data matching the supplied JSON schema."""
 
 
+class DiscoveryFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field: DiscoveryFilterField
+    values: list[str] = Field(min_length=1, max_length=10)
+
+    @field_validator("values")
+    @classmethod
+    def normalize_values(cls, values: list[str]) -> list[str]:
+        normalized = [" ".join(value.strip().split()) for value in values]
+        if any(not value for value in normalized) or len(set(normalized)) != len(normalized):
+            raise ValueError("Discovery-filter values must be non-empty and unique.")
+        return normalized
+
+
+class SelectionSegment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(min_length=1, max_length=48, pattern=r"^[a-z][a-z0-9_]*$")
+    label: str = Field(min_length=1, max_length=120)
+    inclusionCriteria: list[
+        Annotated[str, Field(min_length=1, max_length=240)]
+    ] = Field(min_length=1, max_length=4)
+    exclusionCriteria: list[
+        Annotated[str, Field(min_length=1, max_length=240)]
+    ] = Field(default_factory=list, max_length=4)
+
+    @field_validator("label")
+    @classmethod
+    def normalize_label(cls, value: str) -> str:
+        normalized = " ".join(value.strip().split())
+        if not normalized:
+            raise ValueError("Selection-segment labels must not be empty.")
+        return normalized
+
+    @field_validator("inclusionCriteria", "exclusionCriteria")
+    @classmethod
+    def normalize_criteria(cls, values: list[str]) -> list[str]:
+        normalized = [" ".join(value.strip().split()) for value in values]
+        if any(not value for value in normalized) or len(normalized) != len(set(normalized)):
+            raise ValueError("Selection criteria must be non-empty and unique within a segment.")
+        return normalized
+
+    @model_validator(mode="after")
+    def criteria_fit_executable_rule(self) -> "SelectionSegment":
+        if sum(len(value) for value in [*self.inclusionCriteria, *self.exclusionCriteria]) > 240:
+            raise ValueError("Combined selection criteria must not exceed 240 characters.")
+        return self
+
+
 class StudyCohort(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -109,6 +175,10 @@ class StudyCohort(BaseModel):
     details: list[str] = Field(min_length=1, max_length=4)
     maxOnly: bool
     filterDimension: SharedFilterDimension | None
+    # Defaults keep already-stored v4 plans readable. The current generation
+    # schema requires both fields for every newly generated/revised plan.
+    discoveryFilter: DiscoveryFilter | None = None
+    selectionSegments: list[SelectionSegment] = Field(default_factory=list, max_length=2)
 
 
 class LegacyStudyCohort(BaseModel):
@@ -185,6 +255,31 @@ class ReportPlan(BaseModel):
             for cohort in cohorts[1:]:
                 if cohort.role != "adjacent" or not cohort.maxOnly or cohort.filterDimension is not None:
                     raise ValueError("All later study cohorts must be Max groups.")
+            has_execution_metadata = any(
+                cohort.discoveryFilter is not None or cohort.selectionSegments
+                for cohort in cohorts
+            )
+            if has_execution_metadata:
+                expected_field = {
+                    "disease": "diseases",
+                    "therapeutic_area": "therapeutic_areas",
+                    "phase": "phase",
+                    "modality": "modalities",
+                    "country": "country_codes",
+                }
+                if any(
+                    cohort.discoveryFilter is None or not cohort.selectionSegments
+                    for cohort in cohorts
+                ):
+                    raise ValueError("Every v4 group must include Max execution metadata.")
+                assert first.discoveryFilter is not None
+                if first.discoveryFilter.field != expected_field[first.filterDimension]:
+                    raise ValueError("The shared discovery filter must match filterDimension.")
+                if len(first.selectionSegments) != 1:
+                    raise ValueError("The shared group must contain exactly one selection segment.")
+                keys = [segment.key for cohort in cohorts for segment in cohort.selectionSegments]
+                if len(keys) != len(set(keys)):
+                    raise ValueError("Selection-segment keys must be globally unique.")
             return self
 
         if not all(isinstance(item, LegacyStudyCohort) for item in self.studyCohorts):
@@ -230,7 +325,7 @@ REPORT_PLAN_SCHEMA = {
                     "type": "array",
                     "minItems": 1,
                     "maxItems": 4,
-                    "items": {"type": "string"},
+                    "items": {"type": "string", "minLength": 1, "maxLength": 240},
                 },
                 "maxOnly": {"type": "boolean"},
                 "filterDimension": {
@@ -239,8 +334,61 @@ REPORT_PLAN_SCHEMA = {
                         {"type": "null"},
                     ]
                 },
+                "discoveryFilter": {"$ref": "#/$defs/discoveryFilter"},
+                "selectionSegments": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "items": {"$ref": "#/$defs/selectionSegment"},
+                },
             },
-            "required": ["role", "title", "details", "maxOnly", "filterDimension"],
+            "required": [
+                "role",
+                "title",
+                "details",
+                "maxOnly",
+                "filterDimension",
+                "discoveryFilter",
+                "selectionSegments",
+            ],
+        },
+        "discoveryFilter": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "enum": ["diseases", "therapeutic_areas", "phase", "modalities", "country_codes"],
+                },
+                "values": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 240},
+                },
+            },
+            "required": ["field", "values"],
+        },
+        "selectionSegment": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "key": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+                "label": {"type": "string"},
+                "inclusionCriteria": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 240},
+                },
+                "exclusionCriteria": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 4,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 240},
+                },
+            },
+            "required": ["key", "label", "inclusionCriteria", "exclusionCriteria"],
         },
         "analysisCard": {
             "type": "object",

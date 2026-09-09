@@ -148,7 +148,7 @@ Current per-analysis limits:
 
 ```text
 Light: 25 classifications
-Max:   200 classifications
+Max v1: 100 classifications
 ```
 
 A classification unit is keyed by a SHA-256 fingerprint of the EU trial number plus the normalized inclusion criteria, normalized exclusion criteria and classifier schema version.
@@ -159,7 +159,7 @@ A classification unit is keyed by a SHA-256 fingerprint of the EU trial number p
 - Keys are reserved before Terra work begins.
 - Successful worker completion commits the keys to usage.
 - Classifier/system failure releases the reservation so failed work does not consume completed-classification allowance.
-- Commit/release may finalize already-started work even if the 60-minute lease expires while the worker is running.
+- Commit/release may finalize already-started work even if its tier-bounded lease expires while the worker is running.
 
 ## MCP annotations
 

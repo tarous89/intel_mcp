@@ -22,9 +22,9 @@ class _Result:
 
 
 class _Connection:
-    def __init__(self, profile_row, protocol_rows):
+    def __init__(self, profile_row, protocol_rows=None):
         self.profile_row = profile_row
-        self.protocol_rows = protocol_rows
+        self.protocol_rows = protocol_rows or []
         self.calls = []
 
     def execute(self, statement, parameters):
@@ -68,7 +68,7 @@ def test_request_accepts_only_one_trial() -> None:
         )
 
 
-def test_source_returns_approved_profile_and_its_listed_protocol_only() -> None:
+def test_source_returns_only_the_complete_approved_profile() -> None:
     profile = _profile(
         ["Clinical Trial Protocol clean English"],
         classification_variables={"planned_sample_size": 420},
@@ -102,41 +102,45 @@ def test_source_returns_approved_profile_and_its_listed_protocol_only() -> None:
     assert result == {
         "trial_id": "2024-500001-00-00",
         "profile": profile,
-        "protocol_text": "[[PROTOCOL DOCUMENT 11 PAGE 1]]\nComplete protocol",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
     }
     assert "document_name" not in result
     assert "page" not in result
-    assert any("WHERE document_id = %s" in statement for statement, _ in connection.calls)
+    assert "protocol_text" not in result
+    assert len(connection.calls) == 1
+    assert "approved_profiles_v1" in connection.calls[0][0]
 
 
-def test_source_uses_profile_inventory_without_reranking_other_protocol_rows() -> None:
+def test_source_never_reads_documents_even_when_inventory_lists_protocols() -> None:
     profile = _profile(["Protocol synopsis"])
+    connection = _Connection(
+        (profile, 77),
+        [
+            (
+                10,
+                "Protocol synopsis",
+                "synopsis.pdf",
+                "Protocol synopsis",
+                "Short",
+                [{"page": 1, "text": "Short"}],
+            ),
+            (
+                11,
+                "Clinical Trial Protocol clean English",
+                "protocol-en.pdf",
+                "Clinical trial protocol",
+                "Complete protocol",
+                [{"page": 1, "text": "Complete protocol"}],
+            ),
+        ],
+    )
     result = get_approved_extraction_source(
-        _Connection(
-            (profile, 77),
-            [
-                (
-                    10,
-                    "Protocol synopsis",
-                    "synopsis.pdf",
-                    "Protocol synopsis",
-                    "Short",
-                    [{"page": 1, "text": "Short"}],
-                ),
-                (
-                    11,
-                    "Clinical Trial Protocol clean English",
-                    "protocol-en.pdf",
-                    "Clinical trial protocol",
-                    "Complete protocol",
-                    [{"page": 1, "text": "Complete protocol"}],
-                ),
-            ],
-        ),
+        connection,
         {"trial_id": "2024-500001-00-00"},
     )
-    assert result["protocol_text"] == "[[PROTOCOL DOCUMENT 10 PAGE 1]]\nShort"
+    assert result["profile"] == profile
+    assert "protocol_text" not in result
+    assert len(connection.calls) == 1
 
 
 def test_source_allows_profile_only_when_no_protocol_is_available() -> None:
@@ -146,7 +150,8 @@ def test_source_allows_profile_only_when_no_protocol_is_available() -> None:
         {"trial_id": "2024-500001-00-00"},
     )
     assert result["profile"] == profile
-    assert result["protocol_text"] is None
+    assert "protocol_text" not in result
+    assert result["schema_version"] == "2.0.0"
 
 
 def test_unapproved_profile_is_unavailable() -> None:
@@ -158,7 +163,7 @@ def test_unapproved_profile_is_unavailable() -> None:
     assert captured.value.status_code == 404
 
 
-def test_source_keeps_legacy_top_level_inventory_compatible() -> None:
+def test_source_treats_legacy_profile_shape_as_an_opaque_approved_profile() -> None:
     profile = _profile(["Clinical Trial Protocol clean English"])
     legacy_profile = {
         "available_extracted_documents": profile["filtering_variables"][
@@ -181,6 +186,5 @@ def test_source_keeps_legacy_top_level_inventory_compatible() -> None:
         ),
         {"trial_id": "2024-500001-00-00"},
     )
-    assert result["protocol_text"] == (
-        "[[PROTOCOL DOCUMENT 11 PAGE 1]]\nComplete protocol"
-    )
+    assert result["profile"] == legacy_profile
+    assert "protocol_text" not in result

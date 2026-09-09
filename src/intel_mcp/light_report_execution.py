@@ -350,11 +350,11 @@ def _max_upgrade_copy(plan: dict[str, Any], section_index: int) -> str:
             action = action[:1].lower() + action[1:]
             return (
                 "This report is limited to 20 Trial Profiles and Light-depth ranking. "
-                f"Upgrade to Max to {action}, using broader evidence from up to 1,000 trials and source documents."
+                f"Upgrade to Max to {action}, using a reusable profile-derived dataset across up to 100 trials."
             )
     return (
         "This report is limited to 20 Trial Profiles and Light-depth ranking. "
-        "Upgrade to Max to add deeper analysis across up to 1,000 trials with source-document review."
+        "Upgrade to Max to add deeper analysis across up to 100 Trial Profiles with a reusable dataset."
     )
 
 

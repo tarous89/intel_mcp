@@ -1,8 +1,8 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
-This is the source of truth for report planning and Light execution. Light is live; Max execution is not implemented.
+This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials; Max v1 is capped at 100 approved Trial Profiles.
 
 ## Report-plan v4
 
@@ -17,6 +17,8 @@ disease | therapeutic_area | phase | modality | country
 ```
 
 Disease is backed by persisted approved Trial Profile disease names. Stage, biomarker, subtype, line of therapy, treatment setting and multi-dimension combinations belong to Max-only groups.
+
+Every group also contains backend-only execution metadata: one supported high-recall `discoveryFilter` plus stable `selectionSegments` with unique keys and literal inclusion/exclusion criteria. Stored v4 plans without this metadata remain usable for Light but must be regenerated before Max execution.
 
 ### Analysis pairs
 
@@ -61,7 +63,7 @@ After a valid Light result, the same objective writer generates exactly two obje
 1. `This report is limited to …`
 2. `Upgrade to Max to …`
 
-The copy may describe future Max value across up to 1,000 trials but must not claim Max work or outcomes already exist.
+The copy may describe future Max value across up to 100 Trial Profiles but must not claim Max work or outcomes already exist.
 
 ## Final report
 
@@ -84,7 +86,38 @@ analysis:  intel_light_objective_v8
 synthesis: intel_light_synthesis_v5
 ```
 
+## Max execution v1
+
+### Hard limits
+
+- 100 unique trials in one frozen report-wide cohort;
+- 10 complete, untruncated, group-stratified profile examples for the SAP;
+- 20 total non-deterministic profile variables, including Boolean segment membership;
+- no protocol or source-document extraction;
+- one profile-only semantic extraction call per selected trial;
+- 5–7 objective analyst calls and one reducer call.
+
+All Max generative stages use `gpt-5.6-terra`, high reasoning and `service_tier=flex`. The shared planner remains Sol/medium.
+
+### Stages
+
+1. Apply every group's deterministic discovery filter, deduplicate to at most 100 trials, and retain broad-pool, granular-segment and discovery provenance labels.
+2. Build one SAP from the approved brief/plan, an ephemeral catalogue of short profile fields and up to 10 whole profile examples. Deterministic fields are preferred; narrative interpretation uses the remaining semantic-variable budget.
+3. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete approved Trial Profile. Up to 10 extraction requests run concurrently.
+4. Run one analyst per main analysis pair. Each receives only its planned variables, deterministic summaries, bounded finite numeric correlations, labeled-group definitions and relevant rows. It performs the shared quantitative and Max decision analysis together.
+5. Run one reducer over completed sections and cohort summaries. It may connect findings but not invent evidence.
+
+Output stays compatible with the shared App/PDF renderer:
+
+```text
+final_report.version = 2
+final_report.tier = max
+```
+
+### Control-plane boundary
+
+The private `/internal/max-report/start` route launches Max. Its six-hour lease excludes `get_documents`, zeros document allowances and clamps filter/profile/classification/extraction allowances to 100. Successful completion consumes the reserved entitlement; system failure leaves it unconsumed.
+
 ## Runtime boundary
 
-The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Current execution is in-process async and can be interrupted by a service restart; durable worker execution remains pending.
-
+The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Light and Max still use an in-process async launcher and can be interrupted by a service restart; durable claim/heartbeat/retry execution remains pending.

@@ -96,7 +96,7 @@ def test_worker_validation_accepts_null_and_rejects_wrong_types() -> None:
 
 
 @pytest.mark.anyio
-async def test_terra_extractor_sends_profile_and_protocol_in_one_request() -> None:
+async def test_terra_extractor_sends_only_the_complete_profile() -> None:
     calls = 0
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -105,7 +105,7 @@ async def test_terra_extractor_sends_profile_and_protocol_in_one_request() -> No
         payload = json.loads(request.content)
         user_payload = json.loads(payload["input"][1]["content"][0]["text"])
         assert user_payload["trial_profile"] == {"planned_sample_size": 420}
-        assert user_payload["protocol_text"] == "Complete protocol"
+        assert "protocol_text" not in user_payload
         assert set(payload["text"]["format"]["schema"]["properties"]) == {"values"}
         return httpx.Response(
             200,
@@ -137,7 +137,6 @@ async def test_terra_extractor_sends_profile_and_protocol_in_one_request() -> No
     ).extract(
         trial_id="2024-500001-00-00",
         profile={"planned_sample_size": 420},
-        protocol_text="Complete protocol",
         variables=variables(),
     )
 

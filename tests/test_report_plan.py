@@ -25,6 +25,18 @@ SAMPLE_PLAN = {
             "details": ["Disease contains inherited retinal disease"],
             "maxOnly": False,
             "filterDimension": "disease",
+            "discoveryFilter": {
+                "field": "diseases",
+                "values": ["Inherited retinal disease"],
+            },
+            "selectionSegments": [
+                {
+                    "key": "inherited_retinal_disease",
+                    "label": "Inherited retinal disease",
+                    "inclusionCriteria": ["The Trial Profile concerns an inherited retinal disease"],
+                    "exclusionCriteria": [],
+                }
+            ],
         },
         {
             "role": "adjacent",
@@ -32,6 +44,21 @@ SAMPLE_PLAN = {
             "details": ["Combine inherited retinal disease with gene therapy"],
             "maxOnly": True,
             "filterDimension": None,
+            "discoveryFilter": {
+                "field": "diseases",
+                "values": ["Inherited retinal disease"],
+            },
+            "selectionSegments": [
+                {
+                    "key": "gene_therapy_ird",
+                    "label": "Gene-therapy inherited retinal disease",
+                    "inclusionCriteria": [
+                        "The Trial Profile concerns an inherited retinal disease",
+                        "The intervention uses gene therapy",
+                    ],
+                    "exclusionCriteria": [],
+                }
+            ],
         },
         {
             "role": "adjacent",
@@ -39,6 +66,24 @@ SAMPLE_PLAN = {
             "details": ["Compare age-defined populations"],
             "maxOnly": True,
             "filterDimension": None,
+            "discoveryFilter": {
+                "field": "diseases",
+                "values": ["Inherited retinal disease"],
+            },
+            "selectionSegments": [
+                {
+                    "key": "pediatric_ird",
+                    "label": "Pediatric inherited retinal disease",
+                    "inclusionCriteria": ["The Trial Profile describes a pediatric population"],
+                    "exclusionCriteria": [],
+                },
+                {
+                    "key": "adult_ird",
+                    "label": "Adult inherited retinal disease",
+                    "inclusionCriteria": ["The Trial Profile describes an adult population"],
+                    "exclusionCriteria": [],
+                },
+            ],
         },
     ],
     "exclusionSummary": "Healthy-volunteer and unrelated ophthalmology studies will be excluded.",
@@ -53,7 +98,7 @@ SAMPLE_PLAN = {
                 "title": "Assess exclusion criteria likely to restrict recruitment in your target population",
                 "details": [
                     "Compare restrictions across the closest disease and treatment matches",
-                    "Identify protocol-level criteria most likely to narrow recruitment",
+                    "Identify profile-derived criteria most likely to narrow recruitment",
                 ],
             },
         },
@@ -67,7 +112,7 @@ SAMPLE_PLAN = {
                 "title": "Evaluate primary endpoints for your planned study",
                 "details": [
                     "Compare endpoint choice across clinically relevant segments",
-                    "Assess endpoint definitions and timing from source documents where needed",
+                    "Assess profile-derived endpoint definitions and timing",
                 ],
             },
         },
@@ -129,6 +174,8 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert schema["properties"]["studyCohorts"]["minItems"] == 3
         assert schema["properties"]["studyCohorts"]["maxItems"] == 5
         assert "filterDimension" in schema["$defs"]["studyCohort"]["required"]
+        assert "discoveryFilter" in schema["$defs"]["studyCohort"]["required"]
+        assert "selectionSegments" in schema["$defs"]["studyCohort"]["required"]
         assert set(schema["$defs"]["reportSection"]["required"]) == {"title", "sharedAnalysis", "maxAnalysis"}
         assert schema["$defs"]["maxAnalysisCard"]["properties"]["details"]["minItems"] == 2
 
@@ -235,6 +282,19 @@ def test_v4_rejects_generic_max_fit_labels() -> None:
             ReportPlan.model_validate(raw)
 
 
+def test_v4_rejects_segment_rules_that_cannot_execute_without_truncation() -> None:
+    raw = {**SAMPLE_PLAN, "studyCohorts": [dict(item) for item in SAMPLE_PLAN["studyCohorts"]]}
+    raw["studyCohorts"][1] = {
+        **raw["studyCohorts"][1],
+        "selectionSegments": [{
+            **raw["studyCohorts"][1]["selectionSegments"][0],
+            "inclusionCriteria": ["a" * 121, "b" * 120],
+        }],
+    }
+    with pytest.raises(ValidationError):
+        ReportPlan.model_validate(raw)
+
+
 def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 4
@@ -243,6 +303,7 @@ def test_report_plan_prompt_is_compact_and_current() -> None:
     assert "List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect" in REPORT_PLAN_INSTRUCTIONS
     assert "Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize" in REPORT_PLAN_INSTRUCTIONS
     assert "consultant-style labels" in REPORT_PLAN_INSTRUCTIONS
+    assert "combined text at or below 240 characters" in REPORT_PLAN_INSTRUCTIONS
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
     assert "data completeness" in REPORT_PLAN_INSTRUCTIONS

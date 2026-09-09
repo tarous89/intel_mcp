@@ -6,15 +6,7 @@ from typing import Any
 
 import psycopg
 
-from .document_retrieval import (
-    _available_document_inventory,
-    _compact_text,
-    _document_name,
-)
-from .source import _format_protocol_pages
-
-
-EXTRACTION_SOURCE_SCHEMA_VERSION = "1.0.0"
+EXTRACTION_SOURCE_SCHEMA_VERSION = "2.0.0"
 EU_TRIAL_NUMBER_RE = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 
 
@@ -44,16 +36,11 @@ def validate_extraction_source_request(request: Any) -> str:
 def get_approved_extraction_source(
     connection: psycopg.Connection[Any], request: Any
 ) -> dict[str, Any]:
-    """Return one approved profile plus its single profile-listed protocol.
-
-    Protocol selection is completed upstream when the profile's deterministic
-    extracted-document inventory is built. This boundary resolves only that
-    protocol name and never re-ranks other stored protocol-category rows.
-    """
+    """Return one complete approved profile and never read document text."""
     trial_id = validate_extraction_source_request(request)
     profile_row = connection.execute(
         """
-        SELECT profile.profile_json, profile.engine_trial_id
+        SELECT profile.profile_json
         FROM mcp_serving.approved_profiles_v1 AS profile
         WHERE profile.approval_status = 'approved'
           AND profile.eu_number = %s
@@ -68,72 +55,8 @@ def get_approved_extraction_source(
             404,
         )
 
-    profile = profile_row[0]
-    inventory = _available_document_inventory(profile)
-    protocol_names = (
-        inventory.get("protocol")
-        if isinstance(inventory, dict)
-        and isinstance(inventory.get("protocol"), list)
-        else []
-    )
-    protocol_name = next(
-        (
-            _compact_text(name)
-            for name in protocol_names
-            if isinstance(name, str) and _compact_text(name)
-        ),
-        None,
-    )
-
-    protocol_text: str | None = None
-    if protocol_name is not None:
-        # Resolve the selected protocol from the lightweight document catalogue first,
-        # then retrieve text by exact document_id. Joining the two security-barrier
-        # serving views can otherwise force a broad scan and hit the reader timeout.
-        rows = connection.execute(
-            """
-            SELECT document_id,
-                   title_raw,
-                   filename_raw,
-                   document_type_label_raw
-            FROM mcp_serving.documents_v1
-            WHERE trial_id = %s
-              AND document_category = 'protocol'
-            ORDER BY document_id
-            """,
-            (int(profile_row[1]),),
-        ).fetchall()
-        requested_identity = protocol_name.casefold()
-        matched_document_id: int | None = None
-        for row in rows:
-            name = _document_name(int(row[0]), row[1], row[2], row[3])
-            if name.casefold() == requested_identity:
-                matched_document_id = int(row[0])
-                break
-
-        if matched_document_id is not None:
-            text_row = connection.execute(
-                """
-                SELECT full_text, pages_json
-                FROM mcp_serving.document_text_v1
-                WHERE document_id = %s
-                  AND extraction_status IN ('success', 'partial')
-                  AND COALESCE(length(full_text), 0) > 0
-                LIMIT 1
-                """,
-                (matched_document_id,),
-            ).fetchone()
-            if text_row is not None:
-                protocol_text = _format_protocol_pages(
-                    matched_document_id,
-                    list(text_row[1] or []),
-                )
-                if not protocol_text:
-                    protocol_text = str(text_row[0] or "").strip() or None
-
     return {
         "trial_id": trial_id,
-        "profile": profile,
-        "protocol_text": protocol_text,
+        "profile": profile_row[0],
         "schema_version": EXTRACTION_SOURCE_SCHEMA_VERSION,
     }

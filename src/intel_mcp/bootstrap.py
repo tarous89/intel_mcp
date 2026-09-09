@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse, Response
 
 from intel_mcp import server
 from intel_mcp.light_report_execution import start_light_report_task
+from intel_mcp.max_report_execution import start_max_report_task
 from intel_mcp.site_search_routes import register_site_search
 
 
@@ -35,6 +36,24 @@ async def start_light_report(request: Request) -> Response:
     if not isinstance(report_run_id, str) or not report_run_id.strip() or len(report_run_id) > 128:
         return JSONResponse({"error": "A valid reportRunId is required."}, status_code=400)
     started = start_light_report_task(server.settings, report_run_id.strip())
+    return JSONResponse(
+        {"reportRunId": report_run_id.strip(), "started": started},
+        status_code=202,
+    )
+
+
+@server.mcp.custom_route("/internal/max-report/start", methods=["POST"])
+async def start_max_report(request: Request) -> Response:
+    if not _authorized(request):
+        return JSONResponse({"error": "Unauthorized."}, status_code=401)
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "A valid JSON request is required."}, status_code=400)
+    report_run_id = body.get("reportRunId") if isinstance(body, dict) else None
+    if not isinstance(report_run_id, str) or not report_run_id.strip() or len(report_run_id) > 128:
+        return JSONResponse({"error": "A valid reportRunId is required."}, status_code=400)
+    started = start_max_report_task(server.settings, report_run_id.strip())
     return JSONResponse(
         {"reportRunId": report_run_id.strip(), "started": started},
         status_code=202,

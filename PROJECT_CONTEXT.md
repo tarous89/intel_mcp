@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
@@ -29,17 +29,17 @@ Current limits:
 
 | Tool | Per call | Light per analysis | Max per analysis |
 |---|---:|---:|---:|
-| `filter_trials` | 100 returned | 100 unique profiles | 1,000 unique profiles |
-| `classify_trials` | 25 trials | 25 completed | 200 completed |
-| `get_profiles` | 10 trials | 100 unique profiles | 500 unique profiles |
-| `get_documents` | 1 document part | 10 unique documents | 50 unique documents |
-| `extract_variables` | 1 trial, 20 variables | 20 units | 200 units |
+| `filter_trials` | 100 returned | 100 unique profiles | 100 unique profiles |
+| `classify_trials` | 25 trials | 25 completed | 100 completed |
+| `get_profiles` | 10 trials | 100 unique profiles | 100 unique profiles |
+| `get_documents` | 1 document part | 10 unique documents | disabled for Max v1 |
+| `extract_variables` | 1 trial, 20 variables | 20 units | 100 units |
 
 App authorization is authoritative. Reservation/commit/release prevents failed worker work from consuming completed allowance. Exact retry keys are allowance-idempotent where documented.
 
 `filter_trials` is deterministic and approved-profile-only. Disease filtering matches persisted disease names case-insensitively; it does not infer stage, biomarker, molecular subtype, line of therapy or treatment setting.
 
-`classify_trials` uses one contact-redacted Trial Profile per Terra worker job. `get_profiles` returns complete schema 10.0.0 profiles or exact section projections. `get_documents` returns bounded extracted-text parts for exact profile-listed filenames. `extract_variables` uses one approved profile plus its selected protocol when available in one Terra request.
+`classify_trials` uses one contact-redacted Trial Profile per Terra worker job. `get_profiles` returns complete schema 10.0.0 profiles or exact section projections. `get_documents` returns bounded extracted-text parts for exact profile-listed filenames. `extract_variables` schema 2.0.0 uses one complete approved profile only; it never retrieves or forwards protocol or document text.
 
 ## Report planning
 
@@ -49,6 +49,7 @@ New and revised plans use `intel_agent_report_plan_v4` with `gpt-5.6-sol`, mediu
 
 - One shared Light + Max trial group uses exactly one structured dimension: disease, therapeutic area, phase, modality or country.
 - Two to four additional trial groups are Max-only.
+- Every group carries a deterministic discovery filter and stable machine-readable selection-segment labels and literal criteria for Max execution.
 - Plans contain 5–7 analysis pairs: one shared analysis and one deeper Max analysis per pair.
 - Every analysis must answer a medical, clinical-development or trial-operational question.
 - Database coverage, completeness, missingness, field availability and reporting rates are prohibited as analyses.
@@ -74,6 +75,18 @@ Max trial groups, Max analyses, document review and Max fulfilment are not execu
 
 Execution is currently an in-process async task on the MCP web service; a restart can interrupt a run. Durable worker/claim/heartbeat/retry execution remains pending.
 
+## Max execution v1
+
+Max is an independently executable profile-only workflow capped at 100 approved Trial Profiles:
+
+1. deterministic discovery freezes one deduplicated broad-plus-granular cohort while preserving overlapping group labels;
+2. Terra/high/Flex creates one report-wide SAP from up to 10 complete profile examples and prefers deterministic profile fields;
+3. up to 20 total semantic variables, including subgroup Booleans, are populated in one profile-only Terra/Flex extraction call per trial;
+4. one Terra/high/Flex analyst executes each of the 5–7 shared-plus-Max analysis pairs over the same frozen dataset;
+5. one Terra/high/Flex reducer writes only the cross-objective synthesis.
+
+Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
+
 ## Site Agent
 
 Site Agent uses one initial Terra/low interpretation call. Premium revisions use one forced strict function call per instruction, limited to existing criteria and list controls; no candidate or contact records enter the model. The original area/disease/country arrays anchor every revision (any individual original value suffices). Service-authenticated searches support a full-list mode; default/free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
@@ -85,4 +98,3 @@ Site Agent uses one initial Terra/low interpretation call. Premium revisions use
 - Personal contact data is removed from classifier model input.
 - Identity, tier, payment and allowance are resolved server-side.
 - No patient-level PHI, credentials, prompts or traces in public output or context files.
-
