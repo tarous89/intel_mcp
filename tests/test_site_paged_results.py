@@ -39,6 +39,11 @@ def result():
 
 
 class PageTests(unittest.IsolatedAsyncioTestCase):
+    def test_default_page_is_ten_rows(self):
+        page = page_deterministic_result(result(), {"kind": "sites", "page": 1, "controls": {}})
+        self.assertEqual(len(page["sites"]), 10)
+        self.assertEqual(page["page"], {"kind": "sites", "page": 1, "size": 10, "pages": 13, "total": 125})
+
     def test_page_never_serializes_more_than_requested_rows(self):
         page = page_deterministic_result(result(), {"kind": "pis", "page": 3, "size": 50, "controls": {"sort": "rank", "search": "", "minimum_metric": "diseaseMatchedTrials", "minimum_trials": None}})
         self.assertEqual(len(page["pis"]), 50)
@@ -46,6 +51,12 @@ class PageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(page["sites"], [])
         self.assertEqual(page["page"], {"kind": "pis", "page": 3, "size": 50, "pages": 5, "total": 207})
         self.assertEqual(page["counts"]["pis"], 207, "global cohort counts are retained")
+
+    def test_ten_row_page_is_supported(self):
+        page = page_deterministic_result(result(), {"kind": "sites", "page": 2, "size": 10, "controls": {}})
+        self.assertEqual(len(page["sites"]), 10)
+        self.assertEqual(page["sites"][0]["id"], "site-11")
+        self.assertEqual(page["page"]["pages"], 13)
 
     def test_search_filter_and_metric_sort_apply_before_slicing(self):
         filtered = page_deterministic_result(result(), {"kind": "sites", "page": 1, "size": 25, "controls": {"sort": "diseaseMatchedTrials", "search": "Hospital 12", "minimum_metric": "diseaseMatchedTrials", "minimum_trials": 3}})
@@ -69,9 +80,9 @@ class PageTests(unittest.IsolatedAsyncioTestCase):
     async def test_async_page_wrapper_requests_full_cohort_only_inside_mcp(self):
         full = result()
         with patch("intel_mcp.site_search.search_deterministically", new=AsyncMock(return_value=full)) as search:
-            page = await search_page_deterministically(object(), {"criteria": "fixture"}, {"kind": "sites", "page": 1, "size": 25, "controls": {}})
+            page = await search_page_deterministically(object(), {"criteria": "fixture"}, {"kind": "sites", "page": 1, "size": 10, "controls": {}})
         search.assert_awaited_once_with(ANY, {"criteria": "fixture"}, full_list=True)
-        self.assertEqual(len(page["sites"]), 25)
+        self.assertEqual(len(page["sites"]), 10)
         self.assertEqual(page["pis"], [])
 
 
