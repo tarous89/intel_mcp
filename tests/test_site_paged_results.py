@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 from intel_mcp.site_search import SiteSearchError, page_deterministic_result, search_page_deterministically
 
@@ -70,7 +70,7 @@ class PageTests(unittest.IsolatedAsyncioTestCase):
         full = result()
         with patch("intel_mcp.site_search.search_deterministically", new=AsyncMock(return_value=full)) as search:
             page = await search_page_deterministically(object(), {"criteria": "fixture"}, {"kind": "sites", "page": 1, "size": 25, "controls": {}})
-        search.assert_awaited_once_with(unittest.mock.ANY, {"criteria": "fixture"}, full_list=True)
+        search.assert_awaited_once_with(ANY, {"criteria": "fixture"}, full_list=True)
         self.assertEqual(len(page["sites"]), 25)
         self.assertEqual(page["pis"], [])
 
