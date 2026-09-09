@@ -34,18 +34,12 @@ trial in one Terra worker request.
 ## Source policy
 
 The Engine requires a current approved Trial Profile and returns that complete
-profile plus the complete extracted text of the single document named in
-`filtering_variables.available_extracted_documents.protocol` when one is available. Protocol
-selection has already happened upstream during the deterministic profile
-inventory build; `extract_variables` does not re-rank stored protocol rows.
+profile only. Neither the Engine compatibility endpoint nor the MCP public tool
+retrieves protocol or other source-document text for variable extraction.
 
-Terra receives the profile and protocol together in one request. It uses the
-profile first, the protocol to complete or correct protocol-defined details,
-and the profile for current CTIS operational facts. A trial without extracted
-protocol text remains eligible for profile-only extraction.
-
-The tool never downloads, OCRs or extracts a document on demand. It does not use
-external knowledge. Missing or unsupported values are `null`.
+Terra receives the complete profile in one request. The tool never downloads,
+OCRs or extracts a document on demand and does not use external knowledge.
+Missing or unsupported values are `null`.
 
 ## Output
 
@@ -71,8 +65,9 @@ metadata. No separate unresolved list is returned because `null` is sufficient.
 ## Allowance and failure semantics
 
 One extraction unit is the stable SHA-256 fingerprint of the EU trial number,
-normalized variable definitions and extraction schema version. Current
-per-analysis limits are Light 20 and Max 200 extraction units. Exact retries do
+normalized variable definitions and extraction schema version. Version 2.0.0
+is profile-only, so its keys cannot collide with legacy protocol-backed work.
+Current per-analysis limits are Light 20 and Max 100 extraction units. Exact retries do
 not consume allowance twice; changed variable definitions create new work.
 
 MCP validates the source, reserves the extraction key, makes exactly one Terra

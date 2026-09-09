@@ -177,7 +177,7 @@ async def start_analysis(
         ),
     ],
 ) -> StartAnalysisOutput:
-    """Reserve or recover the current user's one active 60-minute analysis lease.
+    """Reserve or recover the current user's one active tier-bounded analysis lease.
 
     This lifecycle tool performs no trial filtering, retrieval, classification, extraction or report writing.
     Identity, plan approval, package, enabled tools and remaining allowance are resolved by the app control plane.
@@ -217,7 +217,7 @@ async def filter_trials(
         Field(
             min_length=20,
             max_length=128,
-            description="Active 60-minute analysis ID returned by start_analysis.",
+            description="Active tier-bounded analysis ID returned by start_analysis.",
         ),
     ],
     filters: Annotated[
@@ -265,8 +265,8 @@ async def filter_trials(
     write a report. Sponsor-name matching is a shortlist aid: the CTIS source can sometimes identify
     a subsidy/funding source or omit part of the complete legal entity name.
 
-    Results are validated and metered against the app-owned analysis lease. Light analyses may see
-    at most 100 unique filtered trial IDs and Max analyses at most 1,000; retries and revisions do not
+    Results are validated and metered against the app-owned analysis lease. The current Light and
+    initial Max execution workflows each authorize at most 100 unique filtered trial IDs; retries do not
     consume the same trial ID twice. For another page, repeat the same filters and sort with offset
     increased by the prior call's limit.
     """
@@ -319,7 +319,7 @@ async def classify_trials(
         Field(
             min_length=20,
             max_length=128,
-            description="Active 60-minute analysis ID returned by start_analysis.",
+            description="Active tier-bounded analysis ID returned by start_analysis.",
         ),
     ],
     trial_ids: Annotated[
@@ -476,7 +476,7 @@ async def get_profiles(
         Field(
             min_length=20,
             max_length=128,
-            description="Active 60-minute analysis ID returned by start_analysis.",
+            description="Active tier-bounded analysis ID returned by start_analysis.",
         ),
     ],
     trial_ids: Annotated[
@@ -569,7 +569,7 @@ async def get_documents(
         Field(
             min_length=20,
             max_length=128,
-            description="Active 60-minute analysis ID returned by start_analysis.",
+            description="Active tier-bounded analysis ID returned by start_analysis.",
         ),
     ],
     trial_id: Annotated[
@@ -671,7 +671,7 @@ async def extract_variables(
         Field(
             min_length=20,
             max_length=128,
-            description="Active 60-minute analysis ID returned by start_analysis.",
+            description="Active tier-bounded analysis ID returned by start_analysis.",
         ),
     ],
     trial_id: Annotated[
@@ -695,11 +695,8 @@ async def extract_variables(
 ) -> ExtractVariablesOutput:
     """Extract up to 20 caller-defined values from one trial in one Terra worker call.
 
-    The Engine supplies the complete current approved Trial Profile plus the complete extracted text
-    of the single protocol named in filtering_variables.available_extracted_documents.protocol when
-    available. Terra uses the profile as the primary
-    source and the protocol to complete or correct protocol-defined details. When the profile has no
-    extracted protocol, extraction uses the profile alone.
+    The Engine supplies only the complete current approved Trial Profile. Protocol and other
+    source-document text are never retrieved or sent to the worker.
 
     Every requested variable is returned under its exact name. A source that does not establish the
     answer produces null. The result intentionally contains no status, explanation, evidence, document
@@ -717,7 +714,13 @@ async def extract_variables(
     key = extraction_key(trial_id, normalized_variables)
     control = control_plane_client()
     try:
-        source = await engine_client().extraction_source(trial_id)
+        profile_result = await engine_client().get_profiles([trial_id])
+        if profile_result.unavailable_trial_ids or len(profile_result.data) != 1:
+            raise EngineError(
+                "TRIAL_PROFILE_NOT_AVAILABLE",
+                "Variable extraction requires a current approved Trial Profile.",
+                404,
+            )
         reservation = await control.authorize_extraction(
             analysis_id,
             key,
@@ -737,8 +740,7 @@ async def extract_variables(
     try:
         values = await TerraExtractor(settings).extract(
             trial_id=trial_id,
-            profile=source.profile,
-            protocol_text=source.protocol_text,
+            profile=profile_result.data[0].profile,
             variables=normalized_variables,
             model=reservation.access.worker_model,
         )

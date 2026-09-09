@@ -166,4 +166,4 @@ async def test_engine_extraction_source_is_service_authenticated_and_parsed() ->
     client = EngineClient(settings(), transport=httpx.MockTransport(handler))
     result = await client.extraction_source("2024-500001-00-00")
     assert result.profile == {"planned_sample_size": 420}
-    assert result.protocol_text == "Complete protocol"
+    assert not hasattr(result, "protocol_text")

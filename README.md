@@ -11,12 +11,12 @@ customer to reuse the internal service credential.
 
 Implemented tools:
 
-- `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved 60-minute analysis lease.
+- `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved tier-bounded analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns current approved Trial Profile 10.0.0 data for 1–10 explicit EU trial numbers per call. Optional `sections` returns exact deterministic profile projections; omitting `sections` returns the complete profile. Light may retrieve 100 unique profiles across an analysis.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
-- `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using its complete profile plus the single profile-listed protocol when available.
+- `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using only its complete approved Trial Profile.
 
 User identity, plan approval, package, enabled tools and allowances remain app-owned. MCP has no app/control-plane database credential and no Engine owner or write credential. Its only clinical-store login is the exact `intel_mcp_reader_v1` role, which PostgreSQL restricts to approved-only versioned views and read-only transactions.
 
@@ -33,10 +33,8 @@ without restarting MCP.
 snake-case name, precise instruction and optional value type. Supported types
 are string, integer, number, boolean and string array.
 
-The local Engine-read adapter supplies the complete approved Trial Profile and the complete text of
-the single protocol named in its
-`filtering_variables.available_extracted_documents.protocol` array
-when available. Both are sent in one Terra request. Output is
+The local Engine-read adapter supplies only the complete approved Trial Profile;
+protocol and other source-document text are never retrieved or forwarded. Output is
 limited to the trial ID, a values object containing every requested key (with
 `null` when unresolved), and the standard analysis allowance. Status,
 explanation, evidence, document name, page and source metadata are excluded from
@@ -72,7 +70,7 @@ General behavior:
 - Conditions within one `countries` group must match the same country row. Multiple country groups combine with AND and may match different rows.
 - Default order is `latest_country_submission_or_approval_date desc`, with `eu_number asc` as the stable tie-breaker.
 - Pages are capped at 100. Use `offset: 0` first, then increase offset by the prior call's limit while more matches remain.
-- Light analyses may receive 100 unique filtered trial IDs; Max analyses may receive 1,000. Repeated IDs in retries or revisions do not consume allowance twice.
+- The current Light and initial Max workflows may each receive at most 100 unique filtered trial IDs. Repeated IDs do not consume allowance twice.
 - The MCP annotation uses `readOnlyHint: false`: the Engine query is read-only, but admitting a previously unseen trial ID updates the analysis's observable allowance state.
 
 Exposed structured fields:
@@ -103,7 +101,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 - With `sections`, the tool returns an exact deterministic projection of the stored profile. It performs no LLM summarization, rewriting or inference.
 - With `sections` omitted or `[]`, the tool returns the complete stored current approved Trial Profile, including contacts, extracted-document inventory and results.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
-- Light analyses may retrieve **100 unique profiles across the analysis**; Max analyses may retrieve 500. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
+- Light and initial Max analyses may each retrieve **100 unique profiles across the analysis**. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
 - Every approved profile admitted by the allowance is returned without field-level truncation within the requested projection. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.

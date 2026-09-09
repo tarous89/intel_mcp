@@ -16,4 +16,3 @@ trial-profile audit-mcp-reader
 The audit must report `safe: true`. MCP startup also rejects an unexpected database username and starts every checkout read-only.
 
 The authenticated Engine HTTP path remains rollback compatibility. A deliberate rollback sets `MCP_ENGINE_SOURCE=http` and redeploys MCP; it does not change Engine ingestion or revoke the database reader. Restore database mode after the incident is understood and approved-only reads are verified.
-

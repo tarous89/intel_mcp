@@ -110,7 +110,7 @@ def _objective_output(trial_reference: str) -> dict:
             "trial_ids": [trial_reference],
         }],
         "conclusion": "PFS is the strongest recurring endpoint benchmark.",
-        "max_upgrade": "This report is limited to descriptive endpoint frequency. Upgrade to Max to add endpoint hierarchy and source-document context across up to 1,000 trials.",
+        "max_upgrade": "This report is limited to descriptive endpoint frequency. Upgrade to Max to add endpoint hierarchy across a profile-derived dataset of up to 100 trials.",
         "limitations": [],
     }
 
@@ -229,7 +229,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert "This report is limited to" in developer
         assert "exactly two concise, objective-specific sentences" in developer
         assert "Upgrade to Max to" in developer
-        assert "up to 1,000 trials" in developer
+        assert "up to 100 Trial Profiles" in developer
         assert "must never change the Light findings" in developer
         assert "closest medically relevant calculation" in developer
         assert "Never analyze database coverage" in developer

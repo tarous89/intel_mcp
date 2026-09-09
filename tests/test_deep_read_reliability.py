@@ -158,7 +158,6 @@ async def test_extractor_sends_flex_service_tier() -> None:
     values = await extractor.extract(
         trial_id="2024-500001-00-00",
         profile=_profile(),
-        protocol_text="Phase 2 trial.",
         variables=[
             ExtractionVariable(
                 name="phase_label",
@@ -203,12 +202,10 @@ def test_document_retrieval_resolves_catalogue_then_reads_exact_text_row() -> No
     )
 
 
-def test_extraction_source_resolves_protocol_then_reads_exact_text_row() -> None:
+def test_extraction_source_reads_only_the_approved_profile_row() -> None:
     connection = SequencedConnection(
         [
-            FakeResult(one=(_profile(), 42)),
-            FakeResult(many=[(7, "Protocol", "protocol.pdf", "Protocol")]),
-            FakeResult(one=("Protocol body", [])),
+            FakeResult(one=(_profile(),)),
         ]
     )
 
@@ -217,11 +214,7 @@ def test_extraction_source_resolves_protocol_then_reads_exact_text_row() -> None
         {"trial_id": "2024-500001-00-00"},
     )
 
-    assert result["protocol_text"] == "Protocol body"
-    assert connection.params[-1] == (7,)
-    assert "WHERE document_id = %s" in connection.statements[-1]
-    assert not any(
-        "mcp_serving.documents_v1" in statement
-        and "mcp_serving.document_text_v1" in statement
-        for statement in connection.statements
-    )
+    assert result["profile"] == _profile()
+    assert "protocol_text" not in result
+    assert len(connection.statements) == 1
+    assert "approved_profiles_v1" in connection.statements[0]
