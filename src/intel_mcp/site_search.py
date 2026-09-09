@@ -272,10 +272,10 @@ def page_deterministic_result(result: dict, value: object) -> dict:
         raise SiteSearchError("Invalid result page.", 400)
     kind = value.get("kind", "sites")
     page = value.get("page", 1)
-    size = value.get("size", 25)
+    size = value.get("size", 10)
     controls = value.get("controls", {})
-    if kind not in {"sites", "pis"} or type(page) is not int or not 1 <= page <= 1_000_000 or size not in {25, 50}:
-        raise SiteSearchError("Choose a valid result page and 25 or 50 rows.", 400)
+    if kind not in {"sites", "pis"} or type(page) is not int or not 1 <= page <= 1_000_000 or size not in {10, 25, 50}:
+        raise SiteSearchError("Choose a valid result page and 10, 25 or 50 rows.", 400)
     if not isinstance(controls, dict) or set(controls) - {"sort", "search", "minimum_metric", "minimum_trials"}:
         raise SiteSearchError("Unsupported list controls.", 400)
     sort = controls.get("sort", "rank")
