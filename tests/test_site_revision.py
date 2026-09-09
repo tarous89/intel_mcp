@@ -1,12 +1,11 @@
 import json
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 
 import httpx
 from intel_mcp.models import TherapeuticAreaFilter
 from intel_mcp.site_revision import interpret_revision, shares_original_anchor, ViewControls
-from intel_mcp.site_search import SiteSearchError, search_deterministically
+from intel_mcp.site_search import SiteSearchError
 from intel_mcp.site_ranking import ProfileRanker, _apply_bands, _band, METRIC_FIELDS
 
 AREA, OTHER = TherapeuticAreaFilter.canonical_values[:2]
@@ -15,8 +14,8 @@ SETTINGS = SimpleNamespace(openai_api_key="test-only", openai_base_url="https://
 CONTROLS = ViewControls().model_dump()
 
 
-def completion(criteria=None, outcome="apply", name="apply_site_revision", controls=None):
-    return {"status": "completed", "output": [{"type": "function_call", "name": name, "arguments": json.dumps({"criteria": {"sufficient_context": True, **(criteria or INITIAL)}, "outcome": outcome, "controls": controls or CONTROLS})}], "usage": {"input_tokens": 10, "output_tokens": 20}}
+def completion(criteria=None, name="apply_site_revision", controls=None):
+    return {"status": "completed", "output": [{"type": "function_call", "name": name, "arguments": json.dumps({"criteria": {"sufficient_context": True, **(criteria or INITIAL)}, "controls": controls or CONTROLS})}], "usage": {"input_tokens": 10, "output_tokens": 20}}
 
 
 class RevisionTests(unittest.IsolatedAsyncioTestCase):
@@ -28,6 +27,7 @@ class RevisionTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(payload["tools"][0]["strict"])
             self.assertFalse(payload["store"])
             self.assertNotIn("profiles", payload)
+            self.assertNotIn("outcome", payload["tools"][0]["parameters"]["properties"])
             fields = json.loads(payload["input"][1]["content"])
             self.assertEqual(set(fields), {"initial_criteria", "current_criteria", "controls", "revision_instruction"})
             return httpx.Response(200, json=response)
@@ -42,21 +42,35 @@ class RevisionTests(unittest.IsolatedAsyncioTestCase):
             result = await self.call(completion(revised))
             self.assertEqual(result["criteria"][field], [kept])
 
-    async def test_phase_and_paediatric_alone_do_not_anchor(self):
-        revised = {**INITIAL, "therapeutic_areas": [next(x for x in TherapeuticAreaFilter.canonical_values if x not in INITIAL["therapeutic_areas"])], "disease_terms": ["migraine"], "countries": []}
-        with self.assertRaises(SiteSearchError) as ctx:
-            await self.call(completion(revised))
-        self.assertEqual(ctx.exception.status, 422)
+    async def test_missing_anchor_is_repaired_without_rejecting_the_edit(self):
+        unrelated = next(x for x in TherapeuticAreaFilter.canonical_values if x not in INITIAL["therapeutic_areas"])
+        revised = {**INITIAL, "therapeutic_areas": [unrelated], "disease_terms": ["migraine"], "countries": [], "phases": [2]}
+        result = await self.call(completion(revised), "Switch to Phase II migraine experience")
+        self.assertIn(unrelated, result["criteria"]["therapeutic_areas"])
+        self.assertIn(AREA, result["criteria"]["therapeutic_areas"])
+        self.assertEqual(result["criteria"]["phases"], [2])
+        self.assertTrue(shares_original_anchor(INITIAL, result["criteria"]))
 
     async def test_unknown_field_and_function_do_not_execute(self):
         for response in [completion({**INITIAL, "patient_capacity": 100}), completion(name="execute_sql"), completion(controls={**CONTROLS, "pins": []})]:
             with self.assertRaises(SiteSearchError):
                 await self.call(response)
 
-    async def test_unsupported_is_not_silently_substituted(self):
-        with self.assertRaises(SiteSearchError) as ctx:
-            await self.call(completion(outcome="unsupported"), "Find sites with 100 available patients")
-        self.assertEqual(ctx.exception.status, 422)
+    async def test_effective_noop_becomes_a_supported_edit(self):
+        result = await self.call(completion(), "Add patient capacity and other unavailable fields")
+        self.assertEqual(result["criteria"]["therapeutic_areas"], INITIAL["therapeutic_areas"])
+        self.assertEqual(result["controls"]["sort"], "recentActivityTrials")
+
+        already_recent = {**CONTROLS, "sort": "recentActivityTrials"}
+        def handler(request):
+            return httpx.Response(200, json=completion(controls=already_recent))
+        result = await interpret_revision(SETTINGS, {"message": "Make a useful update", "initial_criteria": INITIAL, "current_criteria": INITIAL, "controls": already_recent}, transport=httpx.MockTransport(handler))
+        self.assertEqual(result["controls"]["sort"], "rank")
+
+    async def test_mixed_supported_request_can_apply_supported_part_only(self):
+        controls = {**CONTROLS, "sort": "recentActivityTrials"}
+        result = await self.call(completion(controls=controls), "Add trial track record fields and rank per recent activity")
+        self.assertEqual(result["controls"]["sort"], "recentActivityTrials")
 
     async def test_plain_text_and_multiple_calls_fail_closed(self):
         for output in [[{"type": "message", "content": [{"type": "output_text", "text": "Trust me"}]}], completion()["output"] * 2]:
