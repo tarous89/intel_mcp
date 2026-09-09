@@ -96,14 +96,17 @@ institution/person identity and candidate enrichment remain follow-up work.
 view controls. It forces exactly one strict `apply_site_revision` function call with parallel calls
 disabled. Schema/enum validation and original-anchor checks are repeated server-side. Any individual
 value shared with an original therapeutic-area, disease-term or explicit-country array suffices;
-phase, modality and paediatric flags alone never anchor. No pinning, enrichment, new variables,
-patient-count or capacity claims are supported. Unsupported edits fail without a replacement list.
+phase, modality and paediatric flags alone never anchor. No pinning, enrichment, new variables, patient-count or capacity claims are supported. When a request
+contains unsupported ideas, the revision function applies the closest useful supported part instead of
+returning a semantic error. If the model produces an effective no-op, the server applies one conservative
+existing-control change, so every accepted revision changes the list behavior. Missing original anchors are
+repaired by retaining one immutable initial anchor. Provider/transport failures still fail closed.
 
 Existing rank/name search/single minimum-experience controls are returned separately. Disease/phase/
 modality/paediatric criteria retain their existing priority-only semantics, not new eligibility
 filters. The anchor rule is criteria continuity, not an anti-enumeration guarantee.
 
-`/search` accepts service-authenticated `full_list: true` to return every matching Site/PI; omission
-preserves the top-10 preview. App must verify project ownership/payment before requesting or disclosing
-these results. Bands are computed once per metric distribution (O(n log n), same tied percentiles),
+`/search` accepts bounded Premium pages of 10, 25 or 50 rows; 10 is the default page size. It also keeps
+service-authenticated `full_list: true` only as a compatibility path. Omission preserves the top-10 preview.
+App must verify project ownership/payment before requesting or disclosing these results. Bands are computed once per metric distribution (O(n log n), same tied percentiles),
 not by repeatedly scanning the full cohort. No Engine schema or serving-view changes are required.
