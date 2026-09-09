@@ -76,7 +76,7 @@ Execution is currently an in-process async task on the MCP web service; a restar
 
 ## Site Agent
 
-Site Agent uses one Terra/low interpretation call, followed by an exhaustive model-free approved-profile search. Candidate profiles are not sent to a model. See `SITE_AGENT_CONTEXT.md`.
+Site Agent uses one initial Terra/low interpretation call. Premium revisions use one forced strict function call per instruction, limited to existing criteria and list controls; no candidate or contact records enter the model. The original area/disease/country arrays anchor every revision (any individual original value suffices). Service-authenticated searches support a full-list mode; default/free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
 
 ## Security
 

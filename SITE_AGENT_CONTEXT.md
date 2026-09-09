@@ -1,15 +1,16 @@
 # Site Agent MCP boundary
 
-Updated 2026-09-07. This file describes the deterministic project slice on the current branch.
+Updated 2026-09-09. This file describes the deterministic project slice on the current branch.
 Canonical product scope: `tarous89/site-agent/PROJECT_CONTEXT.md`.
 
 ## Contract
 
-Site Agent now has two private service-authenticated operations:
+Site Agent now has three private service-authenticated operations:
 
 ```text
 POST /internal/site-agent/interpret
 POST /internal/site-agent/search
+POST /internal/site-agent/revise
 ```
 
 The interpret route makes exactly one `gpt-5.6-terra` Responses request at low reasoning.
@@ -69,8 +70,8 @@ metric evidence.
 
 The App stores planner criteria before deterministic search. A failed search can therefore be
 retried without another model call. MCP keeps a backward-compatible combined request during
-the paired App rollout, but the project API uses the split routes and enforces at most one
-planner attempt in its database.
+the paired App rollout, but the project API uses the split routes and enforces at most one initial
+planner attempt in its database. Premium revisions have a separate persisted per-request reservation; each may make one additional interpretation call.
 
 The routes reuse `REPORT_PLAN_SERVICE_TOKEN`, a two-request semaphore, a 60 KB body limit and
 approved-only Engine reads. Public MCP tools, report allowances, OAuth, Engine schemas and the
@@ -88,3 +89,21 @@ The focused Site Agent suite passes locally. The first authenticated production 
 more than 1,500 sites and 4,000 PI candidates and motivated disease-specific prioritization.
 Exhaustive-cohort latency measurement, exact CTIS investigator-path audit, stronger
 institution/person identity and candidate enrichment remain follow-up work.
+
+## Premium revision and full-list contract
+
+`/revise` receives only the instruction, immutable initial criteria, current criteria and existing
+view controls. It forces exactly one strict `apply_site_revision` function call with parallel calls
+disabled. Schema/enum validation and original-anchor checks are repeated server-side. Any individual
+value shared with an original therapeutic-area, disease-term or explicit-country array suffices;
+phase, modality and paediatric flags alone never anchor. No pinning, enrichment, new variables,
+patient-count or capacity claims are supported. Unsupported edits fail without a replacement list.
+
+Existing rank/name search/single minimum-experience controls are returned separately. Disease/phase/
+modality/paediatric criteria retain their existing priority-only semantics, not new eligibility
+filters. The anchor rule is criteria continuity, not an anti-enumeration guarantee.
+
+`/search` accepts service-authenticated `full_list: true` to return every matching Site/PI; omission
+preserves the top-10 preview. App must verify project ownership/payment before requesting or disclosing
+these results. Bands are computed once per metric distribution (O(n log n), same tied percentiles),
+not by repeatedly scanning the full cohort. No Engine schema or serving-view changes are required.
