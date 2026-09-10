@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials; Max v1 is capped at 100 approved Trial Profiles.
 

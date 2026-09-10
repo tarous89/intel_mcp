@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
