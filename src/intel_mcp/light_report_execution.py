@@ -23,7 +23,7 @@ from intel_mcp.profiles import FullProfileItem, MAX_PROFILES_PER_CALL
 
 LOGGER = logging.getLogger("intel_mcp")
 V3_LIGHT_OBJECTIVE_COUNT = 5
-V4_MIN_ANALYSIS_PAIRS = 5
+V4_MIN_ANALYSIS_PAIRS = 1
 V4_MAX_ANALYSIS_PAIRS = 7
 
 
@@ -199,7 +199,7 @@ def _v4_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
     """Project paired v4 planning onto the shared Light layer only.
 
     Every v4 pair has one shared analysis and one Max analysis. Light executes every
-    shared analysis (5-7), never the paired Max analysis, and searches only the first
+    request-aligned shared analysis (1-7), never the paired Max analysis, and searches only the first
     single-dimension shared trial group. Selection receives compact summaries of every
     shared analysis so the frozen 20-trial cohort remains useful across the whole Light
     report without exposing any Max-only criteria to selection. The paired Max card is
@@ -273,14 +273,15 @@ def _v4_light_execution_view(plan: dict[str, Any]) -> tuple[dict[str, Any], list
         selection_requirements.append(f"{shared_title.strip()}: {'; '.join(cleaned_details)}")
 
     # The legacy selector helper reads at most three objective containers. Distribute
-    # all 5-7 shared requirements across three compact containers; each container stays
+    # all shared requirements across up to three compact containers; each container stays
     # within the helper's four-analysis cap. Max titles/details are deliberately absent.
+    container_count = min(3, len(selection_requirements))
     selection_sections = [
         {"title": f"Shared evidence needs {index + 1}", "analyses": []}
-        for index in range(3)
+        for index in range(container_count)
     ]
     for index, requirement in enumerate(selection_requirements):
-        selection_sections[index % 3]["analyses"].append(requirement)
+        selection_sections[index % container_count]["analyses"].append(requirement)
 
     selection_plan = {
         "version": 4,

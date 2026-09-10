@@ -78,7 +78,7 @@ CONTROLLED DISCOVERY VALUES
 - modalities: Small molecule; Monoclonal antibody; Bispecific antibody; ADC; Other antibody; Cell therapy; Gene therapy; mRNA; Oligonucleotide; Other RNA; Peptide/protein/enzyme; Vaccine; Radiopharmaceutical; Diagnostic agent; Other biologic; Medical device; Procedure; Other.
 
 ANALYSES
-Create 5 to 7 analysis pairs. There is no user-facing objective layer. Every pair contains one shared analysis and one Max analysis.
+Map the user's distinct requested decisions or outputs to 1 to 7 analysis pairs. Keep related considerations as details within the same pair. Each pair has one shared analysis and one Max analysis. There is no user-facing objective layer.
 
 Shared analysis — direct retrieval/counting layer:
 - Available in both Light and Max.
@@ -105,9 +105,9 @@ Max analysis — interpretation/decision layer:
 For every pair, set the internal top-level title exactly equal to sharedAnalysis.title. This field is only an execution/progress label, not an additional user-facing objective.
 
 ACROSS THE PLAN
-- Put the user's requested decisions first.
+- The user's requested decisions and outputs are the complete objective set. If there are more than seven, combine only tightly related outputs.
 - Every analysis must answer a medical, clinical-development or trial-operational question. Never create an analysis about database coverage, data completeness, field availability, missingness, documentation rates, or how many trials reported a field.
-- If the available Trial Profile evidence cannot support a requested analysis, replace it with the closest medically relevant analysis that can be performed with the available evidence. Do not turn the unsupported request into a completeness or availability analysis.
+- If the evidence cannot support the requested method or precision, use the closest supported medical method that still answers the same decision.
 - Prefer an immediately understandable title over an artificially short one.
 - Do not hard-code result breadth such as top 5, top 10 or top 100; the product tier controls breadth.
 - Avoid analyses likely to produce the same result and practical implication.
@@ -239,7 +239,7 @@ class ReportPlan(BaseModel):
     version: Literal[3, 4]
     studyCohorts: list[StudyCohort | LegacyStudyCohort] = Field(min_length=3, max_length=5)
     exclusionSummary: str = Field(min_length=1, max_length=420)
-    reportSections: list[ReportSection | LegacyReportSection] = Field(min_length=5, max_length=7)
+    reportSections: list[ReportSection | LegacyReportSection] = Field(min_length=1, max_length=7)
 
     @model_validator(mode="after")
     def validate_versioned_structure(self) -> "ReportPlan":
@@ -308,7 +308,7 @@ REPORT_PLAN_SCHEMA = {
         "exclusionSummary": {"type": "string"},
         "reportSections": {
             "type": "array",
-            "minItems": 5,
+            "minItems": 1,
             "maxItems": 7,
             "items": {"$ref": "#/$defs/reportSection"},
         },

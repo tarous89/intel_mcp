@@ -50,7 +50,7 @@ def _execution_plan(plan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[di
     sections = plan.get("reportSections")
     if not isinstance(cohorts, list) or not 3 <= len(cohorts) <= 5:
         raise MaxReportError("MAX_REPORT_PLAN_INVALID", "The approved Max trial groups are invalid.", False)
-    if not isinstance(sections, list) or not 5 <= len(sections) <= 7:
+    if not isinstance(sections, list) or not 1 <= len(sections) <= 7:
         raise MaxReportError("MAX_REPORT_PLAN_INVALID", "The approved Max analyses are invalid.", False)
     for index, cohort in enumerate(cohorts):
         if not isinstance(cohort, dict):

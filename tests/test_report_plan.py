@@ -173,6 +173,8 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         schema = payload["text"]["format"]["schema"]
         assert schema["properties"]["studyCohorts"]["minItems"] == 3
         assert schema["properties"]["studyCohorts"]["maxItems"] == 5
+        assert schema["properties"]["reportSections"]["minItems"] == 1
+        assert schema["properties"]["reportSections"]["maxItems"] == 7
         assert "filterDimension" in schema["$defs"]["studyCohort"]["required"]
         assert "discoveryFilter" in schema["$defs"]["studyCohort"]["required"]
         assert "selectionSegments" in schema["$defs"]["studyCohort"]["required"]
@@ -196,7 +198,9 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert "Never phrase the title as a question" in developer_text
         assert "Do not hard-code result breadth" in developer_text
         assert "Never create an analysis about database coverage" in developer_text
-        assert "replace it with the closest medically relevant analysis" in developer_text
+        assert "distinct requested decisions or outputs to 1 to 7 analysis pairs" in developer_text
+        assert "complete objective set" in developer_text
+        assert "still answers the same decision" in developer_text
 
         for tool_name in ("start_analysis", "filter_trials", "classify_trials", "get_profiles", "get_documents", "extract_variables"):
             assert tool_name not in developer_text
@@ -249,6 +253,12 @@ def test_v4_analysis_pairs_require_matching_internal_title_and_decision_depth() 
         ReportPlan.model_validate(shallow)
 
 
+def test_v4_allows_one_request_aligned_analysis_pair() -> None:
+    raw = {**SAMPLE_PLAN, "reportSections": SAMPLE_PLAN["reportSections"][:1]}
+    plan = ReportPlan.model_validate(raw)
+    assert len(plan.reportSections) == 1
+
+
 def test_v4_rejects_question_titles() -> None:
     raw = {**SAMPLE_PLAN, "reportSections": [dict(section) for section in SAMPLE_PLAN["reportSections"]]}
     raw["reportSections"][0] = {
@@ -299,7 +309,8 @@ def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 4
     assert "2 to 4 Max groups" in REPORT_PLAN_INSTRUCTIONS
-    assert "Create 5 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
+    assert "distinct requested decisions or outputs to 1 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
+    assert "complete objective set" in REPORT_PLAN_INSTRUCTIONS
     assert "List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect" in REPORT_PLAN_INSTRUCTIONS
     assert "Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize" in REPORT_PLAN_INSTRUCTIONS
     assert "consultant-style labels" in REPORT_PLAN_INSTRUCTIONS
@@ -307,5 +318,5 @@ def test_report_plan_prompt_is_compact_and_current() -> None:
     assert "Strong coverage" not in REPORT_PLAN_INSTRUCTIONS
     assert "Source dependent" not in REPORT_PLAN_INSTRUCTIONS
     assert "data completeness" in REPORT_PLAN_INSTRUCTIONS
-    assert "closest medically relevant analysis" in REPORT_PLAN_INSTRUCTIONS
+    assert "still answers the same decision" in REPORT_PLAN_INSTRUCTIONS
     assert len(REPORT_PLAN_INSTRUCTIONS) < 9500

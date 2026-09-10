@@ -215,6 +215,57 @@ def test_v4_light_execution_runs_all_shared_analyses_and_no_max_work() -> None:
     assert max(len(section["analyses"]) for section in selection_plan["reportSections"]) <= 4
 
 
+def test_v4_light_execution_supports_one_request_aligned_analysis_pair() -> None:
+    plan = {
+        "version": 4,
+        "studyCohorts": [
+            {
+                "role": "primary",
+                "title": "NSCLC trials",
+                "details": ["Disease contains NSCLC"],
+                "maxOnly": False,
+                "filterDimension": "disease",
+            },
+            {
+                "role": "adjacent",
+                "title": "Advanced NSCLC trials",
+                "details": ["Advanced disease"],
+                "maxOnly": True,
+                "filterDimension": None,
+            },
+            {
+                "role": "adjacent",
+                "title": "First-line NSCLC trials",
+                "details": ["First-line setting"],
+                "maxOnly": True,
+                "filterDimension": None,
+            },
+        ],
+        "exclusionSummary": "Unrelated trials excluded.",
+        "reportSections": [
+            {
+                "title": "Summarize primary endpoints",
+                "sharedAnalysis": {
+                    "title": "Summarize primary endpoints",
+                    "details": ["Compare endpoint choices"],
+                },
+                "maxAnalysis": {
+                    "title": "Evaluate endpoints for your planned study",
+                    "details": ["Compare matched settings", "Assess timing and definitions"],
+                },
+            }
+        ],
+    }
+
+    selection_plan, objectives = _v4_light_execution_view(plan)
+
+    assert len(objectives) == 1
+    assert len(selection_plan["reportSections"]) == 1
+    assert selection_plan["reportSections"][0]["analyses"] == [
+        "Summarize primary endpoints: Compare endpoint choices"
+    ]
+
+
 @pytest.mark.anyio
 async def test_executor_loads_complete_frozen_evidence_once_in_two_ten_profile_batches() -> None:
     executor = LightReportExecutor(settings)

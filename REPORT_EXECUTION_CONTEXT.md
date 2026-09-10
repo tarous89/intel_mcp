@@ -22,13 +22,13 @@ Every group also contains backend-only execution metadata: one supported high-re
 
 ### Analysis pairs
 
-Every plan has 5–7 pairs, each containing one shared analysis and one deeper Max analysis. There is no user-facing Objectives layer.
+Every plan has 1–7 request-aligned pairs, each containing one shared analysis and one deeper Max analysis. Each distinct user-requested decision or output maps to one pair; closely related considerations stay inside that pair as details. There is no user-facing Objectives layer.
 
 Shared titles normally begin with direct evidence verbs such as `List`, `Name`, `Count`, `Rank`, `Report`, `Calculate`, `Summarize`, `Show`, `Compare` or `Collect`. Max titles normally begin with decision verbs such as `Analyze`, `Assess`, `Evaluate`, `Prioritize`, `Recommend`, `Estimate`, `Determine`, `Identify`, `Match` or `Synthesize`.
 
 Question titles, hard-coded result breadth and generic labels such as `strategy fit`, `benchmark fit`, `best fitting` and `operational fit` are rejected. Max must add at least two genuine decision factors rather than restating the shared analysis.
 
-Every planned analysis must be medical, clinical-development or trial-operational. Database coverage, data completeness, missingness, field availability, documentation rates and “how many trials reported a field” are prohibited. When the available evidence cannot support the requested lens, the planner must choose the closest medically relevant alternative that can be performed.
+Every planned analysis must be medical, clinical-development or trial-operational. Database coverage, data completeness, missingness, field availability, documentation rates and “how many trials reported a field” are prohibited. When evidence cannot support the requested method or precision, the planner uses the closest supported medical method that still answers the same requested decision.
 
 Step 1 suggested analyses do not include planned sample size versus actual enrollment.
 
@@ -37,7 +37,7 @@ Step 1 suggested analyses do not include planned sample size versus actual enrol
 Light receives only:
 
 - the shared single-dimension trial group;
-- all 5–7 shared analyses;
+- all 1–7 request-aligned shared analyses;
 - no Max group or Max analysis for execution.
 
 The paired Max card is passed only to the objective writer after the Light result exists, solely to create upgrade copy.
@@ -95,7 +95,7 @@ synthesis: intel_light_synthesis_v5
 - 20 total non-deterministic profile variables, including Boolean segment membership;
 - no protocol or source-document extraction;
 - one profile-only semantic extraction call per selected trial;
-- 5–7 objective analyst calls and one reducer call.
+- 1–7 objective analyst calls and one reducer call.
 
 All Max generative stages use `gpt-5.6-terra`, high reasoning and `service_tier=flex`. The shared planner remains Sol/medium.
 

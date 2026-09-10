@@ -50,10 +50,10 @@ New and revised plans use `intel_agent_report_plan_v4` with `gpt-5.6-sol`, mediu
 - One shared Light + Max trial group uses exactly one structured dimension: disease, therapeutic area, phase, modality or country.
 - Two to four additional trial groups are Max-only.
 - Every group carries a deterministic discovery filter and stable machine-readable selection-segment labels and literal criteria for Max execution.
-- Plans contain 5–7 analysis pairs: one shared analysis and one deeper Max analysis per pair.
+- Plans contain 1–7 request-aligned analysis pairs: one shared analysis and one deeper Max analysis per distinct user-requested decision or output; closely related considerations remain details within that pair.
 - Every analysis must answer a medical, clinical-development or trial-operational question.
 - Database coverage, completeness, missingness, field availability and reporting rates are prohibited as analyses.
-- If requested evidence is unsupported, Sol substitutes the closest medically relevant analysis that the available data can support.
+- If the requested method or precision is unsupported, Sol uses the closest supported medical method that still answers the same requested decision.
 - Step 1 does not suggest comparing planned sample size with actual enrollment.
 
 Stored v2/v3 plans remain readable/executable for compatibility; the planner emits v4 only.
@@ -82,7 +82,7 @@ Max is an independently executable profile-only workflow capped at 100 approved 
 1. deterministic discovery freezes one deduplicated broad-plus-granular cohort while preserving overlapping group labels;
 2. Terra/high/Flex creates one report-wide SAP from up to 10 complete profile examples and prefers deterministic profile fields;
 3. up to 20 total semantic variables, including subgroup Booleans, are populated in one profile-only Terra/Flex extraction call per trial;
-4. one Terra/high/Flex analyst executes each of the 5–7 shared-plus-Max analysis pairs over the same frozen dataset;
+4. one Terra/high/Flex analyst executes each of the 1–7 request-aligned shared-plus-Max analysis pairs over the same frozen dataset;
 5. one Terra/high/Flex reducer writes only the cross-objective synthesis.
 
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.

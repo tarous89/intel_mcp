@@ -90,7 +90,7 @@ class MaxAnalysisPlan(BaseModel):
     rationale: str = Field(min_length=1, max_length=1_200)
     direct_variables: list[DirectVariable] = Field(min_length=1, max_length=MAX_DIRECT_VARIABLES)
     semantic_variables: list[SemanticVariable] = Field(max_length=MAX_NONDETERMINISTIC_VARIABLES)
-    analyses: list[AnalysisSpecification] = Field(min_length=5, max_length=7)
+    analyses: list[AnalysisSpecification] = Field(min_length=1, max_length=7)
 
     @model_validator(mode="after")
     def unique_names_and_indices(self) -> "MaxAnalysisPlan":
