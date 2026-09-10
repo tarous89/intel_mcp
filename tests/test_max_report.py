@@ -13,6 +13,7 @@ from intel_mcp.max_report import (
     MAX_REPORT_TRIAL_COUNT,
     MaxVisual,
     MaxReportError,
+    SemanticVariable,
     TerraMaxReportRunner,
     build_field_catalog,
     max_group_variables,
@@ -61,6 +62,27 @@ def _profile(trial_id: str, sample_size: int = 100) -> FullProfileItem:
             },
         }
     )
+
+
+def test_semantic_variable_compacts_and_bounds_verbose_instructions() -> None:
+    instruction = (
+        "Extract whether the complete Trial Profile establishes the requested operational characteristic. "
+        + "Use all relevant structured and narrative evidence while avoiding unsupported inference. " * 8
+        + "Return null when the available evidence is insufficient."
+    )
+
+    variable = SemanticVariable(
+        name="operational_characteristic",
+        label="Operational characteristic",
+        instruction=instruction,
+        value_type="boolean",
+        kind="boolean",
+        analysis_indices=[0],
+    )
+
+    assert len(variable.instruction) <= 600
+    assert variable.instruction.startswith("Extract whether")
+    assert variable.instruction.endswith("Return null when the available evidence is insufficient.")
 
 
 def _plan() -> dict:

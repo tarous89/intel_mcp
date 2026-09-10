@@ -107,6 +107,8 @@ All Max generative stages use `gpt-5.6-terra`, high reasoning and `service_tier=
 4. Run one analyst per main analysis pair. Each receives only its planned variables, deterministic summaries, bounded finite numeric correlations, labeled-group definitions and relevant rows. It performs the shared quantitative and Max decision analysis together.
 5. Run one reducer over completed sections and cohort summaries. It may connect findings but not invent evidence.
 
+SAP semantic-variable instructions target 500 compact characters. The executor normalizes whitespace and deterministically bounds any model-produced overrun to the extractor's 600-character contract while preserving both the extraction task and trailing return/missing-value guidance. An overlong instruction therefore cannot stop an otherwise valid paid run.
+
 Output stays compatible with the shared App/PDF renderer:
 
 ```text

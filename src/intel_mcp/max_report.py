@@ -35,6 +35,7 @@ MAX_FIELD_CATALOG_ITEMS = 600
 MAX_MODEL_INPUT_CHARACTERS = 1_800_000
 MAX_VISUAL_ITEMS = 5
 MAX_SUBANALYSES = 4
+SAP_SEMANTIC_INSTRUCTION_TARGET = 500
 LOGGER = logging.getLogger("intel_mcp")
 
 VariableKind = Literal["categorical", "numeric", "boolean", "date", "text", "entity_list"]
@@ -68,10 +69,32 @@ class SemanticVariable(BaseModel):
     kind: VariableKind
     analysis_indices: list[int] = Field(min_length=1, max_length=7)
 
-    @field_validator("instruction")
+    @field_validator("instruction", mode="before")
     @classmethod
-    def concise_instruction(cls, value: str) -> str:
-        return " ".join(value.strip().split())
+    def concise_instruction(cls, value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        compact = " ".join(value.strip().split())
+        if len(compact) <= MAX_VARIABLE_INSTRUCTION_LENGTH:
+            return compact
+
+        # Structured output occasionally exceeds a string maxLength even when the
+        # JSON schema is strict. Preserve the task at the front and the return /
+        # missing-value rules at the end so one verbose instruction cannot abort a
+        # paid report run.
+        separator = " … "
+        head_budget = MAX_VARIABLE_INSTRUCTION_LENGTH - 150 - len(separator)
+        head = compact[:head_budget].rsplit(" ", 1)[0].rstrip(" ,;:-")
+        tail = compact[-150:]
+        if " " in tail:
+            tail = tail.split(" ", 1)[1]
+        bounded = f"{head}{separator}{tail}".strip()
+        LOGGER.warning(
+            "Bounded an overlong Max semantic-variable instruction: original_characters=%s bounded_characters=%s",
+            len(compact),
+            len(bounded),
+        )
+        return bounded
 
 
 class AnalysisSpecification(BaseModel):
@@ -851,6 +874,7 @@ Hard constraints:
 - Each specification covers both its shared quantitative request and its deeper Max interpretation in one analyst call.
 - Methods must name the actual calculations, subgroup comparisons, rankings, cross-variable checks or sensitivity checks to perform. Avoid vague words such as review or assess without a method.
 - variable_names must reference declared direct variables, declared semantic variables, or supplied reserved_group_variables.
+- Write each semantic-variable instruction as one compact, self-contained extraction rule of at most {SAP_SEMANTIC_INSTRUCTION_TARGET} characters, including its return format and missing-value behavior.
 - Keep extracted strings canonical and compact. Never request free-form summaries when a Boolean, number, category or short list answers the question.
 - Missingness is a limitation, never a user-facing analytical objective. Do not plan causal inference or unsupported quality/performance claims.
 

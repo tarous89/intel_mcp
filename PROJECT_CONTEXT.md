@@ -85,6 +85,8 @@ Max is an independently executable profile-only workflow capped at 100 approved 
 4. one Terra/high/Flex analyst executes each of the 1–7 request-aligned shared-plus-Max analysis pairs over the same frozen dataset;
 5. one Terra/high/Flex reducer writes only the cross-objective synthesis.
 
+SAP semantic-variable instructions target 500 characters and are normalized into the extractor's hard 600-character contract before validation, so verbose structured output does not abort a paid run.
+
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
 
 ## Site Agent
