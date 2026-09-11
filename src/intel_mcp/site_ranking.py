@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
-VERSION = "therapeutic-area-experience-v8"
+VERSION = "therapeutic-area-experience-v9"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 EXPERIENCE_YEARS = 5
@@ -52,6 +52,24 @@ SPONSOR_AMBIGUOUS_ROOTS = {"merck"}
 
 def normalized(value: Any) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return " ".join(re.findall(r"[^\W_]+", text, re.UNICODE))
+
+
+NAME_TRANSLITERATION = str.maketrans({
+    "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
+    "æ": "ae", "œ": "oe", "ø": "o", "ł": "l",
+    "đ": "d", "ð": "d", "þ": "th", "ı": "i",
+})
+
+
+def normalized_name(value: Any) -> str:
+    """Normalize European name spelling without applying fuzzy matching."""
+    text = unicodedata.normalize("NFKC", str(value or "")).casefold().translate(NAME_TRANSLITERATION)
+    text = "".join(
+        character
+        for character in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(character)
+    )
     return " ".join(re.findall(r"[^\W_]+", text, re.UNICODE))
 
 
@@ -104,6 +122,27 @@ def _investigator_name(investigator: dict) -> str:
 def _email(investigator: dict) -> str:
     value = str(investigator.get("email") or "").strip().casefold()
     return value if "@" in value and len(value) <= 320 else ""
+
+
+def _investigator_name_parts(investigator: dict) -> tuple[str, str]:
+    return (
+        normalized_name(investigator.get("first_name")),
+        normalized_name(investigator.get("last_name")),
+    )
+
+
+def _latest_email(counts: Counter, recency: dict[str, tuple[date, int]]) -> str | None:
+    if not counts:
+        return None
+    return min(
+        counts,
+        key=lambda value: (
+            -recency.get(value, (date.min, 0))[0].toordinal(),
+            -recency.get(value, (date.min, 0))[1],
+            -counts[value],
+            value,
+        ),
+    )
 
 
 def _date(value: Any) -> date | None:
@@ -189,6 +228,11 @@ def _trial(profile: dict, trial_id: str, disease_terms: list[str]) -> dict:
         "phases": phases,
         "modality": str(filtering.get("modality") or "").strip(),
         "paediatric": filtering.get("paediatric_trial") is True,
+        "therapeutic_areas": sorted({
+            normalized(value)
+            for value in filtering.get("therapeutic_areas") or []
+            if normalized(value)
+        }),
         "authorization_dates": authorization_dates,
         "authorization_date": min(authorization_dates.values(), default=None),
         "year": _trial_year(profile, trial_id),
@@ -316,7 +360,59 @@ class ProfileRanker:
         self.countries = set(criteria.get("countries") or [])
         self.sites: dict[str, dict] = {}
         self.people: dict[str, dict] = {}
+        self.person_aliases: dict[str, str] = {}
+        self.full_name_ta_index: dict[tuple[str, str, str], str] = {}
+        self.email_first_index: dict[tuple[str, str], str] = {}
+        self.email_last_index: dict[tuple[str, str], str] = {}
         self.seen_trials: set[str] = set()
+
+    @staticmethod
+    def _empty_person(person_id: str) -> dict:
+        return {
+            "id": person_id, "names": Counter(), "trials": {}, "sites": {},
+            "site_trials": {}, "departments": {}, "emails": Counter(),
+            "email_recency": {}, "site_emails": {}, "site_email_recency": {},
+        }
+
+    def _person_root(self, person_id: str) -> str:
+        trail = []
+        while person_id in self.person_aliases:
+            trail.append(person_id)
+            person_id = self.person_aliases[person_id]
+        for alias in trail:
+            self.person_aliases[alias] = person_id
+        return person_id
+
+    def _merge_people(self, person_ids: set[str]) -> str:
+        roots = sorted({self._person_root(person_id) for person_id in person_ids})
+        root = roots[0]
+        target = self.people[root]
+        for other_id in roots[1:]:
+            other = self.people.pop(other_id)
+            self.person_aliases[other_id] = root
+            target["names"].update(other["names"])
+            target["emails"].update(other["emails"])
+            target["sites"].update(other["sites"])
+            for trial_id, candidate in other["trials"].items():
+                existing = target["trials"].get(trial_id)
+                if existing is None or (candidate["authorization_date"] or date.min) > (existing["authorization_date"] or date.min):
+                    target["trials"][trial_id] = candidate
+            for site_id, trials in other["site_trials"].items():
+                target["site_trials"].setdefault(site_id, {}).update(trials)
+            for site_id, candidate in other["departments"].items():
+                current = target["departments"].get(site_id)
+                if current is None or candidate[:2] > current[:2]:
+                    target["departments"][site_id] = candidate
+            for email, candidate in other["email_recency"].items():
+                target["email_recency"][email] = max(target["email_recency"].get(email, (date.min, 0)), candidate)
+            for site_id, counts in other["site_emails"].items():
+                target["site_emails"].setdefault(site_id, Counter()).update(counts)
+            for site_id, recency in other["site_email_recency"].items():
+                target_recency = target["site_email_recency"].setdefault(site_id, {})
+                for email, candidate in recency.items():
+                    target_recency[email] = max(target_recency.get(email, (date.min, 0)), candidate)
+        target["id"] = root
+        return root
 
     def add(self, items: Iterable[dict]) -> None:
         for item in items:
@@ -347,29 +443,46 @@ class ProfileRanker:
                 investigators = raw_site.get("investigators")
                 if not isinstance(investigators, list):
                     investigators = []
-                for investigator in investigators:
+                for investigator_index, investigator in enumerate(investigators):
                     if not isinstance(investigator, dict):
                         continue
                     email = _email(investigator)
                     investigator_name = _investigator_name(investigator)
+                    first_name, last_name = _investigator_name_parts(investigator)
                     department = str(investigator.get("department_or_division") or investigator.get("department") or "").strip()
                     if email:
                         site["contacts"][(investigator_name, email)] += 1
                     if not investigator_name:
                         continue
-                    # Exact normalized email is the strongest available identity.
-                    # Without an email, keep deduplication local to the exact site so
-                    # common names at different institutions are never collapsed.
-                    person_id = (
-                        key("person-email", email)
-                        if email
-                        else key("person-site-name", site_id, investigator_name)
+                    full_name_ta_keys = {
+                        (first_name, last_name, therapeutic_area)
+                        for therapeutic_area in trial["therapeutic_areas"]
+                        if first_name and last_name
+                    }
+                    email_first_key = (email, first_name) if email and first_name else None
+                    email_last_key = (email, last_name) if email and last_name else None
+                    matches = {
+                        self._person_root(person_id)
+                        for person_id in (
+                            *(self.full_name_ta_index.get(identity) for identity in full_name_ta_keys),
+                            self.email_first_index.get(email_first_key) if email_first_key else None,
+                            self.email_last_index.get(email_last_key) if email_last_key else None,
+                        )
+                        if person_id is not None
+                    }
+                    record_id = key(
+                        "person-record", trial_id, site_id, str(investigator_index),
+                        first_name, last_name, email,
                     )
-                    person = self.people.setdefault(person_id, {
-                        "id": person_id, "names": Counter(), "trials": {}, "sites": {},
-                        "site_trials": {}, "departments": {}, "emails": Counter(),
-                        "email_years": {}, "site_emails": {}, "site_email_years": {},
-                    })
+                    self.people[record_id] = self._empty_person(record_id)
+                    person_id = self._merge_people(matches | {record_id})
+                    person = self.people[person_id]
+                    for identity in full_name_ta_keys:
+                        self.full_name_ta_index[identity] = person_id
+                    if email_first_key:
+                        self.email_first_index[email_first_key] = person_id
+                    if email_last_key:
+                        self.email_last_index[email_last_key] = person_id
                     person["names"][investigator_name] += 1
                     existing_trial = person["trials"].get(trial_id)
                     if (
@@ -387,10 +500,11 @@ class ProfileRanker:
                             person["departments"][site_id] = candidate
                     if email:
                         person["emails"][email] += 1
-                        person["email_years"][email] = max(person["email_years"].get(email, 0), trial["year"] or 0)
+                        recency = (site_trial["authorization_date"] or date.min, trial["year"] or 0)
+                        person["email_recency"][email] = max(person["email_recency"].get(email, (date.min, 0)), recency)
                         person["site_emails"].setdefault(site_id, Counter())[email] += 1
-                        site_years = person["site_email_years"].setdefault(site_id, {})
-                        site_years[email] = max(site_years.get(email, 0), trial["year"] or 0)
+                        site_recency = person["site_email_recency"].setdefault(site_id, {})
+                        site_recency[email] = max(site_recency.get(email, (date.min, 0)), recency)
 
     def result(self, limit: int | None = PREVIEW_LIMIT) -> dict:
         today = datetime.now(UTC).date()
@@ -399,11 +513,8 @@ class ProfileRanker:
             for site_id in person["sites"]:
                 site_metrics = _metrics(person["site_trials"][site_id], self.criteria, today=today)
                 site_emails = person["site_emails"].get(site_id, Counter())
-                email_years = person["site_email_years"].get(site_id, {})
-                email = min(
-                    site_emails,
-                    key=lambda value: (-email_years[value], -site_emails[value], value),
-                ) if site_emails else None
+                site_email_recency = person["site_email_recency"].get(site_id, {})
+                email = _latest_email(site_emails, site_email_recency)
                 self.sites[site_id]["matched_pis"].append({
                     "id": person["id"], "name": name,
                     "department": person["departments"].get(site_id, (0, "", ""))[2],
@@ -454,10 +565,7 @@ class ProfileRanker:
             latest_affiliation = affiliations[0]
             department = person["departments"].get(latest_affiliation["id"], (0, "", ""))[2]
             public_affiliation = {key: value for key, value in latest_affiliation.items() if key != "latest"}
-            email = min(
-                person["emails"],
-                key=lambda value: (-person["email_years"][value], -person["emails"][value], value),
-            ) if person["emails"] else None
+            email = _latest_email(person["emails"], person["email_recency"])
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
             pi_rows.append({
                 "id": person["id"], "name": name, "department": department,
