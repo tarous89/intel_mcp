@@ -66,8 +66,8 @@ def test_get_profiles_returns_complete_profiles_in_request_order_and_unavailable
     approved_at = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
     connection = _Connection(
         [
-            ("2024-500001-00-00", "10.0.0", approved_at, {"complete": "first"}),
-            ("2024-500003-00-00", "10.0.0", approved_at, {"complete": "third"}),
+            ("2024-500001-00-00", "11.0.0", approved_at, {"complete": "first"}),
+            ("2024-500003-00-00", "11.0.0", approved_at, {"complete": "third"}),
         ]
     )
 
