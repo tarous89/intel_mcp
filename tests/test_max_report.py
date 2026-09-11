@@ -42,7 +42,7 @@ def _profile(trial_id: str, sample_size: int = 100) -> FullProfileItem:
     return FullProfileItem.model_validate(
         {
             "eu_number": trial_id,
-            "profile_schema_version": "10.0.0",
+            "profile_schema_version": "11.0.0",
             "approved_at": "2026-09-01T00:00:00+00:00",
             "profile": {
                 "filtering_variables": {
@@ -54,7 +54,13 @@ def _profile(trial_id: str, sample_size: int = 100) -> FullProfileItem:
                     "sites": [
                         {
                             "site_name": "Central Hospital",
-                            "site_contacts": [{"name": "Dr Example"}],
+                            "investigators": [{
+                                "first_name": "Ada",
+                                "last_name": "Example",
+                                "email": "ada@example.org",
+                                "department_or_division": "Oncology",
+                                "function": None,
+                            }],
                         }
                     ],
                     "long_narrative": "x" * 800,
@@ -173,13 +179,13 @@ def test_max_v1_hard_limits_and_profile_catalogue() -> None:
     paths = {item["path"] for item in catalogue}
     assert "$trial_id" in paths
     assert "filtering_variables.planned_sample_size" in paths
-    assert "classification_variables.sites[].site_contacts[].name" in paths
+    assert "classification_variables.sites[].investigators[].first_name" in paths
     assert "classification_variables.long_narrative" not in paths
     assert resolve_profile_path(
         _profile("2026-000001-00-00").profile,
-        "classification_variables.sites[].site_contacts[].name",
+        "classification_variables.sites[].investigators[].first_name",
         "2026-000001-00-00",
-    ) == "Dr Example"
+    ) == "Ada"
 
 
 def test_group_classification_is_reserved_inside_the_twenty_variable_budget() -> None:
