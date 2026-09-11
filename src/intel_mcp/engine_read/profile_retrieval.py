@@ -64,7 +64,7 @@ def profile_with_current_lifecycle(
     result = deepcopy(profile)
     if (
         isinstance(ctis_json, dict)
-        and profile_schema_version in {"9.0.0", SCHEMA_VERSION}
+        and profile_schema_version in {"9.0.0", "10.0.0", SCHEMA_VERSION}
     ):
         result["ctis_lifecycle"] = build_ctis_lifecycle(ctis_json)
         inclusion, exclusion = eligibility_criteria(ctis_json)
