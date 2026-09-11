@@ -19,21 +19,21 @@ def metric(value):
 def result():
     sites = [
         {"id": f"site-{i}", "rank": i, "name": f"Hospital {i}", "country": "DE",
-         "contact": {"name": f"Person {i}", "email": f"p{i}@example.invalid", "role": "PI"},
+         "contact": {"name": f"Person {i}", "email": f"p{i}@example.invalid"},
          "matchedPIs": [], "metrics": metric(i % 7)}
         for i in range(1, 126)
     ]
     pis = [
         {"id": f"pi-{i}", "rank": i, "name": f"Investigator {i}", "department": "Oncology",
-         "email": f"pi{i}@example.invalid", "role": "confirmed_pi",
+         "email": f"pi{i}@example.invalid",
          "sites": [{"id": f"site-{i}", "name": f"Hospital {i}", "country": "DE", "trials": 1}],
          "metrics": metric(i % 11)}
         for i in range(1, 208)
     ]
     return {
-        "scoringVersion": "fixture-v5", "criteria": {"therapeutic_areas": ["Oncology"], "disease_terms": ["lung"], "countries": []},
+        "scoringVersion": "therapeutic-area-experience-v8", "criteria": {"therapeutic_areas": ["Oncology"], "disease_terms": ["lung"], "countries": []},
         "sites": sites, "pis": pis,
-        "counts": {"sites": len(sites), "pis": len(pis), "confirmedPIs": len(pis), "unconfirmedContacts": 0, "previewSites": len(sites), "previewPIs": len(pis)},
+        "counts": {"sites": len(sites), "pis": len(pis), "previewSites": len(sites), "previewPIs": len(pis)},
         "coverage": {"approvedProfiles": 300, "therapeuticAreaTrials": 300, "profilesReviewed": 300, "unavailableProfiles": 0, "partial": False, "scope": "fixture", "generatedAt": "2026-09-09T00:00:00Z"},
     }
 

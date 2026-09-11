@@ -33,7 +33,7 @@ a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-experience-v6` returns separate Sites and principal-investigator lists. Both are ordered by
+`therapeutic-area-experience-v8` returns separate Sites and principal-investigator lists. Both are ordered by
 five-year indication trial count, requested-phase count, requested-modality count, paediatric
 count when relevant, therapeutic-area count, recency, then stable
 name/ID tie-breaks. A disease synonym can match a trial only once. The free response contains the top
@@ -53,7 +53,8 @@ email becomes the site-row contact, while the top three and the full investigato
 returned as matched-investigator evidence. With no ranked investigator email, a stable
 frequency/name/email tie-break across the site's investigators is used. Trial Profile 11 defines
 every record in `classification_variables.sites[].investigators[]` as a principal investigator;
-Site Agent does not inspect a separate role flag or create an unconfirmed-contact class. Exact
+Site Agent does not inspect or return a separate role flag, create an unconfirmed-contact class or
+return the retired confirmed/unconfirmed count split. Exact
 case-normalized email is the primary investigator identity. This merges spelling and diacritic variants
 only when they share the same recorded address and never merges common names merely because their text
 matches. Records without an email fall back to normalized name within the exact site/country, so repeated
