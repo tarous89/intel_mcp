@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
-VERSION = "therapeutic-area-experience-v7"
+VERSION = "therapeutic-area-experience-v8"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 EXPERIENCE_YEARS = 5
@@ -418,11 +418,10 @@ class ProfileRanker:
             if matched_contact:
                 contact = {
                     "name": matched_contact["name"], "email": matched_contact["email"],
-                    "role": "Principal investigator",
                 }
             elif site["contacts"]:
                 chosen = min(site["contacts"], key=lambda value: (-site["contacts"][value], normalized(value[0]), value[1]))
-                contact = {"name": chosen[0], "email": chosen[1], "role": "Principal investigator"}
+                contact = {"name": chosen[0], "email": chosen[1]}
             site_rows.append({
                 "id": site["id"], "name": site["name"], "country": site["country"],
                 "contact": contact,
@@ -462,7 +461,7 @@ class ProfileRanker:
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
             pi_rows.append({
                 "id": person["id"], "name": name, "department": department,
-                "email": email, "role": "confirmed_pi",
+                "email": email,
                 "sites": [public_affiliation], "metrics": _metrics(person["trials"], self.criteria, today=today),
             })
         _apply_bands(pi_rows)
@@ -476,8 +475,6 @@ class ProfileRanker:
             "scoringVersion": VERSION,
             "counts": {
                 "sites": len(site_rows), "pis": len(pi_rows),
-                "confirmedPIs": len(pi_rows),
-                "unconfirmedContacts": 0,
                 "previewSites": len(site_rows) if limit is None else min(limit, len(site_rows)),
                 "previewPIs": len(pi_rows) if limit is None else min(limit, len(pi_rows)),
             },

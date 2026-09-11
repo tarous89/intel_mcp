@@ -84,7 +84,7 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(result["sites"][0]["metrics"]["therapeuticAreaTrials"], 2)
         self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
         self.assertEqual(result["counts"], {
-            "sites": 1, "pis": 1, "confirmedPIs": 1, "unconfirmedContacts": 0,
+            "sites": 1, "pis": 1,
             "previewSites": 1, "previewPIs": 1,
         })
 
@@ -95,12 +95,13 @@ class RankingTests(unittest.TestCase):
         ]
         result = rank_profiles([item(investigators=investigators)], CRITERIA)
         self.assertEqual(result["sites"][0]["contact"]["email"], "pi@example.org")
-        self.assertEqual(result["sites"][0]["contact"]["role"], "Principal investigator")
+        self.assertNotIn("role", result["sites"][0]["contact"])
         self.assertEqual(result["pis"][0]["email"], "pi@example.org")
+        self.assertNotIn("role", result["pis"][0])
         self.assertEqual(result["sites"][0]["matchedPICount"], 2)
         self.assertEqual(result["sites"][0]["matchedPIs"][0]["name"], "Ada Example")
 
-    def test_site_investigator_is_the_best_matching_confirmed_pi_with_an_email(self):
+    def test_site_investigator_is_the_best_matching_pi_with_an_email(self):
         result = rank_profiles([
             item(1, diseases=["Breast cancer"], investigators=[investigator("Broad", email="broad@example.org")]),
             item(2, diseases=["Non-small cell lung cancer"], investigators=[investigator("Lung", email="lung@example.org")]),
@@ -122,15 +123,15 @@ class RankingTests(unittest.TestCase):
         result = rank_profiles([record], CRITERIA)
         self.assertEqual(result["counts"]["sites"], 1)
         self.assertEqual(result["counts"]["pis"], 0)
-        self.assertEqual(result["counts"]["confirmedPIs"], 0)
-        self.assertEqual(result["counts"]["unconfirmedContacts"], 0)
+        self.assertNotIn("confirmedPIs", result["counts"])
+        self.assertNotIn("unconfirmedContacts", result["counts"])
         self.assertEqual(result["pis"], [])
         self.assertIsNone(result["sites"][0]["contact"])
 
     def test_investigator_function_is_not_required_to_establish_pi_role(self):
         result = rank_profiles([item(investigators=[investigator(function="Study office")])], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
-        self.assertEqual(result["pis"][0]["role"], "confirmed_pi")
+        self.assertNotIn("role", result["pis"][0])
 
     def test_same_pi_email_aggregates_across_sites(self):
         result = rank_profiles([
