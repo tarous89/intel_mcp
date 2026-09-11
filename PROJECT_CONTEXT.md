@@ -75,7 +75,7 @@ Per-analysis limitations/completeness notes are empty and not user-facing. The A
 
 Max trial groups, Max analyses, document review and Max fulfilment are not executed by Light. Final reports remain renderer-compatible `version = 2`.
 
-Execution is currently an in-process async task on the MCP web service; a restart can interrupt a run. Durable worker/claim/heartbeat/retry execution remains pending.
+Execution is currently an in-process async task on the MCP web service; a restart can interrupt a run. Executors accept only newly queued runs, never resume failed or already-running runs, and retry only the non-model terminal-failure callback on transient App outages. Durable worker/claim/heartbeat/retry execution remains pending.
 
 ## Max execution v1
 

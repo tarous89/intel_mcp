@@ -656,3 +656,27 @@ async def test_candidate_screening_is_batched_and_metered() -> None:
         ("reserve", 1),
         ("reserve", 25),
     ]
+
+
+
+@pytest.mark.anyio
+async def test_failed_max_run_stops_before_starting_analysis() -> None:
+    class ReportControl:
+        async def load(self, _report_run_id: str) -> dict:
+            return {"status": "failed_system", "tier": "max"}
+
+        async def progress(self, *_args, **_kwargs) -> None:
+            raise AssertionError("a failed run must not update progress")
+
+        async def fail(self, *_args, **_kwargs) -> None:
+            raise AssertionError("an already-failed run must remain terminal")
+
+    class AnalysisControl:
+        async def start_analysis(self, _report_run_id: str):
+            raise AssertionError("a failed run must not open an analysis lease")
+
+    executor = object.__new__(MaxReportExecutor)
+    executor._control = ReportControl()
+    executor._analysis_control = AnalysisControl()
+
+    await executor.execute("run-failed")

@@ -127,4 +127,4 @@ The private `/internal/max-report/start` route launches Max. Its six-hour lease 
 
 ## Runtime boundary
 
-The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Light and Max still use an in-process async launcher and can be interrupted by a service restart; durable claim/heartbeat/retry execution remains pending.
+The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Executors accept only `queued` runs; failed and already-running runs are terminal at this launcher and cannot reopen model work. The terminal failure callback retries transient App outages five times with bounded backoff, without model calls. Light and Max still use an in-process async launcher and can be interrupted by a service restart; durable claim/heartbeat/retry execution remains pending.

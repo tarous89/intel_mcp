@@ -826,7 +826,8 @@ class MaxReportExecutor:
         }
         try:
             job = await self._control.load(report_run_id)
-            if job.get("status") == "completed":
+            if job.get("status") != "queued":
+                LOGGER.info("Ignoring non-queued Max report run: report_run_id=%s status=%s", report_run_id, job.get("status"))
                 return
             if job.get("tier") != "max":
                 raise MaxReportError("MAX_REPORT_TIER_REQUIRED", "This executor supports Max reports only.", False)

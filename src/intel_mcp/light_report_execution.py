@@ -105,15 +105,21 @@ class ReportExecutionControl:
         )
 
     async def fail(self, report_run_id: str, code: str, message: str, progress: dict[str, Any]) -> None:
-        await self._post(
-            {
-                "action": "fail",
-                "reportRunId": report_run_id,
-                "errorCode": code,
-                "errorMessage": message,
-                "progress": progress,
-            }
-        )
+        payload = {
+            "action": "fail",
+            "reportRunId": report_run_id,
+            "errorCode": code,
+            "errorMessage": message,
+            "progress": progress,
+        }
+        for attempt in range(5):
+            try:
+                await self._post(payload)
+                return
+            except ReportExecutionError as error:
+                if not error.retryable or attempt == 4:
+                    raise
+                await asyncio.sleep(2**attempt)
 
 
 def prioritize_light_plan(plan: dict[str, Any]) -> dict[str, Any]:
@@ -481,7 +487,8 @@ class LightReportExecutor:
         }
         try:
             job = await self._control.load(report_run_id)
-            if job.get("status") == "completed":
+            if job.get("status") != "queued":
+                LOGGER.info("Ignoring non-queued Light report run: report_run_id=%s status=%s", report_run_id, job.get("status"))
                 return
             if job.get("tier") != "light":
                 raise ReportExecutionError(
