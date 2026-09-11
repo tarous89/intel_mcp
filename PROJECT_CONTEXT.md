@@ -29,9 +29,9 @@ Current limits:
 
 | Tool | Per call | Light per analysis | Max per analysis |
 |---|---:|---:|---:|
-| `filter_trials` | 100 returned | 100 unique profiles | 1,000 unique profiles |
-| `classify_trials` | 25 trials | 25 completed | 500 completed |
-| `get_profiles` | 10 trials | 100 unique profiles | 500 unique profiles |
+| `filter_trials` | 100 returned | 100 unique profiles | 100 unique profiles |
+| `classify_trials` | 25 trials | 25 completed | 100 completed |
+| `get_profiles` | 10 trials | 100 unique profiles | 100 unique profiles |
 | `get_documents` | 1 document part | 10 unique documents | disabled for Max v1 |
 | `extract_variables` | 1 trial, 20 variables | 20 units | 100 units |
 
@@ -41,7 +41,7 @@ App authorization is authoritative. Reservation/commit/release prevents failed w
 
 `classify_trials` uses one contact-redacted Trial Profile per Terra worker job. `get_profiles` returns complete schema 11.0.0 profiles or exact section projections. `get_documents` returns bounded extracted-text parts for exact profile-listed filenames. `extract_variables` schema 2.0.0 uses one complete approved profile only; it never retrieves or forwards protocol or document text.
 
-Trial Profile 11 stores site-level people at `classification_variables.sites[].investigators[]`. Every nested record is a principal investigator by contract. Light ranking and Max analysis consume that collection directly; Max exposes a deterministic investigator entity list that keeps each name aligned with its site, country, department and public email.
+Trial Profile 11 stores site-level people at `classification_variables.sites[].investigators[]`. Every nested record is a principal investigator by contract; callers and report workers must not look for the removed site-contact name or PI boolean.
 
 ## Report planning
 
@@ -79,21 +79,21 @@ Execution is currently an in-process async task on the MCP web service; a restar
 
 ## Max execution v1
 
-Max is an independently executable profile-only workflow that screens about 500 candidates and caps final analysis at 100 approved Trial Profiles:
+Max is an independently executable profile-only workflow capped at 100 approved Trial Profiles:
 
-1. exact approved-plan seeds plus a Sol-proposed focused-to-broad progression across therapeutic area, phase, modality and country build the candidate pool;
-2. Sol/medium/Flex screens compact population/design/intervention projections against the approved rich segments, then deterministic selection freezes at most 100 exact, close and adjacent trials; expanded-path failures stop safely for retry instead of silently producing the smaller legacy cohort;
-3. Terra/high/Flex creates one report-wide SAP from up to 10 complete selected-profile examples and prefers deterministic profile fields;
-4. up to 20 total semantic variables, including every subgroup Boolean, are populated in one profile-only Terra/Flex extraction call per selected trial;
-5. one Terra/high/Flex analyst executes each request-aligned shared-plus-Max analysis pair over the same frozen dataset, followed by one reducer.
+1. deterministic discovery freezes one deduplicated broad-plus-granular cohort while preserving overlapping group labels;
+2. Terra/high/Flex creates one report-wide SAP from up to 10 complete profile examples and prefers deterministic profile fields;
+3. up to 20 total semantic variables, including subgroup Booleans, are populated in one profile-only Terra/Flex extraction call per trial;
+4. one Terra/high/Flex analyst executes each of the 1–7 request-aligned shared-plus-Max analysis pairs over the same frozen dataset;
+5. one Terra/high/Flex reducer writes only the cross-objective synthesis.
 
 SAP semantic-variable instructions target 500 characters and are normalized into the extractor's hard 600-character contract before validation, so verbose structured output does not abort a paid run.
 
-Max never reads protocols or source documents. Its six-hour lease excludes `get_documents`; candidate filtering/profile/classification allowances are 1,000/500/500 while final extraction remains capped at 100. Older 100-trial leases use the prior bounded path. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
+Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
 
 ## Site Agent
 
-Site Agent uses one initial Terra/low interpretation call. Premium revisions use one forced strict function call per instruction, limited to existing criteria and list controls; no candidate or contact records enter the model. The original area/disease/country arrays anchor every revision (any individual original value suffices). Service-authenticated searches support a full-list mode; default/free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
+Site Agent uses one initial Terra/low interpretation call. Premium revisions use one forced strict function call per instruction, limited to existing criteria and list controls; no candidate or contact records enter the model. The original area/disease/country arrays anchor every revision (any individual original value suffices). Exact normalized email identifies investigators when present; missing-email records fall back to name within the exact site/country. Service-authenticated searches keep a bounded compressed ranked-result cache so Premium pages slice one deterministic snapshot instead of rebuilding the clinical cohort per page; default/free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
 
 ## Security
 

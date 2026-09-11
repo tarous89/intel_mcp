@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
-VERSION = "therapeutic-area-experience-v6"
+VERSION = "therapeutic-area-experience-v7"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 EXPERIENCE_YEARS = 5
@@ -357,11 +357,14 @@ class ProfileRanker:
                         site["contacts"][(investigator_name, email)] += 1
                     if not investigator_name:
                         continue
-                    # Site Agent presents one row per normalized recorded name.
-                    # Email remains the preferred contact route, but is not used as
-                    # the display identity because CTIS can record the same person
-                    # with different addresses across institutions and years.
-                    person_id = key("person", investigator_name)
+                    # Exact normalized email is the strongest available identity.
+                    # Without an email, keep deduplication local to the exact site so
+                    # common names at different institutions are never collapsed.
+                    person_id = (
+                        key("person-email", email)
+                        if email
+                        else key("person-site-name", site_id, investigator_name)
+                    )
                     person = self.people.setdefault(person_id, {
                         "id": person_id, "names": Counter(), "trials": {}, "sites": {},
                         "site_trials": {}, "departments": {}, "emails": Counter(),

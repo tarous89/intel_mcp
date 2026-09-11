@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import time
+import zlib
+from collections import OrderedDict
 from datetime import UTC, datetime
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from intel_mcp.models import ModalityFilter, TherapeuticAreaFilter, TrialFilters, TrialSort
-from intel_mcp.site_ranking import DISEASE_FIELDS, ProfileRanker
+from intel_mcp.site_ranking import DISEASE_FIELDS, VERSION as RANKING_VERSION, ProfileRanker
 
 MAX_CONTEXT = 12000
 MAX_DISEASE_TERMS = 16
@@ -20,6 +24,12 @@ COUNTRIES = (
     "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL", "PT", "RO",
     "SK", "SI", "ES", "SE",
 )
+
+RESULT_CACHE_TTL_SECONDS = 90 * 60
+RESULT_CACHE_MAX_BYTES = 32 * 1024 * 1024
+RESULT_CACHE_MAX_ENTRIES = 12
+_RESULT_CACHE: OrderedDict[str, tuple[float, bytes]] = OrderedDict()
+_RESULT_CACHE_BYTES = 0
 
 
 class SiteSearchError(Exception):
@@ -212,8 +222,77 @@ def validate_criteria(value: object) -> dict:
         raise SiteSearchError("Stored project criteria are invalid.", 400) from error
 
 
-async def search_deterministically(engine, criteria_value: object, *, full_list: bool = False) -> dict:
-    criteria = validate_criteria(criteria_value)
+def _result_cache_key(criteria: dict) -> str:
+    payload = {
+        "ranking_version": RANKING_VERSION,
+        "date": datetime.now(UTC).date().isoformat(),
+        "criteria": criteria,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _prune_result_cache(now: float) -> None:
+    global _RESULT_CACHE_BYTES
+    expired = [cache_key for cache_key, (expires_at, _) in _RESULT_CACHE.items() if expires_at <= now]
+    for cache_key in expired:
+        _, payload = _RESULT_CACHE.pop(cache_key)
+        _RESULT_CACHE_BYTES -= len(payload)
+
+
+def _cached_result(cache_key: str) -> dict | None:
+    now = time.monotonic()
+    _prune_result_cache(now)
+    cached = _RESULT_CACHE.pop(cache_key, None)
+    if cached is None:
+        return None
+    expires_at, payload = cached
+    _RESULT_CACHE[cache_key] = (expires_at, payload)
+    try:
+        result = json.loads(zlib.decompress(payload))
+    except (ValueError, TypeError, zlib.error):
+        global _RESULT_CACHE_BYTES
+        _RESULT_CACHE.pop(cache_key, None)
+        _RESULT_CACHE_BYTES -= len(payload)
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def _cache_result(cache_key: str, result: dict) -> None:
+    global _RESULT_CACHE_BYTES
+    try:
+        payload = zlib.compress(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode(), level=3)
+    except (TypeError, ValueError, zlib.error):
+        return
+    if len(payload) > RESULT_CACHE_MAX_BYTES:
+        return
+    previous = _RESULT_CACHE.pop(cache_key, None)
+    if previous:
+        _RESULT_CACHE_BYTES -= len(previous[1])
+    while _RESULT_CACHE and (
+        len(_RESULT_CACHE) >= RESULT_CACHE_MAX_ENTRIES
+        or _RESULT_CACHE_BYTES + len(payload) > RESULT_CACHE_MAX_BYTES
+    ):
+        _, (_, discarded) = _RESULT_CACHE.popitem(last=False)
+        _RESULT_CACHE_BYTES -= len(discarded)
+    _RESULT_CACHE[cache_key] = (time.monotonic() + RESULT_CACHE_TTL_SECONDS, payload)
+    _RESULT_CACHE_BYTES += len(payload)
+
+
+def _clear_result_cache() -> None:
+    """Reset the process-local cache for isolated tests."""
+    global _RESULT_CACHE_BYTES
+    _RESULT_CACHE.clear()
+    _RESULT_CACHE_BYTES = 0
+
+
+def _preview_result(result: dict) -> dict:
+    counts = dict(result["counts"])
+    counts["previewSites"] = min(10, counts["sites"])
+    counts["previewPIs"] = min(10, counts["pis"])
+    return {**result, "sites": result["sites"][:10], "pis": result["pis"][:10], "counts": counts}
+
+
+async def _build_full_result(engine, criteria: dict) -> dict:
     filter_data = {
         "therapeutic_areas": {"operator": "contains_any", "values": criteria["therapeutic_areas"]},
     }
@@ -240,7 +319,7 @@ async def search_deterministically(engine, criteria_value: object, *, full_list:
         offset += len(page.data)
         if not page.data or offset >= total_matches:
             break
-    result = ranker.result(limit=None) if full_list else ranker.result()
+    result = ranker.result(limit=None)
     reviewed = len(ranker.seen_trials)
     return {
         **result, "criteria": criteria,
@@ -253,6 +332,19 @@ async def search_deterministically(engine, criteria_value: object, *, full_list:
             "generatedAt": datetime.now(UTC).isoformat(),
         },
     }
+
+
+async def search_deterministically(
+    engine, criteria_value: object, *, full_list: bool = False, use_cache: bool = False,
+) -> dict:
+    criteria = validate_criteria(criteria_value)
+    cache_key = _result_cache_key(criteria)
+    result = _cached_result(cache_key) if use_cache else None
+    if result is None:
+        result = await _build_full_result(engine, criteria)
+        if use_cache:
+            _cache_result(cache_key, result)
+    return result if full_list else _preview_result(result)
 
 
 SITE_PAGE_METRICS = {
@@ -336,12 +428,12 @@ def page_deterministic_result(result: dict, value: object) -> dict:
 
 
 async def search_page_deterministically(engine, criteria_value: object, page_value: object) -> dict:
-    result = await search_deterministically(engine, criteria_value, full_list=True)
+    result = await search_deterministically(engine, criteria_value, full_list=True, use_cache=True)
     return page_deterministic_result(result, page_value)
 
 
 async def create_project_search(settings, engine, body: dict, *, transport=None) -> dict:
     """Backward-compatible single request used only while the app rollout catches up."""
     criteria, usage = await interpret_context(settings, body.get("context"), transport=transport)
-    result = await search_deterministically(engine, criteria)
+    result = await search_deterministically(engine, criteria, use_cache=True)
     return {**result, "usage": usage}

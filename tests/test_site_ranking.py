@@ -141,24 +141,40 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(len(result["pis"][0]["sites"]), 1)
         self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
 
-    def test_same_normalized_pi_name_is_not_duplicated_when_emails_change(self):
+    def test_same_name_with_different_emails_is_not_merged(self):
         result = rank_profiles([
             item(1, site="Hospital A", investigators=[investigator(email="ada.old@example.org")]),
             item(2, site="Hospital B", investigators=[investigator(email="ada.new@example.org")]),
         ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 2)
+        self.assertEqual(len(result["pis"]), 2)
+
+    def test_same_email_merges_accented_name_variants(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator("Joao", last="Goncalves", email="pi@example.org")]),
+            item(2, site="Hospital B", investigators=[investigator("João", last="Gonçalves", email="PI@example.org")]),
+        ], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
-        self.assertEqual(len(result["pis"]), 1)
+        self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
+
+    def test_missing_email_deduplicates_only_within_the_same_site(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator(email="")]),
+            item(2, site="Hospital A", investigators=[investigator(email="")]),
+            item(3, site="Hospital B", investigators=[investigator(email="")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 2)
 
     def test_pi_exposes_only_the_latest_recorded_affiliation(self):
         result = rank_profiles([
-            item(1, site="Older Hospital", country="DE", investigators=[investigator(email="ada.old@example.org")], year=2023),
-            item(2, site="Latest Hospital", country="FR", investigators=[investigator(email="ada.new@example.org")], year=2025),
+            item(1, site="Older Hospital", country="DE", investigators=[investigator(email="ada@example.org")], year=2023),
+            item(2, site="Latest Hospital", country="FR", investigators=[investigator(email="ADA@example.org")], year=2025),
         ], CRITERIA)
         self.assertEqual(result["pis"][0]["sites"], [{
             "id": result["pis"][0]["sites"][0]["id"],
             "name": "Latest Hospital", "country": "FR", "trials": 1,
         }])
-        self.assertEqual(result["pis"][0]["email"], "ada.new@example.org")
+        self.assertEqual(result["pis"][0]["email"], "ada@example.org")
 
     def test_preview_is_top_ten_but_counts_cover_full_list(self):
         result = rank_profiles([item(index + 1, site=f"Hospital {index:02d}") for index in range(15)], CRITERIA)
