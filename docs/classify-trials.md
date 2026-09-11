@@ -44,7 +44,7 @@ Rules:
 
 ## Worker boundary
 
-The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile 10.0.0, including `filtering_variables.available_extracted_documents` and the top-level `results` object, together with all inclusion and exclusion criteria for that trial. Classification never retrieves or classifies document text.
+The backend performs one logical Terra classification job per trial. Each job sends the complete approved, contact-redacted Trial Profile 11.0.0, including `filtering_variables.available_extracted_documents` and the top-level `results` object, together with all inclusion and exclusion criteria for that trial. Classification never retrieves or classifies document text.
 
 Internally the criteria receive stable positional IDs (`i1`, `i2`, ..., `e1`, `e2`, ...). Terra must evaluate every criterion independently and return exactly one result for each criterion:
 
@@ -173,3 +173,4 @@ readOnlyHint: false
 ```
 
 The clinical data read itself is non-destructive, but the tool changes observable allowance state and performs paid model work. Exact allowance retries are deduplicated server-side, but the tool is not advertised as generally idempotent because it executes an external model worker.
+
