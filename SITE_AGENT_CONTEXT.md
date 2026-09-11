@@ -33,7 +33,7 @@ a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-experience-v8` returns separate Site and PI lists ordered by five-year indication,
+`therapeutic-area-experience-v9` returns separate Site and PI lists ordered by five-year indication,
 requested phase, requested modality, relevant paediatric experience, therapeutic-area experience,
 recency and stable name/ID tie-breaks. A disease synonym can match a trial only once. Free responses
 contain the top 10 of each list while preserving full counts.
@@ -51,10 +51,13 @@ Site Agent therefore returns no investigator/contact role field or confirmed/unc
 Within a site, the highest-ranked PI with an email becomes `site.contact`; the top three and full PI
 count remain matched-investigator evidence.
 
-Exact case-normalized email is the primary PI identity. Missing-email records fall back to normalized
-name within the exact site/country. This merges spelling variants sharing an address without merging
-common names across institutions. Changed emails remain separate and shared inboxes remain ambiguous.
-Each PI returns only the most recently evidenced affiliation and email.
+PI records merge only when either their complete normalized first-and-last name shares at least one
+trial therapeutic area, or their exact normalized email and normalized first or last name match.
+All identity comparisons are case-insensitive. Name normalization removes ordinary European diacritics
+and recognizes common transliterations, including `ä/ae`, `ö/oe`, `ü/ue` and `ß/ss`; it is not fuzzy
+matching. The returned email is the one evidenced by the latest trial, and each PI returns only the
+most recently evidenced affiliation. Common identical names within one therapeutic area can merge;
+same-email records whose first and last names both differ remain separate.
 
 Sponsor experience is consolidated deterministically before counting. Case, punctuation and
 spacing variants share a key, common trailing legal suffixes are removed, and versioned curated
@@ -81,8 +84,8 @@ short disease-based prioritized-experience sentence is derived without another m
 
 ## Current limitations
 
-Institution identity, shared-inbox/change-of-email reconciliation and investigator enrichment remain
-future work. No fuzzy identity resolution is attempted.
+Institution identity, ambiguous common-name review and investigator enrichment remain future work.
+No fuzzy identity resolution is attempted.
 
 ## Premium revision and full-list contract
 
