@@ -85,7 +85,10 @@ def register_site_search(mcp, settings, engine_factory):
                     if body.get("full_list") is True:
                         raise SiteSearchError("Choose a bounded page or a compatibility full list, not both.", 400)
                     return await search_page_deterministically(engine_factory(), body["criteria"], body["page"])
-                return await search_deterministically(engine_factory(), body["criteria"], full_list=body.get("full_list", False))
+                return await search_deterministically(
+                    engine_factory(), body["criteria"],
+                    full_list=body.get("full_list", False), use_cache=True,
+                )
             # Compatibility for the existing deployed app during a rolling release.
             return await create_project_search(settings, engine_factory(), body)
         return await run(request, operation, 300)

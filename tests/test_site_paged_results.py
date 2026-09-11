@@ -81,7 +81,7 @@ class PageTests(unittest.IsolatedAsyncioTestCase):
         full = result()
         with patch("intel_mcp.site_search.search_deterministically", new=AsyncMock(return_value=full)) as search:
             page = await search_page_deterministically(object(), {"criteria": "fixture"}, {"kind": "sites", "page": 1, "size": 10, "controls": {}})
-        search.assert_awaited_once_with(ANY, {"criteria": "fixture"}, full_list=True)
+        search.assert_awaited_once_with(ANY, {"criteria": "fixture"}, full_list=True, use_cache=True)
         self.assertEqual(len(page["sites"]), 10)
         self.assertEqual(page["pis"], [])
 

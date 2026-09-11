@@ -53,12 +53,14 @@ email becomes the site-row contact, while the top three and the full investigato
 returned as matched-investigator evidence. With no ranked investigator email, a stable
 frequency/name/email tie-break across the site's investigators is used. Trial Profile 11 defines
 every record in `classification_variables.sites[].investigators[]` as a principal investigator;
-Site Agent does not inspect a separate role flag or create an unconfirmed-contact class. Stable email is
-not treated as the display identity because CTIS can record different addresses over time.
-Investigators are grouped by normalized recorded name, return only the most recently evidenced
-affiliation, and prefer the most recent recorded email. This deliberately favors a compact
-deduplicated workspace while retaining the known collision risk for different people with the
-same normalized name.
+Site Agent does not inspect a separate role flag or create an unconfirmed-contact class. Exact
+case-normalized email is the primary investigator identity. This merges spelling and diacritic variants
+only when they share the same recorded address and never merges common names merely because their text
+matches. Records without an email fall back to normalized name within the exact site/country, so repeated
+local evidence is deduplicated without collapsing people across institutions. A changed email can therefore
+produce a separate investigator, and a genuinely shared inbox can still merge people; this conservative
+trade-off avoids unsupported person resolution. Each investigator returns only the most recently evidenced
+affiliation and recorded email.
 
 Sponsor experience is consolidated deterministically before counting. Case, punctuation and
 spacing variants share a key, common trailing legal suffixes are removed, and versioned curated
@@ -87,8 +89,8 @@ short disease-based prioritized-experience sentence is derived without another m
 
 The focused Site Agent suite passes locally. The first authenticated production search returned
 more than 1,500 sites and 4,000 investigators and motivated disease-specific prioritization.
-Exhaustive-cohort latency measurement, stronger institution/person identity and investigator
-enrichment remain follow-up work.
+Institution identity, shared-inbox/change-of-email reconciliation and investigator enrichment remain
+follow-up work.
 
 ## Premium revision and full-list contract
 
@@ -108,5 +110,9 @@ filters. The anchor rule is criteria continuity, not an anti-enumeration guarant
 
 `/search` accepts bounded Premium pages of 10, 25 or 50 rows; 10 is the default page size. It also keeps
 service-authenticated `full_list: true` only as a compatibility path. Omission preserves the top-10 preview.
-App must verify project ownership/payment before requesting or disclosing these results. Bands are computed once per metric distribution (O(n log n), same tied percentiles),
-not by repeatedly scanning the full cohort. The Engine serving-view envelope remains unchanged.
+App must verify project ownership/payment before requesting or disclosing these results. The initial or
+revised deterministic search seeds a process-local, compressed, size/entry-bounded 90-minute ranked-result
+cache keyed by validated criteria, ranking version and UTC date. Premium pages filter, sort and slice this
+snapshot rather than rereading all profiles. A cold, expired or restarted process safely rebuilds it from
+the approved serving views. Bands are computed once per metric distribution (O(n log n), same tied
+percentiles). The Engine serving-view envelope remains unchanged.

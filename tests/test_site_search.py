@@ -6,7 +6,13 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from intel_mcp.models import TherapeuticAreaFilter
-from intel_mcp.site_search import SiteSearchError, interpret_context, search_deterministically
+from intel_mcp.site_search import (
+    SiteSearchError,
+    _clear_result_cache,
+    interpret_context,
+    search_deterministically,
+    search_page_deterministically,
+)
 
 AREA = TherapeuticAreaFilter.canonical_values[0]
 SETTINGS = SimpleNamespace(
@@ -156,3 +162,21 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         with patch("intel_mcp.site_search.interpret_context", new_callable=AsyncMock) as planner:
             await search_deterministically(engine, CRITERIA)
             planner.assert_not_called()
+
+    async def test_premium_pages_reuse_the_initial_ranked_snapshot(self):
+        _clear_result_cache()
+        first_engine = SimpleNamespace(filter_trials=AsyncMock(return_value=SimpleNamespace(
+            counts=SimpleNamespace(total_matches=0, total_profiles=0), data=[],
+        )))
+        second_engine = SimpleNamespace(filter_trials=AsyncMock(side_effect=AssertionError("cache miss")))
+        try:
+            preview = await search_deterministically(first_engine, CRITERIA, use_cache=True)
+            page = await search_page_deterministically(second_engine, CRITERIA, {
+                "kind": "sites", "page": 1, "size": 10, "controls": {},
+            })
+        finally:
+            _clear_result_cache()
+        self.assertEqual(preview["sites"], [])
+        self.assertEqual(page["page"], {"kind": "sites", "page": 1, "size": 10, "pages": 1, "total": 0})
+        first_engine.filter_trials.assert_awaited_once()
+        second_engine.filter_trials.assert_not_awaited()
