@@ -39,12 +39,13 @@ def test_classification_profile_redacts_contact_personal_data_only() -> None:
         "sites": [
             {
                 "site_name": "Example Hospital",
-                "site_contacts": [
+                "investigators": [
                     {
                         "first_name": "John",
                         "last_name": "Smith",
                         "email": "john@example.org",
-                        "role": "Principal investigator",
+                        "department_or_division": "Oncology",
+                        "function": None,
                     }
                 ],
             }
@@ -58,5 +59,8 @@ def test_classification_profile_redacts_contact_personal_data_only() -> None:
     }
     assert redacted["trial_recruitment_contact"] == {"department": "Oncology"}
     assert redacted["sites"][0]["site_name"] == "Example Hospital"
-    assert redacted["sites"][0]["site_contacts"][0] == {"role": "Principal investigator"}
+    assert redacted["sites"][0]["investigators"][0] == {
+        "department_or_division": "Oncology",
+        "function": None,
+    }
 
