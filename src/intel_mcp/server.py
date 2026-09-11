@@ -78,7 +78,7 @@ mcp = MCPServer(
         "screening. When reviewing shortlisted trials, call get_profiles with only the profile sections "
         "needed for the task; omit sections when the complete profile is required. Trial Profile 11.0.0 "
         "stores site-level people in classification_variables.sites[].investigators[]. Every nested person "
-        "is a principal investigator by contract; do not look for a site_contacts field or a separate PI flag."
+        "is a principal investigator by contract and needs no separate role qualification."
     ),
 )
 
@@ -267,10 +267,10 @@ async def filter_trials(
     write a report. Sponsor-name matching is a shortlist aid: the CTIS source can sometimes identify
     a subsidy/funding source or omit part of the complete legal entity name.
 
-    Results are validated and metered against the app-owned analysis lease. The current Light and
-    initial Max execution workflows each authorize at most 100 unique filtered trial IDs; retries do not
-    consume the same trial ID twice. For another page, repeat the same filters and sort with offset
-    increased by the prior call's limit.
+    Results are validated and metered against the app-owned analysis lease. Light authorizes at most
+    100 unique filtered trial IDs; the current Max candidate-screening lease authorizes up to 1,000.
+    Retries do not consume the same trial ID twice. For another page, repeat the same filters and sort
+    with offset increased by the prior call's limit.
     """
     try:
         engine_result = await engine_client().filter_trials(

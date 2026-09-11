@@ -148,7 +148,7 @@ Current per-analysis limits:
 
 ```text
 Light: 25 classifications
-Max v1: 100 classifications
+Max v1: 500 candidate-screening classifications
 ```
 
 A classification unit is keyed by a SHA-256 fingerprint of the EU trial number plus the normalized inclusion criteria, normalized exclusion criteria and classifier schema version.
@@ -173,4 +173,3 @@ readOnlyHint: false
 ```
 
 The clinical data read itself is non-destructive, but the tool changes observable allowance state and performs paid model work. Exact allowance retries are deduplicated server-side, but the tool is not advertised as generally idempotent because it executes an external model worker.
-

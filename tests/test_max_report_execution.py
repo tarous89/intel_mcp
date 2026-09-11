@@ -11,6 +11,10 @@ from intel_mcp.max_report import (
     MaxObjectiveResult,
     MaxReportError,
 )
+from intel_mcp.max_candidate_screening import (
+    CandidateAssessment,
+    CandidateFilterPlan,
+)
 from intel_mcp.max_report_execution import (
     MaxReportExecutor,
     _discovery_quotas,
@@ -331,7 +335,16 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
 
     class AnalysisControl:
         async def start_analysis(self, _report_run_id: str) -> SimpleNamespace:
-            return SimpleNamespace(analysis=SimpleNamespace(analysis_id="ana_12345678901234567890"))
+            return SimpleNamespace(
+                analysis=SimpleNamespace(
+                    analysis_id="ana_12345678901234567890",
+                    limits=SimpleNamespace(
+                        filtered_trial_ids=100,
+                        profiles=100,
+                        classified_trials=100,
+                    ),
+                )
+            )
 
         async def authorize_extraction(
             self,
@@ -458,3 +471,188 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
     assert len(final_report["sections"]) == 5
     assert final_report["analyzedCohort"]["totalTrials"] == 2
 
+
+@pytest.mark.anyio
+async def test_expanded_candidate_failure_does_not_silently_run_the_legacy_cohort() -> None:
+    class ReportControl:
+        def __init__(self) -> None:
+            self.failed: tuple[str, str] | None = None
+
+        async def load(self, _report_run_id: str) -> dict:
+            return {
+                "status": "queued",
+                "tier": "max",
+                "context": "Phase 2 NSCLC study",
+                "insights": "Endpoints and enrollment",
+                "plan": _plan(),
+            }
+
+        async def progress(self, _report_run_id: str, _progress: dict) -> None:
+            return None
+
+        async def fail(
+            self,
+            _report_run_id: str,
+            code: str,
+            message: str,
+            _progress: dict,
+        ) -> None:
+            self.failed = (code, message)
+
+    class AnalysisControl:
+        async def start_analysis(self, _report_run_id: str) -> SimpleNamespace:
+            return SimpleNamespace(
+                analysis=SimpleNamespace(
+                    analysis_id="ana_12345678901234567890",
+                    limits=SimpleNamespace(
+                        filtered_trial_ids=1_000,
+                        profiles=500,
+                        classified_trials=500,
+                    ),
+                )
+            )
+
+    class Runner:
+        async def build_candidate_filter_plan(self, **_kwargs) -> CandidateFilterPlan:
+            raise MaxReportError(
+                "MAX_REPORT_CANDIDATE_PLAN_INVALID",
+                "The report service returned an invalid candidate-search plan.",
+                True,
+            )
+
+    executor = object.__new__(MaxReportExecutor)
+    executor._control = ReportControl()
+    executor._analysis_control = AnalysisControl()
+    executor._runner = Runner()
+
+    async def legacy_discovery(*_args, **_kwargs):
+        raise AssertionError("expanded leases must not silently use legacy discovery")
+
+    executor._discover = legacy_discovery
+    await executor.execute("run-expanded")
+
+    assert executor._control.failed == (
+        "MAX_REPORT_CANDIDATE_PLAN_INVALID",
+        "The report service returned an invalid candidate-search plan.",
+    )
+
+
+@pytest.mark.anyio
+async def test_candidate_discovery_round_robins_exact_seeds_and_broad_filters() -> None:
+    class Engine:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def filter_trials(self, *, filters, sort, limit, offset):
+            del sort
+            self.calls += 1
+            field = next(iter(filters.model_dump(exclude_none=True)))
+            prefix = {
+                "diseases": "D",
+                "therapeutic_areas": "T",
+                "phase": "P",
+                "modalities": "M",
+            }[field]
+            data = [
+                SimpleNamespace(eu_number=f"{prefix}{index:04d}")
+                for index in range(offset, min(200, offset + limit))
+            ]
+            return SimpleNamespace(
+                data=data,
+                counts=SimpleNamespace(total_matches=200),
+            )
+
+    class AnalysisControl:
+        async def authorize_filter_results(self, _analysis_id, trial_ids):
+            return SimpleNamespace(
+                access=SimpleNamespace(
+                    allowed_trial_ids=trial_ids,
+                    exhausted=False,
+                )
+            )
+
+    executor = object.__new__(MaxReportExecutor)
+    executor._engine = Engine()
+    executor._analysis_control = AnalysisControl()
+    filter_plan = CandidateFilterPlan.model_validate(
+        {
+            "rationale": "Progressively broaden reliable filters.",
+            "filters": [
+                {
+                    "label": "Solid-tumor oncology",
+                    "therapeutic_areas": ["Solid Tumor Oncology"],
+                },
+                {"label": "Phase 2", "phase": [2]},
+                {"label": "ADCs", "modalities": ["ADC"]},
+            ],
+        }
+    )
+    trial_ids, discovery_indices = await executor._discover_candidates(
+        "ana_12345678901234567890",
+        _plan()["studyCohorts"],
+        filter_plan,
+        350,
+    )
+    assert len(trial_ids) == 350
+    assert executor._engine.calls == 4
+    assert discovery_indices["D0000"] == {0}
+    assert any(trial_id.startswith("T") for trial_id in trial_ids)
+
+
+@pytest.mark.anyio
+async def test_candidate_screening_is_batched_and_metered() -> None:
+    class AnalysisControl:
+        def __init__(self) -> None:
+            self.operations: list[tuple[str, int]] = []
+
+        async def authorize_classifications(self, _analysis_id, keys, operation):
+            self.operations.append((operation, len(keys)))
+            return SimpleNamespace(
+                access=SimpleNamespace(allowed_classification_keys=keys)
+            )
+
+    class Runner:
+        async def screen_candidate_batch(self, **kwargs):
+            return [
+                CandidateAssessment(
+                    trial_id=item["trial_id"],
+                    tier="exact",
+                    relevance_score=90,
+                    segment_keys=["nsclc"],
+                    uncertain_segment_keys=[],
+                    rationale="Primary match.",
+                )
+                for item in kwargs["candidates"]
+            ]
+
+    executor = object.__new__(MaxReportExecutor)
+    executor._analysis_control = AnalysisControl()
+    executor._runner = Runner()
+    candidates = [
+        {"trial_id": f"T{index:03d}", "profile": {}}
+        for index in range(26)
+    ]
+    assessments = await executor._screen_candidates(
+        analysis_id="ana_12345678901234567890",
+        context="NSCLC",
+        insights="Endpoints",
+        approved_plan=_plan(),
+        segment_metadata=[
+            {
+                "key": "nsclc",
+                "label": "NSCLC",
+                "cohort_index": 0,
+                "cohort_title": "NSCLC trials",
+                "inclusion_criteria": ["The Trial Profile concerns NSCLC"],
+                "exclusion_criteria": [],
+            }
+        ],
+        candidates=candidates,
+    )
+    assert [item.trial_id for item in assessments] == [item["trial_id"] for item in candidates]
+    assert sorted(executor._analysis_control.operations) == [
+        ("commit", 1),
+        ("commit", 25),
+        ("reserve", 1),
+        ("reserve", 25),
+    ]

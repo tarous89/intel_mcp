@@ -11,11 +11,14 @@ from intel_mcp.max_report import (
     MAX_REPORT_MODEL,
     MAX_REPORT_SERVICE_TIER,
     MAX_REPORT_TRIAL_COUNT,
+    INVESTIGATOR_PROFILE_PATH,
+    MaxAnalysisPlan,
     MaxVisual,
     MaxReportError,
     SemanticVariable,
     TerraMaxReportRunner,
     build_field_catalog,
+    ensure_investigator_analysis_variable,
     max_group_variables,
     resolve_profile_path,
     sap_schema,
@@ -179,6 +182,7 @@ def test_max_v1_hard_limits_and_profile_catalogue() -> None:
     paths = {item["path"] for item in catalogue}
     assert "$trial_id" in paths
     assert "filtering_variables.planned_sample_size" in paths
+    assert INVESTIGATOR_PROFILE_PATH in paths
     assert "classification_variables.sites[].investigators[].first_name" in paths
     assert "classification_variables.long_narrative" not in paths
     assert resolve_profile_path(
@@ -186,6 +190,59 @@ def test_max_v1_hard_limits_and_profile_catalogue() -> None:
         "classification_variables.sites[].investigators[].first_name",
         "2026-000001-00-00",
     ) == "Ada"
+    assert resolve_profile_path(
+        _profile("2026-000001-00-00").profile,
+        INVESTIGATOR_PROFILE_PATH,
+        "2026-000001-00-00",
+    ) == [{
+        "name": "Ada Example",
+        "email": "ada@example.org",
+        "department_or_division": "Oncology",
+        "function": None,
+        "site_name": "Central Hospital",
+        "country_code": None,
+    }]
+
+
+def test_investigator_objectives_always_receive_the_v11_investigator_entity_list() -> None:
+    approved_plan = _plan()
+    approved_plan["reportSections"][2]["maxAnalysis"] = {
+        "title": "Prioritize principal investigators",
+        "details": ["Rank documented investigator activity"],
+    }
+    analysis_plan = {
+        "rationale": "Use structured evidence.",
+        "direct_variables": [{
+            "name": "trial_id",
+            "label": "Trial",
+            "description": "Trial identifier",
+            "profile_path": "$trial_id",
+            "kind": "categorical",
+            "analysis_indices": [0, 1, 2, 3, 4],
+        }],
+        "semantic_variables": [],
+        "analyses": [
+            {
+                "analysis_index": index,
+                "purpose": f"Execute analysis {index}",
+                "methods": ["Count", "Rank"],
+                "variable_names": ["trial_id"],
+                "segment_keys": [],
+            }
+            for index in range(5)
+        ],
+    }
+    normalized = ensure_investigator_analysis_variable(
+        MaxAnalysisPlan.model_validate(analysis_plan),
+        approved_plan,
+    )
+    variable = next(
+        item for item in normalized.direct_variables
+        if item.profile_path == INVESTIGATOR_PROFILE_PATH
+    )
+    assert variable.analysis_indices == [2]
+    assert variable.name in normalized.analyses[2].variable_names
+    assert variable.name not in normalized.analyses[1].variable_names
 
 
 def test_group_classification_is_reserved_inside_the_twenty_variable_budget() -> None:
@@ -207,6 +264,14 @@ def test_group_classification_is_reserved_inside_the_twenty_variable_budget() ->
         semantic_budget=MAX_NONDETERMINISTIC_VARIABLES - len(variables),
     )
     assert schema["properties"]["semantic_variables"]["maxItems"] == 17
+
+    candidate_variables, candidate_metadata = max_group_variables(
+        _plan(),
+        include_primary=True,
+    )
+    assert candidate_variables[0].name == "segment_nsclc"
+    assert candidate_metadata[0]["cohort_index"] == 0
+    assert candidate_metadata[0]["membership_source"] == "profile_extraction"
 
 
 def test_group_classification_never_silently_truncates_criteria() -> None:
@@ -348,3 +413,142 @@ async def test_sap_uses_terra_flex_and_one_shared_variable_plan() -> None:
     )
     assert len(result.analyses) == 5
     assert result.direct_variables[0].profile_path == "filtering_variables.planned_sample_size"
+
+
+@pytest.mark.anyio
+async def test_candidate_planning_uses_reliable_fields_without_rewriting_the_report_plan() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["model"] == "gpt-5.6-sol"
+        assert payload["service_tier"] == "flex"
+        assert payload["reasoning"] == {"effort": "medium"}
+        item = payload["text"]["format"]["schema"]["properties"]["filters"]["items"]
+        assert "diseases" not in item["properties"]
+        user = json.loads(payload["input"][1]["content"][0]["text"])
+        assert user["approved_report_plan"] == _plan()
+        result = {
+            "rationale": "Start focused, then broaden to the therapeutic area.",
+            "filters": [
+                {
+                    "label": "Phase 2 solid-tumor ADCs",
+                    "therapeutic_areas": ["Solid Tumor Oncology"],
+                    "phase": [2],
+                    "modalities": ["ADC"],
+                    "country_codes": None,
+                },
+                {
+                    "label": "Solid-tumor ADCs",
+                    "therapeutic_areas": ["Solid Tumor Oncology"],
+                    "phase": None,
+                    "modalities": ["ADC"],
+                    "country_codes": None,
+                },
+                {
+                    "label": "All solid-tumor oncology",
+                    "therapeutic_areas": ["Solid Tumor Oncology"],
+                    "phase": None,
+                    "modalities": None,
+                    "country_codes": None,
+                },
+            ],
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps(result)}],
+                    }
+                ],
+            },
+        )
+
+    runner = TerraMaxReportRunner(_settings(), transport=httpx.MockTransport(handler))
+    result = await runner.build_candidate_filter_plan(
+        context="Phase 2 NSCLC study",
+        insights="Endpoints and enrollment",
+        approved_plan=_plan(),
+    )
+    assert len(result.filters) == 3
+    assert result.filters[-1].therapeutic_areas == ["Solid Tumor Oncology"]
+
+
+@pytest.mark.anyio
+async def test_candidate_screening_returns_every_trial_and_keeps_system_names_out_of_errors() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["model"] == "gpt-5.6-sol"
+        assert payload["reasoning"] == {"effort": "medium"}
+        result = {
+            "assessments": [
+                {
+                    "trial_id": "T1",
+                    "tier": "exact",
+                    "relevance_score": 96,
+                    "segment_keys": ["nsclc"],
+                    "uncertain_segment_keys": [],
+                    "rationale": "The compact profile supports the primary segment.",
+                }
+            ]
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps(result)}],
+                    }
+                ],
+            },
+        )
+
+    runner = TerraMaxReportRunner(_settings(), transport=httpx.MockTransport(handler))
+    segments = [
+        {
+            "key": "nsclc",
+            "label": "NSCLC",
+            "cohort_index": 0,
+            "cohort_title": "NSCLC trials",
+            "inclusion_criteria": ["The Trial Profile concerns NSCLC"],
+            "exclusion_criteria": [],
+        }
+    ]
+    result = await runner.screen_candidate_batch(
+        context="Phase 2 NSCLC study",
+        insights="Endpoints and enrollment",
+        approved_plan=_plan(),
+        segment_metadata=segments,
+        candidates=[{"trial_id": "T1", "profile": {"classification_variables": {}}}],
+    )
+    assert result[0].tier == "exact"
+
+    async def invalid_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "{}"}],
+                    }
+                ],
+            },
+        )
+
+    invalid_runner = TerraMaxReportRunner(
+        _settings(),
+        transport=httpx.MockTransport(invalid_handler),
+    )
+    with pytest.raises(MaxReportError) as captured:
+        await invalid_runner.build_candidate_filter_plan(
+            context="Phase 2 NSCLC study",
+            insights="Endpoints and enrollment",
+            approved_plan=_plan(),
+        )
+    assert "terra" not in captured.value.message.casefold()
+    assert "gpt" not in captured.value.message.casefold()

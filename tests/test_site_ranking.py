@@ -111,7 +111,7 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(site["contact"]["email"], "lung@example.org")
         self.assertEqual(site["matchedPIs"][0]["indicationTrials"], 1)
 
-    def test_legacy_pi_flags_are_ignored_during_cutover_compatibility(self):
+    def test_removed_legacy_site_people_are_not_read_as_v11_investigators(self):
         record = item()
         site = record["profile"]["classification_variables"]["sites"][0]
         site["site_contacts"] = [
@@ -121,11 +121,11 @@ class RankingTests(unittest.TestCase):
         site.pop("investigators")
         result = rank_profiles([record], CRITERIA)
         self.assertEqual(result["counts"]["sites"], 1)
-        self.assertEqual(result["counts"]["pis"], 2)
-        self.assertEqual(result["counts"]["confirmedPIs"], 2)
+        self.assertEqual(result["counts"]["pis"], 0)
+        self.assertEqual(result["counts"]["confirmedPIs"], 0)
         self.assertEqual(result["counts"]["unconfirmedContacts"], 0)
-        self.assertTrue(all(person["role"] == "confirmed_pi" for person in result["pis"]))
-        self.assertEqual(result["sites"][0]["contact"]["email"], "coordinator@example.org")
+        self.assertEqual(result["pis"], [])
+        self.assertIsNone(result["sites"][0]["contact"])
 
     def test_investigator_function_is_not_required_to_establish_pi_role(self):
         result = rank_profiles([item(investigators=[investigator(function="Study office")])], CRITERIA)

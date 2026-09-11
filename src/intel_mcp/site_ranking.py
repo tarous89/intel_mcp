@@ -346,10 +346,7 @@ class ProfileRanker:
                 site["trials"][trial_id] = site_trial
                 investigators = raw_site.get("investigators")
                 if not isinstance(investigators, list):
-                    # Transitional read compatibility while Engine v10 rows are
-                    # atomically migrated. Every legacy record is still treated
-                    # as an investigator; the removed boolean is never consulted.
-                    investigators = raw_site.get("site_contacts") or []
+                    investigators = []
                 for investigator in investigators:
                     if not isinstance(investigator, dict):
                         continue

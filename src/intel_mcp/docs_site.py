@@ -76,7 +76,7 @@ DOCS_HTML = r"""<!doctype html>
           <tr><td><code>results</code></td><td>The complete results object: participant flow, country enrollment, endpoint/safety results and operational findings.</td></tr>
         </tbody>
       </table>
-      <div class="callout"><strong>Simple contract:</strong> the only new input is optional <code>sections</code>. The output fields are unchanged. Light and initial Max analyses may each retrieve up to 100 unique profiles. Re-reading the same trial with different sections or later as a complete profile does not consume the profile allowance twice.</div>
+      <div class="callout"><strong>Simple contract:</strong> the only new input is optional <code>sections</code>. The output fields are unchanged. Light may retrieve up to 100 unique profiles; the current Max candidate workflow may retrieve up to 500. Re-reading the same trial with different sections or later as a complete profile does not consume the profile allowance twice.</div>
     </div></section>
 
     <section id="examples"><div class="shell">

@@ -1,8 +1,8 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
-This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials; Max v1 is capped at 100 approved Trial Profiles.
+This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 approved Trial Profiles for report analysis.
 
 ## Report-plan v4
 
@@ -90,22 +90,25 @@ synthesis: intel_light_synthesis_v5
 
 ### Hard limits
 
-- 100 unique trials in one frozen report-wide cohort;
+- target 500 compact candidate profiles after deterministic discovery, with a hard 1,000-ID discovery ceiling;
+- 100 unique trials in the final frozen report-wide cohort;
 - 10 complete, untruncated, group-stratified profile examples for the SAP;
 - 20 total non-deterministic profile variables, including Boolean segment membership;
 - no protocol or source-document extraction;
 - one profile-only semantic extraction call per selected trial;
 - 1–7 objective analyst calls and one reducer call.
 
-All Max generative stages use `gpt-5.6-terra`, high reasoning and `service_tier=flex`. The shared planner remains Sol/medium.
+Candidate-filter planning and compact-profile screening use Sol/medium/Flex. SAP, final profile extraction, objective analysis and reduction use Terra/high/Flex. The shared report planner remains Sol/medium and is not constrained to deterministic screening fields.
 
 ### Stages
 
-1. Apply every group's deterministic discovery filter, deduplicate to at most 100 trials, and retain broad-pool, granular-segment and discovery provenance labels.
-2. Build one SAP from the approved brief/plan, an ephemeral catalogue of short profile fields and up to 10 whole profile examples. Deterministic fields are preferred; narrative interpretation uses the remaining semantic-variable budget.
-3. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete approved Trial Profile. Up to 10 extraction requests run concurrently.
-4. Run one analyst per main analysis pair. Each receives only its planned variables, deterministic summaries, bounded finite numeric correlations, labeled-group definitions and relevant rows. It performs the shared quantitative and Max decision analysis together.
-5. Run one reducer over completed sections and cohort summaries. It may connect findings but not invent evidence.
+1. Preserve every approved group's existing discovery filter as an exact seed, then have a report-start candidate planner create an ordered focused-to-broad progression using only reliable `therapeutic_areas`, `phase`, `modalities` and `country_codes` fields. Disease remains a seed rather than the sole recall gate.
+2. Execute the seed and broad filters in bounded round-robin pages, deduplicate and stop at the 500-candidate target or when the available approved pool is exhausted.
+3. Load only compact `overview`, `population`, `trial_design` and `interventions` projections for candidates. Sol screens them in batches of 25 against the approved rich disease, biomarker, treatment-setting and population segments, assigning `exact`, `close`, `adjacent` or `exclude` without changing any approved analysis.
+4. Select at most 100 non-excluded profiles deterministically while reserving representation for planned adjacent groups. Reload those selected profiles completely and classify every planned segment from the full profile during final extraction.
+5. Build one SAP from the approved brief/plan, an ephemeral catalogue of short fields across every selected profile and up to 10 whole profile examples. Deterministic fields are preferred; narrative interpretation uses the remaining semantic-variable budget. Trial Profile 11 investigators are exposed as one deterministic entity list per trial so names remain aligned with site, country, department and public email; every listed person is a PI by contract.
+6. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete approved Trial Profile. Up to 10 extraction requests run concurrently.
+7. Run one analyst per main analysis pair, then one reducer over the completed sections and cohort summary. Analysts receive only planned variables and the frozen selected dataset; no new report objectives are introduced.
 
 SAP semantic-variable instructions target 500 compact characters. The executor normalizes whitespace and deterministically bounds any model-produced overrun to the extractor's 600-character contract while preserving both the extraction task and trailing return/missing-value guidance. An overlong instruction therefore cannot stop an otherwise valid paid run.
 
@@ -116,9 +119,11 @@ final_report.version = 2
 final_report.tier = max
 ```
 
+`analyzedCohort` may also carry the screened-candidate count and selected `exact`/`close`/`adjacent` composition. Existing renderers ignore unknown fields, so the version-2 output contract remains backward compatible.
+
 ### Control-plane boundary
 
-The private `/internal/max-report/start` route launches Max. Its six-hour lease excludes `get_documents`, zeros document allowances and clamps filter/profile/classification/extraction allowances to 100. Successful completion consumes the reserved entitlement; system failure leaves it unconsumed.
+The private `/internal/max-report/start` route launches Max. Its six-hour lease excludes `get_documents`, zeros document allowances, authorizes up to 1,000 filtered IDs, 500 profiles and 500 screening classifications, and keeps final extraction at 100 trials. Leases capped at 100 by an older App deployment automatically use the legacy bounded workflow. Once an expanded lease is issued, candidate-stage failures stop the run for safe retry rather than silently falling back to a smaller cohort. Successful completion consumes the reserved entitlement; system failure leaves it unconsumed.
 
 ## Runtime boundary
 

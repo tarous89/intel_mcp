@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 from dataclasses import replace
 from typing import Any
@@ -14,6 +15,18 @@ from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.engine_database import DatabaseEngineClient
 from intel_mcp.extraction import ExtractionVariable, ExtractorError, TerraExtractor, extraction_key
 from intel_mcp.light_report_execution import ReportExecutionControl, ReportExecutionError
+from intel_mcp.max_candidate_screening import (
+    CANDIDATE_POOL_TARGET,
+    MAX_CANDIDATE_POOL,
+    MAX_CANDIDATE_SCREEN_BATCH,
+    MAX_CANDIDATE_SCREEN_CONCURRENCY,
+    CandidateAssessment,
+    CandidateFilter,
+    CandidateFilterPlan,
+    candidate_screening_key,
+    screening_summary,
+    select_screened_candidates,
+)
 from intel_mcp.max_report import (
     MAX_NONDETERMINISTIC_VARIABLES,
     MAX_REPORT_MODEL,
@@ -30,13 +43,19 @@ from intel_mcp.max_report import (
     resolve_profile_path,
 )
 from intel_mcp.models import TrialFilters, TrialSort
-from intel_mcp.profiles import FullProfileItem, MAX_PROFILES_PER_CALL
+from intel_mcp.profiles import (
+    FullProfileItem,
+    MAX_PROFILES_PER_CALL,
+    project_profile,
+)
 
 
 LOGGER = logging.getLogger("intel_mcp")
 # Ten concurrent Flex workers keep the worst-case 100-profile enrichment phase
 # inside the six-hour Max lease without creating an unbounded fan-out.
 MAX_EXTRACTION_CONCURRENCY = 10
+MAX_PROFILE_LOAD_CONCURRENCY = 5
+CANDIDATE_PROFILE_SECTIONS = ["overview", "population", "trial_design", "interventions"]
 
 
 def _execution_plan(plan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -90,6 +109,44 @@ def _trial_filters(discovery: dict[str, Any]) -> TrialFilters:
         return TrialFilters.model_validate(payload)
     except ValueError as error:
         raise MaxReportError("MAX_REPORT_PLAN_INVALID", "A Max discovery filter is invalid.", False) from error
+
+
+def _candidate_trial_filters(candidate: CandidateFilter) -> TrialFilters:
+    payload: dict[str, Any] = {}
+    if candidate.therapeutic_areas:
+        payload["therapeutic_areas"] = {
+            "operator": "contains_any",
+            "values": candidate.therapeutic_areas,
+        }
+    if candidate.phase:
+        payload["phase"] = {"operator": "contains_any", "values": candidate.phase}
+    if candidate.modalities:
+        payload["modalities"] = {
+            "operator": "contains_any",
+            "values": candidate.modalities,
+        }
+    if candidate.country_codes:
+        payload["country_codes"] = {
+            "operator": "contains_any",
+            "values": candidate.country_codes,
+        }
+    try:
+        return TrialFilters.model_validate(payload)
+    except ValueError as error:
+        raise MaxReportError(
+            "MAX_REPORT_CANDIDATE_PLAN_INVALID",
+            "The candidate-search plan contains an invalid deterministic filter.",
+            True,
+        ) from error
+
+
+def _candidate_pool_limit(limits: Any) -> int:
+    values = [
+        int(getattr(limits, "filtered_trial_ids", 0) or 0),
+        int(getattr(limits, "profiles", 0) or 0),
+        int(getattr(limits, "classified_trials", 0) or 0),
+    ]
+    return min(CANDIDATE_POOL_TARGET, MAX_CANDIDATE_POOL, *values)
 
 
 def _discovery_quotas(cohort_count: int) -> list[int]:
@@ -348,6 +405,244 @@ class MaxReportExecutor:
             )
         return selected, discovery_indices
 
+    async def _discover_candidates(
+        self,
+        analysis_id: str,
+        cohorts: list[dict[str, Any]],
+        filter_plan: CandidateFilterPlan,
+        candidate_limit: int,
+    ) -> tuple[list[str], dict[str, set[int]]]:
+        queries: list[dict[str, Any]] = []
+        query_by_key: dict[str, dict[str, Any]] = {}
+
+        def add_query(filters: TrialFilters, cohort_index: int | None) -> None:
+            key = json.dumps(
+                filters.model_dump(mode="json", exclude_none=True),
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            existing = query_by_key.get(key)
+            if existing is not None:
+                if cohort_index is not None:
+                    existing["cohort_indices"].add(cohort_index)
+                return
+            query = {
+                "filters": filters,
+                "cohort_indices": {cohort_index} if cohort_index is not None else set(),
+                "offset": 0,
+                "exhausted": False,
+            }
+            query_by_key[key] = query
+            queries.append(query)
+
+        # Preserve the approved plan's exact discovery seeds, including disease
+        # names, before adding the broader reliable-field progression.
+        for cohort_index, cohort in enumerate(cohorts):
+            add_query(_trial_filters(cohort["discoveryFilter"]), cohort_index)
+        for candidate in filter_plan.filters:
+            add_query(_candidate_trial_filters(candidate), None)
+
+        selected: list[str] = []
+        selected_ids: set[str] = set()
+        discovery_indices: dict[str, set[int]] = {}
+        access_exhausted = False
+
+        while len(selected) < candidate_limit and not access_exhausted:
+            active = [query for query in queries if not query["exhausted"]]
+            if not active:
+                break
+            before = len(selected)
+            for query in active:
+                remaining = candidate_limit - len(selected)
+                if remaining <= 0:
+                    break
+                page_size = min(100, remaining)
+                try:
+                    result = await self._engine.filter_trials(
+                        filters=query["filters"],
+                        sort=TrialSort(),
+                        limit=page_size,
+                        offset=query["offset"],
+                    )
+                    ids = [item.eu_number for item in result.data]
+                    access = await self._analysis_control.authorize_filter_results(analysis_id, ids)
+                except ControlPlaneError as error:
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+                except EngineError as error:
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+
+                query["offset"] += len(result.data)
+                query["exhausted"] = (
+                    query["offset"] >= result.counts.total_matches
+                    or len(result.data) < page_size
+                )
+                allowed = set(access.access.allowed_trial_ids)
+                for trial_id in ids:
+                    if trial_id not in allowed:
+                        continue
+                    if query["cohort_indices"]:
+                        discovery_indices.setdefault(trial_id, set()).update(query["cohort_indices"])
+                    if trial_id not in selected_ids and len(selected) < candidate_limit:
+                        selected.append(trial_id)
+                        selected_ids.add(trial_id)
+                access_exhausted = bool(access.access.exhausted) and len(selected) < candidate_limit
+                if access_exhausted:
+                    break
+            if len(selected) == before and all(query["exhausted"] for query in queries):
+                break
+
+        if not selected:
+            raise MaxReportError(
+                "MAX_REPORT_NO_TRIALS",
+                "No approved Trial Profiles matched the planned Max evidence groups.",
+                False,
+            )
+        return selected, discovery_indices
+
+    async def _load_compact_profiles(
+        self,
+        analysis_id: str,
+        trial_ids: list[str],
+    ) -> list[dict[str, Any]]:
+        semaphore = asyncio.Semaphore(MAX_PROFILE_LOAD_CONCURRENCY)
+
+        async def load(index: int, batch: list[str]) -> tuple[int, list[dict[str, Any]]]:
+            async with semaphore:
+                try:
+                    result = await self._engine.get_profiles(batch)
+                    access = await self._analysis_control.authorize_profiles(
+                        analysis_id,
+                        [item.eu_number for item in result.data],
+                    )
+                except ControlPlaneError as error:
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+                except EngineError as error:
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+                returned = [item.eu_number for item in result.data]
+                if result.unavailable_trial_ids or returned != batch or access.access.allowed_trial_ids != batch:
+                    raise MaxReportError(
+                        "MAX_REPORT_PROFILE_ACCESS_INCOMPLETE",
+                        "One or more candidate Trial Profiles could not be loaded.",
+                        True,
+                    )
+                return index, [
+                    {
+                        "trial_id": item.eu_number,
+                        "profile": project_profile(item.profile, CANDIDATE_PROFILE_SECTIONS),
+                    }
+                    for item in result.data
+                ]
+
+        tasks = [
+            load(index, trial_ids[start : start + MAX_PROFILES_PER_CALL])
+            for index, start in enumerate(range(0, len(trial_ids), MAX_PROFILES_PER_CALL))
+        ]
+        batches = sorted(await asyncio.gather(*tasks), key=lambda item: item[0])
+        return [profile for _, batch in batches for profile in batch]
+
+    async def _screen_candidates(
+        self,
+        *,
+        analysis_id: str,
+        context: str,
+        insights: str,
+        approved_plan: dict[str, Any],
+        segment_metadata: list[dict[str, Any]],
+        candidates: list[dict[str, Any]],
+    ) -> list[CandidateAssessment]:
+        stable_segments = [
+            {
+                "key": item["key"],
+                "label": item["label"],
+                "cohort_index": item["cohort_index"],
+                "cohort_title": item["cohort_title"],
+                "inclusion_criteria": item["inclusion_criteria"],
+                "exclusion_criteria": item["exclusion_criteria"],
+            }
+            for item in segment_metadata
+        ]
+        semaphore = asyncio.Semaphore(MAX_CANDIDATE_SCREEN_CONCURRENCY)
+
+        async def screen(batch: list[dict[str, Any]]) -> list[CandidateAssessment]:
+            async with semaphore:
+                keys = [
+                    candidate_screening_key(str(item["trial_id"]), stable_segments)
+                    for item in batch
+                ]
+                try:
+                    reservation = await self._analysis_control.authorize_classifications(
+                        analysis_id,
+                        keys,
+                        "reserve",
+                    )
+                except ControlPlaneError as error:
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+                if reservation.access.allowed_classification_keys != keys:
+                    allowed_keys = reservation.access.allowed_classification_keys
+                    if allowed_keys:
+                        try:
+                            await self._analysis_control.authorize_classifications(
+                                analysis_id,
+                                allowed_keys,
+                                "release",
+                            )
+                        except ControlPlaneError:
+                            pass
+                    raise MaxReportError(
+                        "MAX_REPORT_SCREEN_ACCESS_INCOMPLETE",
+                        "The candidate screening allowance was incomplete.",
+                        True,
+                    )
+                try:
+                    assessments = await self._runner.screen_candidate_batch(
+                        context=context,
+                        insights=insights,
+                        approved_plan=approved_plan,
+                        segment_metadata=stable_segments,
+                        candidates=batch,
+                    )
+                except MaxReportError:
+                    try:
+                        await self._analysis_control.authorize_classifications(
+                            analysis_id,
+                            keys,
+                            "release",
+                        )
+                    except ControlPlaneError:
+                        pass
+                    raise
+                try:
+                    await self._analysis_control.authorize_classifications(
+                        analysis_id,
+                        keys,
+                        "commit",
+                    )
+                except ControlPlaneError as error:
+                    try:
+                        await self._analysis_control.authorize_classifications(
+                            analysis_id,
+                            keys,
+                            "release",
+                        )
+                    except ControlPlaneError:
+                        pass
+                    raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
+                return assessments
+
+        batches = [
+            candidates[start : start + MAX_CANDIDATE_SCREEN_BATCH]
+            for start in range(0, len(candidates), MAX_CANDIDATE_SCREEN_BATCH)
+        ]
+        tasks = [asyncio.create_task(screen(batch)) for batch in batches]
+        try:
+            results = await asyncio.gather(*tasks)
+        except Exception:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+        return [assessment for batch in results for assessment in batch]
+
     async def _load_profiles(self, analysis_id: str, trial_ids: list[str]) -> list[FullProfileItem]:
         profiles: list[FullProfileItem] = []
         for start in range(0, len(trial_ids), MAX_PROFILES_PER_CALL):
@@ -424,7 +719,7 @@ class MaxReportExecutor:
         analysis_plan: MaxAnalysisPlan,
         group_variables: list[ExtractionVariable],
         segment_metadata: list[dict[str, Any]],
-        primary_segment_key: str,
+        primary_segment_key: str | None,
         progress: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         semantic_variables = [
@@ -466,7 +761,8 @@ class MaxReportExecutor:
                 }
                 segment_keys = (
                     [primary_segment_key]
-                    if 0 in discovery_indices.get(profile.eu_number, set())
+                    if primary_segment_key is not None
+                    and 0 in discovery_indices.get(profile.eu_number, set())
                     else []
                 ) + [
                     segment_by_variable[name]
@@ -540,11 +836,6 @@ class MaxReportExecutor:
             if not isinstance(context, str) or not isinstance(insights, str) or not isinstance(approved_plan, dict):
                 raise MaxReportError("MAX_REPORT_JOB_INVALID", "The Max report job is incomplete.", False)
             cohorts, sections = _execution_plan(approved_plan)
-            group_variables, extracted_segment_metadata = max_group_variables(approved_plan)
-            segment_metadata = [
-                _primary_segment_metadata(cohorts),
-                *extracted_segment_metadata,
-            ]
             progress = {
                 "version": 2,
                 "stage": "starting",
@@ -561,31 +852,152 @@ class MaxReportExecutor:
             except ControlPlaneError as error:
                 raise MaxReportError(error.code, error.message, error.status_code >= 500) from error
             analysis_id = access.analysis.analysis_id
+            candidate_limit = _candidate_pool_limit(getattr(access.analysis, "limits", None))
 
             progress = _mark(
                 progress,
                 "trial_selection",
                 "in_progress",
                 completed_units=0,
-                total_units=MAX_REPORT_TRIAL_COUNT,
+                total_units=(
+                    candidate_limit
+                    if candidate_limit > MAX_REPORT_TRIAL_COUNT
+                    else MAX_REPORT_TRIAL_COUNT
+                ),
             )
             await self._control.progress(report_run_id, progress)
-            trial_ids, discovery_indices = await self._discover(analysis_id, cohorts)
-            profiles = await self._load_profiles(analysis_id, trial_ids)
+
+            candidate_execution = False
+            candidate_overview: dict[str, Any] | None = None
+            selected_assessments: dict[str, CandidateAssessment] = {}
+            trial_ids: list[str]
+            discovery_indices: dict[str, set[int]]
+            profiles: list[FullProfileItem]
+            group_variables: list[ExtractionVariable]
+            segment_metadata: list[dict[str, Any]]
+            primary_segment_key: str | None
+
+            if candidate_limit > MAX_REPORT_TRIAL_COUNT:
+                try:
+                    filter_plan = await self._runner.build_candidate_filter_plan(
+                        context=context,
+                        insights=insights,
+                        approved_plan=approved_plan,
+                    )
+                    candidate_ids, candidate_discovery_indices = await self._discover_candidates(
+                        analysis_id,
+                        cohorts,
+                        filter_plan,
+                        candidate_limit,
+                    )
+                    candidate_profiles = await self._load_compact_profiles(
+                        analysis_id,
+                        candidate_ids,
+                    )
+                    candidate_group_variables, candidate_segment_metadata = max_group_variables(
+                        approved_plan,
+                        include_primary=True,
+                    )
+                    progress = _mark(
+                        progress,
+                        "trial_selection",
+                        "in_progress",
+                        completed_units=0,
+                        total_units=len(candidate_profiles),
+                    )
+                    await self._control.progress(report_run_id, progress)
+                    assessments = await self._screen_candidates(
+                        analysis_id=analysis_id,
+                        context=context,
+                        insights=insights,
+                        approved_plan=approved_plan,
+                        segment_metadata=candidate_segment_metadata,
+                        candidates=candidate_profiles,
+                    )
+                except MaxReportError as error:
+                    LOGGER.warning(
+                        "Max candidate screening failed before final cohort selection: report_run_id=%s code=%s",
+                        report_run_id,
+                        error.code,
+                    )
+                    raise
+                else:
+                    segment_cohort_indices = {
+                        item["key"]: item["cohort_index"]
+                        for item in candidate_segment_metadata
+                    }
+                    selected = select_screened_candidates(
+                        assessments,
+                        segment_cohort_indices=segment_cohort_indices,
+                        maximum=MAX_REPORT_TRIAL_COUNT,
+                    )
+                    if not selected:
+                        raise MaxReportError(
+                            "MAX_REPORT_NO_RELEVANT_TRIALS",
+                            "No approved Trial Profiles were sufficiently relevant to the approved report plan.",
+                            False,
+                        )
+                    trial_ids = [item.trial_id for item in selected]
+                    selected_assessments = {item.trial_id: item for item in selected}
+                    discovery_indices = {
+                        trial_id: set(candidate_discovery_indices.get(trial_id, set()))
+                        for trial_id in trial_ids
+                    }
+                    for item in selected:
+                        discovery_indices[item.trial_id].update(
+                            segment_cohort_indices[key]
+                            for key in [*item.segment_keys, *item.uncertain_segment_keys]
+                            if key in segment_cohort_indices
+                        )
+                    profiles = await self._load_profiles(analysis_id, trial_ids)
+                    group_variables = candidate_group_variables
+                    segment_metadata = candidate_segment_metadata
+                    primary_segment_key = None
+                    candidate_overview = screening_summary(assessments, selected)
+                    candidate_execution = True
+
+            if not candidate_execution:
+                group_variables, extracted_segment_metadata = max_group_variables(approved_plan)
+                segment_metadata = [
+                    _primary_segment_metadata(cohorts),
+                    *extracted_segment_metadata,
+                ]
+                primary_segment_key = segment_metadata[0]["key"]
+                trial_ids, discovery_indices = await self._discover(analysis_id, cohorts)
+                profiles = await self._load_profiles(analysis_id, trial_ids)
+
             progress["selectedTrials"] = [
                 {
                     "trial_id": trial_id,
-                    "group": "priority" if 0 in discovery_indices.get(trial_id, set()) else "adjacent",
+                    "group": (
+                        "priority"
+                        if (
+                            selected_assessments[trial_id].tier in {"exact", "close"}
+                            if trial_id in selected_assessments
+                            else 0 in discovery_indices.get(trial_id, set())
+                        )
+                        else "adjacent"
+                    ),
                     "cohort_index": min(discovery_indices.get(trial_id, {0})),
                 }
                 for trial_id in trial_ids
             ]
+            if candidate_overview is not None:
+                progress["candidateScreening"] = candidate_overview
             progress = _mark(
                 progress,
                 "trial_selection",
                 "completed",
-                completed_units=len(profiles),
-                total_units=len(profiles),
+                completed_units=(
+                    candidate_overview["screenedCandidates"]
+                    if candidate_overview is not None
+                    else len(profiles)
+                ),
+                total_units=(
+                    candidate_overview["screenedCandidates"]
+                    if candidate_overview is not None
+                    else len(profiles)
+                ),
             )
             await self._control.progress(report_run_id, progress)
 
@@ -598,7 +1010,10 @@ class MaxReportExecutor:
                 plan=approved_plan,
                 profiles=initial_sample,
             )
-            field_catalog = build_field_catalog(sample)
+            # Catalogue all selected profiles so sparse structured fields such as
+            # site investigators remain available even when absent from the ten
+            # complete examples sent to the SAP request.
+            field_catalog = build_field_catalog(profiles)
             analysis_plan = await self._runner.build_analysis_plan(
                 context=context,
                 insights=insights,
@@ -627,7 +1042,7 @@ class MaxReportExecutor:
                 analysis_plan=analysis_plan,
                 group_variables=group_variables,
                 segment_metadata=segment_metadata,
-                primary_segment_key=segment_metadata[0]["key"],
+                primary_segment_key=primary_segment_key,
                 progress=progress,
             )
             progress = _mark(
@@ -684,6 +1099,8 @@ class MaxReportExecutor:
                 )
 
             analyzed_cohort = self._cohort_summary(rows, segment_metadata)
+            if candidate_overview is not None:
+                analyzed_cohort.update(candidate_overview)
             progress = _mark(progress, "final_report", "in_progress")
             await self._control.progress(report_run_id, progress)
             synthesis = await self._runner.synthesize(

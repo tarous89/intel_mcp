@@ -4,7 +4,7 @@
 
 Return current approved Trial Profile 11.0.0 data for explicit EU trial numbers. The tool is a bounded deterministic read path: it performs no model work, summarization, semantic search or profile generation.
 
-Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light and initial Max may each retrieve up to **100 unique profiles** across calls.
+Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light may retrieve up to **100 unique profiles** across calls and the current Max candidate workflow may retrieve up to **500**.
 
 Use `sections` when only part of the structured profile is needed. Omit `sections` or pass `[]` when the complete profile is needed. There is no separate allowance or call-size tier for section versus complete-profile reads.
 
@@ -132,7 +132,7 @@ POST /api/internal/mcp/profile-access
 Current per-analysis limits are:
 
 - **Light: 100 unique profiles**
-- **Max v1: 100 unique profiles**
+- **Max v1: 500 unique profiles**
 
 Repeated retrieval of the same trial ID does not consume allowance again, even when different sections are requested later. Missing/unapproved profiles are never metered.
 
