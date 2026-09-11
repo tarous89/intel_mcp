@@ -1,6 +1,6 @@
 # Site Agent MCP boundary
 
-Updated 2026-09-09. This file describes the deterministic project slice on the current branch.
+Updated 2026-09-11. This file describes the deterministic project slice on the current branch.
 Canonical product scope: `tarous89/site-agent/PROJECT_CONTEXT.md`.
 
 ## Contract
@@ -33,7 +33,7 @@ a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-experience-v5` returns separate Sites and PI-candidate lists. Both are ordered by
+`therapeutic-area-experience-v6` returns separate Sites and principal-investigator lists. Both are ordered by
 five-year indication trial count, requested-phase count, requested-modality count, paediatric
 count when relevant, therapeutic-area count, recency, then stable
 name/ID tie-breaks. A disease synonym can match a trial only once. The free response contains the top
@@ -47,15 +47,15 @@ the preview is truncated. Zero is always Bottom 25%; positive counts use tied mi
 placement. The bands are evidence context, never performance, recruitment capacity, patient
 availability or current-affiliation claims. Treatment setting is not read or scored.
 
-Recorded email routes are returned. Confirmed PIs are ranked within each site using the same
-indication, phase, modality, paediatric and TA criteria. The highest-ranked confirmed PI with an
-email becomes the site-row contact, while the top three and the full confirmed-PI count are
-returned as matched-investigator evidence. With no confirmed PI email, a stable site-contact
-frequency/name/email tie-break is used. A named contact is a confirmed PI only when
-`principal_investigator=true` or an exact PI role string is present. Null role remains
-`role_unconfirmed`; explicit false is excluded from the PI-candidate list. Stable email is
+Recorded investigator email routes are returned. Investigators are ranked within each site using the same
+indication, phase, modality, paediatric and TA criteria. The highest-ranked investigator with an
+email becomes the site-row contact, while the top three and the full investigator count are
+returned as matched-investigator evidence. With no ranked investigator email, a stable
+frequency/name/email tie-break across the site's investigators is used. Trial Profile 11 defines
+every record in `classification_variables.sites[].investigators[]` as a principal investigator;
+Site Agent does not inspect a separate role flag or create an unconfirmed-contact class. Stable email is
 not treated as the display identity because CTIS can record different addresses over time.
-PI candidates are grouped by normalized recorded name, return only the most recently evidenced
+Investigators are grouped by normalized recorded name, return only the most recently evidenced
 affiliation, and prefer the most recent recorded email. This deliberately favors a compact
 deduplicated workspace while retaining the known collision risk for different people with the
 same normalized name.
@@ -86,9 +86,9 @@ short disease-based prioritized-experience sentence is derived without another m
 ## Validation and remaining work
 
 The focused Site Agent suite passes locally. The first authenticated production search returned
-more than 1,500 sites and 4,000 PI candidates and motivated disease-specific prioritization.
-Exhaustive-cohort latency measurement, exact CTIS investigator-path audit, stronger
-institution/person identity and candidate enrichment remain follow-up work.
+more than 1,500 sites and 4,000 investigators and motivated disease-specific prioritization.
+Exhaustive-cohort latency measurement, stronger institution/person identity and investigator
+enrichment remain follow-up work.
 
 ## Premium revision and full-list contract
 
@@ -109,4 +109,4 @@ filters. The anchor rule is criteria continuity, not an anti-enumeration guarant
 `/search` accepts bounded Premium pages of 10, 25 or 50 rows; 10 is the default page size. It also keeps
 service-authenticated `full_list: true` only as a compatibility path. Omission preserves the top-10 preview.
 App must verify project ownership/payment before requesting or disclosing these results. Bands are computed once per metric distribution (O(n log n), same tied percentiles),
-not by repeatedly scanning the full cohort. No Engine schema or serving-view changes are required.
+not by repeatedly scanning the full cohort. The Engine serving-view envelope remains unchanged.
