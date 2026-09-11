@@ -14,7 +14,7 @@ Implemented tools:
 - `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved tier-bounded analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
-- `get_profiles` returns current approved Trial Profile 10.0.0 data for 1–10 explicit EU trial numbers per call. Optional `sections` returns exact deterministic profile projections; omitting `sections` returns the complete profile. Light may retrieve 100 unique profiles across an analysis.
+- `get_profiles` returns current approved Trial Profile 11.0.0 data for 1–10 explicit EU trial numbers per call. Optional `sections` returns exact deterministic profile projections; omitting `sections` returns the complete profile. Light may retrieve 100 unique profiles across an analysis.
 - `get_documents` returns extracted text for one explicitly named document, in parts of at most 200,000 characters, and meters unique documents through the app control plane.
 - `extract_variables` extracts up to 20 typed values from one approved trial in one Terra request using only its complete approved Trial Profile.
 
@@ -87,7 +87,7 @@ Exposed structured fields:
 Controlled vocabularies are embedded directly in the MCP JSON Schema. Country codes use ISO 3166-1 alpha-2. Known normalized country statuses are `Authorised`, `Not authorised`, `Under evaluation`, `Ended`, `Halted`, `Lapsed`, `Withdrawn`, `Expired`, `Suspended`, `Not valid`, `Pending` and `Revoked`.
 
 The controlled filter vocabularies are aligned with Trial Profile contract
-10.0.0. The 34 therapeutic areas include separate Blood Disorders, Gynecology, Obstetrics,
+11.0.0. The 34 therapeutic areas include separate Blood Disorders, Gynecology, Obstetrics,
 Reproductive Medicine, Emergency Medicine and Critical Care values.
 
 Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer to a subsidy or funding source, or omit part of the complete legal entity name. Use sponsor-name filtering to shortlist records; do not treat it as definitive legal-entity resolution.
@@ -108,7 +108,9 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 
 The only input added to the original tool is optional `sections`. The output contract is unchanged: `profiles`, `unavailable_trial_ids`, `allowance_reached_trial_ids`, `counts`, and `analysis_allowance` remain exactly as before.
 
-### Trial Profile 10.0.0 section vocabulary
+### Trial Profile 11.0.0 section vocabulary
+
+Within the `sites` section, every site-level person is stored under `classification_variables.sites[].investigators[]` and is a principal investigator by contract. There is no separate PI-status boolean.
 
 - `overview` — therapeutic area, phase, disease, trial title/acronym and core flags.
 - `population` — target population, stage/severity, settings, population characteristics, biomarkers and eligible sexes.
@@ -120,7 +122,7 @@ The only input added to the original tool is optional `sections`. The output con
 - `sponsor_and_organizations` — sponsor, legal representative and third-party organizations.
 - `contacts` — management, scientific, recruitment and public CTIS contacts.
 - `countries` — country counts/codes and structured country records.
-- `sites` — site count and structured site records with nested site contacts.
+- `sites` — site count and structured site records with nested investigators.
 - `documents` — six-category `available_extracted_documents` inventory.
 - `lifecycle` — complete dated `ctis_lifecycle` object.
 - `results` — complete results object, including participant flow, endpoint/safety results and operational findings.
