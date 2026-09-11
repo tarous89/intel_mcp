@@ -194,7 +194,7 @@ class StubEngine:
             data=[
                 FullProfileItem(
                     eu_number=trial_id,
-                    profile_schema_version="10.0.0",
+                    profile_schema_version="11.0.0",
                     approved_at="2026-08-27T12:00:00+00:00",
                     profile=_trial_profile_v10(trial_id),
                 )
@@ -762,3 +762,4 @@ async def test_documentation_page_is_public_and_contains_connection_guidance() -
     assert "TrialAgents OAuth live" in response.text
     assert "Sign in with your existing Intel Agent account" in response.text
     assert "available_extracted_documents" in response.text
+

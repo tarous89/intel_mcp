@@ -48,11 +48,11 @@ DOCS_HTML = r"""<!doctype html>
         <article class="card"><code>start_analysis</code><h3>Open the analysis lease</h3><p>Turns an approved report run into the active analysis ID used by every later tool.</p><span class="limit">One active tier-bounded lease</span></article>
         <article class="card"><code>filter_trials</code><h3>Build a shortlist</h3><p>Applies structured Trial Profile filters and returns only EU number, trial title and sponsor.</p><span class="limit">Up to 100 results per page</span></article>
         <article class="card"><code>classify_trials</code><h3>Classify eligibility</h3><p>Uses complete contact-redacted profiles in independent Terra worker calls and returns eligible, ineligible and uncertain trial buckets.</p><span class="limit">Up to 25 trials per call</span></article>
-        <article class="card"><code>get_profiles</code><h3>Read relevant profile evidence</h3><p>Returns exact Trial Profile 10.0.0 sections when requested, or complete approved profiles when sections are omitted.</p><span class="limit">Up to 10 profiles per call</span></article>
+        <article class="card"><code>get_profiles</code><h3>Read relevant profile evidence</h3><p>Returns exact Trial Profile 11.0.0 sections when requested, or complete approved profiles when sections are omitted.</p><span class="limit">Up to 10 profiles per call</span></article>
         <article class="card"><code>get_documents</code><h3>Read one extracted document</h3><p>Uses an exact filename from <code>filtering_variables.available_extracted_documents</code> and returns bounded extracted text parts.</p><span class="limit">One document per call</span></article>
         <article class="card"><code>extract_variables</code><h3>Extract typed values</h3><p>Uses one complete approved Trial Profile only and returns the requested typed values.</p><span class="limit">Up to 20 variables per call</span></article>
       </div>
-      <div class="callout"><strong>Profile sections are projections, not summaries.</strong> <code>get_profiles</code> copies exact stored values and original nesting from approved Trial Profile 10.0.0. No model creates a card or rewrites the profile.</div>
+      <div class="callout"><strong>Profile sections are projections, not summaries.</strong> <code>get_profiles</code> copies exact stored values and original nesting from approved Trial Profile 11.0.0. No model creates a card or rewrites the profile.</div>
     </div></section>
 
     <section id="profiles"><div class="shell">
@@ -70,7 +70,7 @@ DOCS_HTML = r"""<!doctype html>
           <tr><td><code>sponsor_and_organizations</code></td><td>Sponsor, legal representative and third-party organizations.</td></tr>
           <tr><td><code>contacts</code></td><td>Trial management, scientific, recruitment and public CTIS contacts.</td></tr>
           <tr><td><code>countries</code></td><td>Country codes/count and structured country records.</td></tr>
-          <tr><td><code>sites</code></td><td>Site count and structured site records, including nested site contacts.</td></tr>
+          <tr><td><code>sites</code></td><td>Site count and structured site records, including nested <code>investigators[]</code>. Every nested person is a principal investigator; there is no separate PI-status flag.</td></tr>
           <tr><td><code>documents</code></td><td>The six-category <code>available_extracted_documents</code> inventory with exact document names.</td></tr>
           <tr><td><code>lifecycle</code></td><td>The complete dated <code>ctis_lifecycle</code> object.</td></tr>
           <tr><td><code>results</code></td><td>The complete results object: participant flow, country enrollment, endpoint/safety results and operational findings.</td></tr>

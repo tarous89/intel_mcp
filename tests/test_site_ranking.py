@@ -14,11 +14,10 @@ CRITERIA = {
 }
 
 
-def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", function=""):
+def investigator(first="Ada", *, last="Example", email="ada@example.org", function=""):
     return {
         "first_name": first,
         "last_name": last,
-        "principal_investigator": role,
         "function": function,
         "department_or_division": "Oncology",
         "email": email,
@@ -26,7 +25,7 @@ def contact(first="Ada", *, last="Example", role=True, email="ada@example.org", 
 
 
 def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site="Example hospital",
-         country="DE", contacts=None, sponsor="Example sponsor", year=2024,
+         country="DE", investigators=None, sponsor="Example sponsor", year=2024,
          authorization_date=None, phases=None, modality="Monoclonal antibody", paediatric=False):
     authorization_date = authorization_date or f"{year}-02-01"
     return {"eu_number": f"{year}-{number:06d}-00-00", "profile": {
@@ -43,7 +42,7 @@ def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site
             "sites": [{
                 "name": site,
                 "country_code": country,
-                "site_contacts": contacts if contacts is not None else [contact()],
+                "investigators": investigators if investigators is not None else [investigator()],
             }],
         },
         "ctis_lifecycle": {"countries": [{"country_code": country, "updates": [{
@@ -89,22 +88,22 @@ class RankingTests(unittest.TestCase):
             "previewSites": 1, "previewPIs": 1,
         })
 
-    def test_contacts_are_returned_and_site_prefers_confirmed_pi(self):
-        contacts = [
-            contact("Study", last="Office", role=False, email="office@example.org", function="Study office"),
-            contact("Ada", role=True, email="PI@Example.org"),
+    def test_investigators_are_returned_and_site_prefers_best_ranked_pi(self):
+        investigators = [
+            investigator("Study", last="Office", email="office@example.org", function="Study office"),
+            investigator("Ada", email="PI@Example.org"),
         ]
-        result = rank_profiles([item(contacts=contacts)], CRITERIA)
+        result = rank_profiles([item(investigators=investigators)], CRITERIA)
         self.assertEqual(result["sites"][0]["contact"]["email"], "pi@example.org")
         self.assertEqual(result["sites"][0]["contact"]["role"], "Principal investigator")
         self.assertEqual(result["pis"][0]["email"], "pi@example.org")
-        self.assertEqual(result["sites"][0]["matchedPICount"], 1)
+        self.assertEqual(result["sites"][0]["matchedPICount"], 2)
         self.assertEqual(result["sites"][0]["matchedPIs"][0]["name"], "Ada Example")
 
-    def test_site_contact_is_the_best_matching_confirmed_pi_with_an_email(self):
+    def test_site_investigator_is_the_best_matching_confirmed_pi_with_an_email(self):
         result = rank_profiles([
-            item(1, diseases=["Breast cancer"], contacts=[contact("Broad", email="broad@example.org")]),
-            item(2, diseases=["Non-small cell lung cancer"], contacts=[contact("Lung", email="lung@example.org")]),
+            item(1, diseases=["Breast cancer"], investigators=[investigator("Broad", email="broad@example.org")]),
+            item(2, diseases=["Non-small cell lung cancer"], investigators=[investigator("Lung", email="lung@example.org")]),
         ], CRITERIA)
         site = result["sites"][0]
         self.assertEqual(site["matchedPICount"], 2)
@@ -112,25 +111,31 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(site["contact"]["email"], "lung@example.org")
         self.assertEqual(site["matchedPIs"][0]["indicationTrials"], 1)
 
-    def test_unknown_contact_is_labelled_and_explicit_non_pi_is_excluded(self):
-        result = rank_profiles([item(contacts=[
-            contact("Unknown", role=None, email="unknown@example.org"),
-            contact("Coordinator", role=False, email="coordinator@example.org"),
-        ])], CRITERIA)
+    def test_legacy_pi_flags_are_ignored_during_cutover_compatibility(self):
+        record = item()
+        site = record["profile"]["classification_variables"]["sites"][0]
+        site["site_contacts"] = [
+            {**investigator("Unknown", email="unknown@example.org"), "principal_investigator": None},
+            {**investigator("Coordinator", email="coordinator@example.org"), "principal_investigator": False},
+        ]
+        site.pop("investigators")
+        result = rank_profiles([record], CRITERIA)
         self.assertEqual(result["counts"]["sites"], 1)
-        self.assertEqual(result["counts"]["pis"], 1)
-        self.assertEqual(result["counts"]["confirmedPIs"], 0)
-        self.assertEqual(result["pis"][0]["role"], "role_unconfirmed")
+        self.assertEqual(result["counts"]["pis"], 2)
+        self.assertEqual(result["counts"]["confirmedPIs"], 2)
+        self.assertEqual(result["counts"]["unconfirmedContacts"], 0)
+        self.assertTrue(all(person["role"] == "confirmed_pi" for person in result["pis"]))
         self.assertEqual(result["sites"][0]["contact"]["email"], "coordinator@example.org")
 
-    def test_pi_role_string_is_supported(self):
-        result = rank_profiles([item(contacts=[contact(role=None, function="Principal investigator")])], CRITERIA)
+    def test_investigator_function_is_not_required_to_establish_pi_role(self):
+        result = rank_profiles([item(investigators=[investigator(function="Study office")])], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
+        self.assertEqual(result["pis"][0]["role"], "confirmed_pi")
 
     def test_same_pi_email_aggregates_across_sites(self):
         result = rank_profiles([
-            item(1, site="Hospital A", contacts=[contact(email="ada@example.org")]),
-            item(2, site="Hospital B", country="FR", contacts=[contact(email="ADA@example.org")]),
+            item(1, site="Hospital A", investigators=[investigator(email="ada@example.org")]),
+            item(2, site="Hospital B", country="FR", investigators=[investigator(email="ADA@example.org")]),
         ], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
         self.assertEqual(len(result["pis"][0]["sites"]), 1)
@@ -138,16 +143,16 @@ class RankingTests(unittest.TestCase):
 
     def test_same_normalized_pi_name_is_not_duplicated_when_emails_change(self):
         result = rank_profiles([
-            item(1, site="Hospital A", contacts=[contact(email="ada.old@example.org")]),
-            item(2, site="Hospital B", contacts=[contact(email="ada.new@example.org")]),
+            item(1, site="Hospital A", investigators=[investigator(email="ada.old@example.org")]),
+            item(2, site="Hospital B", investigators=[investigator(email="ada.new@example.org")]),
         ], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 1)
         self.assertEqual(len(result["pis"]), 1)
 
     def test_pi_exposes_only_the_latest_recorded_affiliation(self):
         result = rank_profiles([
-            item(1, site="Older Hospital", country="DE", contacts=[contact(email="ada.old@example.org")], year=2023),
-            item(2, site="Latest Hospital", country="FR", contacts=[contact(email="ada.new@example.org")], year=2025),
+            item(1, site="Older Hospital", country="DE", investigators=[investigator(email="ada.old@example.org")], year=2023),
+            item(2, site="Latest Hospital", country="FR", investigators=[investigator(email="ada.new@example.org")], year=2025),
         ], CRITERIA)
         self.assertEqual(result["pis"][0]["sites"], [{
             "id": result["pis"][0]["sites"][0]["id"],
@@ -240,7 +245,7 @@ class RankingTests(unittest.TestCase):
 class FullListTests(unittest.TestCase):
     def test_premium_returns_all_matching_sites_and_pis_without_truncation(self):
         from intel_mcp.site_ranking import ProfileRanker
-        items = [item(i + 1, site=f"Hospital {i}", contacts=[contact(first=f"PI{i}", email=f"pi{i}@example.org")]) for i in range(65)]
+        items = [item(i + 1, site=f"Hospital {i}", investigators=[investigator(first=f"PI{i}", email=f"pi{i}@example.org")]) for i in range(65)]
         preview = rank_profiles(items, CRITERIA)
         full = ProfileRanker(CRITERIA)
         full.add(items)

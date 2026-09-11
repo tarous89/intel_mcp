@@ -70,7 +70,7 @@ async def test_engine_get_profiles_is_service_authenticated_and_preserves_partia
                 "data": [
                     {
                         "eu_number": "2024-500001-00-00",
-                        "profile_schema_version": "10.0.0",
+                        "profile_schema_version": "11.0.0",
                         "approved_at": "2026-08-27T12:00:00+00:00",
                         "profile": {
                             "filtering_variables": {
@@ -167,3 +167,4 @@ async def test_engine_extraction_source_is_service_authenticated_and_parsed() ->
     result = await client.extraction_source("2024-500001-00-00")
     assert result.profile == {"planned_sample_size": 420}
     assert not hasattr(result, "protocol_text")
+

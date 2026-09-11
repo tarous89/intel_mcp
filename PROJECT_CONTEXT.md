@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
@@ -39,7 +39,9 @@ App authorization is authoritative. Reservation/commit/release prevents failed w
 
 `filter_trials` is deterministic and approved-profile-only. Disease filtering matches persisted disease names case-insensitively; it does not infer stage, biomarker, molecular subtype, line of therapy or treatment setting.
 
-`classify_trials` uses one contact-redacted Trial Profile per Terra worker job. `get_profiles` returns complete schema 10.0.0 profiles or exact section projections. `get_documents` returns bounded extracted-text parts for exact profile-listed filenames. `extract_variables` schema 2.0.0 uses one complete approved profile only; it never retrieves or forwards protocol or document text.
+`classify_trials` uses one contact-redacted Trial Profile per Terra worker job. `get_profiles` returns complete schema 11.0.0 profiles or exact section projections. `get_documents` returns bounded extracted-text parts for exact profile-listed filenames. `extract_variables` schema 2.0.0 uses one complete approved profile only; it never retrieves or forwards protocol or document text.
+
+Trial Profile 11 stores site-level people at `classification_variables.sites[].investigators[]`. Every nested record is a principal investigator by contract; callers and report workers must not look for the removed site-contact name or PI boolean.
 
 ## Report planning
 

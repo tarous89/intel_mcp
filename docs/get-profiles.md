@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Return current approved Trial Profile 10.0.0 data for explicit EU trial numbers. The tool is a bounded deterministic read path: it performs no model work, summarization, semantic search or profile generation.
+Return current approved Trial Profile 11.0.0 data for explicit EU trial numbers. The tool is a bounded deterministic read path: it performs no model work, summarization, semantic search or profile generation.
 
 Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light and initial Max may each retrieve up to **100 unique profiles** across calls.
 
@@ -40,7 +40,7 @@ The only input added to the original `get_profiles` contract is optional `sectio
 
 ## Current profile contract
 
-The current approved Trial Profile schema is **10.0.0**. Stored profiles contain four top-level objects:
+The current approved Trial Profile schema is **11.0.0**. Stored profiles contain four top-level objects:
 
 ```text
 filtering_variables
@@ -51,9 +51,11 @@ results
 
 The `sections` field does **not** introduce a second summary schema. It is an exact deterministic projection over those stored objects. Values are copied as stored and the original nesting is retained. Unrequested fields are omitted; requested fields are never summarized or rewritten.
 
+Schema 11 represents every site-level person as `classification_variables.sites[].investigators[]`. Every nested record is a principal investigator by contract. Investigator objects contain `first_name`, `last_name`, `email`, `department_or_division` and `function`; the former site-contact name and redundant PI-status boolean are absent.
+
 ## Section vocabulary
 
-| Section | Trial Profile 10.0.0 fields |
+| Section | Trial Profile 11.0.0 fields |
 |---|---|
 | `overview` | therapeutic areas, phase, rare-disease/orphan/paediatric/FIH flags, trial title, acronym, diseases, classification summary |
 | `population` | eligible sexes, target-population summary, disease stage/severity, treatment settings, population characteristics, biomarkers |
@@ -65,12 +67,12 @@ The `sections` field does **not** introduce a second summary schema. It is an ex
 | `sponsor_and_organizations` | sponsor, legal representative, third-party organizations |
 | `contacts` | trial management, scientific, recruitment and public CTIS contacts |
 | `countries` | country codes, number of countries, structured country records |
-| `sites` | number of sites, structured site records and nested site contacts |
+| `sites` | number of sites, structured site records and nested `investigators[]` |
 | `documents` | `filtering_variables.available_extracted_documents` with the exact document names accepted by `get_documents` |
 | `lifecycle` | complete `ctis_lifecycle` object, including dated overall and country updates |
 | `results` | complete `results` object, including participant flow, country enrollment, endpoint/safety results and operational findings |
 
-The mapping is versioned against Trial Profile 10.0.0. Older approved profiles may naturally lack fields that were introduced later; absent stored fields are simply absent from the projection.
+The mapping is versioned against Trial Profile 11.0.0. Older approved profiles may naturally lack fields that were introduced later; absent stored fields are simply absent from the projection.
 
 ## Projection example
 
@@ -91,7 +93,7 @@ Representative shape:
   "profiles": [
     {
       "eu_number": "2024-500001-00-00",
-      "profile_schema_version": "10.0.0",
+      "profile_schema_version": "11.0.0",
       "approved_at": "2026-08-27T12:00:00+00:00",
       "profile": {
         "filtering_variables": {

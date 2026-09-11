@@ -434,13 +434,7 @@ def _investigator_evidence(
     full_profiles: list[FullProfileItem],
     aliases_by_trial_id: dict[str, str],
 ) -> dict[str, Any] | None:
-    """Flatten nested CTIS site contacts for investigator analyses.
-
-    Complete profiles are not contact-redacted, but nullable PI flags previously
-    made the model over-conservative. Reuse the deterministic Site Agent identity
-    and role rules so explicit PI roles count, null roles remain candidates, and
-    names, affiliations and recorded public contact routes are easy to consume.
-    """
+    """Flatten schema-11 site investigators for investigator analyses."""
     if not _is_investigator_objective(objective):
         return None
     ranked = rank_profiles(
@@ -462,7 +456,6 @@ def _investigator_evidence(
         candidates.append(
             {
                 "name": person.get("name"),
-                "role_status": person.get("role"),
                 "email": person.get("email"),
                 "department": person.get("department"),
                 "affiliations": person.get("sites") or [],
@@ -470,10 +463,8 @@ def _investigator_evidence(
                 "trial_aliases": aliases,
             }
         )
-    counts = ranked.get("counts") or {}
     return {
-        "confirmed_pi_count": counts.get("confirmedPIs") or 0,
-        "role_unconfirmed_contact_count": counts.get("unconfirmedContacts") or 0,
+        "investigator_count": len(candidates),
         "candidates": candidates,
     }
 
@@ -488,8 +479,7 @@ def _ensure_named_investigators(
     if not evidence:
         return parsed
     candidates = [item for item in evidence.get("candidates") or [] if item.get("name")]
-    confirmed = [item for item in candidates if item.get("role_status") == "confirmed_pi"]
-    displayed = (confirmed or candidates)[:MAX_LIGHT_VISUAL_ITEMS]
+    displayed = candidates[:MAX_LIGHT_VISUAL_ITEMS]
     if not displayed:
         return parsed
     existing_text = " ".join(
@@ -501,7 +491,6 @@ def _ensure_named_investigators(
     if any(str(item["name"]).casefold() in existing_text for item in displayed):
         return parsed
 
-    showing_confirmed = bool(confirmed)
     item_models: list[RankedItem] = []
     all_aliases: list[str] = []
     for person in displayed:
@@ -517,7 +506,7 @@ def _ensure_named_investigators(
             f"{person.get('documented_trials') or 0} documented selected-cohort trial(s)",
             str(person.get("department") or "").strip(),
             str(person.get("email") or "").strip(),
-            "PI role confirmed in CTIS" if person.get("role_status") == "confirmed_pi" else "PI role not explicitly confirmed in CTIS",
+            "Principal investigator",
         ]
         item_models.append(
             RankedItem(
@@ -529,20 +518,16 @@ def _ensure_named_investigators(
         )
 
     deterministic = SubAnalysisResult(
-        title="Most active documented principal investigators" if showing_confirmed else "Named site contacts with unconfirmed PI roles",
+        title="Most active documented principal investigators",
         visual=LightVisual(
             kind="bar",
             title="Documented investigator activity in the selected cohort",
             unit="trials",
             labels=[str(item["name"]) for item in displayed],
             values=[float(item.get("documented_trials") or 0) for item in displayed],
-            note="Counts are selected-cohort Trial Profile occurrences; repeated CTIS contact details are consolidated deterministically.",
+            note="Counts are selected-cohort Trial Profile occurrences; repeated investigator details are consolidated deterministically.",
         ),
-        interpretation=(
-            "These named investigators have the strongest documented activity in the selected cohort."
-            if showing_confirmed
-            else "The selected profiles contain named site contacts, but their PI role is not explicitly confirmed in CTIS."
-        ),
+        interpretation="These named investigators have the strongest documented activity in the selected cohort.",
         items=item_models,
         trial_ids=all_aliases,
     )
@@ -828,7 +813,7 @@ The {analysis_count} planned analyses define the approved medical/clinical scope
 
 For each sub-analysis, use the simplest useful visual (stat, bar or donut) with at most five items. State its unit and denominator/metric, then interpret concisely. For named entities, add up to five plain-text items with value and relevance.
 
-For investigator analysis, investigator_evidence is authoritative. Confirm a PI only from a true principal_investigator flag or explicit Principal Investigator role; null is not negative. For confirmed PIs show names, affiliations, selected-cohort activity and public CTIS email. Otherwise label named site contacts as role-unconfirmed candidates, never PIs.
+For investigator analysis, investigator_evidence is authoritative. Every person in a Trial Profile site's investigators array is a principal investigator by schema contract. Show names, affiliations, selected-cohort activity and public CTIS email when present; do not look for or infer a separate PI-status flag.
 
 summary_sentences must contain exactly one sentence summarizing the objective. conclusion is one evidence-supported decision implication. Return limitations as an empty array; evidence coverage and missingness are not report objectives.
 

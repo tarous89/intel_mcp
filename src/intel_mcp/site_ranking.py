@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
-VERSION = "therapeutic-area-experience-v5"
+VERSION = "therapeutic-area-experience-v6"
 PREVIEW_LIMIT = 10
 EU_NUMBER = re.compile(r"^\d{4}-\d{6}-\d{2}-\d{2}$")
 EXPERIENCE_YEARS = 5
@@ -95,24 +95,14 @@ def _strings(value: Any) -> Iterable[str]:
             yield from _strings(child)
 
 
-def _pi_role(contact: dict) -> bool | None:
-    flag = contact.get("principal_investigator")
-    if isinstance(flag, bool):
-        return flag
-    role = normalized(contact.get("function") or contact.get("role"))
-    if role in {"pi", "principal investigator", "lead principal investigator"}:
-        return True
-    return None
-
-
-def _contact_name(contact: dict) -> str:
-    first = str(contact.get("first_name") or "").strip()
-    last = str(contact.get("last_name") or "").strip()
+def _investigator_name(investigator: dict) -> str:
+    first = str(investigator.get("first_name") or "").strip()
+    last = str(investigator.get("last_name") or "").strip()
     return " ".join(part for part in (first, last) if part)
 
 
-def _email(contact: dict) -> str:
-    value = str(contact.get("email") or "").strip().casefold()
+def _email(investigator: dict) -> str:
+    value = str(investigator.get("email") or "").strip().casefold()
     return value if "@" in value and len(value) <= 320 else ""
 
 
@@ -354,32 +344,33 @@ class ProfileRanker:
                     "authorization_date": trial["authorization_dates"].get(country) or trial["authorization_date"],
                 }
                 site["trials"][trial_id] = site_trial
-                for contact in raw_site.get("site_contacts") or []:
-                    if not isinstance(contact, dict):
+                investigators = raw_site.get("investigators")
+                if not isinstance(investigators, list):
+                    # Transitional read compatibility while Engine v10 rows are
+                    # atomically migrated. Every legacy record is still treated
+                    # as an investigator; the removed boolean is never consulted.
+                    investigators = raw_site.get("site_contacts") or []
+                for investigator in investigators:
+                    if not isinstance(investigator, dict):
                         continue
-                    email = _email(contact)
-                    contact_name = _contact_name(contact)
-                    department = str(contact.get("department_or_division") or contact.get("department") or "").strip()
-                    is_pi = _pi_role(contact)
+                    email = _email(investigator)
+                    investigator_name = _investigator_name(investigator)
+                    department = str(investigator.get("department_or_division") or investigator.get("department") or "").strip()
                     if email:
-                        role = "Principal investigator" if is_pi else str(contact.get("function") or contact.get("role") or "Site contact").strip()
-                        site["contacts"][(not is_pi, contact_name, email, role)] += 1
-                    # Named contacts with an unspecified role remain useful PI
-                    # candidates, but are never presented as confirmed PIs.
-                    if is_pi is False or not contact_name:
+                        site["contacts"][(investigator_name, email)] += 1
+                    if not investigator_name:
                         continue
                     # Site Agent presents one row per normalized recorded name.
                     # Email remains the preferred contact route, but is not used as
                     # the display identity because CTIS can record the same person
                     # with different addresses across institutions and years.
-                    person_id = key("person", contact_name)
+                    person_id = key("person", investigator_name)
                     person = self.people.setdefault(person_id, {
                         "id": person_id, "names": Counter(), "trials": {}, "sites": {},
                         "site_trials": {}, "departments": {}, "emails": Counter(),
                         "email_years": {}, "site_emails": {}, "site_email_years": {},
-                        "confirmed": False, "confirmed_sites": set(),
                     })
-                    person["names"][contact_name] += 1
+                    person["names"][investigator_name] += 1
                     existing_trial = person["trials"].get(trial_id)
                     if (
                         existing_trial is None
@@ -389,9 +380,6 @@ class ProfileRanker:
                         person["trials"][trial_id] = site_trial
                     person["sites"][site_id] = site
                     person["site_trials"].setdefault(site_id, {})[trial_id] = site_trial
-                    person["confirmed"] = person["confirmed"] or is_pi is True
-                    if is_pi is True:
-                        person["confirmed_sites"].add(site_id)
                     if department:
                         candidate = (trial["year"] or 0, normalized(department), department)
                         current = person["departments"].get(site_id)
@@ -408,7 +396,7 @@ class ProfileRanker:
         today = datetime.now(UTC).date()
         for person in self.people.values():
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
-            for site_id in person["confirmed_sites"]:
+            for site_id in person["sites"]:
                 site_metrics = _metrics(person["site_trials"][site_id], self.criteria, today=today)
                 site_emails = person["site_emails"].get(site_id, Counter())
                 email_years = person["site_email_years"].get(site_id, {})
@@ -433,8 +421,8 @@ class ProfileRanker:
                     "role": "Principal investigator",
                 }
             elif site["contacts"]:
-                chosen = min(site["contacts"], key=lambda value: (value[0], -site["contacts"][value], normalized(value[1]), value[2]))
-                contact = {"name": chosen[1], "email": chosen[2], "role": chosen[3]}
+                chosen = min(site["contacts"], key=lambda value: (-site["contacts"][value], normalized(value[0]), value[1]))
+                contact = {"name": chosen[0], "email": chosen[1], "role": "Principal investigator"}
             site_rows.append({
                 "id": site["id"], "name": site["name"], "country": site["country"],
                 "contact": contact,
@@ -474,7 +462,7 @@ class ProfileRanker:
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
             pi_rows.append({
                 "id": person["id"], "name": name, "department": department,
-                "email": email, "role": "confirmed_pi" if person["confirmed"] else "role_unconfirmed",
+                "email": email, "role": "confirmed_pi",
                 "sites": [public_affiliation], "metrics": _metrics(person["trials"], self.criteria, today=today),
             })
         _apply_bands(pi_rows)
@@ -488,8 +476,8 @@ class ProfileRanker:
             "scoringVersion": VERSION,
             "counts": {
                 "sites": len(site_rows), "pis": len(pi_rows),
-                "confirmedPIs": sum(row["role"] == "confirmed_pi" for row in pi_rows),
-                "unconfirmedContacts": sum(row["role"] == "role_unconfirmed" for row in pi_rows),
+                "confirmedPIs": len(pi_rows),
+                "unconfirmedContacts": 0,
                 "previewSites": len(site_rows) if limit is None else min(limit, len(site_rows)),
                 "previewPIs": len(pi_rows) if limit is None else min(limit, len(pi_rows)),
             },

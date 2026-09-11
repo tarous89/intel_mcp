@@ -44,7 +44,7 @@ PROFILE_SECTIONS: tuple[ProfileSection, ...] = (
     "results",
 )
 
-# Trial Profile 10.0.0 semantic projections. Each stored field has one primary
+# Trial Profile 11.0.0 semantic projections. Each stored field has one primary
 # section so section combinations merge deterministically without summarization.
 PROFILE_SECTION_FIELDS: dict[ProfileSection, dict[str, tuple[str, ...]]] = {
     "overview": {

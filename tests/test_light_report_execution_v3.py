@@ -25,7 +25,7 @@ class StubEngine:
                 "data": [
                     {
                         "eu_number": trial_id,
-                        "profile_schema_version": "10.0.0",
+                        "profile_schema_version": "11.0.0",
                         "approved_at": "2026-09-01T00:00:00+00:00",
                         "profile": {
                             "filtering_variables": {"phase": [3]},
@@ -303,3 +303,4 @@ def test_v4_max_upgrade_copy_uses_paired_analysis() -> None:
     assert "up to 100 trials" in copy
     assert copy.count(".") == 2
     assert "profile-derived dataset" in copy
+

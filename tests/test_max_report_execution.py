@@ -196,7 +196,7 @@ async def test_dataset_population_fuses_group_classification_and_semantic_extrac
         FullProfileItem.model_validate(
             {
                 "eu_number": trial_id,
-                "profile_schema_version": "10.0.0",
+                "profile_schema_version": "11.0.0",
                 "approved_at": None,
                 "profile": {
                     "filtering_variables": {"planned_sample_size": sample_size},
@@ -292,7 +292,7 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
         FullProfileItem.model_validate(
             {
                 "eu_number": trial_id,
-                "profile_schema_version": "10.0.0",
+                "profile_schema_version": "11.0.0",
                 "approved_at": None,
                 "profile": {
                     "filtering_variables": {"planned_sample_size": sample_size},
@@ -457,3 +457,4 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
     assert final_report["tier"] == "max"
     assert len(final_report["sections"]) == 5
     assert final_report["analyzedCohort"]["totalTrials"] == 2
+

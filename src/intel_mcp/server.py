@@ -76,7 +76,9 @@ mcp = MCPServer(
         "Use start_analysis once after the Intel Agent app has created an approved report run. "
         "Pass the returned analysis_id to every later Intel tool. Use filter_trials for broad structured "
         "screening. When reviewing shortlisted trials, call get_profiles with only the profile sections "
-        "needed for the task; omit sections when the complete profile is required."
+        "needed for the task; omit sections when the complete profile is required. Trial Profile 11.0.0 "
+        "stores site-level people in classification_variables.sites[].investigators[]. Every nested person "
+        "is a principal investigator by contract; do not look for a site_contacts field or a separate PI flag."
     ),
 )
 
@@ -376,7 +378,7 @@ async def classify_trials(
     unknown". In that example an unknown pediatric status makes that complete criterion true. Do not add
     unknown handling routinely; use it only when the analysis genuinely intends that behavior.
 
-    The tool uses complete approved Trial Profile 10.0.0 objects, including document inventory and results,
+    The tool uses complete approved Trial Profile 11.0.0 objects, including document inventory and results,
     with contact personal data removed. It does not retrieve or inspect protocol/document text and does not
     use external knowledge. If a needed fact is absent from the Trial Profile, ordinary criteria stay unknown.
     """
@@ -492,7 +494,7 @@ async def get_profiles(
         Field(
             max_length=len(PROFILE_SECTIONS),
             description=(
-                "Optional Trial Profile 10.0.0 sections. Choose only what the task needs. Supported values: "
+                "Optional Trial Profile 11.0.0 sections. Choose only what the task needs. Supported values: "
                 "overview, population, trial_design, interventions, eligibility, objectives, endpoints, "
                 "sponsor_and_organizations, contacts, countries, sites, documents, lifecycle, results. "
                 "Omit or pass [] to return complete profiles."
@@ -507,7 +509,9 @@ async def get_profiles(
     field values and nesting and performs no model summarization. Omit sections (or pass an empty list) to
     return the complete approved profile.
 
-    The section vocabulary follows Trial Profile 10.0.0. Candidate and rejected profiles are treated as
+    The section vocabulary follows Trial Profile 11.0.0. In the sites section, every person under
+    classification_variables.sites[].investigators[] is a principal investigator; there is no separate PI
+    boolean. Candidate and rejected profiles are treated as
     unavailable; there is no raw-CTIS fallback. The tool does not generate or refresh profiles, retrieve
     document text, classify trials, search semantically, or write report prose. Exact retries or later
     retrieval of the same profile do not consume the analysis allowance twice.
