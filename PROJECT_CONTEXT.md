@@ -93,7 +93,7 @@ Max never reads protocols or source documents. Its six-hour lease excludes `get_
 
 ## Site Agent
 
-Site Agent uses one initial Terra/low interpretation call. Premium revisions use one forced strict function call per instruction, limited to existing criteria and list controls; no candidate or contact records enter the model. The original area/disease/country arrays anchor every revision (any individual original value suffices). Exact normalized email identifies investigators when present; missing-email records fall back to name within the exact site/country. Result contract v8 omits investigator/contact role fields and the retired confirmed/unconfirmed count split. Service-authenticated searches keep a bounded compressed ranked-result cache so Premium pages slice one deterministic snapshot instead of rebuilding the clinical cohort per page; default/free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
+Site Agent uses one Terra/low call for initial criteria and one strict function call per Premium revision; candidate data never enters the model. Search, ranking and metrics are deterministic. Result contract v8 treats all `investigators[]` records as PIs, uses email-first identity with site-local name fallback, and omits role fields and confirmed/unconfirmed counts. A bounded compressed result cache serves Premium pages; free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
 
 ## Security
 
