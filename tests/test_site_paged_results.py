@@ -31,7 +31,7 @@ def result():
         for i in range(1, 208)
     ]
     return {
-        "scoringVersion": "therapeutic-area-experience-v8", "criteria": {"therapeutic_areas": ["Oncology"], "disease_terms": ["lung"], "countries": []},
+        "scoringVersion": "therapeutic-area-experience-v9", "criteria": {"therapeutic_areas": ["Oncology"], "disease_terms": ["lung"], "countries": []},
         "sites": sites, "pis": pis,
         "counts": {"sites": len(sites), "pis": len(pis), "previewSites": len(sites), "previewPIs": len(pis)},
         "coverage": {"approvedProfiles": 300, "therapeuticAreaTrials": 300, "profilesReviewed": 300, "unavailableProfiles": 0, "partial": False, "scope": "fixture", "generatedAt": "2026-09-09T00:00:00Z"},
