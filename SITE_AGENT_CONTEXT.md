@@ -33,11 +33,10 @@ a candidate.
 
 ## Deterministic results
 
-`therapeutic-area-experience-v8` returns separate Sites and principal-investigator lists. Both are ordered by
-five-year indication trial count, requested-phase count, requested-modality count, paediatric
-count when relevant, therapeutic-area count, recency, then stable
-name/ID tie-breaks. A disease synonym can match a trial only once. The free response contains the top
-10 of each list while preserving full site and person counts.
+`therapeutic-area-experience-v8` returns separate Site and PI lists ordered by five-year indication,
+requested phase, requested modality, relevant paediatric experience, therapeutic-area experience,
+recency and stable name/ID tie-breaks. A disease synonym can match a trial only once. Free responses
+contain the top 10 of each list while preserving full counts.
 
 Each result retains distinct-trial counts for therapeutic area, indication, phase, modality,
 paediatric experience when relevant, six-month activity, the top three recorded sponsors and up
@@ -47,21 +46,15 @@ the preview is truncated. Zero is always Bottom 25%; positive counts use tied mi
 placement. The bands are evidence context, never performance, recruitment capacity, patient
 availability or current-affiliation claims. Treatment setting is not read or scored.
 
-Recorded investigator email routes are returned. Investigators are ranked within each site using the same
-indication, phase, modality, paediatric and TA criteria. The highest-ranked investigator with an
-email becomes the site-row contact, while the top three and the full investigator count are
-returned as matched-investigator evidence. With no ranked investigator email, a stable
-frequency/name/email tie-break across the site's investigators is used. Trial Profile 11 defines
-every record in `classification_variables.sites[].investigators[]` as a principal investigator;
-Site Agent does not inspect or return a separate role flag, create an unconfirmed-contact class or
-return the retired confirmed/unconfirmed count split. Exact
-case-normalized email is the primary investigator identity. This merges spelling and diacritic variants
-only when they share the same recorded address and never merges common names merely because their text
-matches. Records without an email fall back to normalized name within the exact site/country, so repeated
-local evidence is deduplicated without collapsing people across institutions. A changed email can therefore
-produce a separate investigator, and a genuinely shared inbox can still merge people; this conservative
-trade-off avoids unsupported person resolution. Each investigator returns only the most recently evidenced
-affiliation and recorded email.
+Trial Profile 11 defines every `classification_variables.sites[].investigators[]` record as a PI.
+Site Agent therefore returns no investigator/contact role field or confirmed/unconfirmed count split.
+Within a site, the highest-ranked PI with an email becomes `site.contact`; the top three and full PI
+count remain matched-investigator evidence.
+
+Exact case-normalized email is the primary PI identity. Missing-email records fall back to normalized
+name within the exact site/country. This merges spelling variants sharing an address without merging
+common names across institutions. Changed emails remain separate and shared inboxes remain ambiguous.
+Each PI returns only the most recently evidenced affiliation and email.
 
 Sponsor experience is consolidated deterministically before counting. Case, punctuation and
 spacing variants share a key, common trailing legal suffixes are removed, and versioned curated
@@ -86,12 +79,10 @@ does not accept `uniqueItems`. Legacy stored `{therapeutic_areas, keywords}` cri
 retryable: `keywords` are interpreted as disease terms, countries default to all coverage and a
 short disease-based prioritized-experience sentence is derived without another model call.
 
-## Validation and remaining work
+## Current limitations
 
-The focused Site Agent suite passes locally. The first authenticated production search returned
-more than 1,500 sites and 4,000 investigators and motivated disease-specific prioritization.
 Institution identity, shared-inbox/change-of-email reconciliation and investigator enrichment remain
-follow-up work.
+future work. No fuzzy identity resolution is attempted.
 
 ## Premium revision and full-list contract
 
