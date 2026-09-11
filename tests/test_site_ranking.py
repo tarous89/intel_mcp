@@ -26,10 +26,12 @@ def investigator(first="Ada", *, last="Example", email="ada@example.org", functi
 
 def item(number=1, *, title="NSCLC study", diseases=None, biomarker="EGFR", site="Example hospital",
          country="DE", investigators=None, sponsor="Example sponsor", year=2024,
-         authorization_date=None, phases=None, modality="Monoclonal antibody", paediatric=False):
+         authorization_date=None, phases=None, modality="Monoclonal antibody", paediatric=False,
+         therapeutic_areas=None):
     authorization_date = authorization_date or f"{year}-02-01"
     return {"eu_number": f"{year}-{number:06d}-00-00", "profile": {
         "filtering_variables": {
+            "therapeutic_areas": therapeutic_areas or ["Solid Tumor Oncology"],
             "phase": phases if phases is not None else [3],
             "modality": modality,
             "paediatric_trial": paediatric,
@@ -133,7 +135,7 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(result["counts"]["pis"], 1)
         self.assertNotIn("role", result["pis"][0])
 
-    def test_same_pi_email_aggregates_across_sites(self):
+    def test_same_email_and_first_or_last_name_aggregates_across_sites(self):
         result = rank_profiles([
             item(1, site="Hospital A", investigators=[investigator(email="ada@example.org")]),
             item(2, site="Hospital B", country="FR", investigators=[investigator(email="ADA@example.org")]),
@@ -142,13 +144,41 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(len(result["pis"][0]["sites"]), 1)
         self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
 
-    def test_same_name_with_different_emails_is_not_merged(self):
+    def test_same_full_name_and_therapeutic_area_merges_and_uses_latest_email(self):
         result = rank_profiles([
-            item(1, site="Hospital A", investigators=[investigator(email="ada.old@example.org")]),
-            item(2, site="Hospital B", investigators=[investigator(email="ada.new@example.org")]),
+            item(1, site="Hospital A", investigators=[investigator(email="ada.old@example.org")], year=2025, authorization_date="2025-01-10"),
+            item(2, site="Hospital B", investigators=[investigator(email="ada.new@example.org")], year=2025, authorization_date="2025-11-20"),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
+        self.assertEqual(result["pis"][0]["email"], "ada.new@example.org")
+
+    def test_same_full_name_in_different_therapeutic_areas_is_not_merged(self):
+        result = rank_profiles([
+            item(1, site="Oncology Hospital", therapeutic_areas=["Solid Tumor Oncology"], investigators=[investigator(email="ada.one@example.org")]),
+            item(2, site="Neurology Hospital", therapeutic_areas=["Neurology"], investigators=[investigator(email="ada.two@example.org")]),
         ], CRITERIA)
         self.assertEqual(result["counts"]["pis"], 2)
-        self.assertEqual(len(result["pis"]), 2)
+
+    def test_same_email_requires_a_matching_first_or_last_name(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", therapeutic_areas=["Solid Tumor Oncology"], investigators=[investigator("Ada", last="Example", email="shared@example.org")]),
+            item(2, site="Hospital B", therapeutic_areas=["Neurology"], investigators=[investigator("Grace", last="Hopper", email="SHARED@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 2)
+
+    def test_same_email_and_first_name_merges_changed_last_name(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator("Ada", last="Example", email="ada@example.org")]),
+            item(2, site="Hospital B", therapeutic_areas=["Neurology"], investigators=[investigator("ADA", last="Changed", email="ADA@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
+
+    def test_same_email_and_last_name_merges_changed_first_name(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator("Ada", last="Example", email="ada@example.org")]),
+            item(2, site="Hospital B", therapeutic_areas=["Neurology"], investigators=[investigator("A.", last="EXAMPLE", email="ADA@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
 
     def test_same_email_merges_accented_name_variants(self):
         result = rank_profiles([
@@ -158,13 +188,27 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(result["counts"]["pis"], 1)
         self.assertEqual(result["pis"][0]["metrics"]["therapeuticAreaTrials"], 2)
 
-    def test_missing_email_deduplicates_only_within_the_same_site(self):
+    def test_missing_email_deduplicates_by_full_name_and_therapeutic_area_across_sites(self):
         result = rank_profiles([
             item(1, site="Hospital A", investigators=[investigator(email="")]),
             item(2, site="Hospital A", investigators=[investigator(email="")]),
             item(3, site="Hospital B", investigators=[investigator(email="")]),
         ], CRITERIA)
-        self.assertEqual(result["counts"]["pis"], 2)
+        self.assertEqual(result["counts"]["pis"], 1)
+
+    def test_german_umlaut_and_transliterated_name_are_equivalent(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator("Jörg", last="Müller", email="old@example.org")]),
+            item(2, site="Hospital B", investigators=[investigator("Joerg", last="Mueller", email="new@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
+
+    def test_email_and_transliterated_last_name_are_equivalent(self):
+        result = rank_profiles([
+            item(1, site="Hospital A", investigators=[investigator("Anna", last="Müller", email="anna@example.org")]),
+            item(2, site="Hospital B", therapeutic_areas=["Neurology"], investigators=[investigator("A.", last="Mueller", email="ANNA@example.org")]),
+        ], CRITERIA)
+        self.assertEqual(result["counts"]["pis"], 1)
 
     def test_pi_exposes_only_the_latest_recorded_affiliation(self):
         result = rank_profiles([
