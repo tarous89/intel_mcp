@@ -68,7 +68,7 @@ def _profiles() -> list[FullProfileItem]:
     return [
         FullProfileItem(
             eu_number=f"2026-{index:06d}-00-00",
-            profile_schema_version="10.0.0",
+            profile_schema_version="11.0.0",
             approved_at="2026-09-01T00:00:00+00:00",
             profile={
                 "filtering_variables": {"phase": [3], "number_of_sites": 10 + index},
@@ -86,11 +86,10 @@ def _profiles_with_investigator() -> list[FullProfileItem]:
     profiles[0].profile["classification_variables"]["sites"] = [{
         "name": "University Hospital Berlin",
         "country_code": "DE",
-        "site_contacts": [{
+        "investigators": [{
             "first_name": "Ada",
             "last_name": "Example",
             "email": "ada@example.org",
-            "principal_investigator": None,
             "function": "Principal investigator",
             "department_or_division": "Oncology",
         }],
@@ -359,14 +358,14 @@ async def test_objective_can_collapse_exact_duplicate_visuals_without_forcing_on
     assert result.qa_warnings == ["duplicate_subanalysis_visual_removed"]
 
 
-def test_investigator_evidence_uses_explicit_role_when_pi_flag_is_null() -> None:
+def test_investigator_evidence_uses_schema_contract_without_a_pi_flag() -> None:
     evidence = _investigator_evidence(
         {"title": "Name the most active principal investigators", "analyses": ["Rank by activity"]},
         _profiles_with_investigator(),
         {f"2026-{index:06d}-00-00": f"T{index:02d}" for index in range(1, 21)},
     )
     assert evidence is not None
-    assert evidence["confirmed_pi_count"] == 1
+    assert evidence["investigator_count"] == 1
     assert evidence["candidates"][0]["name"] == "Ada Example"
     assert evidence["candidates"][0]["email"] == "ada@example.org"
     assert evidence["candidates"][0]["affiliations"][0]["name"] == "University Hospital Berlin"
