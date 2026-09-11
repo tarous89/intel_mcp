@@ -372,7 +372,7 @@ class TrialFilters(BaseModel):
     modalities: ModalityFilter | None = Field(
         default=None,
         description=(
-            "Match the Trial Profile 10.0.0 scalar filtering_variables.modality through "
+            "Match the Trial Profile 11.0.0 scalar filtering_variables.modality through "
             "the Engine's plural compatibility filter field."
         ),
     )
@@ -463,3 +463,4 @@ class AppFilterAccessResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     access: AppFilterAccess
+
