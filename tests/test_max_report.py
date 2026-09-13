@@ -204,6 +204,41 @@ def test_max_v1_hard_limits_and_profile_catalogue() -> None:
     }]
 
 
+def test_profile_catalogue_excludes_paths_with_mixed_observed_types() -> None:
+    first = _profile("2026-000001-00-00")
+    second = _profile("2026-000002-00-00")
+    first.profile["classification_variables"]["mixed_value"] = "category"
+    second.profile["classification_variables"]["mixed_value"] = 42
+
+    catalogue = build_field_catalog([first, second])
+
+    assert "classification_variables.mixed_value" not in {
+        item["path"] for item in catalogue
+    }
+
+
+def test_profile_catalogue_assigns_stable_runtime_kinds() -> None:
+    profile = _profile("2026-000001-00-00")
+    profile.profile["classification_variables"].update(
+        {
+            "category_value": "randomized",
+            "numeric_values": [1, 2],
+            "date_value": "2026-09-13",
+            "boolean_value": True,
+            "category_values": ["phase_2", "phase_3"],
+        }
+    )
+
+    kinds = {item["path"]: item["kind"] for item in build_field_catalog([profile])}
+
+    assert kinds["classification_variables.category_value"] == "categorical"
+    assert kinds["classification_variables.numeric_values"] == "numeric"
+    assert kinds["classification_variables.date_value"] == "date"
+    assert kinds["classification_variables.boolean_value"] == "boolean"
+    assert kinds["classification_variables.category_values"] == "entity_list"
+    assert kinds[INVESTIGATOR_PROFILE_PATH] == "entity_list"
+
+
 def test_investigator_objectives_always_receive_the_v11_investigator_entity_list() -> None:
     approved_plan = _plan()
     approved_plan["reportSections"][2]["maxAnalysis"] = {
@@ -337,7 +372,9 @@ def test_dataset_summary_precomputes_bounded_numeric_correlations() -> None:
 
 
 @pytest.mark.anyio
-async def test_sap_uses_terra_flex_and_one_shared_variable_plan() -> None:
+async def test_sap_uses_terra_flex_and_one_shared_variable_plan(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     plan = _plan()
     group_variables, extracted_segment_metadata = max_group_variables(plan)
     segment_metadata = [
@@ -372,7 +409,9 @@ async def test_sap_uses_terra_flex_and_one_shared_variable_plan() -> None:
                     "label": "Planned sample size",
                     "description": "Planned enrollment from the Trial Profile.",
                     "profile_path": "filtering_variables.planned_sample_size",
-                    "kind": "numeric",
+                    # The model may use the semantic interpretation instead of the
+                    # catalogue's observed runtime type. The backend owns this value.
+                    "kind": "categorical",
                     "analysis_indices": [0, 1, 2, 3, 4],
                 }
             ],
@@ -413,6 +452,80 @@ async def test_sap_uses_terra_flex_and_one_shared_variable_plan() -> None:
     )
     assert len(result.analyses) == 5
     assert result.direct_variables[0].profile_path == "filtering_variables.planned_sample_size"
+    assert result.direct_variables[0].kind == "numeric"
+    assert "supplied_kind=categorical expected_kind=numeric" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_sap_retries_one_structurally_invalid_plan() -> None:
+    plan = _plan()
+    group_variables, extracted_segment_metadata = max_group_variables(plan)
+    segment_metadata = [
+        {
+            "key": "nsclc",
+            "label": "NSCLC",
+            "cohort_index": 0,
+            "cohort_title": "NSCLC trials",
+            "membership_source": "deterministic_discovery",
+        },
+        *extracted_segment_metadata,
+    ]
+    calls: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        calls.append(payload["text"]["format"]["name"])
+        variable_name = "unknown_variable" if len(calls) == 1 else "sample_size"
+        result = {
+            "rationale": "Use the deterministic sample size.",
+            "direct_variables": [
+                {
+                    "name": "sample_size",
+                    "label": "Planned sample size",
+                    "description": "Planned enrollment from the Trial Profile.",
+                    "profile_path": "filtering_variables.planned_sample_size",
+                    "kind": "numeric",
+                    "analysis_indices": [0, 1, 2, 3, 4],
+                }
+            ],
+            "semantic_variables": [],
+            "analyses": [
+                {
+                    "analysis_index": index,
+                    "purpose": f"Execute pair {index}",
+                    "methods": ["Summarize sample size", "Compare labeled segments"],
+                    "variable_names": [variable_name],
+                    "segment_keys": [],
+                }
+                for index in range(5)
+            ],
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps(result)}],
+                    }
+                ],
+            },
+        )
+
+    runner = TerraMaxReportRunner(_settings(), transport=httpx.MockTransport(handler))
+    result = await runner.build_analysis_plan(
+        context="Phase 2 NSCLC study",
+        insights="Endpoints, sites and enrollment",
+        approved_plan=plan,
+        sample_profiles=[_profile("2026-000001-00-00")],
+        field_catalog=build_field_catalog([_profile("2026-000001-00-00")]),
+        group_variables=group_variables,
+        segment_metadata=segment_metadata,
+    )
+
+    assert result.direct_variables[0].name == "sample_size"
+    assert calls == ["intel_max_sap_v1", "intel_max_sap_correction_v1"]
 
 
 @pytest.mark.anyio

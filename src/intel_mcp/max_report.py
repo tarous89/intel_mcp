@@ -560,7 +560,12 @@ def build_field_catalog(profiles: list[FullProfileItem]) -> list[dict[str, Any]]
         if isinstance(kinds, set) and len(kinds) == 1:
             record["kind"] = next(iter(kinds))
         elif isinstance(kinds, set) and kinds:
-            record["kind"] = "entity_list" if kinds == {"entity_list"} else "categorical"
+            LOGGER.warning(
+                "Excluded a mixed-type Max deterministic field: profile_path=%s observed_kinds=%s",
+                path,
+                sorted(kinds),
+            )
+            continue
         lengths = record.pop("_serialized_lengths", None)
         if isinstance(lengths, list) and lengths:
             record["maximum_value_characters"] = max(lengths)
@@ -780,6 +785,123 @@ def ensure_investigator_analysis_variable(
                 )
             specification.variable_names.append(investigator_variable.name)
     return MaxAnalysisPlan.model_validate(result.model_dump(mode="json"))
+
+
+def normalize_sap_deterministic_kinds(
+    value: Any,
+    field_catalog: list[dict[str, Any]],
+) -> Any:
+    """Make deterministic variable types authoritative from the observed catalogue."""
+    if not isinstance(value, dict):
+        return value
+    direct_variables = value.get("direct_variables")
+    if not isinstance(direct_variables, list):
+        return value
+    catalog_by_path = {
+        str(item.get("path")): item.get("kind")
+        for item in field_catalog
+        if isinstance(item, dict) and item.get("path") and item.get("kind")
+    }
+    for variable in direct_variables:
+        if not isinstance(variable, dict):
+            continue
+        profile_path = str(variable.get("profile_path") or "")
+        expected_kind = catalog_by_path.get(profile_path)
+        if expected_kind not in {
+            "categorical", "numeric", "boolean", "date", "text", "entity_list"
+        }:
+            continue
+        supplied_kind = variable.get("kind")
+        if supplied_kind == expected_kind:
+            continue
+        LOGGER.warning(
+            "Normalized a Max SAP deterministic variable type: variable=%s "
+            "profile_path=%s supplied_kind=%s expected_kind=%s",
+            str(variable.get("name") or "unknown")[:64],
+            profile_path[:240],
+            str(supplied_kind or "missing")[:32],
+            expected_kind,
+        )
+        variable["kind"] = expected_kind
+    return value
+
+
+def validate_max_analysis_plan(
+    output_text: str,
+    *,
+    approved_plan: dict[str, Any],
+    field_catalog: list[dict[str, Any]],
+    group_variables: list[ExtractionVariable],
+    analysis_count: int,
+) -> MaxAnalysisPlan:
+    try:
+        parsed = json.loads(output_text)
+        parsed = normalize_sap_deterministic_kinds(parsed, field_catalog)
+        result = MaxAnalysisPlan.model_validate(parsed)
+    except (json.JSONDecodeError, ValidationError) as error:
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The report service returned an invalid analysis plan.",
+            True,
+        ) from error
+
+    if {item.analysis_index for item in result.analyses} != set(range(analysis_count)):
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan does not cover every analysis.",
+            True,
+        )
+    allowed_paths = {item["path"] for item in field_catalog}
+    if any(item.profile_path not in allowed_paths for item in result.direct_variables):
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan invented a profile path.",
+            True,
+        )
+    catalog_by_path = {item["path"]: item for item in field_catalog}
+    if any(
+        item.kind != catalog_by_path[item.profile_path].get("kind")
+        for item in result.direct_variables
+    ):
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan assigned an invalid deterministic variable type.",
+            True,
+        )
+    if any(
+        (item.value_type in {"integer", "number"}) != (item.kind == "numeric")
+        or (item.value_type == "boolean") != (item.kind == "boolean")
+        for item in result.semantic_variables
+    ):
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan assigned an inconsistent semantic variable type.",
+            True,
+        )
+    reserved_names = {item.name for item in group_variables}
+    generated_names = {item.name for item in result.direct_variables} | {
+        item.name for item in result.semantic_variables
+    }
+    if reserved_names & generated_names:
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan reused a reserved variable name.",
+            True,
+        )
+    if len(group_variables) + len(result.semantic_variables) > MAX_NONDETERMINISTIC_VARIABLES:
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan exceeded the semantic budget.",
+            True,
+        )
+    declared_names = reserved_names | generated_names
+    if any(not set(item.variable_names).issubset(declared_names) for item in result.analyses):
+        raise MaxReportError(
+            "MAX_REPORT_SAP_INVALID",
+            "The Max analysis plan references an unknown variable.",
+            True,
+        )
+    return ensure_investigator_analysis_variable(result, approved_plan)
 
 
 def _flatten_values(value: Any) -> list[Any]:
@@ -1184,59 +1306,65 @@ Return only the structured SAP and variable plan."""
                 for item in sample_profiles
             ],
         }
+        response_schema = sap_schema(
+            profile_paths=[item["path"] for item in field_catalog],
+            analysis_count=analysis_count,
+            segment_keys=[item["key"] for item in segment_metadata],
+            semantic_budget=semantic_budget,
+        )
         body = await self._response(
             developer=developer,
             user_payload=payload,
             schema_name="intel_max_sap_v1",
-            schema=sap_schema(
-                profile_paths=[item["path"] for item in field_catalog],
+            schema=response_schema,
+            max_output_tokens=16_000,
+        )
+        validation_error: MaxReportError | None = None
+        try:
+            return validate_max_analysis_plan(
+                _extract_output_text(body),
+                approved_plan=approved_plan,
+                field_catalog=field_catalog,
+                group_variables=group_variables,
                 analysis_count=analysis_count,
-                segment_keys=[item["key"] for item in segment_metadata],
-                semantic_budget=semantic_budget,
+            )
+        except MaxReportError as first_error:
+            if first_error.code != "MAX_REPORT_SAP_INVALID":
+                raise
+            validation_error = first_error
+            LOGGER.warning(
+                "Max SAP contract validation failed; requesting one correction: detail=%s",
+                first_error.message,
+            )
+
+        correction_body = await self._response(
+            developer=(
+                developer
+                + "\n\nCorrection attempt: the prior structured SAP failed backend contract "
+                "validation. Regenerate it once from the original inputs. Use only declared "
+                "variables and every required analysis index. Deterministic variable kinds are "
+                "owned by the supplied field_catalog and will be enforced by the backend."
             ),
+            user_payload=payload,
+            schema_name="intel_max_sap_correction_v1",
+            schema=response_schema,
             max_output_tokens=16_000,
         )
         try:
-            result = MaxAnalysisPlan.model_validate(json.loads(_extract_output_text(body)))
-        except (json.JSONDecodeError, ValidationError) as error:
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The report service returned an invalid analysis plan.", True) from error
-
-        if {item.analysis_index for item in result.analyses} != set(range(analysis_count)):
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The Max analysis plan does not cover every analysis.", True)
-        allowed_paths = {item["path"] for item in field_catalog}
-        if any(item.profile_path not in allowed_paths for item in result.direct_variables):
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The Max analysis plan invented a profile path.", True)
-        catalog_by_path = {item["path"]: item for item in field_catalog}
-        if any(
-            item.kind != catalog_by_path[item.profile_path].get("kind")
-            for item in result.direct_variables
-        ):
-            raise MaxReportError(
-                "MAX_REPORT_SAP_INVALID",
-                "The Max analysis plan assigned an invalid deterministic variable type.",
-                True,
+            return validate_max_analysis_plan(
+                _extract_output_text(correction_body),
+                approved_plan=approved_plan,
+                field_catalog=field_catalog,
+                group_variables=group_variables,
+                analysis_count=analysis_count,
             )
-        if any(
-            (item.value_type in {"integer", "number"}) != (item.kind == "numeric")
-            or (item.value_type == "boolean") != (item.kind == "boolean")
-            for item in result.semantic_variables
-        ):
-            raise MaxReportError(
-                "MAX_REPORT_SAP_INVALID",
-                "The Max analysis plan assigned an inconsistent semantic variable type.",
-                True,
-            )
-        reserved_names = {item.name for item in group_variables}
-        declared_names = reserved_names | {item.name for item in result.direct_variables} | {
-            item.name for item in result.semantic_variables
-        }
-        if reserved_names & ({item.name for item in result.direct_variables} | {item.name for item in result.semantic_variables}):
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The Max analysis plan reused a reserved variable name.", True)
-        if len(group_variables) + len(result.semantic_variables) > MAX_NONDETERMINISTIC_VARIABLES:
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The Max analysis plan exceeded the semantic budget.", True)
-        if any(not set(item.variable_names).issubset(declared_names) for item in result.analyses):
-            raise MaxReportError("MAX_REPORT_SAP_INVALID", "The Max analysis plan references an unknown variable.", True)
-        return ensure_investigator_analysis_variable(result, approved_plan)
+        except MaxReportError as correction_error:
+            if correction_error.code == "MAX_REPORT_SAP_INVALID":
+                LOGGER.warning(
+                    "Max SAP correction failed contract validation: detail=%s",
+                    correction_error.message,
+                )
+            raise correction_error from validation_error
 
     async def analyze_objective(
         self,

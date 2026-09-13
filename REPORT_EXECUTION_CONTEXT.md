@@ -112,6 +112,13 @@ Candidate-filter planning and compact-profile screening use Sol/medium/Flex. SAP
 
 SAP semantic-variable instructions target 500 compact characters. The executor normalizes whitespace and deterministically bounds any model-produced overrun to the extractor's 600-character contract while preserving both the extraction task and trailing return/missing-value guidance. An overlong instruction therefore cannot stop an otherwise valid paid run.
 
+Deterministic variable types are server-owned catalogue metadata. The SAP may select a
+catalogued `profile_path`, but its supplied `kind` is normalized to the observed catalogue
+before validation. Paths with mixed runtime types across selected profiles are excluded from
+the catalogue. Remaining structural SAP contract failures receive exactly one correction call;
+a second invalid plan fails closed. Safe logs identify variable name/path and supplied versus
+expected kind without profile values or clinical payloads.
+
 Output stays compatible with the shared App/PDF renderer:
 
 ```text
