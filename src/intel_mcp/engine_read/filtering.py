@@ -373,8 +373,8 @@ def _comparison_sql(column: str, condition: dict[str, Any], params: list[Any]) -
     return f"({column} IS NOT NULL AND {column} {sql_operator} %s)"
 
 
-def build_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
-    conditions = ["p.approval_status = 'approved'"]
+def build_where(filters: dict[str, Any], *, all_profiles: bool = False) -> tuple[str, list[Any]]:
+    conditions = ["TRUE" if all_profiles else "p.approval_status = 'approved'"]
     params: list[Any] = []
     for field, condition in filters.items():
         if field in TEXT_FIELDS or field in CONTROLLED_SCALAR_FIELDS:
@@ -390,7 +390,7 @@ def build_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
         elif field == "diseases":
             conditions.append(
                 _related_text_set_sql(
-                    relation="mcp_serving.profile_diseases_v1",
+                    relation="mcp_serving.report_diseases_v1" if all_profiles else "mcp_serving.profile_diseases_v1",
                     relation_alias="d",
                     value_column="disease",
                     parent_column="profile_id",
@@ -408,28 +408,29 @@ def build_where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
                     else:
                         child_sql.append(_comparison_sql(f"c.{child}", child_condition, params))
                 conditions.append(
-                    f"EXISTS (SELECT 1 FROM mcp_serving.profile_countries_v1 c "
+                    f"EXISTS (SELECT 1 FROM {'mcp_serving.report_countries_v1' if all_profiles else 'mcp_serving.profile_countries_v1'} c "
                     f"WHERE {' AND '.join(child_sql)})"
                 )
     return " AND ".join(conditions), params
 
 
-def filter_approved_trials(connection: psycopg.Connection[Any], request: Any) -> dict[str, Any]:
+def filter_approved_trials(connection: psycopg.Connection[Any], request: Any, *, all_profiles: bool = False) -> dict[str, Any]:
     filters, sort, limit, offset = validate_request(request)
-    where_sql, params = build_where(filters)
+    where_sql, params = build_where(filters, all_profiles=all_profiles)
+    view = "mcp_serving.report_filter_v1" if all_profiles else "mcp_serving.profile_filter_v1"
     direction = "ASC" if sort["direction"] == "asc" else "DESC"
     order_sql = f"p.{sort['field']} {direction} NULLS LAST, p.eu_number ASC"
 
     approved_profiles = connection.execute(
-        "SELECT COUNT(*) FROM mcp_serving.profile_filter_v1 WHERE approval_status = 'approved'"
+        f"SELECT COUNT(*) FROM {view}"
     ).fetchone()[0]
     total_matches = connection.execute(
-        f"SELECT COUNT(*) FROM mcp_serving.profile_filter_v1 p WHERE {where_sql}", params
+        f"SELECT COUNT(*) FROM {view} p WHERE {where_sql}", params
     ).fetchone()[0]
     rows = connection.execute(
         f"""
         SELECT p.eu_number, p.trial_title, p.sponsor_name
-        FROM mcp_serving.profile_filter_v1 p
+        FROM {view} p
         WHERE {where_sql}
         ORDER BY {order_sql}
         LIMIT %s OFFSET %s

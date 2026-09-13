@@ -398,7 +398,7 @@ async def test_sap_uses_terra_flex_and_one_shared_variable_plan(
         assert "nsclc" in payload["text"]["format"]["schema"]["properties"]["analyses"]["items"]["properties"]["segment_keys"]["items"]["enum"]
         user = json.loads(payload["input"][1]["content"][0]["text"])
         assert len(user["complete_profile_examples"]) == 1
-        assert user["constraints"]["evidence_source"] == "complete_approved_trial_profiles_only"
+        assert user["constraints"]["evidence_source"] == "current_trial_profiles_only"
         assert user["segment_definitions"][0]["membership_source"] == "deterministic_discovery"
         assert len(user["reserved_group_variables"]) == 3
         result = {

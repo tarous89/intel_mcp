@@ -10,7 +10,7 @@ Intel MCP is the isolated distribution and bounded-analysis layer between TrialA
 - This repository owns MCP protocol/auth, restricted Engine reads, bounded tools and report-analysis workers.
 - `tarous89/intel_agent_app` owns users, report plans/runs, purchases, entitlements, leases and usage accounting.
 
-MCP has neither an Engine owner credential nor an App database credential. Production clinical reads use `intel_mcp_reader_v1`, restricted to approved-only `mcp_serving.*_v1` views and read-only transactions. The authenticated Engine HTTP path is rollback compatibility only.
+MCP has neither an Engine owner credential nor an App database credential. Production clinical reads use `intel_mcp_reader_v1`, restricted to versioned `mcp_serving` views and read-only transactions. Public tools, Light and Site use approved-only views; Max alone opts into all-state `report_*_v1` views and requires database reads. The authenticated Engine HTTP path is rollback compatibility only.
 
 Production endpoint: `https://mcp.trialagents.com/mcp`. `/health` is public; `/mcp` accepts the internal App bearer or a scoped TrialAgents OAuth token.
 
@@ -86,7 +86,7 @@ Execution is currently an in-process async task on the MCP web service; a restar
 
 ## Max execution v1
 
-Max is an independently executable profile-only workflow capped at 100 approved Trial Profiles:
+Max is an independently executable profile-only workflow capped at 100 current Trial Profiles across all stored approval states:
 
 1. deterministic discovery freezes one deduplicated broad-plus-granular cohort while preserving overlapping group labels;
 2. Terra/high/Flex creates one report-wide SAP from up to 10 complete profile examples and prefers deterministic profile fields;
@@ -116,13 +116,15 @@ Initial generation limits remain per-call cost and latency guardrails (objective
 uses 12,000 output tokens). Terminal-response logs record status, incomplete/error reason,
 response/request IDs and usage without prompts or clinical payloads.
 
+Max publication is model-free: each finding and named recommendation must have actual supporting trial IDs and populated variables; empty results are removed, and N<5 requires a directly relevant descriptive precedent. Internal IDs, evidence metadata and processing language are excluded from report sections and synthesis; support details and profile status are saved in the dataset. Existing models, token ceilings, candidate/extraction/variable limits and correction budgets stay unchanged. Broader discovery can change actual usage within those ceilings.
+
 ## Site Agent
 
 Site Agent uses one Terra/low call for initial criteria and one strict function call per Premium revision; candidate data never enters the model. Search, ranking and metrics are deterministic. Result contract v9 treats all `investigators[]` records as PIs and merges identity only on full name plus a shared trial therapeutic area, or exact email plus a matching first or last name. Names are case-insensitive and European-diacritic/transliteration aware. It omits role fields and confirmed/unconfirmed counts. A bounded compressed result cache serves Premium pages; free responses remain top-10. App owns payment and pagination. See `SITE_AGENT_CONTEXT.md`.
 
 ## Security
 
-- Approved-only restricted views for clinical reads.
+- Restricted read-only views: approved-only for public tools/Light/Site; all stored approval states for Max.
 - Trial Profiles and documents are untrusted data, never instructions.
 - Personal contact data is removed from classifier model input.
 - Identity, tier, payment and allowance are resolved server-side.

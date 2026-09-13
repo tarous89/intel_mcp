@@ -16,6 +16,7 @@ from intel_mcp.engine_database import DatabaseEngineClient
 from intel_mcp.extraction import ExtractionVariable, ExtractorError, TerraExtractor, extraction_key
 from intel_mcp.light_report_execution import ReportExecutionControl, ReportExecutionError
 from intel_mcp.report_artifacts import save_dataset
+from intel_mcp.max_report_quality import public_section
 from intel_mcp.max_candidate_screening import (
     CANDIDATE_POOL_TARGET,
     MAX_CANDIDATE_POOL,
@@ -328,7 +329,7 @@ class MaxReportExecutor:
         self._control = ReportExecutionControl(settings, transport=control_transport)
         self._analysis_control = ControlPlaneClient(settings, transport=control_transport)
         self._engine: EngineClient | DatabaseEngineClient = (
-            DatabaseEngineClient(settings)
+            DatabaseEngineClient(settings, all_profiles=True)
             if settings.engine_source == "database"
             else EngineClient(settings, transport=engine_transport)
         )
@@ -440,8 +441,22 @@ class MaxReportExecutor:
         # names, before adding the broader reliable-field progression.
         for cohort_index, cohort in enumerate(cohorts):
             add_query(_trial_filters(cohort["discoveryFilter"]), cohort_index)
+        # Deterministic backfill has titles but no model-populated disease rows.
+        # Literal title seeds improve recall without changing clinical membership.
+        for cohort in cohorts:
+            discovery = cohort["discoveryFilter"]
+            if discovery["field"] == "diseases":
+                for term in discovery["values"]:
+                    add_query(TrialFilters.model_validate({"trial_title": {"operator": "contains", "value": term}}), None)
         for candidate in filter_plan.filters:
-            add_query(_candidate_trial_filters(candidate), None)
+            for title in candidate.title_terms or [None]:
+                filters = _candidate_trial_filters(candidate)
+                if title:
+                    filters = TrialFilters.model_validate({
+                        **filters.model_dump(mode="json", exclude_none=True),
+                        "trial_title": {"operator": "contains", "value": title},
+                    })
+                add_query(filters, None)
 
         selected: list[str] = []
         selected_ids: set[str] = set()
@@ -457,7 +472,7 @@ class MaxReportExecutor:
                 remaining = candidate_limit - len(selected)
                 if remaining <= 0:
                     break
-                page_size = min(100, remaining)
+                page_size = min(100, max(10, candidate_limit // len(queries)), remaining)
                 try:
                     result = await self._engine.filter_trials(
                         filters=query["filters"],
@@ -838,6 +853,8 @@ class MaxReportExecutor:
             if not isinstance(context, str) or not isinstance(insights, str) or not isinstance(approved_plan, dict):
                 raise MaxReportError("MAX_REPORT_JOB_INVALID", "The Max report job is incomplete.", False)
             cohorts, sections = _execution_plan(approved_plan)
+            if isinstance(getattr(self, "_engine", None), EngineClient):
+                raise MaxReportError("MAX_REPORT_DATABASE_REQUIRED", "Max report discovery requires the current clinical read service.", True)
             progress = {
                 "version": 2,
                 "stage": "starting",
@@ -1096,17 +1113,10 @@ class MaxReportExecutor:
             )
             await self._control.progress(report_run_id, progress)
 
+            for row in rows:
+                assessment = selected_assessments.get(row["trial_id"])
+                row["relevance_tier"] = assessment.tier if assessment else "adjacent"
             definitions = _definitions(analysis_plan, group_variables, segment_metadata)
-            try:
-                progress["dataset"] = await save_dataset(
-                    self._settings, report_run_id=report_run_id, profiles=profiles, rows=rows,
-                    definitions=definitions, analysis_plan=analysis_plan.model_dump(mode="json"),
-                    segments=segment_metadata, approved_plan=approved_plan,
-                )
-            except Exception as error:
-                # Export availability must never discard a valid scientific report.
-                LOGGER.warning("Max dataset snapshot unavailable: run=%s error_type=%s", report_run_id, type(error).__name__)
-                progress["dataset"] = {"version": 1, "status": "unavailable"}
             for index in range(len(sections)):
                 progress = _mark(progress, f"objective_{index + 1}", "in_progress")
             await self._control.progress(report_run_id, progress)
@@ -1133,7 +1143,7 @@ class MaxReportExecutor:
                     available_results = [item for item in results_by_index if item is not None]
                     progress["sectionsCompleted"] = len(available_results)
                     progress["sections"] = [
-                        item.model_dump(mode="json") for item in available_results
+                        public_section(item) for item in available_results if item.sub_analyses
                     ]
                     progress = _mark(progress, f"objective_{index + 1}", "completed")
                     await self._control.progress(report_run_id, progress)
@@ -1150,9 +1160,23 @@ class MaxReportExecutor:
                     True,
                 )
 
+            results = [item for item in results if item.sub_analyses]
+            if not results:
+                raise MaxReportError("MAX_REPORT_INSUFFICIENT_FINDINGS", "This report could not be completed. Please revise your request and try again.", False)
             analyzed_cohort = self._cohort_summary(rows, segment_metadata)
             if candidate_overview is not None:
                 analyzed_cohort.update(candidate_overview)
+            try:
+                progress["dataset"] = await save_dataset(
+                    self._settings, report_run_id=report_run_id, profiles=profiles, rows=rows,
+                    definitions=definitions, analysis_plan=analysis_plan.model_dump(mode="json"),
+                    segments=segment_metadata, approved_plan=approved_plan,
+                    report_evidence=[item.model_dump(mode="json") for item in results],
+                )
+            except Exception as error:
+                # Export availability must never discard a valid scientific report.
+                LOGGER.warning("Max dataset snapshot unavailable: run=%s error_type=%s", report_run_id, type(error).__name__)
+                progress["dataset"] = {"version": 1, "status": "unavailable"}
             progress = _mark(progress, "final_report", "in_progress")
             await self._control.progress(report_run_id, progress)
             synthesis = await self._runner.synthesize(
@@ -1170,7 +1194,7 @@ class MaxReportExecutor:
                 "executiveSummary": synthesis.executive_summary,
                 "analyzedCohort": analyzed_cohort,
                 "closingNote": synthesis.closing_note,
-                "sections": [item.model_dump(mode="json") for item in results],
+                "sections": [public_section(item) for item in results],
             }
             await self._control.complete(report_run_id, progress, final_report)
         except (MaxReportError, ReportExecutionError) as error:

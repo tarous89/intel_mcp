@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -33,10 +33,11 @@ class CandidateFilter(BaseModel):
     phase: list[Literal[1, 2, 3, 4]] | None = Field(default=None, min_length=1, max_length=4)
     modalities: list[Modality] | None = Field(default=None, min_length=1, max_length=18)
     country_codes: list[CountryCode] | None = Field(default=None, min_length=1, max_length=50)
+    title_terms: list[Annotated[str, Field(min_length=2, max_length=100)]] | None = Field(default=None, min_length=1, max_length=5)
 
     @model_validator(mode="after")
     def contains_a_filter(self) -> "CandidateFilter":
-        if not any((self.therapeutic_areas, self.phase, self.modalities, self.country_codes)):
+        if not any((self.therapeutic_areas, self.phase, self.modalities, self.country_codes, self.title_terms)):
             raise ValueError("A candidate filter must contain at least one deterministic dimension.")
         return self
 
@@ -113,6 +114,7 @@ def candidate_filter_plan_schema(
                         "country_codes": _nullable_array(
                             {"type": "string", "pattern": "^[A-Za-z]{2}$"}, 50
                         ),
+                        "title_terms": _nullable_array({"type": "string", "minLength": 2, "maxLength": 100}, 5),
                     },
                     "required": [
                         "label",
@@ -120,6 +122,7 @@ def candidate_filter_plan_schema(
                         "phase",
                         "modalities",
                         "country_codes",
+                        "title_terms",
                     ],
                 },
             },

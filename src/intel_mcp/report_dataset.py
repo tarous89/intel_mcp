@@ -19,7 +19,7 @@ def file_sha(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definitions, analysis_plan, segments, approved_plan) -> dict:
+def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definitions, analysis_plan, segments, approved_plan, report_evidence=None) -> dict:
     if not rows or len(rows) > MAX_TRIALS:
         raise ValueError("Invalid dataset size")
     by_id = {profile.eu_number: profile for profile in profiles}
@@ -29,7 +29,7 @@ def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definition
     metadata = {"version": 1, "tier": "max", "reportRunId": report_run_id,
                 "capturedAt": datetime.now(timezone.utc).isoformat(), "trialCount": len(rows),
                 "definitions": definitions, "analysisPlan": analysis_plan,
-                "segments": segments, "approvedPlan": approved_plan}
+                "segments": segments, "approvedPlan": approved_plan, "reportEvidence": report_evidence or []}
     with gzip.open(path, "wt", encoding="utf-8", newline="\n", compresslevel=6) as target:
         target.write(json.dumps(metadata, ensure_ascii=False, allow_nan=False) + "\n")
         for row in rows:
@@ -171,7 +171,7 @@ def build_workbook(snapshot: Path, target: Path, *, expected_run_id: str) -> dic
         def finish(self):
             self.sheet.auto_filter.ref = f"A1:{get_column_letter(len(self.headings))}{self.count}"
 
-    trials = Table("Trials", ["Trial ID", "Title", "Profile version", "Approved at", "Groups", "Uncertain groups"], [25, 70, 18, 28, 40, 40])
+    trials = Table("Trials", ["Trial ID", "Title", "Profile version", "Approved at", "Groups", "Uncertain groups", "Profile status"], [25, 70, 18, 28, 40, 40, 20])
     analysis = Table("Analysis data", ["Trial ID", *names], [25, *([28] * len(names))])
     variables = Table("Variables", ["Name", "Label", "Type", "Source", "Definition", "Profile field", "Analysis indices"], [28, 35, 18, 25, 75, 60, 24])
     values_table = Table("Analysis values", ["Trial ID", "Field path", "Type", "Value", "Part"], [25, 60, 22, 85, 10])
@@ -215,9 +215,9 @@ def build_workbook(snapshot: Path, target: Path, *, expected_run_id: str) -> dic
         if len(seen) > MAX_TRIALS:
             raise ValueError("Too many dataset trials")
         filtering = profile["profile"].get("filtering_variables", {})
-        title = filtering.get("trial_title") or filtering.get("title") or ""
+        title = profile["profile"].get("classification_variables", {}).get("trial_title") or filtering.get("trial_title") or filtering.get("title") or ""
         trials.append([trial_id, compact(title, "See Profile fields"), profile.get("profile_schema_version"), profile.get("approved_at"),
-                       ", ".join(row.get("segment_keys", [])), ", ".join(row.get("uncertain_segment_keys", []))])
+                       ", ".join(row.get("segment_keys", [])), ", ".join(row.get("uncertain_segment_keys", [])), profile.get("approval_status")])
         analysis.append([trial_id, *[compact(row["values"][name], "See Analysis values") for name in names]])
         full_fields(values_table, row, trial_id)
         full_fields(profile_table, profile, trial_id)

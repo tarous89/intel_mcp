@@ -12,7 +12,7 @@ RUN = "12345678-1234-1234-1234-123456789abc"
 
 
 def fixture(path: Path):
-    profile = FullProfileItem(eu_number="2024-123456-12-00", profile_schema_version="11.0.0", approved_at=None,
+    profile = FullProfileItem(eu_number="2024-123456-12-00", profile_schema_version="11.0.0", approved_at=None, approval_status="deterministic",
         profile={"filtering_variables": {"title": "=NOT_A_FORMULA", "empty": "", "null": None, "zero": 0, "false": False,
                  "long": "e\u0301😀" * 18000, "large_integer": 12345678901234567890, "control": "A\x00B"},
                  "classification_variables": {"sites": [{"name": "Site A", "investigators": [{"name": "Dr A"}, {"name": "Dr B"}]}]},
@@ -21,7 +21,8 @@ def fixture(path: Path):
              "values": {"age": 42, "eligible": None, "investigators": ["Dr A", "Dr B"], "signal": False}}]
     definitions = {name: {"label": name, "kind": "number" if name == "age" else "categorical", "source": "profile", "description": "Definition"} for name in rows[0]["values"]}
     manifest = write_snapshot(path, report_run_id=RUN, profiles=[profile], rows=rows, definitions=definitions,
-                              analysis_plan={}, segments=[], approved_plan={})
+                              analysis_plan={}, segments=[], approved_plan={},
+                              report_evidence=[{"supports": [{"trial_ids": [profile.eu_number], "variable_names": ["age"]}]}])
     return profile, rows, manifest
 
 
@@ -35,6 +36,7 @@ def test_snapshot_freezes_full_profiles_variables_and_definitions(tmp_path):
     assert data[1]["row"] == rows[0]
     assert data[0]["trialCount"] == manifest["trialCount"] == 1
     assert set(data[0]["definitions"]) == set(rows[0]["values"])
+    assert data[0]["reportEvidence"][0]["supports"][0]["trial_ids"] == [profile.eu_number]
 
 
 def test_workbook_preserves_values_long_text_nested_records_and_formula_text(tmp_path):
@@ -62,6 +64,10 @@ def test_workbook_preserves_values_long_text_nested_records_and_formula_text(tmp
         for row in sheet:
             assert not any(cell.data_type == "f" for cell in row)
     assert list(wb["Trials"].values)[1][1] == "=NOT_A_FORMULA"
+    trial_rows = list(wb["Trials"].values)
+    assert trial_rows[1][trial_rows[0].index("Profile status")] == "deterministic"
+    details = {row[0]: row[2] for row in list(wb["Report details"].values)[1:]}
+    assert details["/reportEvidence/0/supports/0/trial_ids/0"] == profile.eu_number
     wb.close()
 
 

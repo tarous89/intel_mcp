@@ -153,6 +153,12 @@ async def test_max_runner_handles_long_units_and_repairs_only_failed_objective(i
     calls = []
     original = draft("max")
     original["sub_analyses"][0]["visual"]["unit"] = "distinct prostate cancer trials per deduplicated investigator identity"
+    for sub in original["sub_analyses"]:
+        sub["visual"]["supports"] = [
+            {"value_index": index, "segment_key": None,
+             "trial_ids": [f"T{i:03}" for i in range(1, count + 1)], "variable_names": ["count"]}
+            for index, count in enumerate([10, 20])
+        ]
 
     async def handler(request):
         payload = json.loads(request.content)
@@ -167,7 +173,7 @@ async def test_max_runner_handles_long_units_and_repairs_only_failed_objective(i
     result = await runner.analyze_objective(
         context="Investigator activity", pair={"maxAnalysis": {"title": "Approved title", "details": ["Activity", "Capacity"]}},
         specification=AnalysisSpecification(analysis_index=0, purpose="Activity", methods=["Count", "Compare"], variable_names=["count"], segment_keys=[]),
-        rows=[{"trial_id": "2026-000001-00-00", "values": {"count": 10}}],
+        rows=[{"trial_id": f"2026-{i:06}-00-00", "values": {"count": 10}} for i in range(1, 21)],
         definitions={"count": {"kind": "numeric", "label": "Count"}}, segment_metadata=[],
     )
     assert result.title == "Approved title"

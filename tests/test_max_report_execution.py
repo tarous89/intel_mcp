@@ -567,6 +567,7 @@ async def test_candidate_discovery_round_robins_exact_seeds_and_broad_filters() 
             field = next(iter(filters.model_dump(exclude_none=True)))
             prefix = {
                 "diseases": "D",
+                "trial_title": "S",
                 "therapeutic_areas": "T",
                 "phase": "P",
                 "modalities": "M",
@@ -612,9 +613,12 @@ async def test_candidate_discovery_round_robins_exact_seeds_and_broad_filters() 
         350,
     )
     assert len(trial_ids) == 350
-    assert executor._engine.calls == 4
+    assert executor._engine.calls <= 12
     assert discovery_indices["D0000"] == {0}
     assert any(trial_id.startswith("T") for trial_id in trial_ids)
+    assert any(trial_id.startswith("S") for trial_id in trial_ids)
+    assert any(trial_id.startswith("P") for trial_id in trial_ids)
+    assert any(trial_id.startswith("M") for trial_id in trial_ids)
 
 
 @pytest.mark.anyio

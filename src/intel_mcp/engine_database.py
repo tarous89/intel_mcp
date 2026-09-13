@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from functools import partial
 from collections.abc import Callable
 from typing import Any
 
@@ -51,8 +52,10 @@ class DatabaseEngineClient:
         settings: Settings,
         *,
         pool: ConnectionPool[Any] | None = None,
+        all_profiles: bool = False,
     ) -> None:
         self._settings = settings
+        self._all_profiles = all_profiles
         self._pool = pool
         self._pool_lock = threading.Lock()
 
@@ -125,7 +128,7 @@ class DatabaseEngineClient:
             "limit": limit,
             "offset": offset,
         }
-        result = await self._read(filter_approved_trials, payload)
+        result = await self._read(partial(filter_approved_trials, all_profiles=self._all_profiles), payload)
         try:
             return EngineFilterResponse.model_validate(result)
         except ValidationError as error:
@@ -159,7 +162,7 @@ class DatabaseEngineClient:
         return parsed
 
     async def get_profiles(self, trial_ids: list[str]) -> EngineProfilesResponse:
-        result = await self._read(get_approved_profiles, {"trial_ids": trial_ids})
+        result = await self._read(partial(get_approved_profiles, all_profiles=self._all_profiles), {"trial_ids": trial_ids})
         try:
             parsed = EngineProfilesResponse.model_validate(result)
         except ValidationError as error:
