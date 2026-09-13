@@ -5,15 +5,15 @@ import re
 
 # Clinical qualifications remain allowed. Execution/audit detail and source IDs do not.
 INTERNAL = re.compile(
-    r"\bT\d{3,}\b|\bNCT\d{8}\b|\b\d{4}-\d{6}-\d{2}-\d{2}\b|"
-    r"\b(?:dataset|database|schema|json|boolean|tokens?|workflow|backfill|"
+    r"\bT\d{3,}\b|\bNCT\d{8}\b|\b\d{4}-\d{6}-\d{2}(?:-\d{2})?\b|"
+    r"\b(?:dataset|database|schema|json|boolean|tokens?|workflow|backfill|LLM|GPT|"
     r"supplied rows?|frozen cohort|trial profiles?|profile extraction|"
     r"semantic (?:segment|classification)|rule-based|identity (?:normalization|resolution|sensitivity)|"
     r"email-defined|normalized.name|nonmissing|missingness|field availability|"
     r"documentation recency|lifecycle (?:update|documentation|label)|"
     r"evidence (?:notes|base|groups)|approved plan|system (?:message|prompt)|"
     r"instructions?|lowercased|alphabetical tie.breaker)\b|"
-    r"\b[a-z]+_[a-z_]+\b|```|https?://|\bN\s*(?:=|:)\s*0\b|"
+    r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b|```|https?://|\bN\s*(?:=|:)\s*0\b|"
     r"\b(?:zero|0|no)\s+(?:(?:direct|exact|eligible|matching|available|relevant|phase[ -]?\d|single.arm|ADC|CRPC)\s+){0,8}(?:trials?|analogues?|comparators?|matches)\b",
     re.I,
 )
