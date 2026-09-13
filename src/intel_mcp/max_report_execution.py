@@ -15,6 +15,7 @@ from intel_mcp.engine import EngineClient, EngineError
 from intel_mcp.engine_database import DatabaseEngineClient
 from intel_mcp.extraction import ExtractionVariable, ExtractorError, TerraExtractor, extraction_key
 from intel_mcp.light_report_execution import ReportExecutionControl, ReportExecutionError
+from intel_mcp.report_artifacts import save_dataset
 from intel_mcp.max_candidate_screening import (
     CANDIDATE_POOL_TARGET,
     MAX_CANDIDATE_POOL,
@@ -1096,6 +1097,16 @@ class MaxReportExecutor:
             await self._control.progress(report_run_id, progress)
 
             definitions = _definitions(analysis_plan, group_variables, segment_metadata)
+            try:
+                progress["dataset"] = await save_dataset(
+                    self._settings, report_run_id=report_run_id, profiles=profiles, rows=rows,
+                    definitions=definitions, analysis_plan=analysis_plan.model_dump(mode="json"),
+                    segments=segment_metadata, approved_plan=approved_plan,
+                )
+            except Exception as error:
+                # Export availability must never discard a valid scientific report.
+                LOGGER.warning("Max dataset snapshot unavailable: run=%s error_type=%s", report_run_id, type(error).__name__)
+                progress["dataset"] = {"version": 1, "status": "unavailable"}
             for index in range(len(sections)):
                 progress = _mark(progress, f"objective_{index + 1}", "in_progress")
             await self._control.progress(report_run_id, progress)
@@ -1155,6 +1166,7 @@ class MaxReportExecutor:
                 "version": 2,
                 "tier": "max",
                 "title": synthesis.title,
+                "dataset": progress.get("dataset"),
                 "executiveSummary": synthesis.executive_summary,
                 "analyzedCohort": analyzed_cohort,
                 "closingNote": synthesis.closing_note,

@@ -290,7 +290,14 @@ async def test_dataset_population_fuses_group_classification_and_semantic_extrac
 
 
 @pytest.mark.anyio
-async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
+@pytest.mark.parametrize("storage_fails", [False, True])
+async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch, tmp_path, storage_fails) -> None:
+    from intel_mcp.report_dataset import write_snapshot, snapshot_records
+    async def save_snapshot(_settings, **kwargs):
+        if storage_fails:
+            raise OSError("Synthetic storage unavailable")
+        return write_snapshot(tmp_path / "frozen.gz", **kwargs)
+    monkeypatch.setattr("intel_mcp.max_report_execution.save_dataset", save_snapshot)
     plan = _plan()
     profiles = [
         FullProfileItem.model_validate(
@@ -451,6 +458,8 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
     executor._extractor = Extractor()
     executor._runner = Runner()
 
+    executor._settings = SimpleNamespace()
+
     async def discover(_analysis_id: str, _cohorts: list[dict]) -> tuple[list[str], dict[str, set[int]]]:
         return [item.eu_number for item in profiles], {
             profiles[0].eu_number: {0, 1},
@@ -470,6 +479,15 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline() -> None:
     assert final_report["tier"] == "max"
     assert len(final_report["sections"]) == 5
     assert final_report["analyzedCohort"]["totalTrials"] == 2
+    if storage_fails:
+        assert final_report["dataset"]["status"] == "unavailable"
+    else:
+        assert final_report["dataset"]["status"] == "available"
+        assert final_report["dataset"]["trialCount"] == 2
+        saved = list(snapshot_records(tmp_path / "frozen.gz"))
+        assert saved[1]["profile"] == profiles[0].model_dump(mode="json")
+        assert saved[1]["row"]["values"]["sample_size"] == 80
+        assert set(saved[1]["row"]["values"]) == set(saved[0]["definitions"])
 
 
 @pytest.mark.anyio
