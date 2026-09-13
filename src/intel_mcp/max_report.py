@@ -29,6 +29,7 @@ from intel_mcp.max_candidate_screening import (
 from intel_mcp.models import ModalityFilter, TherapeuticAreaFilter
 from intel_mcp.openai_retry import post_openai_response
 from intel_mcp.profiles import FullProfileItem
+from intel_mcp.report_output import CONCISE_REPORT_GUIDANCE, generate_report_output, report_schema
 
 
 MAX_REPORT_MODEL = "gpt-5.6-terra"
@@ -140,14 +141,14 @@ class MaxAnalysisPlan(BaseModel):
 
 
 class MaxVisual(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     kind: Literal["stat", "bar", "donut"]
-    title: str = Field(min_length=1, max_length=180)
-    unit: str = Field(max_length=50)
+    title: str = Field(min_length=1)
+    unit: str
     labels: list[str] = Field(min_length=1, max_length=MAX_VISUAL_ITEMS)
     values: list[float] = Field(min_length=1, max_length=MAX_VISUAL_ITEMS)
-    note: str = Field(min_length=1, max_length=500)
+    note: str = Field(min_length=1)
 
     @model_validator(mode="after")
     def matching_series(self) -> "MaxVisual":
@@ -165,18 +166,18 @@ class MaxVisual(BaseModel):
 class MaxRankedItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    label: str = Field(min_length=1, max_length=180)
-    value: str = Field(max_length=180)
-    explanation: str = Field(min_length=1, max_length=700)
+    label: str = Field(min_length=1)
+    value: str
+    explanation: str = Field(min_length=1)
     trial_ids: list[str] = Field(max_length=MAX_REPORT_TRIAL_COUNT)
 
 
 class MaxSubAnalysisResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(min_length=1, max_length=180)
+    title: str = Field(min_length=1)
     visual: MaxVisual
-    interpretation: str = Field(min_length=1, max_length=1_500)
+    interpretation: str = Field(min_length=1)
     items: list[MaxRankedItem] = Field(max_length=MAX_VISUAL_ITEMS)
     trial_ids: list[str] = Field(max_length=MAX_REPORT_TRIAL_COUNT)
 
@@ -184,10 +185,10 @@ class MaxSubAnalysisResult(BaseModel):
 class MaxObjectiveResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(min_length=1, max_length=180)
+    title: str = Field(min_length=1)
     summary_sentences: list[str] = Field(min_length=1, max_length=1)
     sub_analyses: list[MaxSubAnalysisResult] = Field(min_length=2, max_length=MAX_SUBANALYSES)
-    conclusion: str = Field(min_length=1, max_length=1_200)
+    conclusion: str = Field(min_length=1)
     limitations: list[str] = Field(max_length=5)
     qa_warnings: list[str] = Field(default_factory=list, exclude=True)
 
@@ -195,21 +196,9 @@ class MaxObjectiveResult(BaseModel):
 class MaxFinalSynthesis(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(min_length=1, max_length=180)
-    executive_summary: str = Field(min_length=1, max_length=1_800)
-    closing_note: str = Field(min_length=1, max_length=1_200)
-
-
-def _schema_string_array(*, minimum: int = 0, maximum: int, enum: list[Any] | None = None) -> dict[str, Any]:
-    item: dict[str, Any] = {"type": "string"}
-    if enum:
-        item["enum"] = enum
-    return {
-        "type": "array",
-        "minItems": minimum,
-        "maxItems": maximum,
-        "items": item,
-    }
+    title: str = Field(min_length=1)
+    executive_summary: str = Field(min_length=1)
+    closing_note: str = Field(min_length=1)
 
 
 def sap_schema(
@@ -219,167 +208,34 @@ def sap_schema(
     segment_keys: list[str],
     semantic_budget: int,
 ) -> dict[str, Any]:
-    analysis_indices = list(range(analysis_count))
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "rationale": {"type": "string"},
-            "direct_variables": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": MAX_DIRECT_VARIABLES,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-                        "label": {"type": "string"},
-                        "description": {"type": "string"},
-                        "profile_path": {"type": "string", "enum": profile_paths},
-                        "kind": {
-                            "type": "string",
-                            "enum": ["categorical", "numeric", "boolean", "date", "text", "entity_list"],
-                        },
-                        "analysis_indices": {
-                            "type": "array",
-                            "minItems": 1,
-                            "maxItems": analysis_count,
-                            "items": {"type": "integer", "enum": analysis_indices},
-                        },
-                    },
-                    "required": ["name", "label", "description", "profile_path", "kind", "analysis_indices"],
-                },
-            },
-            "semantic_variables": {
-                "type": "array",
-                "minItems": 0,
-                "maxItems": semantic_budget,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-                        "label": {"type": "string"},
-                        "instruction": {"type": "string"},
-                        "value_type": {
-                            "type": "string",
-                            "enum": ["string", "integer", "number", "boolean", "string_array"],
-                        },
-                        "kind": {
-                            "type": "string",
-                            "enum": ["categorical", "numeric", "boolean", "date", "text", "entity_list"],
-                        },
-                        "analysis_indices": {
-                            "type": "array",
-                            "minItems": 1,
-                            "maxItems": analysis_count,
-                            "items": {"type": "integer", "enum": analysis_indices},
-                        },
-                    },
-                    "required": ["name", "label", "instruction", "value_type", "kind", "analysis_indices"],
-                },
-            },
-            "analyses": {
-                "type": "array",
-                "minItems": analysis_count,
-                "maxItems": analysis_count,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "analysis_index": {"type": "integer", "enum": analysis_indices},
-                        "purpose": {"type": "string"},
-                        "methods": _schema_string_array(minimum=2, maximum=6),
-                        "variable_names": _schema_string_array(minimum=1, maximum=60),
-                        "segment_keys": _schema_string_array(
-                            minimum=0,
-                            maximum=max(1, len(segment_keys)),
-                            enum=segment_keys,
-                        ),
-                    },
-                    "required": ["analysis_index", "purpose", "methods", "variable_names", "segment_keys"],
-                },
-            },
-        },
-        "required": ["rationale", "direct_variables", "semantic_variables", "analyses"],
-    }
+    schema = report_schema(MaxAnalysisPlan)
+    props = schema["properties"]
+    props["direct_variables"]["items"]["properties"]["profile_path"]["enum"] = profile_paths
+    props["semantic_variables"]["maxItems"] = semantic_budget
+    props["analyses"].update(minItems=analysis_count, maxItems=analysis_count)
+    specification = props["analyses"]["items"]["properties"]
+    specification["analysis_index"]["enum"] = list(range(analysis_count))
+    specification["segment_keys"]["maxItems"] = min(8, len(segment_keys))
+    if segment_keys:
+        specification["segment_keys"]["items"]["enum"] = segment_keys
+    for key in ("direct_variables", "semantic_variables"):
+        indices = props[key]["items"]["properties"]["analysis_indices"]
+        indices["maxItems"] = analysis_count
+        indices["items"]["enum"] = list(range(analysis_count))
+    return schema
 
 
 def objective_schema(aliases: list[str]) -> dict[str, Any]:
-    provenance = _schema_string_array(minimum=0, maximum=len(aliases), enum=aliases)
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "title": {"type": "string"},
-            "summary_sentences": _schema_string_array(minimum=1, maximum=1),
-            "sub_analyses": {
-                "type": "array",
-                "minItems": 2,
-                "maxItems": MAX_SUBANALYSES,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "title": {"type": "string"},
-                        "visual": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                "kind": {"type": "string", "enum": ["stat", "bar", "donut"]},
-                                "title": {"type": "string"},
-                                "unit": {"type": "string"},
-                                "labels": _schema_string_array(minimum=1, maximum=MAX_VISUAL_ITEMS),
-                                "values": {
-                                    "type": "array",
-                                    "minItems": 1,
-                                    "maxItems": MAX_VISUAL_ITEMS,
-                                    "items": {"type": "number"},
-                                },
-                                "note": {"type": "string"},
-                            },
-                            "required": ["kind", "title", "unit", "labels", "values", "note"],
-                        },
-                        "interpretation": {"type": "string"},
-                        "items": {
-                            "type": "array",
-                            "minItems": 0,
-                            "maxItems": MAX_VISUAL_ITEMS,
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "label": {"type": "string"},
-                                    "value": {"type": "string"},
-                                    "explanation": {"type": "string"},
-                                    "trial_ids": provenance,
-                                },
-                                "required": ["label", "value", "explanation", "trial_ids"],
-                            },
-                        },
-                        "trial_ids": provenance,
-                    },
-                    "required": ["title", "visual", "interpretation", "items", "trial_ids"],
-                },
-            },
-            "conclusion": {"type": "string"},
-            "limitations": _schema_string_array(minimum=0, maximum=5),
-        },
-        "required": ["title", "summary_sentences", "sub_analyses", "conclusion", "limitations"],
-    }
+    schema = report_schema(MaxObjectiveResult)
+    sub = schema["properties"]["sub_analyses"]["items"]["properties"]
+    for provenance in (sub["trial_ids"], sub["items"]["items"]["properties"]["trial_ids"]):
+        provenance["maxItems"] = len(aliases)
+        if aliases:
+            provenance["items"]["enum"] = aliases
+    return schema
 
 
-FINAL_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "title": {"type": "string"},
-        "executive_summary": {"type": "string"},
-        "closing_note": {"type": "string"},
-    },
-    "required": ["title", "executive_summary", "closing_note"],
-}
+FINAL_SCHEMA: dict[str, Any] = report_schema(MaxFinalSynthesis)
 
 
 def _extract_output_text(payload: dict[str, Any]) -> str:
@@ -1424,16 +1280,24 @@ Return only structured report content."""
             "deterministic_summaries": summaries,
             "evidence_rows": evidence_rows,
         }
-        body = await self._response(
-            developer=developer,
-            user_payload=payload,
-            schema_name=f"intel_max_objective_v1_{specification.analysis_index}",
-            schema=objective_schema(aliases),
-            max_output_tokens=12_000,
-        )
+        developer += "\n\n" + CONCISE_REPORT_GUIDANCE
+
+        async def request(correction: str, attempt_payload: dict[str, Any]) -> str:
+            body = await self._response(
+                developer=developer + "\n\n" + correction,
+                user_payload=attempt_payload,
+                schema_name=f"intel_max_objective_v2_{specification.analysis_index}",
+                schema=objective_schema(aliases),
+                max_output_tokens=12_000,
+            )
+            return _extract_output_text(body)
+
         try:
-            result = MaxObjectiveResult.model_validate(json.loads(_extract_output_text(body)))
-        except (json.JSONDecodeError, ValidationError) as error:
+            result = await generate_report_output(
+                request=request, payload=payload, validate=MaxObjectiveResult.model_validate,
+                operation=f"max_objective_{specification.analysis_index}",
+            )
+        except ValueError as error:
             raise MaxReportError("MAX_REPORT_OBJECTIVE_INVALID", "The report service returned an invalid report section.", True) from error
         expected_title = str(max_analysis.get("title") or "").strip() if isinstance(max_analysis, dict) else ""
         if expected_title and result.title.strip() != expected_title:
@@ -1456,17 +1320,25 @@ Write a concise report title, a decision-facing executive summary that connects 
             "analyzed_cohort": analyzed_cohort,
             "sections": [item.model_dump(mode="json") for item in sections],
         }
-        body = await self._response(
-            developer=developer,
-            user_payload=payload,
-            schema_name="intel_max_synthesis_v1",
-            schema=FINAL_SCHEMA,
-            max_output_tokens=6_000,
-            timeout=600,
-        )
+        developer += "\n\n" + CONCISE_REPORT_GUIDANCE
+
+        async def request(correction: str, attempt_payload: dict[str, Any]) -> str:
+            body = await self._response(
+                developer=developer + "\n\n" + correction,
+                user_payload=attempt_payload,
+                schema_name="intel_max_synthesis_v2",
+                schema=FINAL_SCHEMA,
+                max_output_tokens=6_000,
+                timeout=600,
+            )
+            return _extract_output_text(body)
+
         try:
-            return MaxFinalSynthesis.model_validate(json.loads(_extract_output_text(body)))
-        except (json.JSONDecodeError, ValidationError) as error:
+            return await generate_report_output(
+                request=request, payload=payload, validate=MaxFinalSynthesis.model_validate,
+                operation="max_synthesis",
+            )
+        except ValueError as error:
             raise MaxReportError("MAX_REPORT_SYNTHESIS_INVALID", "The report service returned an invalid final synthesis.", True) from error
 
 

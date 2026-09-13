@@ -99,6 +99,12 @@ Direct-variable types are derived from the selected profiles rather than trusted
 mixed-type paths are excluded and any SAP-supplied kind is normalized to the catalogue. A
 remaining structural SAP contract failure gets one correction call before the run fails closed.
 
+Light and Max share `report_output.py`: generation schemas derive from runtime models,
+reader-facing prose uses concise-writing targets rather than hard character ceilings,
+and each objective/synthesis has one shared contract/content/editorial correction budget.
+Optional editing preserves chart data, provenance and quantitative/caveat checks; failed
+editing retains the valid original. App owns wrapping and lossless PDF continuation.
+
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
 
 Broad Max filters are recall-only. A screened candidate can enter the final cohort

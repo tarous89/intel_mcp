@@ -82,8 +82,8 @@ Prompt/schema names:
 ```text
 planner:   intel_agent_report_plan_v4
 selection: intel_light_trial_selection_v5
-analysis:  intel_light_objective_v8
-synthesis: intel_light_synthesis_v5
+analysis:  intel_light_objective_v9
+synthesis: intel_light_synthesis_v6
 ```
 
 ## Max execution v1
@@ -131,6 +131,27 @@ final_report.tier = max
 ### Control-plane boundary
 
 The private `/internal/max-report/start` route launches Max. Its six-hour lease excludes `get_documents`, zeros document allowances, authorizes up to 1,000 filtered IDs, 500 profiles and 500 screening classifications, and keeps final extraction at 100 trials. Leases capped at 100 by an older App deployment automatically use the legacy bounded workflow. Once an expanded lease is issued, candidate-stage failures stop the run for safe retry rather than silently falling back to a smaller cohort. Successful completion consumes the reserved entitlement; system failure leaves it unconsumed.
+
+## Shared output/readability contract
+
+`report_output.py` generates strict schemas from the runtime models for Light selection,
+Light/Max objective and synthesis output, and the Max SAP (with scoped enums/budgets).
+Public narrative strings have no layout-driven maximum length. Shared writing guidance
+targets one takeaway, 2–3 short interpretation sentences, one-sentence item explanations,
+brief chart units and one short denominator note. Scientific caveats take precedence.
+Internal SAP identifier/extractor limits and report scope, array, finite-number and
+chart-alignment rules remain enforced; Light also rejects negative donut values.
+
+Each objective or synthesis shares one correction attempt across structural errors,
+Light's existing medical-content gate and optional verbosity editing. The edit receives
+the prior draft and original evidence; charts, units, labels, ordering and provenance
+must stay exact and quantitative/caveat tokens must be preserved. Unsafe or failed
+optional editing retains the valid original, even if still verbose. A second invalid
+contract fails closed. Completed objectives and the frozen dataset are not recomputed
+during these corrections. This is not durable recovery across process restarts.
+
+The App handles lengthy units once below the chart and splits oversized PDF blocks
+without deleting text, changing numbers, shrinking fonts or cutting SVG graphics.
 
 ## Runtime boundary
 
