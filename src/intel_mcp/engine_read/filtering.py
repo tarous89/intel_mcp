@@ -377,7 +377,17 @@ def build_where(filters: dict[str, Any], *, all_profiles: bool = False) -> tuple
     conditions = ["TRUE" if all_profiles else "p.approval_status = 'approved'"]
     params: list[Any] = []
     for field, condition in filters.items():
-        if field in TEXT_FIELDS or field in CONTROLLED_SCALAR_FIELDS:
+        if all_profiles and field == "trial_title" and condition.get("operator", "contains") == "contains":
+            # Max discovery is recall-only. Search clinical narrative as well as
+            # titles so sparse deterministic profiles are not structurally excluded.
+            # Keep the public/Light title-filter contract unchanged.
+            title_match = _text_sql("p", field, condition, params)
+            params.append(f"%{_escape_like(condition['value'])}%")
+            conditions.append(
+                f"({title_match} OR EXISTS (SELECT 1 FROM mcp_serving.report_search_v1 source "
+                "WHERE source.profile_id = p.id AND source.search_text ILIKE %s ESCAPE E'\\\\'))"
+            )
+        elif field in TEXT_FIELDS or field in CONTROLLED_SCALAR_FIELDS:
             conditions.append(_text_sql("p", field, condition, params))
         elif field in DATE_FIELDS or field in NUMBER_FIELDS:
             conditions.append(_comparison_sql(f"p.{field}", condition, params))

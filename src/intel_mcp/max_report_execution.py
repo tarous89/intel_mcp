@@ -16,7 +16,8 @@ from intel_mcp.engine_database import DatabaseEngineClient
 from intel_mcp.extraction import ExtractionVariable, ExtractorError, TerraExtractor, extraction_key
 from intel_mcp.light_report_execution import ReportExecutionControl, ReportExecutionError
 from intel_mcp.report_artifacts import save_dataset
-from intel_mcp.max_report_quality import public_section
+from intel_mcp.max_report_quality import public_section, public_cohort_summary
+from intel_mcp.max_source_text import source_passages, SCREEN_ELIGIBILITY_BUDGET
 from intel_mcp.max_candidate_screening import (
     CANDIDATE_POOL_TARGET,
     MAX_CANDIDATE_POOL,
@@ -402,7 +403,7 @@ class MaxReportExecutor:
         if not selected:
             raise MaxReportError(
                 "MAX_REPORT_NO_TRIALS",
-                "No approved Trial Profiles matched the planned Max evidence groups.",
+                "No stored Trial Profiles matched the planned Max evidence groups.",
                 False,
             )
         return selected, discovery_indices
@@ -453,7 +454,6 @@ class MaxReportExecutor:
                 filters = _candidate_trial_filters(candidate)
                 if title:
                     filters = TrialFilters.model_validate({
-                        **filters.model_dump(mode="json", exclude_none=True),
                         "trial_title": {"operator": "contains", "value": title},
                     })
                 add_query(filters, None)
@@ -510,7 +510,7 @@ class MaxReportExecutor:
         if not selected:
             raise MaxReportError(
                 "MAX_REPORT_NO_TRIALS",
-                "No approved Trial Profiles matched the planned Max evidence groups.",
+                "No stored Trial Profiles matched the planned Max evidence groups.",
                 False,
             )
         return selected, discovery_indices
@@ -519,6 +519,7 @@ class MaxReportExecutor:
         self,
         analysis_id: str,
         trial_ids: list[str],
+        query: str = "",
     ) -> list[dict[str, Any]]:
         semaphore = asyncio.Semaphore(MAX_PROFILE_LOAD_CONCURRENCY)
 
@@ -545,6 +546,7 @@ class MaxReportExecutor:
                     {
                         "trial_id": item.eu_number,
                         "profile": project_profile(item.profile, CANDIDATE_PROFILE_SECTIONS),
+                        "eligibility_text": source_passages(item.profile, query, SCREEN_ELIGIBILITY_BUDGET, eligibility_only=True),
                     }
                     for item in result.data
                 ]
@@ -912,6 +914,7 @@ class MaxReportExecutor:
                     candidate_profiles = await self._load_compact_profiles(
                         analysis_id,
                         candidate_ids,
+                        query=context + " " + insights,
                     )
                     candidate_group_variables, candidate_segment_metadata = max_group_variables(
                         approved_plan,
@@ -954,7 +957,7 @@ class MaxReportExecutor:
                     if not selected:
                         raise MaxReportError(
                             "MAX_REPORT_NO_RELEVANT_TRIALS",
-                            "No approved Trial Profiles were sufficiently relevant to the approved report plan.",
+                            "No stored Trial Profiles were sufficiently relevant to the approved report plan.",
                             False,
                         )
                     trial_ids = [item.trial_id for item in selected]
@@ -968,32 +971,6 @@ class MaxReportExecutor:
                             segment_cohort_indices[key]
                             for key in [*item.segment_keys, *item.uncertain_segment_keys]
                             if key in segment_cohort_indices
-                        )
-                    unassigned_ids = {
-                        trial_id
-                        for trial_id, cohort_indices in discovery_indices.items()
-                        if not cohort_indices
-                    }
-                    if unassigned_ids:
-                        LOGGER.error(
-                            "Dropping Max candidates without an approved trial-group assignment: "
-                            "report_run_id=%s count=%s",
-                            report_run_id,
-                            len(unassigned_ids),
-                        )
-                        selected = [item for item in selected if item.trial_id not in unassigned_ids]
-                        trial_ids = [item.trial_id for item in selected]
-                        selected_assessments = {item.trial_id: item for item in selected}
-                        discovery_indices = {
-                            trial_id: indices
-                            for trial_id, indices in discovery_indices.items()
-                            if trial_id not in unassigned_ids
-                        }
-                    if not selected:
-                        raise MaxReportError(
-                            "MAX_REPORT_NO_RELEVANT_TRIALS",
-                            "No approved Trial Profiles were sufficiently relevant to the approved report plan.",
-                            False,
                         )
                     profiles = await self._load_profiles(analysis_id, trial_ids)
                     group_variables = candidate_group_variables
@@ -1037,7 +1014,7 @@ class MaxReportExecutor:
                         )
                         else "adjacent"
                     ),
-                    "cohort_index": min(discovery_indices.get(trial_id, {0})),
+                    "cohort_index": min(discovery_indices.get(trial_id) or {0}),
                 }
                 for trial_id in trial_ids
             ]
@@ -1129,6 +1106,7 @@ class MaxReportExecutor:
                     rows=rows,
                     definitions=definitions,
                     segment_metadata=segment_metadata,
+                    profiles=profiles,
                 )
 
             tasks = [
@@ -1160,6 +1138,7 @@ class MaxReportExecutor:
                     True,
                 )
 
+            publication_audit = [{"title": item.title, **item.analysis_audit} for item in results]
             results = [item for item in results if item.sub_analyses]
             if not results:
                 raise MaxReportError("MAX_REPORT_INSUFFICIENT_FINDINGS", "This report could not be completed. Please revise your request and try again.", False)
@@ -1172,6 +1151,7 @@ class MaxReportExecutor:
                     definitions=definitions, analysis_plan=analysis_plan.model_dump(mode="json"),
                     segments=segment_metadata, approved_plan=approved_plan,
                     report_evidence=[item.model_dump(mode="json") for item in results],
+                    publication_audit=publication_audit,
                 )
             except Exception as error:
                 # Export availability must never discard a valid scientific report.
@@ -1192,7 +1172,7 @@ class MaxReportExecutor:
                 "title": synthesis.title,
                 "dataset": progress.get("dataset"),
                 "executiveSummary": synthesis.executive_summary,
-                "analyzedCohort": analyzed_cohort,
+                "analyzedCohort": public_cohort_summary(analyzed_cohort),
                 "closingNote": synthesis.closing_note,
                 "sections": [public_section(item) for item in results],
             }

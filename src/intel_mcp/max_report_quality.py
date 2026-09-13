@@ -34,88 +34,157 @@ def _present(value):
     return value is not None and value != "" and value != [] and value != {}
 
 
-def filter_objective(result, rows, definitions):
-    """Validate denominators from real rows; discard invalid findings before synthesis.
+def _small_precedent(sub, actual):
+    reason = sub.small_sample_reason.strip()
+    if not reason or not actual:
+        return False
+    if all(row.get("relevance_tier") in {"exact", "close"} for row in actual):
+        return True
+    # Global adjacency does not decide objective-specific usefulness. Require a
+    # concrete rationale grounded in each trial's supplied facts, not a slogan.
+    terms = set(re.findall(r"[a-z]{4,}", reason.casefold())) - {
+        "very", "relevant", "trial", "trials", "study", "studies", "direct",
+        "directly", "clinical", "objective", "evidence", "important", "supports",
+    }
+    return len(reason) >= 40 and all(
+        row.get("relevance_tier") != "exclude" and len(terms & set(
+            re.findall(r"[a-z]{4,}", str(row.get("values", {})).casefold())
+        )) >= 2 for row in actual
+    )
 
-    Missing support is never inferred from an LLM's N or from overall cohort size.
-    A contrast must identify every compared group. Small-N exceptions are restricted
-    to directly relevant descriptive precedents, not comparative statistics.
+
+def filter_objective(result, rows, definitions):
+    """Prune unsupported units; request bounded repair through private QA reasons.
+
+    Never silently change an analytical denominator while retaining its metric.
+    Invalid series can be removed only when remaining prose is independent.
     """
     by_id = {row["alias"]: row for row in rows}
     retained = []
-    for sub in result.sub_analyses:
+    changed = False
+    def reject(location, reason):
+        nonlocal changed
+        changed = True
+        result.qa_warnings.append(f"publication:{location}:{reason}")
+
+    for sub_index, sub in enumerate(result.sub_analyses):
+        location = f"finding_{sub_index}"
         try:
-            validate_public_text(_text(sub))
-            supports = sub.visual.supports
-            if {s.value_index for s in supports} != set(range(len(sub.visual.values))):
-                continue
-            small = False
-            valid = True
+            validate_public_text(" ".join([sub.title, sub.interpretation, sub.visual.title,
+                                          sub.visual.unit, sub.visual.note]))
+        except ValueError:
+            reject(location, "internal_or_empty_group_prose")
+            continue
+        valid_indices, valid_supports = [], []
+        for index, (label, value) in enumerate(zip(sub.visual.labels, sub.visual.values)):
+            supports = [support for support in sub.visual.supports if support.value_index == index]
+            reason = None
+            try:
+                validate_public_text(label)
+            except ValueError:
+                reason = "invalid_series_label"
+            if not supports:
+                reason = "missing_denominator"
             for support in supports:
                 ids = set(support.trial_ids)
                 names = support.variable_names
                 if not ids or not ids.issubset(by_id) or not set(names).issubset(definitions):
-                    valid = False
+                    reason = "empty_or_unknown_support"
                     break
                 if support.segment_key is not None and any(support.segment_key not in by_id[i].get("segment_keys", []) for i in ids):
-                    valid = False
+                    reason = "incorrect_segment_denominator"
                     break
-                # Every listed supporting trial must actually supply these variables.
                 actual = [by_id[i] for i in ids if all(_present(by_id[i].get("values", {}).get(n)) for n in names)]
                 if len(actual) != len(ids):
-                    valid = False
+                    reason = "denominator_contains_missing_values"
                     break
-                if len(actual) < 5:
-                    small = True
-                    if not sub.small_sample_reason.strip() or any(r.get("relevance_tier") not in {"exact", "close"} for r in actual):
-                        valid = False
-                        break
-            if not valid:
-                continue
-            if small and (len(sub.visual.values) > 1 or len(supports) > 1 or SMALL_COMPARISON.search(_text(sub))):
-                continue
-            # Named recommendations cannot borrow the chart's larger denominator.
-            supporting_ids = {i for support in supports for i in support.trial_ids}
-            for item in sub.items:
-                ids = set(item.trial_ids)
-                if not ids or not ids.issubset(supporting_ids):
-                    valid = False
+                if len(actual) < 5 and (not _small_precedent(sub, actual)
+                    or len(supports) > 1 or len(sub.visual.values) > 1
+                    or SMALL_COMPARISON.search(_text(sub))):
+                    reason = "insufficient_support"
                     break
-                if len(ids) < 5 and (not sub.small_sample_reason.strip()
-                    or any(by_id[i].get("relevance_tier") not in {"exact", "close"} for i in ids)
-                    or SMALL_COMPARISON.search(" ".join([item.label, item.value, item.explanation]))):
-                    valid = False
-                    break
-            if not valid:
-                continue
-            # A zero trial-count category is an empty result, not a graph slot.
-            if re.search(r"\b(?:trials?|studies)\b", sub.visual.unit, re.I) and any(v == 0 for v in sub.visual.values):
-                continue
-            retained.append(sub)
-        except ValueError:
+            if re.search(r"\b(?:trials?|studies)\b", sub.visual.unit, re.I) and value == 0:
+                reason = "empty_trial_count"
+            if reason:
+                reject(f"{location}.series_{index}", reason)
+            else:
+                valid_indices.append(index)
+                valid_supports.extend(supports)
+        if not valid_indices:
             continue
-    changed = len(retained) != len(result.sub_analyses)
+        if len(valid_indices) != len(sub.visual.values):
+            removed_labels = [label for index, label in enumerate(sub.visual.labels) if index not in valid_indices]
+            prose = " ".join([sub.title, sub.interpretation, sub.visual.title, sub.visual.note])
+            # A percentage/donut or contrast could change meaning when a series
+            # disappears. Preserve only independent descriptive values.
+            if sub.visual.kind == "donut" or sub.visual.unit == "%" or SMALL_COMPARISON.search(prose) or re.search(r"\d", prose) or any(label.casefold() in prose.casefold() for label in removed_labels):
+                reject(location, "series_removal_requires_prose_repair")
+                continue
+            remap = {old: new for new, old in enumerate(valid_indices)}
+            sub.visual.labels = [sub.visual.labels[i] for i in valid_indices]
+            sub.visual.values = [sub.visual.values[i] for i in valid_indices]
+            for support in valid_supports:
+                support.value_index = remap[support.value_index]
+        sub.visual.supports = valid_supports
+        supporting_ids = {i for support in valid_supports for i in support.trial_ids}
+        kept_items = []
+        for index, item in enumerate(sub.items):
+            ids = set(item.trial_ids)
+            text = " ".join([item.label, item.value, item.explanation])
+            reason = None
+            try:
+                validate_public_text(text)
+            except ValueError:
+                reason = "internal_item_prose"
+            if not ids or not ids.issubset(supporting_ids):
+                reason = "unsupported_named_item"
+            elif len(ids) < 5 and (not _small_precedent(sub, [by_id[i] for i in ids]) or SMALL_COMPARISON.search(text)):
+                reason = "insufficient_named_item_support"
+            if reason:
+                reject(f"{location}.item_{index}", reason)
+                # Item-dependent interpretation needs repair; independent findings survive.
+                if item.label.casefold() in sub.interpretation.casefold():
+                    reject(location, "item_removal_requires_prose_repair")
+                    break
+            else:
+                kept_items.append(item)
+        else:
+            sub.items = kept_items
+            sub.trial_ids = sorted(supporting_ids)
+            retained.append(sub)
     result.sub_analyses = retained
     result.limitations = []
     if changed:
-        result.qa_warnings.append("publication_findings_omitted")
-        # Draft-level prose could refer to removed findings. Reuse a retained,
-        # validated interpretation instead; synthesis runs later on retained work.
-        result.summary_sentences = [retained[0].interpretation if retained else ""]
+        result.summary_sentences = [""]
         result.conclusion = ""
     else:
         try:
             validate_public_text(" ".join([*result.summary_sentences, result.conclusion]))
         except ValueError:
-            result.summary_sentences = [retained[0].interpretation if retained else ""]
+            reject("objective", "internal_or_empty_summary")
+            result.summary_sentences = [""]
             result.conclusion = ""
     try:
         validate_public_text(result.title)
     except ValueError:
+        reject("objective", "invalid_title")
         result.sub_analyses = []
         result.summary_sentences = [""]
         result.conclusion = ""
     return result
+
+
+def public_cohort_summary(cohort):
+    groups = []
+    for group in cohort.get("cohorts", []):
+        if group.get("trialCount", 0) < 5:
+            continue
+        try:
+            validate_public_text(group.get("title", ""))
+        except ValueError:
+            continue
+        groups.append(group)
+    return {"totalTrials": cohort["totalTrials"], "cohorts": groups, "overlapping": True}
 
 
 def public_section(result):

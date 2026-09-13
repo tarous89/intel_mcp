@@ -129,7 +129,7 @@ def test_selection_excludes_irrelevant_trials_and_preserves_adjacent_representat
     assert all(item.tier != "exclude" for item in selected)
 
 
-def test_selection_excludes_broad_candidates_without_an_approved_group() -> None:
+def test_selection_retains_broad_candidates_without_a_planned_group() -> None:
     assessments = [
         CandidateAssessment(
             trial_id="BROAD-ONLY",
@@ -164,7 +164,7 @@ def test_selection_excludes_broad_candidates_without_an_approved_group() -> None
         trial_cohort_indices={"BROAD-ONLY": set(), "SEED-MATCH": {0}},
     )
 
-    assert [item.trial_id for item in selected] == ["SEED-MATCH", "SEGMENT-MATCH"]
+    assert [item.trial_id for item in selected] == ["SEED-MATCH", "SEGMENT-MATCH", "BROAD-ONLY"]
 
 
 def test_screening_keys_and_candidate_limit_are_stable_and_bounded() -> None:

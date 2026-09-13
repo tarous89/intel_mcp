@@ -50,7 +50,7 @@ Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 New and revised plans use `intel_agent_report_plan_v4` with `gpt-5.6-sol`, medium reasoning and no tools.
 
 - One shared Light + Max trial group uses exactly one structured dimension: disease, therapeutic area, phase, modality or country.
-- Two to four additional trial groups are Max-only.
+- Max adds 1–2 genuinely broader and 1–2 narrower trial groups, adapted to brief specificity; these are overlapping lenses, never admission gates or objective assignments.
 - Every group carries a deterministic discovery filter and stable machine-readable selection-segment labels and literal criteria for Max execution.
 - Plans contain 1–7 request-aligned analysis pairs: one shared analysis and one deeper Max analysis per distinct user-requested decision or output; closely related considerations remain details within that pair.
 - Every analysis must answer a medical, clinical-development or trial-operational question.
@@ -107,16 +107,12 @@ editing retains the valid original. App owns wrapping and lossless PDF continuat
 
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
 
-Broad Max filters are recall-only. A screened candidate can enter the final cohort
-only through an approved deterministic group seed or a confirmed/uncertain approved
-selection segment; relevant but unassigned candidates are excluded rather than put
-into an invented catch-all group. Max planning, screening, SAP, analyst and reducer
-calls use the same bounded Flex-capacity recovery policy as Light.
+Broad Max filters are recall-only volume controls. Max searches cached clinical narrative through Engine's `report_search_v1` as well as structured fields; the projection covers all stored states and updates automatically. Candidate screening includes bounded eligibility passages and excludes only clear irrelevance. Relevant candidates need no planned group assignment; selection preserves group diversity and fills the shared pool up to 100 when enough useful candidates exist. Each analyst determines its own contributing subset after reading variables and bounded verbatim source passages. Planning, screening, SAP, analyst and reducer calls retain bounded Flex recovery.
 Initial generation limits remain per-call cost and latency guardrails (objective analysis
 uses 12,000 output tokens). Terminal-response logs record status, incomplete/error reason,
 response/request IDs and usage without prompts or clinical payloads.
 
-Max publication is model-free: each finding and named recommendation must have actual supporting trial IDs and populated variables; empty results are removed, and N<5 requires a directly relevant descriptive precedent. Internal IDs, evidence metadata and processing language are excluded from report sections and synthesis; support details and profile status are saved in the dataset. Existing models, token ceilings, candidate/extraction/variable limits and correction budgets stay unchanged. Broader discovery can change actual usage within those ceilings.
+Max publication is model-free: each finding and named recommendation must have actual supporting trial IDs and populated variables; empty results are removed, and N<5 requires a concrete objective-specific descriptive precedent, including adjacent trials when justified by their source facts. Internal IDs, evidence metadata and processing language are excluded from report sections and synthesis; support details and profile status are saved in the dataset. Existing models, token ceilings, candidate/extraction/variable limits and correction budgets stay unchanged. Broader discovery can change actual usage within those ceilings.
 
 ## Site Agent
 
