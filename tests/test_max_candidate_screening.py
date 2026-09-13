@@ -128,6 +128,44 @@ def test_selection_excludes_irrelevant_trials_and_preserves_adjacent_representat
     assert all(item.tier != "exclude" for item in selected)
 
 
+def test_selection_excludes_broad_candidates_without_an_approved_group() -> None:
+    assessments = [
+        CandidateAssessment(
+            trial_id="BROAD-ONLY",
+            tier="exact",
+            relevance_score=100,
+            segment_keys=[],
+            uncertain_segment_keys=[],
+            rationale="Relevant at screening but not assigned to an approved group.",
+        ),
+        CandidateAssessment(
+            trial_id="SEED-MATCH",
+            tier="close",
+            relevance_score=80,
+            segment_keys=[],
+            uncertain_segment_keys=[],
+            rationale="Matched an approved deterministic group seed.",
+        ),
+        CandidateAssessment(
+            trial_id="SEGMENT-MATCH",
+            tier="adjacent",
+            relevance_score=70,
+            segment_keys=[],
+            uncertain_segment_keys=["adjacent"],
+            rationale="Mapped to an approved adjacent segment.",
+        ),
+    ]
+
+    selected = select_screened_candidates(
+        assessments,
+        segment_cohort_indices={"primary": 0, "adjacent": 1},
+        maximum=100,
+        trial_cohort_indices={"BROAD-ONLY": set(), "SEED-MATCH": {0}},
+    )
+
+    assert [item.trial_id for item in selected] == ["SEED-MATCH", "SEGMENT-MATCH"]
+
+
 def test_screening_keys_and_candidate_limit_are_stable_and_bounded() -> None:
     segments = [{"key": "primary", "inclusion_criteria": ["A"]}]
     assert candidate_screening_key("T1", segments) == candidate_screening_key("T1", segments)

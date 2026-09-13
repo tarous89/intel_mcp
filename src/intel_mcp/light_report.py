@@ -11,6 +11,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from intel_mcp.config import Settings
+from intel_mcp.openai_retry import post_openai_response
 from intel_mcp.profiles import FullProfileItem
 from intel_mcp.site_ranking import rank_profiles
 
@@ -670,10 +671,13 @@ class SolLightReportRunner:
             request["max_tool_calls"] = max_tool_calls
         try:
             async with httpx.AsyncClient(timeout=timeout, transport=self._transport) as client:
-                response = await client.post(
-                    f"{self._settings.openai_base_url.rstrip('/')}/responses",
+                response = await post_openai_response(
+                    client,
+                    url=f"{self._settings.openai_base_url.rstrip('/')}/responses",
                     headers={"Authorization": f"Bearer {self._settings.openai_api_key}"},
-                    json=request,
+                    request=request,
+                    logger=LOGGER,
+                    operation=f"Light report {schema_name}",
                 )
         except httpx.TimeoutException as error:
             raise LightReportError("LIGHT_REPORT_TIMEOUT", "Report generation timed out.", True) from error

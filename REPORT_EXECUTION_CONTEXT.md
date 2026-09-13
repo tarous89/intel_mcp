@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-11
+Last updated: 2026-09-13
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 approved Trial Profiles for report analysis.
 
@@ -105,7 +105,7 @@ Candidate-filter planning and compact-profile screening use Sol/medium/Flex. SAP
 1. Preserve every approved group's existing discovery filter as an exact seed, then have a report-start candidate planner create an ordered focused-to-broad progression using only reliable `therapeutic_areas`, `phase`, `modalities` and `country_codes` fields. Disease remains a seed rather than the sole recall gate.
 2. Execute the seed and broad filters in bounded round-robin pages, deduplicate and stop at the 500-candidate target or when the available approved pool is exhausted.
 3. Load only compact `overview`, `population`, `trial_design` and `interventions` projections for candidates. Sol screens them in batches of 25 against the approved rich disease, biomarker, treatment-setting and population segments, assigning `exact`, `close`, `adjacent` or `exclude` without changing any approved analysis.
-4. Select at most 100 non-excluded profiles deterministically while reserving representation for planned adjacent groups. Reload those selected profiles completely and classify every planned segment from the full profile during final extraction.
+4. Select at most 100 non-excluded profiles deterministically while reserving representation for planned adjacent groups. A candidate is eligible only when an approved deterministic seed selected it or screening assigned a confirmed/uncertain approved segment. Broad-only candidates without either assignment are counted for diagnostics and excluded rather than placed in an invented catch-all group. Reload the selected profiles completely and classify every planned segment from the full profile during final extraction.
 5. Build one SAP from the approved brief/plan, an ephemeral catalogue of short fields across every selected profile and up to 10 whole profile examples. Deterministic fields are preferred; narrative interpretation uses the remaining semantic-variable budget. Trial Profile 11 investigators are exposed as one deterministic entity list per trial so names remain aligned with site, country, department and public email; every listed person is a PI by contract.
 6. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete approved Trial Profile. Up to 10 extraction requests run concurrently.
 7. Run one analyst per main analysis pair, then one reducer over the completed sections and cohort summary. Analysts receive only planned variables and the frozen selected dataset; no new report objectives are introduced.
@@ -128,3 +128,10 @@ The private `/internal/max-report/start` route launches Max. Its six-hour lease 
 ## Runtime boundary
 
 The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Executors accept only `queued` runs; failed and already-running runs are terminal at this launcher and cannot reopen model work. The terminal failure callback retries transient App outages five times with bounded backoff, without model calls. Light and Max still use an in-process async launcher and can be interrupted by a service restart; durable claim/heartbeat/retry execution remains pending.
+
+Light report calls and Max planning, screening, SAP, analyst and reducer calls
+recover from temporary Flex-capacity 429s with four total Flex attempts,
+`Retry-After`-aware exponential backoff and jitter, then one automatic-tier attempt.
+Quota/billing exhaustion is terminal and is not retried. Logs include the schema
+operation, attempt number and OpenAI request ID; they do not include prompts or
+clinical payloads.

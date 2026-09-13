@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-11
+Last updated: 2026-09-13
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
@@ -71,6 +71,10 @@ Light is live and Trial-Profile-only:
 5. Terra also writes exactly two objective-specific upgrade sentences from the completed Light result and paired Max card: `This report is limited to …` and `Upgrade to Max to …`.
 6. Sol/high produces only the final title, short introduction and closing note.
 
+All Light report Responses API calls use bounded Flex-capacity recovery: four total
+Flex attempts with `Retry-After`-aware exponential backoff, followed by one
+`service_tier = auto` attempt. Quota/billing 429 responses are not retried.
+
 Per-analysis limitations/completeness notes are empty and not user-facing. The App may show the database/evidence base only once, immediately after the report title and introduction, as a high-level overall number of trials analyzed. It must not show per-objective database coverage.
 
 Max trial groups, Max analyses, document review and Max fulfilment are not executed by Light. Final reports remain renderer-compatible `version = 2`.
@@ -90,6 +94,12 @@ Max is an independently executable profile-only workflow capped at 100 approved 
 SAP semantic-variable instructions target 500 characters and are normalized into the extractor's hard 600-character contract before validation, so verbose structured output does not abort a paid run.
 
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
+
+Broad Max filters are recall-only. A screened candidate can enter the final cohort
+only through an approved deterministic group seed or a confirmed/uncertain approved
+selection segment; relevant but unassigned candidates are excluded rather than put
+into an invented catch-all group. Max planning, screening, SAP, analyst and reducer
+calls use the same bounded Flex-capacity recovery policy as Light.
 
 ## Site Agent
 

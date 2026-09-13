@@ -210,8 +210,9 @@ def select_screened_candidates(
     *,
     segment_cohort_indices: dict[str, int],
     maximum: int,
+    trial_cohort_indices: dict[str, set[int]] | None = None,
 ) -> list[CandidateAssessment]:
-    """Select a relevant, segment-representative cohort with deterministic ties."""
+    """Select relevant candidates that belong to at least one approved trial group."""
 
     if maximum <= 0:
         return []
@@ -228,7 +229,25 @@ def select_screened_candidates(
             item.trial_id,
         )
 
-    eligible = sorted((item for item in assessments if item.tier != "exclude"), key=rank)
+    def approved_cohort_indices(item: CandidateAssessment) -> set[int]:
+        indices = set(
+            segment_cohort_indices[key]
+            for key in [*item.segment_keys, *item.uncertain_segment_keys]
+            if key in segment_cohort_indices
+        )
+        if trial_cohort_indices is not None:
+            indices.update(trial_cohort_indices.get(item.trial_id, set()))
+        return indices
+
+    eligible = sorted(
+        (
+            item
+            for item in assessments
+            if item.tier != "exclude"
+            and (trial_cohort_indices is None or approved_cohort_indices(item))
+        ),
+        key=rank,
+    )
     cohort_indices = sorted(set(segment_cohort_indices.values()))
     if not cohort_indices:
         return eligible[:maximum]
@@ -253,10 +272,7 @@ def select_screened_candidates(
             item
             for item in eligible
             if item.trial_id not in selected_ids
-            and any(
-                segment_cohort_indices.get(key) == cohort_index
-                for key in [*item.segment_keys, *item.uncertain_segment_keys]
-            )
+            and cohort_index in approved_cohort_indices(item)
         ]
         for item in candidates[: quotas[cohort_index]]:
             selected.append(item)

@@ -27,6 +27,7 @@ from intel_mcp.max_candidate_screening import (
     validate_candidate_screen,
 )
 from intel_mcp.models import ModalityFilter, TherapeuticAreaFilter
+from intel_mcp.openai_retry import post_openai_response
 from intel_mcp.profiles import FullProfileItem
 
 
@@ -978,10 +979,13 @@ class TerraMaxReportRunner:
         }
         try:
             async with httpx.AsyncClient(timeout=timeout, transport=self._transport) as client:
-                response = await client.post(
-                    f"{self._settings.openai_base_url.rstrip('/')}/responses",
+                response = await post_openai_response(
+                    client,
+                    url=f"{self._settings.openai_base_url.rstrip('/')}/responses",
                     headers={"Authorization": f"Bearer {self._settings.openai_api_key}"},
-                    json=request,
+                    request=request,
+                    logger=LOGGER,
+                    operation=f"Max report {schema_name}",
                 )
         except httpx.TimeoutException as error:
             raise MaxReportError("MAX_REPORT_TIMEOUT", "Max report generation timed out.", True) from error

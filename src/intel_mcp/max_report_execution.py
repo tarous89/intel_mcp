@@ -931,6 +931,7 @@ class MaxReportExecutor:
                         assessments,
                         segment_cohort_indices=segment_cohort_indices,
                         maximum=MAX_REPORT_TRIAL_COUNT,
+                        trial_cohort_indices=candidate_discovery_indices,
                     )
                     if not selected:
                         raise MaxReportError(
@@ -950,11 +951,50 @@ class MaxReportExecutor:
                             for key in [*item.segment_keys, *item.uncertain_segment_keys]
                             if key in segment_cohort_indices
                         )
+                    unassigned_ids = {
+                        trial_id
+                        for trial_id, cohort_indices in discovery_indices.items()
+                        if not cohort_indices
+                    }
+                    if unassigned_ids:
+                        LOGGER.error(
+                            "Dropping Max candidates without an approved trial-group assignment: "
+                            "report_run_id=%s count=%s",
+                            report_run_id,
+                            len(unassigned_ids),
+                        )
+                        selected = [item for item in selected if item.trial_id not in unassigned_ids]
+                        trial_ids = [item.trial_id for item in selected]
+                        selected_assessments = {item.trial_id: item for item in selected}
+                        discovery_indices = {
+                            trial_id: indices
+                            for trial_id, indices in discovery_indices.items()
+                            if trial_id not in unassigned_ids
+                        }
+                    if not selected:
+                        raise MaxReportError(
+                            "MAX_REPORT_NO_RELEVANT_TRIALS",
+                            "No approved Trial Profiles were sufficiently relevant to the approved report plan.",
+                            False,
+                        )
                     profiles = await self._load_profiles(analysis_id, trial_ids)
                     group_variables = candidate_group_variables
                     segment_metadata = candidate_segment_metadata
                     primary_segment_key = None
                     candidate_overview = screening_summary(assessments, selected)
+                    candidate_overview["unassignedCandidates"] = sum(
+                        1
+                        for item in assessments
+                        if item.tier != "exclude"
+                        and not (
+                            set(candidate_discovery_indices.get(item.trial_id, set()))
+                            or {
+                                segment_cohort_indices[key]
+                                for key in [*item.segment_keys, *item.uncertain_segment_keys]
+                                if key in segment_cohort_indices
+                            }
+                        )
+                    )
                     candidate_execution = True
 
             if not candidate_execution:
