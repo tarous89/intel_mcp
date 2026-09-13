@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import math
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -14,6 +15,7 @@ from intel_mcp.config import Settings
 from intel_mcp.openai_retry import post_openai_response
 from intel_mcp.profiles import FullProfileItem
 from intel_mcp.site_ranking import rank_profiles
+from intel_mcp.report_output import CONCISE_REPORT_GUIDANCE, generate_report_output, report_schema
 
 
 LIGHT_SELECTION_MODEL = "gpt-5.6-sol"
@@ -98,7 +100,7 @@ class LightTrialSelection(BaseModel):
 
 
 class LightVisual(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     kind: Literal["stat", "bar", "donut"]
     title: str
@@ -113,6 +115,10 @@ class LightVisual(BaseModel):
             raise ValueError("visual labels and values must have the same length")
         if self.kind == "stat" and len(self.labels) != 1:
             raise ValueError("stat visuals must contain exactly one value")
+        if any(not math.isfinite(value) for value in self.values):
+            raise ValueError("visual values must be finite")
+        if self.kind == "donut" and any(value < 0 for value in self.values):
+            raise ValueError("donut values cannot be negative")
         return self
 
 
@@ -149,7 +155,6 @@ class ObjectiveResult(BaseModel):
     conclusion: str
     max_upgrade: str = Field(
         min_length=1,
-        max_length=420,
         pattern=MAX_UPGRADE_PATTERN,
         exclude=True,
     )
@@ -165,129 +170,11 @@ class FinalSynthesis(BaseModel):
     closing_note: str
 
 
-SELECTION_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "selected_trials": {
-            "type": "array",
-            "minItems": LIGHT_TRIAL_COUNT,
-            "maxItems": LIGHT_TRIAL_COUNT,
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "trial_id": {"type": "string"},
-                    "group": {"type": "string", "enum": ["priority", "adjacent"]},
-                    "cohort_index": {"type": "integer", "minimum": 0, "maximum": 3},
-                },
-                "required": ["trial_id", "group", "cohort_index"],
-            },
-        }
-    },
-    "required": ["selected_trials"],
-}
-
-OBJECTIVE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "title": {"type": "string"},
-        "summary_sentences": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 1,
-            "items": {"type": "string"},
-        },
-        "sub_analyses": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": LIGHT_MAX_SUBANALYSES,
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "title": {"type": "string"},
-                    "visual": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "kind": {"type": "string", "enum": ["stat", "bar", "donut"]},
-                            "title": {"type": "string"},
-                            "unit": {"type": "string"},
-                            "labels": {
-                                "type": "array",
-                                "minItems": 1,
-                                "maxItems": MAX_LIGHT_VISUAL_ITEMS,
-                                "items": {"type": "string"},
-                            },
-                            "values": {
-                                "type": "array",
-                                "minItems": 1,
-                                "maxItems": MAX_LIGHT_VISUAL_ITEMS,
-                                "items": {"type": "number"},
-                            },
-                            "note": {"type": "string"},
-                        },
-                        "required": ["kind", "title", "unit", "labels", "values", "note"],
-                    },
-                    "interpretation": {"type": "string"},
-                    "items": {
-                        "type": "array",
-                        "maxItems": MAX_LIGHT_VISUAL_ITEMS,
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                "label": {"type": "string"},
-                                "value": {"type": "string"},
-                                "explanation": {"type": "string"},
-                                "trial_ids": {
-                                    "type": "array",
-                                    "minItems": 0,
-                                    "maxItems": LIGHT_TRIAL_COUNT,
-                                    "items": {"type": "string"},
-                                },
-                            },
-                            "required": ["label", "value", "explanation", "trial_ids"],
-                        },
-                    },
-                    "trial_ids": {
-                        "type": "array",
-                        "minItems": 0,
-                        "maxItems": LIGHT_TRIAL_COUNT,
-                        "items": {"type": "string"},
-                    },
-                },
-                "required": ["title", "visual", "interpretation", "items", "trial_ids"],
-            },
-        },
-        "conclusion": {"type": "string"},
-        "max_upgrade": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 420,
-            "pattern": MAX_UPGRADE_PATTERN,
-        },
-        "limitations": {
-            "type": "array",
-            "maxItems": 0,
-            "items": {"type": "string"},
-        },
-    },
-    "required": ["title", "summary_sentences", "sub_analyses", "conclusion", "max_upgrade", "limitations"],
-}
-
-SYNTHESIS_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "title": {"type": "string"},
-        "executive_summary": {"type": "string"},
-        "closing_note": {"type": "string"},
-    },
-    "required": ["title", "executive_summary", "closing_note"],
-}
+SELECTION_SCHEMA: dict[str, Any] = report_schema(LightTrialSelection)
+OBJECTIVE_SCHEMA: dict[str, Any] = report_schema(ObjectiveResult)
+# Light's existing content policy is stricter than the legacy storage contract.
+OBJECTIVE_SCHEMA["properties"]["limitations"]["maxItems"] = 0
+SYNTHESIS_SCHEMA: dict[str, Any] = report_schema(FinalSynthesis)
 
 
 @dataclass(frozen=True)
@@ -831,54 +718,43 @@ Use only T01-T20 aliases in trial_ids fields. If provenance is uncertain, leave 
             "evidence_trials": evidence_trials,
             "investigator_evidence": investigator_evidence,
         }
-        parsed: ObjectiveResult | None = None
-        for attempt in range(2):
-            attempt_developer = developer
-            if attempt:
-                attempt_developer += """
+        developer += "\n\n" + CONCISE_REPORT_GUIDANCE
+        schema = _objective_schema_for_aliases(aliases)
+        schema["properties"]["sub_analyses"]["maxItems"] = analysis_count
 
-QUALITY CORRECTION: The prior draft focused on data availability or completeness. Replace that material with a medically relevant analysis supported by the supplied evidence. Return no completeness commentary and keep limitations empty."""
+        async def request(correction: str, attempt_payload: dict[str, Any]) -> str:
             body = await self._response(
-                developer=attempt_developer,
-                user_payload=payload,
-                schema_name="intel_light_objective_v8",
-                schema=_objective_schema_for_aliases(aliases),
+                developer=developer + "\n\n" + correction,
+                user_payload=attempt_payload,
+                schema_name="intel_light_objective_v9",
+                schema=schema,
                 tools=None,
                 max_tool_calls=0,
                 model=LIGHT_REPORT_MODEL,
                 service_tier=LIGHT_REPORT_SERVICE_TIER,
                 reasoning_effort="high",
             )
-            try:
-                candidate = ObjectiveResult.model_validate(json.loads(_extract_output_text(body)))
-            except (json.JSONDecodeError, ValidationError) as error:
-                raise LightReportError(
-                    "LIGHT_REPORT_OBJECTIVE_INVALID",
-                    "Terra returned an invalid report section.",
-                    True,
-                ) from error
-            if len(candidate.sub_analyses) > analysis_count or len(candidate.summary_sentences) != 1:
-                raise LightReportError(
-                    "LIGHT_REPORT_OBJECTIVE_SHAPE_MISMATCH",
-                    "The report section exceeded the approved Light objective scope.",
-                    True,
-                )
+            return _extract_output_text(body)
+
+        def validate(draft: Any) -> ObjectiveResult:
+            candidate = ObjectiveResult.model_validate(draft)
+            if len(candidate.sub_analyses) > analysis_count:
+                raise ValueError("The report section exceeded the approved Light objective scope.")
             if _contains_data_completeness_content(candidate):
-                if attempt == 0:
-                    continue
-                raise LightReportError(
-                    "LIGHT_REPORT_COMPLETENESS_ANALYSIS_REJECTED",
-                    "Terra did not return a medically relevant report section.",
-                    True,
-                )
-            parsed = candidate
-            break
-        if parsed is None:  # pragma: no cover - defensive; both loop exits assign or raise
-            raise LightReportError(
-                "LIGHT_REPORT_OBJECTIVE_INVALID",
-                "Terra returned no usable report section.",
-                True,
+                raise ValueError("Replace data availability or completeness commentary with a medically relevant analysis.")
+            return candidate
+
+        try:
+            parsed = await generate_report_output(
+                request=request, payload=payload, validate=validate, operation="light_objective",
             )
+        except ValueError as error:
+            code = "LIGHT_REPORT_OBJECTIVE_INVALID"
+            if "completeness" in str(error):
+                code = "LIGHT_REPORT_COMPLETENESS_ANALYSIS_REJECTED"
+            elif "scope" in str(error):
+                code = "LIGHT_REPORT_OBJECTIVE_SHAPE_MISMATCH"
+            raise LightReportError(code, "The report service returned an invalid report section.", True) from error
         parsed = _consolidate_exact_duplicate_visuals(parsed)
         parsed = _ensure_named_investigators(
             parsed,
@@ -905,23 +781,31 @@ Return only three fields: a concise report title, one short introductory paragra
             "trial_context": context,
             "sections": [item.model_dump() for item in sections],
         }
-        body = await self._response(
-            developer=developer,
-            user_payload=payload,
-            schema_name="intel_light_synthesis_v5",
-            schema=SYNTHESIS_SCHEMA,
-            tools=None,
-            max_tool_calls=0,
-            timeout=300,
-            model=LIGHT_SYNTHESIS_MODEL,
-            service_tier=None,
-            reasoning_effort="high",
-        )
+        developer += "\n\n" + CONCISE_REPORT_GUIDANCE
+
+        async def request(correction: str, attempt_payload: dict[str, Any]) -> str:
+            body = await self._response(
+                developer=developer + "\n\n" + correction,
+                user_payload=attempt_payload,
+                schema_name="intel_light_synthesis_v6",
+                schema=SYNTHESIS_SCHEMA,
+                tools=None,
+                max_tool_calls=0,
+                timeout=300,
+                model=LIGHT_SYNTHESIS_MODEL,
+                service_tier=None,
+                reasoning_effort="high",
+            )
+            return _extract_output_text(body)
+
         try:
-            return FinalSynthesis.model_validate(json.loads(_extract_output_text(body)))
-        except (json.JSONDecodeError, ValidationError) as error:
+            return await generate_report_output(
+                request=request, payload=payload, validate=FinalSynthesis.model_validate,
+                operation="light_synthesis",
+            )
+        except ValueError as error:
             raise LightReportError(
                 "LIGHT_REPORT_SYNTHESIS_INVALID",
-                "Sol returned an invalid final synthesis.",
+                "The report service returned an invalid final synthesis.",
                 True,
             ) from error

@@ -217,7 +217,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert payload["model"] == LIGHT_REPORT_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_objective_v8"
+        assert payload["text"]["format"]["name"] == "intel_light_objective_v9"
 
         developer = payload["input"][0]["content"][0]["text"]
         assert "candidate analytical lenses rather than mandatory output slots" in developer
@@ -233,7 +233,7 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
         assert "closest medically relevant calculation" in developer
         assert "Never analyze database coverage" in developer
         assert "Return limitations as an empty array" in developer
-        assert len(developer) < 3600
+        assert "Write for a busy clinical professional" in developer
 
         user = json.loads(payload["input"][1]["content"][0]["text"])
         evidence_trials = user["evidence_trials"]
@@ -251,8 +251,8 @@ async def test_objective_call_uses_terra_high_full_profiles_and_distinct_lens_ru
 
         schema = payload["text"]["format"]["schema"]
         assert schema["properties"]["summary_sentences"]["maxItems"] == 1
-        assert schema["properties"]["sub_analyses"]["maxItems"] == 4
-        assert schema["properties"]["max_upgrade"]["maxLength"] == 420
+        assert schema["properties"]["sub_analyses"]["maxItems"] == 1
+        assert "maxLength" not in schema["properties"]["max_upgrade"]
         assert schema["properties"]["limitations"]["maxItems"] == 0
         assert "max_upgrade" in schema["required"]
         sub_analysis = schema["properties"]["sub_analyses"]["items"]
@@ -300,7 +300,7 @@ async def test_objective_replaces_data_completeness_draft_with_medical_analysis(
             output["sub_analyses"][0]["title"] = "Endpoint data completeness"
             output["sub_analyses"][0]["visual"]["note"] = "Reported in 2 out of 20 trials."
         else:
-            assert "QUALITY CORRECTION" in developer
+            assert "CONTRACT CORRECTION" in developer
         return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output)}]}]})
 
     configured = replace(settings, openai_api_key="test-key")
@@ -402,7 +402,7 @@ async def test_synthesis_uses_sol_high_without_sending_layout_shell() -> None:
         assert payload["model"] == LIGHT_SYNTHESIS_MODEL
         assert payload["reasoning"] == {"effort": "high"}
         assert "tools" not in payload
-        assert payload["text"]["format"]["name"] == "intel_light_synthesis_v5"
+        assert payload["text"]["format"]["name"] == "intel_light_synthesis_v6"
         schema = payload["text"]["format"]["schema"]
         assert "key_takeaways" not in schema["properties"]
 
@@ -411,7 +411,7 @@ async def test_synthesis_uses_sol_high_without_sending_layout_shell() -> None:
         assert "Return only three fields" in developer
         assert "Do not repeat the objectives as takeaways" in developer
         assert "The App owns layout and numbering" in developer
-        assert len(developer) < 1000
+        assert "Never truncate text to fit a layout" in developer
 
         output = {
             "title": "NSCLC development evidence",
