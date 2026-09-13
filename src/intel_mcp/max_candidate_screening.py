@@ -14,7 +14,7 @@ MAX_CANDIDATE_POOL = 1_000
 MAX_CANDIDATE_FILTERS = 8
 MAX_CANDIDATE_SCREEN_BATCH = 25
 MAX_CANDIDATE_SCREEN_CONCURRENCY = 5
-CANDIDATE_SCREENING_SCHEMA_VERSION = "1.0.0"
+CANDIDATE_SCREENING_SCHEMA_VERSION = "1.1.0"
 
 CandidateTier = Literal["exact", "close", "adjacent", "exclude"]
 
@@ -215,7 +215,7 @@ def select_screened_candidates(
     maximum: int,
     trial_cohort_indices: dict[str, set[int]] | None = None,
 ) -> list[CandidateAssessment]:
-    """Select relevant candidates that belong to at least one approved trial group."""
+    """Select one broad pool; planned group labels diversify, never gate admission."""
 
     if maximum <= 0:
         return []
@@ -247,7 +247,6 @@ def select_screened_candidates(
             item
             for item in assessments
             if item.tier != "exclude"
-            and (trial_cohort_indices is None or approved_cohort_indices(item))
         ),
         key=rank,
     )
@@ -256,7 +255,7 @@ def select_screened_candidates(
         return eligible[:maximum]
 
     adjacent_count = max(0, len(cohort_indices) - 1)
-    primary = maximum if adjacent_count == 0 else max(40, maximum - 15 * adjacent_count)
+    primary = maximum if adjacent_count == 0 else min(maximum, max(40, maximum - 15 * adjacent_count))
     remaining = max(0, maximum - primary)
     base, extra = divmod(remaining, adjacent_count) if adjacent_count else (0, 0)
     quotas = {

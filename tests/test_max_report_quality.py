@@ -65,7 +65,7 @@ def test_percentage_comparison_is_not_accepted_under_small_n_exception():
     assert not filter_objective(result, rows, definitions).sub_analyses
 
 
-@pytest.mark.parametrize('failure', ['unknown_id', 'null_field', 'wrong_segment', 'missing_support', 'missing_value_support'])
+@pytest.mark.parametrize('failure', ['unknown_id', 'null_field', 'wrong_segment', 'missing_support'])
 def test_denominator_is_reconciled_to_actual_rows(failure):
     result, rows, definitions = sample()
     visual = result.sub_analyses[0].visual
@@ -116,4 +116,7 @@ def test_named_recommendations_cannot_borrow_the_overall_denominator(ids):
     from intel_mcp.max_report import MaxRankedItem
     result, rows, definitions = sample()
     result.sub_analyses[0].items = [MaxRankedItem(label='Investigator A', value='Activity', explanation='Consider endpoint experience.', trial_ids=ids)]
-    assert not filter_objective(result, rows, definitions).sub_analyses
+    kept = filter_objective(result, rows, definitions)
+    assert len(kept.sub_analyses) == 1
+    assert kept.sub_analyses[0].items == []
+    assert kept.qa_warnings

@@ -33,7 +33,7 @@ PROFILE_EVIDENCE_DESCRIPTION = """Available evidence:
 - Disease filtering matches persisted Trial Profile disease names case-insensitively. It does not establish disease stage, biomarker, molecular subtype, line of therapy, treatment setting, or another fine-grained protocol concept.
 - Therapeutic area, phase, modality and country use their structured Trial Profile fields.
 - Shared descriptive analyses use approved Trial Profiles.
-- Max can additionally combine dimensions, perform deeper semantic matching, and compare clinically meaningful segments, but its current execution evidence is limited to approved Trial Profiles. It does not use protocol or source-document text."""
+- Max uses all stored Trial Profiles, including unapproved profiles and existing narrative text. It can combine dimensions, interpret free text and compare clinically meaningful segments. It does not retrieve protocols or new source documents."""
 
 
 # One current contract. Rewrite this prompt when product semantics change rather than stacking old rules.
@@ -43,7 +43,7 @@ REPORT_PLAN_INSTRUCTIONS = f"""Plan a concise clinical-trial intelligence report
 
 GENERAL
 - Preserve the user's indication, population, intervention, phase, geography and requested outputs.
-- Use direct clinical language. Avoid jargon, consultant-style labels, generic benchmarking language and vague abstractions.
+- Use direct clinical language. Avoid jargon, consultant-style labels and vague abstractions.
 - Do not promise causal explanations, performance claims, private data or recommendations that the evidence cannot support.
 - Activity and experience are not quality. Recommend only when the planned analysis evaluates relevant evidence.
 
@@ -63,7 +63,10 @@ Shared group:
 
 Max groups:
 - role="adjacent", maxOnly=true, filterDimension=null.
-- Create 2 to 4 clinically useful groups using deeper matching, combinations, segmentation or adjacent evidence that materially improves the decision.
+- Create 1 to 2 clinically broader cohorts AND 1 to 2 narrower cohorts, in addition to the shared group. Adapt to specificity: generally two broader/one narrower for a specific brief, one broader/two narrower for a broad brief; use both pairs only for distinct clinical perspectives.
+- Broader cohorts must actually relax a clinical restriction or explore a transferable adjacent population/intervention. They must not all be narrower subsets of the shared group or repeat the same restrictive disease seed. For ADC mCRPC, consider prostate cancer across settings and ADCs in other solid tumors.
+- Narrower cohorts sharpen a requested population, modality, stage or design; do not invent precision.
+- Groups overlap in one shared Max pool; they are not admission rules or objective assignments. Analysts assign relevance after reading the evidence.
 - Fine-grained stage, biomarker, molecular subtype, line of therapy and combinations belong here.
 - When comparison is the useful lens, prefer one compact "X vs Y" group instead of two repetitive groups.
 - Mention only dimensions actually used to define the group. Do not say "regardless of", "irrespective of", or list ignored dimensions.
@@ -83,9 +86,8 @@ Map the user's distinct requested decisions or outputs to 1 to 7 analysis pairs.
 Shared analysis — direct retrieval/counting layer:
 - Available in both Light and Max.
 - The title should normally start with one of these verbs: List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect.
-- These verbs intentionally communicate direct, low-complexity evidence retrieval or calculation. Do not use Quantify or Describe.
+- Do not use Quantify or Describe.
 - State exactly what will be listed, counted, ranked, reported, calculated, summarized, shown, compared or collected.
-- Examples: "Rank trial sites by documented activity", "Name the most active principal investigators", "Report observed enrollment in similar trials", "Summarize the most common primary endpoints".
 - Do not use high-interpretation verbs such as Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match or Synthesize in a shared title.
 - Never phrase the title as a question or end it with a question mark.
 - details contain 1 to 3 concise lines describing the metric/scope; they are not separate objectives.
@@ -94,10 +96,8 @@ Max analysis — interpretation/decision layer:
 - The title should normally start with one of these verbs: Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize.
 - Choose the verb that best reflects the actual deliverable. Do not mechanically start every Max title with Analyze.
 - Do not use Benchmark as a title verb.
+- Examples: "Prioritize trial sites for your planned study", "Estimate enrollment range for your planned trial".
 - The collapsed title must tell the user what the deeper analysis will do for their own trial, study, target population, rollout or decision. Describe the deliverable, not an abstract category.
-- Examples: "Prioritize trial sites for your planned study", "Assess exclusion criteria likely to restrict recruitment", "Estimate enrollment range for your planned trial", "Recommend countries for your rollout".
-- Avoid: "Best-fitting trial sites", "Eligibility strategy fit", "Enrollment benchmark fit", "Operational fit".
-- Slightly longer titles are preferable when they make the deliverable clear without expansion.
 - Never phrase the title as a question or end it with a question mark.
 - details contain 2 to 4 distinct decision factors or sub-analyses such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, profile-derived eligibility or endpoint detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
 - Do not simply repeat the shared analysis with stronger wording. Max must add evidence or reasoning that can change or strengthen the user's decision.
@@ -108,7 +108,6 @@ ACROSS THE PLAN
 - The user's requested decisions and outputs are the complete objective set. If there are more than seven, combine only tightly related outputs.
 - Every analysis must answer a medical, clinical-development or trial-operational question. Never create an analysis about database coverage, data completeness, field availability, missingness, documentation rates, or how many trials reported a field.
 - If the evidence cannot support the requested method or precision, use the closest supported medical method that still answers the same decision.
-- Prefer an immediately understandable title over an artificially short one.
 - Do not hard-code result breadth such as top 5, top 10 or top 100; the product tier controls breadth.
 - Avoid analyses likely to produce the same result and practical implication.
 - The same entity may appear in multiple analyses only when a different metric or evidence dimension answers a genuinely different decision.

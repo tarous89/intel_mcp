@@ -19,7 +19,7 @@ def file_sha(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definitions, analysis_plan, segments, approved_plan, report_evidence=None) -> dict:
+def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definitions, analysis_plan, segments, approved_plan, report_evidence=None, publication_audit=None) -> dict:
     if not rows or len(rows) > MAX_TRIALS:
         raise ValueError("Invalid dataset size")
     by_id = {profile.eu_number: profile for profile in profiles}
@@ -29,7 +29,7 @@ def write_snapshot(path: Path, *, report_run_id: str, profiles, rows, definition
     metadata = {"version": 1, "tier": "max", "reportRunId": report_run_id,
                 "capturedAt": datetime.now(timezone.utc).isoformat(), "trialCount": len(rows),
                 "definitions": definitions, "analysisPlan": analysis_plan,
-                "segments": segments, "approvedPlan": approved_plan, "reportEvidence": report_evidence or []}
+                "segments": segments, "approvedPlan": approved_plan, "reportEvidence": report_evidence or [], "publicationAudit": publication_audit or []}
     with gzip.open(path, "wt", encoding="utf-8", newline="\n", compresslevel=6) as target:
         target.write(json.dumps(metadata, ensure_ascii=False, allow_nan=False) + "\n")
         for row in rows:

@@ -56,3 +56,18 @@ def test_only_max_executor_opts_in_and_title_only_discovery_is_valid():
     assert DatabaseEngineClient(settings)._all_profiles is False
     assert MaxReportExecutor(settings)._engine._all_profiles is True
     assert CandidateFilter(label='Prostate variants', title_terms=['prostat', 'mCRPC']).title_terms
+
+
+def test_deterministic_duplicate_cannot_overwrite_enriched_content_in_either_order():
+    enriched = ('2024-516036-94-00', '11.0.0', None,
+                {'classification_variables': {'endpoints': ['Objective response']}}, None, 'candidate')
+    deterministic = ('2024-516036-94-00', '11.0.0', None,
+                     {'classification_variables': {'endpoints': []}}, None, 'deterministic')
+    class DuplicateDB:
+        def __init__(self, rows): self.rows = rows
+        def execute(self, *args): return Result(self.rows)
+    for records in ([enriched, deterministic], [deterministic, enriched]):
+        result = get_approved_profiles(DuplicateDB(records), {'trial_ids': ['2024-516036-94-00']}, all_profiles=True)
+        assert len(result['data']) == 1
+        assert result['data'][0]['approval_status'] == 'candidate'
+        assert result['data'][0]['profile']['classification_variables']['endpoints'] == ['Objective response']

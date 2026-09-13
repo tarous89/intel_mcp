@@ -105,6 +105,15 @@ def get_approved_profiles(
         """,
         (trial_ids,),
     ).fetchall()
+    if all_profiles:
+        # A deterministic backfill can coexist with an enriched profile for the
+        # same trial. Prefer enriched content regardless of approval state;
+        # retrieval below refreshes its eligibility/lifecycle from current CTIS.
+        # Keep one trial and never let database row order discard richer data.
+        rows = sorted(rows, key=lambda row: (
+            len(row) > 5 and str(row[5]) != "deterministic",
+            _isoformat(row[2]) or "",
+        ))
     by_id = {
         str(row[0]): {
             "eu_number": str(row[0]),
