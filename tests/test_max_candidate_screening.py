@@ -44,6 +44,7 @@ def test_candidate_filter_schema_requires_explicit_nullable_fields() -> None:
         "phase",
         "modalities",
         "country_codes",
+        "title_terms",
     }
     assert "diseases" not in item["properties"]
 

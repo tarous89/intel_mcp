@@ -80,26 +80,28 @@ def profile_with_current_lifecycle(
 
 
 def get_approved_profiles(
-    connection: psycopg.Connection[Any], request: Any
+    connection: psycopg.Connection[Any], request: Any, *, all_profiles: bool = False
 ) -> dict[str, Any]:
-    """Return complete current approved Trial Profiles without model work.
+    """Return current Trial Profiles without model work.
 
     Missing or unapproved profiles are reported as unavailable rather than
     failing the whole batch. Candidate/rejected state is deliberately not
     disclosed to the caller. Public MCP projection, when requested, is applied
-    only after this approved-only read and control-plane authorization.
+    only after the read and control-plane authorization. Max alone opts into
+    the separate all-state report view and receives status for its dataset.
     """
     trial_ids = validate_profile_retrieval_request(request)
+    view = "mcp_serving.report_profiles_v1" if all_profiles else "mcp_serving.approved_profiles_v1"
     rows = connection.execute(
-        """
+        f"""
         SELECT profile.eu_number,
                profile.schema_version,
                profile.approved_at,
                profile.profile_json,
-               profile.ctis_data
-        FROM mcp_serving.approved_profiles_v1 AS profile
-        WHERE profile.approval_status = 'approved'
-          AND profile.eu_number = ANY(%s::text[])
+               profile.ctis_data,
+               profile.approval_status
+        FROM {view} AS profile
+        WHERE profile.eu_number = ANY(%s::text[])
         """,
         (trial_ids,),
     ).fetchall()
@@ -108,6 +110,7 @@ def get_approved_profiles(
             "eu_number": str(row[0]),
             "profile_schema_version": str(row[1]),
             "approved_at": _isoformat(row[2]),
+            **({"approval_status": str(row[5])} if all_profiles and len(row) > 5 else {}),
             "profile": profile_with_current_lifecycle(
                 row[3], row[4] if len(row) > 4 else None, str(row[1])
             ),

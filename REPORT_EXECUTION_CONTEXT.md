@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-13
 
-This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 approved Trial Profiles for report analysis.
+This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
 
 ## Report-plan v4
 
@@ -71,7 +71,7 @@ Sol/high/Flex final synthesis writes only the title, short introduction and clos
 
 The App is responsible for presentation:
 
-- the only database/evidence-base mention appears once, directly after the title and introduction;
+- for Light, the only database/evidence-base mention appears once, directly after the title and introduction;
 - that band states the overall number of trials analyzed and a high-level selection description;
 - no per-objective completeness, coverage or “N of 20 reported” messaging is shown;
 - per-analysis decision-implication blocks are replaced by the two upgrade sentences;
@@ -102,13 +102,13 @@ Candidate-filter planning and compact-profile screening use Sol/medium/Flex. SAP
 
 ### Stages
 
-1. Preserve every approved group's existing discovery filter as an exact seed, then have a report-start candidate planner create an ordered focused-to-broad progression using only reliable `therapeutic_areas`, `phase`, `modalities` and `country_codes` fields. Disease remains a seed rather than the sole recall gate.
-2. Execute the seed and broad filters in bounded round-robin pages, deduplicate and stop at the 500-candidate target or when the available approved pool is exhausted.
+1. Preserve every approved group's existing discovery filter as an exact seed, then have a report-start candidate planner create an ordered focused-to-broad progression using `therapeutic_areas`, `phase`, `modalities`, `country_codes` and bounded literal `title_terms`. Title-only disease synonyms also recover deterministic profiles with no disease/modality projection; title hits still need clinical screening. Disease remains a seed rather than the sole recall gate.
+2. Execute the seed and broad filters in bounded round-robin pages, deduplicate and stop at the 500-candidate target or when the available current-profile pool is exhausted. Max alone reads the all-state report views; approval metadata is preserved in its dataset.
 3. Load only compact `overview`, `population`, `trial_design` and `interventions` projections for candidates. Sol screens them in batches of 25 against the approved rich disease, biomarker, treatment-setting and population segments, assigning `exact`, `close`, `adjacent` or `exclude` without changing any approved analysis.
 4. Select at most 100 non-excluded profiles deterministically while reserving representation for planned adjacent groups. A candidate is eligible only when an approved deterministic seed selected it or screening assigned a confirmed/uncertain approved segment. Broad-only candidates without either assignment are counted for diagnostics and excluded rather than placed in an invented catch-all group. Reload the selected profiles completely and classify every planned segment from the full profile during final extraction.
 5. Build one SAP from the approved brief/plan, an ephemeral catalogue of short fields across every selected profile and up to 10 whole profile examples. Deterministic fields are preferred; narrative interpretation uses the remaining semantic-variable budget. Trial Profile 11 investigators are exposed as one deterministic entity list per trial so names remain aligned with site, country, department and public email; every listed person is a PI by contract.
-6. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete approved Trial Profile. Up to 10 extraction requests run concurrently.
-7. Run one analyst per main analysis pair, then one reducer over the completed sections and cohort summary. Analysts receive only planned variables and the frozen selected dataset; no new report objectives are introduced.
+6. Populate one frozen row dataset. Deterministic values are resolved directly; all semantic values for a trial are extracted together from its complete current Trial Profile. Up to 10 extraction requests run concurrently.
+7. Run one analyst per main analysis pair, then one reducer over retained clinical sections only. Analysts receive only planned variables and the frozen selected dataset; no new report objectives are introduced.
 
 SAP semantic-variable instructions target 500 compact characters. The executor normalizes whitespace and deterministically bounds any model-produced overrun to the extractor's 600-character contract while preserving both the extraction task and trailing return/missing-value guidance. An overlong instruction therefore cannot stop an otherwise valid paid run.
 
@@ -127,6 +127,12 @@ final_report.tier = max
 ```
 
 `analyzedCohort` may also carry the screened-candidate count and selected `exact`/`close`/`adjacent` composition. Existing renderers ignore unknown fields, so the version-2 output contract remains backward compatible.
+
+### Max publication rules
+
+Every visual value has internal support metadata with actual trial IDs, analytical variables and an optional approved segment. Each comparison group needs its own denominator, including difference-only charts. The model-free gate checks distinct known trials, populated values and segment membership. N=0 and missing support are omitted; N<5 is allowed only for a documented, directly relevant exact/close descriptive precedent, never a comparative percentage or inference. Named recommendations have their own support checks. Invalid findings and empty objectives are removed before synthesis, and stale draft summaries are discarded. A run with no publishable findings fails without consuming the entitlement.
+
+No fixed minimum finding count is enforced. Report prose, labels and notes reject source identifiers, internal codes, workflow language and empty-group messages. Max has no evidence panel or cohort inventory in the App/PDF. Structured support and status remain in the downloadable dataset; necessary clinical qualifications stay in the report. Existing model tiers, Flex, call/token limits, discovery/extraction/semantic caps and shared one-correction budgets do not increase. No additional enrichment or audit model stage is introduced; actual cost still varies with selected profile count and tokens.
 
 ### Control-plane boundary
 
@@ -156,7 +162,7 @@ without deleting text, changing numbers, shrinking fonts or cutting SVG graphics
 ## Runtime boundary
 
 New Max runs freeze the complete analyzed Trial Profiles, collected direct and semantic
-variables, group membership, definitions and approved analysis plan after population.
+variables, group membership, definitions and approved analysis plan after population and objective validation, with the actual support IDs, variables, profile approval status and small-sample relevance rationale.
 The compressed JSONL snapshot is stored by Engine under `report-datasets/v1/`; only its
 version, checksum, count and timestamp enter existing report JSON. Light never stores
 this dataset. Old reports cannot reconstruct their historical variables.

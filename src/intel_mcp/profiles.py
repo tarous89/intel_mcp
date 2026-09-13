@@ -165,6 +165,7 @@ class FullProfileItem(BaseModel):
     eu_number: str
     profile_schema_version: str
     approved_at: str | None
+    approval_status: str | None = None
     profile: dict[str, Any]
 
 
