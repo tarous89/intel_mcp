@@ -678,6 +678,7 @@ class SolLightReportRunner:
                     request=request,
                     logger=LOGGER,
                     operation=f"Light report {schema_name}",
+                    max_output_tokens_retry=24_000,
                 )
         except httpx.TimeoutException as error:
             raise LightReportError("LIGHT_REPORT_TIMEOUT", "Report generation timed out.", True) from error

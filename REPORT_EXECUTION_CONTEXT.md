@@ -132,6 +132,11 @@ The App creates and owns report runs, plan approval, tier, entitlement and progr
 Light report calls and Max planning, screening, SAP, analyst and reducer calls
 recover from temporary Flex-capacity 429s with four total Flex attempts,
 `Retry-After`-aware exponential backoff and jitter, then one automatic-tier attempt.
-Quota/billing exhaustion is terminal and is not retried. Logs include the schema
-operation, attempt number and OpenAI request ID; they do not include prompts or
-clinical payloads.
+The ordinary Max objective ceiling is 12,000 output tokens: it is a per-call cost and
+latency guardrail, not a model context limit, and hidden reasoning tokens also consume
+that allowance. If the Responses API explicitly returns `incomplete` with reason
+`max_output_tokens`, only that failed call retries once at 24,000. A cancelled or other
+transient terminal response retries once at its original ceiling. Content filtering,
+invalid requests and quota/billing exhaustion are terminal and are not retried. Logs
+include the schema operation, status, incomplete/error reason, usage and OpenAI
+response/request IDs; they do not include prompts or clinical payloads.

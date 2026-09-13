@@ -19,6 +19,23 @@ _NON_TRANSIENT_429_CODES = {
     "insufficient_quota",
 }
 
+_NON_TRANSIENT_TERMINAL_CODES = {
+    "billing_hard_limit_reached",
+    "content_filter",
+    "insufficient_quota",
+    "invalid_prompt",
+    "invalid_request_error",
+    "safety_violation",
+}
+_TRANSIENT_TERMINAL_CODES = {
+    "internal_error",
+    "rate_limit_exceeded",
+    "server_error",
+    "service_unavailable",
+    "temporarily_unavailable",
+    "timeout",
+}
+
 
 def _error_details(response: httpx.Response) -> tuple[str, str]:
     try:
@@ -69,39 +86,115 @@ async def post_openai_response(
     request: dict[str, Any],
     logger: logging.Logger,
     operation: str,
+    max_output_tokens_retry: int | None = None,
 ) -> httpx.Response:
-    """Retry temporary Flex-capacity 429s, then make one automatic-tier attempt."""
+    """Retry bounded transport/capacity and terminal Responses API failures."""
 
-    if request.get("service_tier") != "flex":
-        return await client.post(url, headers=headers, json=request)
+    async def post_with_capacity_retry(payload: dict[str, Any]) -> httpx.Response:
+        if payload.get("service_tier") != "flex":
+            return await client.post(url, headers=headers, json=payload)
 
-    response: httpx.Response | None = None
-    for attempt in range(1, FLEX_429_MAX_ATTEMPTS + 1):
-        response = await client.post(url, headers=headers, json=request)
-        if not _is_transient_flex_429(response):
-            return response
-        code, error_type = _error_details(response)
-        if attempt == FLEX_429_MAX_ATTEMPTS:
-            break
-        delay = _retry_delay(response, attempt)
+        response: httpx.Response | None = None
+        for attempt in range(1, FLEX_429_MAX_ATTEMPTS + 1):
+            response = await client.post(url, headers=headers, json=payload)
+            if not _is_transient_flex_429(response):
+                return response
+            code, error_type = _error_details(response)
+            if attempt == FLEX_429_MAX_ATTEMPTS:
+                break
+            delay = _retry_delay(response, attempt)
+            logger.warning(
+                "%s temporary Flex capacity response: status=429 code=%s type=%s "
+                "attempt=%s/%s retry_in_seconds=%.2f request_id=%s",
+                operation,
+                code or "unknown",
+                error_type or "unknown",
+                attempt,
+                FLEX_429_MAX_ATTEMPTS,
+                delay,
+                response.headers.get("x-request-id") or "unknown",
+            )
+            await asyncio.sleep(delay)
+
+        fallback_request = dict(payload)
+        fallback_request["service_tier"] = "auto"
         logger.warning(
-            "%s temporary Flex capacity response: status=429 code=%s type=%s "
-            "attempt=%s/%s retry_in_seconds=%.2f request_id=%s",
+            "%s Flex capacity remained unavailable after %s attempts; falling back to auto tier",
             operation,
-            code or "unknown",
-            error_type or "unknown",
-            attempt,
             FLEX_429_MAX_ATTEMPTS,
-            delay,
-            response.headers.get("x-request-id") or "unknown",
         )
-        await asyncio.sleep(delay)
+        return await client.post(url, headers=headers, json=fallback_request)
 
-    fallback_request = dict(request)
-    fallback_request["service_tier"] = "auto"
+    def terminal_details(response: httpx.Response) -> tuple[str, str, str, str, dict[str, Any]]:
+        if response.status_code >= 400:
+            return "", "", "", "", {}
+        try:
+            body = response.json()
+        except ValueError:
+            return "", "", "", "", {}
+        if not isinstance(body, dict):
+            return "", "", "", "", {}
+        status = str(body.get("status") or "").lower()
+        incomplete = body.get("incomplete_details")
+        reason = str(incomplete.get("reason") or "").lower() if isinstance(incomplete, dict) else ""
+        error = body.get("error")
+        code = str(error.get("code") or "").lower() if isinstance(error, dict) else ""
+        error_type = str(error.get("type") or "").lower() if isinstance(error, dict) else ""
+        usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        return status, reason, code, error_type, usage
+
+    response = await post_with_capacity_retry(request)
+    status, reason, code, error_type, usage = terminal_details(response)
+    if status not in {"incomplete", "failed", "cancelled"}:
+        return response
+
     logger.warning(
-        "%s Flex capacity remained unavailable after %s attempts; falling back to auto tier",
+        "%s terminal response: status=%s reason=%s code=%s type=%s response_id=%s "
+        "request_id=%s usage=%s",
         operation,
-        FLEX_429_MAX_ATTEMPTS,
+        status,
+        reason or "unknown",
+        code or "unknown",
+        error_type or "unknown",
+        (response.json().get("id") if isinstance(response.json(), dict) else None) or "unknown",
+        response.headers.get("x-request-id") or "unknown",
+        usage,
     )
-    return await client.post(url, headers=headers, json=fallback_request)
+
+    current_budget = request.get("max_output_tokens")
+    retry_budget: int | None = None
+    if (
+        status == "incomplete"
+        and reason == "max_output_tokens"
+        and isinstance(current_budget, int)
+        and isinstance(max_output_tokens_retry, int)
+        and max_output_tokens_retry > current_budget
+    ):
+        retry_budget = max_output_tokens_retry
+    else:
+        terminal_code = code or error_type or reason
+        non_transient = terminal_code in _NON_TRANSIENT_TERMINAL_CODES
+        transient = (
+            status == "cancelled"
+            or terminal_code in _TRANSIENT_TERMINAL_CODES
+            or (status in {"incomplete", "failed"} and not terminal_code)
+        )
+        if transient and not non_transient and isinstance(current_budget, int):
+            retry_budget = current_budget
+
+    if retry_budget is None:
+        return response
+
+    retry_request = dict(request)
+    retry_request["max_output_tokens"] = retry_budget
+    logger.warning(
+        "%s retrying terminal response once: status=%s reason=%s code=%s "
+        "max_output_tokens=%s->%s",
+        operation,
+        status,
+        reason or "unknown",
+        code or error_type or "unknown",
+        current_budget,
+        retry_budget,
+    )
+    return await post_with_capacity_retry(retry_request)

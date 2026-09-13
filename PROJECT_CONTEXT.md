@@ -73,7 +73,10 @@ Light is live and Trial-Profile-only:
 
 All Light report Responses API calls use bounded Flex-capacity recovery: four total
 Flex attempts with `Retry-After`-aware exponential backoff, followed by one
-`service_tier = auto` attempt. Quota/billing 429 responses are not retried.
+`service_tier = auto` attempt. A terminal response explicitly caused by the output-token
+ceiling retries only that failed call once, increasing `max_output_tokens` from its
+normal ceiling to 24,000; other transient terminal responses retry once at the original
+ceiling. Content filtering, invalid requests and quota/billing failures are not retried.
 
 Per-analysis limitations/completeness notes are empty and not user-facing. The App may show the database/evidence base only once, immediately after the report title and introduction, as a high-level overall number of trials analyzed. It must not show per-objective database coverage.
 
@@ -100,6 +103,9 @@ only through an approved deterministic group seed or a confirmed/uncertain appro
 selection segment; relevant but unassigned candidates are excluded rather than put
 into an invented catch-all group. Max planning, screening, SAP, analyst and reducer
 calls use the same bounded Flex-capacity recovery policy as Light.
+Initial generation limits remain per-call cost and latency guardrails (objective analysis
+uses 12,000 output tokens). Terminal-response logs record status, incomplete/error reason,
+response/request IDs and usage without prompts or clinical payloads.
 
 ## Site Agent
 

@@ -986,6 +986,7 @@ class TerraMaxReportRunner:
                     request=request,
                     logger=LOGGER,
                     operation=f"Max report {schema_name}",
+                    max_output_tokens_retry=24_000,
                 )
         except httpx.TimeoutException as error:
             raise MaxReportError("MAX_REPORT_TIMEOUT", "Max report generation timed out.", True) from error
