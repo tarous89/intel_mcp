@@ -10,6 +10,7 @@ from intel_mcp import server
 from intel_mcp.light_report_execution import start_light_report_task
 from intel_mcp.max_report_execution import start_max_report_task
 from intel_mcp.site_search_routes import register_site_search
+from intel_mcp.report_artifacts import register_report_dataset
 
 
 def _authorized(request: Request) -> bool:
@@ -61,6 +62,7 @@ async def start_max_report(request: Request) -> Response:
 
 
 register_site_search(server.mcp, server.settings, server.engine_client)
+register_report_dataset(server.mcp, server.settings, _authorized)
 
 # server.app is built before this module registers the routes. Rebuild the ASGI app
 # so the production entrypoint contains the public MCP and private app boundaries.

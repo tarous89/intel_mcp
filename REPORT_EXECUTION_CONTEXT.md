@@ -155,6 +155,21 @@ without deleting text, changing numbers, shrinking fonts or cutting SVG graphics
 
 ## Runtime boundary
 
+New Max runs freeze the complete analyzed Trial Profiles, collected direct and semantic
+variables, group membership, definitions and approved analysis plan after population.
+The compressed JSONL snapshot is stored by Engine under `report-datasets/v1/`; only its
+version, checksum, count and timestamp enter existing report JSON. Light never stores
+this dataset. Old reports cannot reconstruct their historical variables.
+
+The private dataset endpoint loads the authoritative completed Max run. On first download,
+one isolated child process writes a streaming XLSX and Engine caches it by checksum.
+Later downloads reuse that workbook. App authenticates ownership and streams the file.
+Exports perform no model calls. Long text uses continuation rows; full nested profiles,
+array order, nulls, empty values and high-precision numbers are preserved. Formula-like
+source strings remain text. Snapshot upload retries transient failures; a storage outage
+marks the dataset unavailable without discarding a valid report. Export errors can be retried.
+Snapshots and cached workbooks currently have no automatic expiry; revisit retention as usage grows.
+
 The App creates and owns report runs, plan approval, tier, entitlement and progress state. MCP executes through service-authenticated internal endpoints. Executors accept only `queued` runs; failed and already-running runs are terminal at this launcher and cannot reopen model work. The terminal failure callback retries transient App outages five times with bounded backoff, without model calls. Light and Max still use an in-process async launcher and can be interrupted by a service restart; durable claim/heartbeat/retry execution remains pending.
 
 Light report calls and Max planning, screening, SAP, analyst and reducer calls

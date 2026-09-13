@@ -832,6 +832,7 @@ async def health(_request: Request) -> Response:
             "report_planner_configured": bool(
                 settings.openai_api_key and settings.report_plan_service_token
             ),
+            "report_dataset_storage_configured": bool(settings.engine_api_url and settings.engine_service_token),
         }
     )
 
