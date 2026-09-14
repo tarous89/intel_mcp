@@ -21,6 +21,7 @@ from intel_mcp.extraction import (
 )
 from intel_mcp.max_source_text import source_passages, SOURCE_TEXT_BUDGET
 from intel_mcp.max_candidate_screening import (
+    MAX_SELECTION_SEGMENTS,
     CandidateAssessment,
     CandidateFilterPlan,
     candidate_filter_plan_schema,
@@ -117,7 +118,7 @@ class AnalysisSpecification(BaseModel):
     purpose: str = Field(min_length=1, max_length=600)
     methods: list[str] = Field(min_length=2, max_length=6)
     variable_names: list[str] = Field(min_length=1, max_length=60)
-    segment_keys: list[str] = Field(max_length=8)
+    segment_keys: list[str] = Field(max_length=MAX_SELECTION_SEGMENTS)
 
 
 class MaxAnalysisPlan(BaseModel):
@@ -227,7 +228,7 @@ def sap_schema(
     props["analyses"].update(minItems=analysis_count, maxItems=analysis_count)
     specification = props["analyses"]["items"]["properties"]
     specification["analysis_index"]["enum"] = list(range(analysis_count))
-    specification["segment_keys"]["maxItems"] = min(8, len(segment_keys))
+    specification["segment_keys"]["maxItems"] = min(MAX_SELECTION_SEGMENTS, len(segment_keys))
     if segment_keys:
         specification["segment_keys"]["items"]["enum"] = segment_keys
     for key in ("direct_variables", "semantic_variables"):
@@ -1076,7 +1077,7 @@ Build broad high-recall queries for volume control, not final clinical exclusion
 
 Use the brief and requested decisions to retain a broad shared pool. Planned segments are optional descriptive labels, never admission requirements or objective assignments. Preserve the requested analyses. Exclude only clear clinical irrelevance; keep potentially useful adjacent trials and sparse profiles for later full-text interpretation. A useful trial with no matching segment must remain eligible with empty segment lists.
 
-Assess every supplied compact Trial Profile and preserve the supplied order. Assign:
+Return assessments as an object keyed by the supplied trial IDs. Every supplied trial ID must appear exactly once, and each value must assess that trial only. Assign:
 - exact: strong support for the most specific requested population/intervention and primary segment;
 - close: scientifically useful with one meaningful relaxation from the primary request;
 - adjacent: potentially useful broader or adjacent clinical experience, even outside every planned segment;
@@ -1093,7 +1094,7 @@ Use only the supplied Trial Profile fields. Absence of evidence creates uncertai
         body = await self._response(
             developer=developer,
             user_payload=payload,
-            schema_name="intel_max_candidate_screen_v1",
+            schema_name="intel_max_candidate_screen_v2",
             schema=candidate_screen_schema(trial_ids, segment_keys),
             max_output_tokens=10_000,
             model=MAX_CANDIDATE_SCREEN_MODEL,
@@ -1107,6 +1108,13 @@ Use only the supplied Trial Profile fields. Absence of evidence creates uncertai
                 segment_keys=segment_keys,
             )
         except (json.JSONDecodeError, ValidationError, ValueError) as error:
+            if isinstance(error, json.JSONDecodeError):
+                reason = "invalid_json"
+            elif isinstance(error, ValidationError):
+                reason = ",".join(sorted({item["type"] for item in error.errors(include_input=False, include_url=False)}))
+            else:
+                reason = str(error)  # validator-authored constants only, no trial content
+            LOGGER.warning("Max candidate screening validation rejected: expected_trials=%s reason=%s", len(trial_ids), reason)
             raise MaxReportError(
                 "MAX_REPORT_CANDIDATE_SCREEN_INVALID",
                 "The report service returned an invalid candidate screening result.",

@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from intel_mcp.models import CountryCode, Modality, TherapeuticArea
+from intel_mcp.report_output import report_schema
 
 
 CANDIDATE_POOL_TARGET = 500
@@ -14,7 +15,8 @@ MAX_CANDIDATE_POOL = 1_000
 MAX_CANDIDATE_FILTERS = 8
 MAX_CANDIDATE_SCREEN_BATCH = 25
 MAX_CANDIDATE_SCREEN_CONCURRENCY = 5
-CANDIDATE_SCREENING_SCHEMA_VERSION = "1.1.0"
+CANDIDATE_SCREENING_SCHEMA_VERSION = "1.2.0"
+MAX_SELECTION_SEGMENTS = 9  # one shared group plus four two-segment Max groups
 
 CandidateTier = Literal["exact", "close", "adjacent", "exclude"]
 
@@ -55,8 +57,8 @@ class CandidateAssessment(BaseModel):
     trial_id: str = Field(min_length=1, max_length=80)
     tier: CandidateTier
     relevance_score: int = Field(ge=0, le=100)
-    segment_keys: list[str] = Field(max_length=8)
-    uncertain_segment_keys: list[str] = Field(max_length=8)
+    segment_keys: list[str] = Field(max_length=MAX_SELECTION_SEGMENTS)
+    uncertain_segment_keys: list[str] = Field(max_length=MAX_SELECTION_SEGMENTS)
     rationale: str = Field(min_length=1, max_length=500)
 
     @model_validator(mode="after")
@@ -132,46 +134,26 @@ def candidate_filter_plan_schema(
 
 
 def candidate_screen_schema(trial_ids: list[str], segment_keys: list[str]) -> dict[str, Any]:
-    string_segments = {
-        "type": "array",
-        "minItems": 0,
-        "maxItems": len(segment_keys),
-        "items": {"type": "string", "enum": segment_keys},
-    }
+    """Require one assessment per ID in the wire contract, independent of order."""
+    assessment = report_schema(CandidateAssessment)
+    assessment["properties"].pop("trial_id")
+    assessment["required"].remove("trial_id")
+    for field in ("segment_keys", "uncertain_segment_keys"):
+        assessment["properties"][field]["maxItems"] = min(len(segment_keys), MAX_SELECTION_SEGMENTS)
+        assessment["properties"][field]["items"] = {"type": "string", "enum": segment_keys}
     return {
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "assessments": {
-                "type": "array",
-                "minItems": len(trial_ids),
-                "maxItems": len(trial_ids),
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "trial_id": {"type": "string", "enum": trial_ids},
-                        "tier": {
-                            "type": "string",
-                            "enum": ["exact", "close", "adjacent", "exclude"],
-                        },
-                        "relevance_score": {"type": "integer", "minimum": 0, "maximum": 100},
-                        "segment_keys": string_segments,
-                        "uncertain_segment_keys": string_segments,
-                        "rationale": {"type": "string"},
-                    },
-                    "required": [
-                        "trial_id",
-                        "tier",
-                        "relevance_score",
-                        "segment_keys",
-                        "uncertain_segment_keys",
-                        "rationale",
-                    ],
-                },
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {trial_id: {"$ref": "#/$defs/assessment"} for trial_id in trial_ids},
+                "required": trial_ids,
             }
         },
         "required": ["assessments"],
+        "$defs": {"assessment": assessment},
     }
 
 
@@ -181,17 +163,36 @@ def validate_candidate_screen(
     trial_ids: list[str],
     segment_keys: list[str],
 ) -> list[CandidateAssessment]:
+    """Join by identity, accepting legacy arrays only with exact unique coverage.
+
+    Reordering is harmless. Missing, duplicate or unknown trials are not, and
+    must never silently shrink the shared pool or attach another trial's verdict.
+    """
+    if len(trial_ids) != len(set(trial_ids)):
+        raise ValueError("Candidate screening input contains duplicate trial IDs.")
+    if isinstance(payload, dict) and isinstance(payload.get("assessments"), dict):
+        entries = []
+        for trial_id, assessment in payload["assessments"].items():
+            if not isinstance(assessment, dict) or "trial_id" in assessment:
+                raise ValueError("Candidate screening returned an invalid keyed assessment.")
+            entries.append({"trial_id": trial_id, **assessment})
+        payload = {**payload, "assessments": entries}
     result = CandidateScreenBatch.model_validate(payload)
     returned_ids = [item.trial_id for item in result.assessments]
-    if returned_ids != trial_ids:
-        raise ValueError("Candidate screening did not preserve the supplied trial order.")
+    if len(returned_ids) != len(set(returned_ids)):
+        raise ValueError("Candidate screening returned duplicate trial assessments.")
+    if set(returned_ids) - set(trial_ids):
+        raise ValueError("Candidate screening returned unknown trial IDs.")
+    if set(trial_ids) - set(returned_ids):
+        raise ValueError("Candidate screening omitted requested trials.")
     allowed_segments = set(segment_keys)
     if any(
         not set([*item.segment_keys, *item.uncertain_segment_keys]).issubset(allowed_segments)
         for item in result.assessments
     ):
         raise ValueError("Candidate screening returned an unknown segment.")
-    return result.assessments
+    by_id = {item.trial_id: item for item in result.assessments}
+    return [by_id[trial_id] for trial_id in trial_ids]
 
 
 def candidate_screening_key(trial_id: str, segments: list[dict[str, Any]]) -> str:

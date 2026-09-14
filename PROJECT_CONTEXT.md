@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
@@ -108,6 +108,7 @@ editing retains the valid original. App owns wrapping and lossless PDF continuat
 Max never reads protocols or source documents. Its six-hour lease excludes `get_documents` and clamps profile, filter, classification and extraction allowances to 100. Output remains renderer-compatible `version = 2` with `tier = max`. The private start route is `/internal/max-report/start`.
 
 Broad Max filters are recall-only volume controls. Max searches cached clinical narrative through Engine's `report_search_v1` as well as structured fields; the projection covers all stored states and updates automatically. Candidate screening includes bounded eligibility passages and excludes only clear irrelevance. Relevant candidates need no planned group assignment; selection preserves group diversity and fills the shared pool up to 100 when enough useful candidates exist. Each analyst determines its own contributing subset after reading variables and bounded verbatim source passages. Planning, screening, SAP, analyst and reducer calls retain bounded Flex recovery.
+Candidate screening uses one required response key per trial ID. Results are joined by identity and restored to input order, while missing/duplicate/unknown IDs remain invalid. Wire and runtime contracts support all nine possible selection segments. This deterministic reconciliation adds no model calls.
 Initial generation limits remain per-call cost and latency guardrails (objective analysis
 uses 12,000 output tokens). Terminal-response logs record status, incomplete/error reason,
 response/request IDs and usage without prompts or clinical payloads.
