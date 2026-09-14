@@ -77,7 +77,7 @@ def test_schema_requires_one_assessment_per_nonempty_group():
     assessments = schema['properties']['group_assessments']
     assert assessments['minItems'] == assessments['maxItems'] == 2
     assert assessments['items']['properties']['segment_key']['enum'] == ['broader', 'narrower']
-    assert assessments['items']['properties']['trial_ids']['items']['enum'] == ['T001']
+    assert 'trial_ids' not in assessments['items']['properties']
     assert schema['properties']['sub_analyses']['maxItems'] == 8
 
 
@@ -93,7 +93,7 @@ def test_group_statistics_count_trials_not_repeated_tags_and_omit_empty_groups()
 
 @pytest.mark.anyio
 @pytest.mark.parametrize('repair', [True, False])
-async def test_all_group_enforcement_uses_only_one_correction_and_never_publishes_unaccounted_groups(repair):
+async def test_all_group_checks_use_one_correction_and_never_abort_supported_findings(repair):
     result, rows, definitions, metadata = group_fixture()
     draft = result.model_dump(mode='json')
     draft['group_assessments'] = [item.model_dump() for item in result.group_assessments]
@@ -125,7 +125,8 @@ async def test_all_group_enforcement_uses_only_one_correction_and_never_publishe
         assert completed.analysis_audit['groupAssessments'][0]['trial_ids'][0] == 'trial-T001'
         assert 'group_assessments' not in public_section(completed)
     else:
-        with pytest.raises(MaxReportError) as caught:
-            await runner.analyze_objective(**kwargs)
-        assert caught.value.code == 'MAX_REPORT_GROUP_ANALYSIS_INCOMPLETE'
+        completed = await runner.analyze_objective(**kwargs)
+        assert len(completed.sub_analyses) == 1
+        assert completed.analysis_audit['groupAssessments'][1]['status'] == 'unresolved'
+        assert completed.analysis_audit['status'] == 'published_with_advisories'
     assert len(calls) == 2

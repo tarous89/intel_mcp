@@ -112,9 +112,9 @@ async def test_invalid_screen_logs_a_safe_specific_reason_without_trial_content(
         return httpx.Response(200, json={'status':'completed', 'output':[{'type':'message','content':[
             {'type':'output_text','text':json.dumps({'assessments': {'PRIVATE_TRIAL': assessment()}})}]}]})
     runner = TerraMaxReportRunner(replace(settings, openai_api_key='test-key'), transport=httpx.MockTransport(handler))
-    with pytest.raises(MaxReportError) as caught:
-        await runner.screen_candidate_batch(context='Test', insights='Test', approved_plan={},
-            segment_metadata=[{'key':'primary'}], candidates=[{'trial_id':'T1','profile':{}}])
-    assert caught.value.code == 'MAX_REPORT_CANDIDATE_SCREEN_INVALID'
+    recovered = await runner.screen_candidate_batch(context='Test', insights='Test', approved_plan={},
+        segment_metadata=[{'key':'primary'}], candidates=[{'trial_id':'T1','profile':{}}])
+    assert recovered[0].trial_id == 'T1' and recovered[0].tier == 'adjacent'
+    assert recovered[0].segment_keys == [] and recovered[0].uncertain_segment_keys == ['primary']
     assert 'unknown trial IDs' in caplog.text
     assert 'PRIVATE_TRIAL' not in caplog.text

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import math
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -17,6 +19,7 @@ MAX_VARIABLES_PER_CALL = 20
 MAX_VARIABLE_NAME_LENGTH = 64
 MAX_VARIABLE_INSTRUCTION_LENGTH = 600
 EXTRACTION_SCHEMA_VERSION = "2.0.0"
+LOGGER = logging.getLogger("intel_mcp")
 VariableType = Literal["string", "integer", "number", "boolean", "string_array"]
 ExtractedValue = str | int | float | bool | list[str] | None
 
@@ -222,7 +225,7 @@ def validate_worker_values(
         elif variable.value_type == "integer":
             valid = isinstance(value, int) and not isinstance(value, bool)
         elif variable.value_type == "number":
-            valid = isinstance(value, (int, float)) and not isinstance(value, bool)
+            valid = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
         elif variable.value_type == "boolean":
             valid = isinstance(value, bool)
         elif variable.value_type == "string_array":
@@ -248,6 +251,8 @@ class TerraExtractor:
         profile: dict[str, Any],
         variables: list[ExtractionVariable],
         model: str | None = None,
+        advisory_validation: bool = False,
+        _correction: bool = False,
     ) -> dict[str, ExtractedValue]:
         try:
             self._settings.validate_extractor()
@@ -272,7 +277,9 @@ class TerraExtractor:
             "max_output_tokens": self._settings.extractor_max_output_tokens,
             "reasoning": {"effort": self._settings.extractor_reasoning_effort},
             "input": [
-                {"role": "developer", "content": [{"type": "input_text", "text": EXTRACTOR_INSTRUCTIONS}]},
+                {"role": "developer", "content": [{"type": "input_text", "text": EXTRACTOR_INSTRUCTIONS + (
+                    "\nCorrection: return exactly the requested variable names and types. Use null for unresolved facts; do not infer missing values."
+                    if _correction else "")}]},
                 {"role": "user", "content": [{"type": "input_text", "text": payload}]},
             ],
             "text": {
@@ -318,14 +325,29 @@ class TerraExtractor:
         if str(response_payload.get("status") or "") == "incomplete":
             raise ExtractorError("EXTRACTOR_INCOMPLETE", "The Terra extractor returned an incomplete result.", True)
 
+        parsed = None
         try:
             parsed = json.loads(_extract_output_text(response_payload))
-        except json.JSONDecodeError as error:
-            raise ExtractorError(
-                "EXTRACTOR_INVALID_OUTPUT",
-                "The extractor returned invalid structured JSON.",
-                True,
-            ) from error
-        if not isinstance(parsed, dict):
-            raise ExtractorError("EXTRACTOR_INVALID_OUTPUT", "The extractor returned an invalid result.", True)
-        return validate_worker_values(parsed, variables)
+            if not isinstance(parsed, dict):
+                raise ExtractorError("EXTRACTOR_INVALID_OUTPUT", "The extractor returned an invalid result.", True)
+            return validate_worker_values(parsed, variables)
+        except (json.JSONDecodeError, ExtractorError) as error:
+            if isinstance(error, ExtractorError) and error.code != "EXTRACTOR_INVALID_OUTPUT":
+                raise
+            if not advisory_validation:
+                raise ExtractorError("EXTRACTOR_INVALID_OUTPUT", "The extractor returned invalid structured values.", True) from error
+            LOGGER.warning("Max extraction validation advisory; requesting one correction: variables=%s", len(variables))
+            try:
+                return await self.extract(trial_id=trial_id, profile=profile, variables=variables,
+                                          model=model, advisory_validation=False, _correction=True)
+            except ExtractorError as correction_error:
+                LOGGER.warning("Max extraction correction unavailable: code=%s; retaining valid values and nulls", correction_error.code)
+                values = parsed.get("values", {}) if isinstance(parsed, dict) else {}
+                recovered = {}
+                for variable in variables:
+                    value = values.get(variable.name) if isinstance(values, dict) else None
+                    try:
+                        recovered.update(validate_worker_values({"values": {variable.name: value}}, [variable]))
+                    except ExtractorError:
+                        recovered[variable.name] = None
+                return recovered

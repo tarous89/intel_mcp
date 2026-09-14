@@ -657,11 +657,7 @@ async def test_candidate_screening_returns_every_trial_and_keeps_system_names_ou
         _settings(),
         transport=httpx.MockTransport(invalid_handler),
     )
-    with pytest.raises(MaxReportError) as captured:
-        await invalid_runner.build_candidate_filter_plan(
-            context="Phase 2 NSCLC study",
-            insights="Endpoints and enrollment",
-            approved_plan=_plan(),
-        )
-    assert "terra" not in captured.value.message.casefold()
-    assert "gpt" not in captured.value.message.casefold()
+    recovered = await invalid_runner.build_candidate_filter_plan(
+        context="Phase 2 NSCLC study", insights="Endpoints and enrollment", approved_plan=_plan(),
+    )
+    assert recovered.filters == []  # Execution still uses every approved seed.

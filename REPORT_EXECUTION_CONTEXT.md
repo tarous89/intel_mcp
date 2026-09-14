@@ -116,7 +116,7 @@ Deterministic variable types are server-owned catalogue metadata. The SAP may se
 catalogued `profile_path`, but its supplied `kind` is normalized to the observed catalogue
 before validation. Paths with mixed runtime types across selected profiles are excluded from
 the catalogue. Remaining structural SAP contract failures receive exactly one correction call;
-a second invalid plan fails closed. Safe logs identify variable name/path and supplied versus
+a second invalid plan recovers valid catalogue fields and extraction rules within the same budgets for every approved analysis. Safe logs identify variable name/path and supplied versus
 expected kind without profile values or clinical payloads.
 
 Output stays compatible with the shared App/PDF renderer:
@@ -130,19 +130,19 @@ final_report.tier = max
 
 ### Max publication rules
 
-Objective contract v3 examines every nonempty planned group plus relevant unassigned trials for each shared/deeper analysis pair. SAP validation normalizes each specification to all planned segments. Deterministic summaries omit empty groups and count repeated category tags once per trial. Analysts present brief group-specific results, agreements, differences and useful minority precedents; clinically compatible pooled estimates deduplicate overlapping trial identities.
+Objective contract v4 asks each shared/deeper analysis pair to examine every nonempty planned group and relevant unassigned trials. Deterministic summaries omit empty groups, count repeated category tags once per trial and avoid duplicating source passages/entities. Analysts briefly compare useful group results, agreements, differences and minority precedents; compatible pooled estimates deduplicate overlapping trial identities.
 
-Private `group_assessments` must account for exactly these groups, linking retained finding titles and separate group-specific supports, or recording a concrete objective-specific non-applicability/insufficient-evidence reason. A pooled denominator alone cannot satisfy group coverage. The existing single correction budget repairs incomplete accounting; unresolved coverage raises `MAX_REPORT_GROUP_ANALYSIS_INCOMPLETE` without consuming entitlement. Complete coverage takes precedence over retaining a larger incomplete draft. Assessments and omitted empty-group keys are saved only in the dataset audit.
+Private `group_assessments` request a disposition for every group, with group-specific finding references or an objective-specific omission reason. Coverage is checked BEFORE publication pruning: removing N=0 or unsupported findings cannot erase examination. The redundant group trial-ID union is derived from supports. Incomplete coverage requests one correction and then remains advisory; it never raises `MAX_REPORT_GROUP_ANALYSIS_INCOMPLETE`. The dataset audit distinguishes assessment validity from publication status and records missing references, group supports and denominator mismatches. Logs contain advisory codes/counts, never clinical payloads.
 
 The executor allows up to eight useful findings per objective; the App renders every retained Max finding online and in PDF. Public version 2 is unchanged. Supplied numerator identities must be nonempty and a subset of denominator identities; single count/percentage values are checked against them. N=0, zero-frequency categories and empty-group commentary are omitted, while supported continuous values/differences of zero remain valid. SAP reserves compact eligibility qualifiers within the existing semantic budget and extraction preserves exceptions, alternative routes and coherent phase/design distinctions; not stated never means not required.
 
-Every visual value has internal support metadata with actual trial IDs, analytical variables and an optional approved segment. Each comparison group needs its own denominator, including difference-only charts. The model-free gate checks distinct known trials, populated values and segment membership. N=0 and missing support are omitted; N<5 is allowed only for a documented, directly relevant descriptive precedent for that objective (adjacent trials require concrete source-grounded relevance), never a comparative percentage or inference. Named recommendations have their own support checks. Invalid items and independent series are pruned individually; affected prose is never retained. The existing single correction budget first attempts a targeted publication repair, with already valid work retained on repair failure. Empty objectives are omitted after analysis and stale summaries are cleared. A run with no publishable findings fails without consuming the entitlement.
+Every visual value has internal support metadata with actual trial IDs, variables and an optional approved segment. Checks on counts, numerator arithmetic, populated variables, group membership, small samples, named-item support, prose and chart alignment request at most one correction. Unsupported units and stale prose are omitted; these checks never abort Max. Malformed sections recover independently valid findings without guessing metrics. N=0 stays omitted; N<5 requires a directly relevant descriptive precedent. Empty objectives do not cancel siblings. If all findings are omitted, completion preserves the trial overview and dataset with neutral text rather than invented conclusions. Synthesis validation failure falls back to validated section summaries without reanalysis.
 
-No fixed minimum finding count is enforced. Report prose, labels and notes reject source identifiers, internal codes, workflow language and empty-group messages. Max shows a clinical breakdown with the unique selected total, group counts of at least five and an overlap notice; it has no evidence panel. Structured support and status remain in the downloadable dataset; necessary clinical qualifications stay in the report. Existing model tiers, Flex, call/token limits, discovery/extraction/semantic caps and shared one-correction budgets do not increase. No additional enrichment or audit model stage is introduced; actual cost still varies with selected profile count and tokens.
+No minimum finding count is enforced. Report prose excludes internal/source codes, workflow language and empty-group messages. Max shows the unique total, group counts of at least five and an overlap notice. Support/status remain in the dataset. Models, Flex, per-call ceilings and clinical-data allowances remain unchanged. Candidate filters/screening and Max extraction each permit one exceptional validation correction: filters recover approved seeds/valid supplements; screening retains unresolved identities as uncertain; extraction retains valid facts and nulls. No report-wide retry loop is introduced, but invalid outputs can add bounded correction usage. Public-tool extraction and Light validation remain strict.
 
 ### Control-plane boundary
 
-The private `/internal/max-report/start` route launches Max. Its six-hour lease excludes `get_documents`, zeros document allowances, authorizes up to 1,000 filtered IDs, 500 profiles and 500 screening classifications, and keeps final extraction at 100 trials. Leases capped at 100 by an older App deployment automatically use the legacy bounded workflow. Once an expanded lease is issued, candidate-stage failures stop the run for safe retry rather than silently falling back to a smaller cohort. Successful completion consumes the reserved entitlement; system failure leaves it unconsumed.
+The private `/internal/max-report/start` route launches Max. The six-hour lease excludes documents and permits up to 1,000 filtered IDs, 500 profiles, 500 screening classifications and 100 final extraction trials. Older 100-trial leases retain the legacy workflow. Invalid candidate model output recovers within the expanded workflow, preserving approved seeds and unresolved candidates. Operational access/API failures can still stop a run; authentication, ownership, approved-plan prerequisites, trial identity and resource limits are never bypassed. Successful completion consumes the reservation; system failure leaves it unconsumed.
 
 ## Shared output/readability contract
 
@@ -158,8 +158,8 @@ Each objective or synthesis shares one correction attempt across structural erro
 Light's existing medical-content gate and optional verbosity editing. The edit receives
 the prior draft and original evidence; charts, units, labels, ordering and provenance
 must stay exact and quantitative/caveat tokens must be preserved. Unsafe or failed
-optional editing retains the valid original, even if still verbose. A second invalid
-contract fails closed. Completed objectives and the frozen dataset are not recomputed
+optional editing retains the valid original, even if still verbose. Light retains its strict
+contract behavior; Max recovers independently valid content after a second invalid contract. Completed objectives and the frozen dataset are not recomputed
 during these corrections. This is not durable recovery across process restarts.
 
 The App handles lengthy units once below the chart and splits oversized PDF blocks
@@ -168,7 +168,7 @@ without deleting text, changing numbers, shrinking fonts or cutting SVG graphics
 ## Runtime boundary
 
 New Max runs freeze the complete analyzed Trial Profiles, collected direct and semantic
-variables, group membership, definitions and approved analysis plan after population and objective validation, with the actual support IDs, variables, profile approval status and small-sample relevance rationale.
+variables, group membership, definitions and approved plan immediately after population, before objective work. The checkpoint manifest is persisted in `progress.datasetCheckpoint`. A final snapshot adds analytical support and publication audit; a failed final upload preserves the early snapshot. This adds at most one compressed snapshot per run. Checkpoints survive later operational failure, but do not automatically restart failed runs or introduce clinical data into App DB.
 The compressed JSONL snapshot is stored by Engine under `report-datasets/v1/`; only its
 version, checksum, count and timestamp enter existing report JSON. Light never stores
 this dataset. Old reports cannot reconstruct their historical variables.
