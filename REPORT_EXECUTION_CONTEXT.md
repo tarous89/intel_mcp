@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
 
@@ -129,6 +129,12 @@ final_report.tier = max
 `analyzedCohort` may also carry the screened-candidate count and selected `exact`/`close`/`adjacent` composition. Existing renderers ignore unknown fields, so the version-2 output contract remains backward compatible.
 
 ### Max publication rules
+
+Objective contract v3 examines every nonempty planned group plus relevant unassigned trials for each shared/deeper analysis pair. SAP validation normalizes each specification to all planned segments. Deterministic summaries omit empty groups and count repeated category tags once per trial. Analysts present brief group-specific results, agreements, differences and useful minority precedents; clinically compatible pooled estimates deduplicate overlapping trial identities.
+
+Private `group_assessments` must account for exactly these groups, linking retained finding titles and separate group-specific supports, or recording a concrete objective-specific non-applicability/insufficient-evidence reason. A pooled denominator alone cannot satisfy group coverage. The existing single correction budget repairs incomplete accounting; unresolved coverage raises `MAX_REPORT_GROUP_ANALYSIS_INCOMPLETE` without consuming entitlement. Complete coverage takes precedence over retaining a larger incomplete draft. Assessments and omitted empty-group keys are saved only in the dataset audit.
+
+The executor allows up to eight useful findings per objective; the App renders every retained Max finding online and in PDF. Public version 2 is unchanged. Supplied numerator identities must be nonempty and a subset of denominator identities; single count/percentage values are checked against them. N=0, zero-frequency categories and empty-group commentary are omitted, while supported continuous values/differences of zero remain valid. SAP reserves compact eligibility qualifiers within the existing semantic budget and extraction preserves exceptions, alternative routes and coherent phase/design distinctions; not stated never means not required.
 
 Every visual value has internal support metadata with actual trial IDs, analytical variables and an optional approved segment. Each comparison group needs its own denominator, including difference-only charts. The model-free gate checks distinct known trials, populated values and segment membership. N=0 and missing support are omitted; N<5 is allowed only for a documented, directly relevant descriptive precedent for that objective (adjacent trials require concrete source-grounded relevance), never a comparative percentage or inference. Named recommendations have their own support checks. Invalid items and independent series are pruned individually; affected prose is never retained. The existing single correction budget first attempts a targeted publication repair, with already valid work retained on repair failure. Empty objectives are omitted after analysis and stale summaries are cleared. A run with no publishable findings fails without consuming the entitlement.
 

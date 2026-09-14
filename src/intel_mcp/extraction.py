@@ -133,6 +133,16 @@ Use only the complete approved Trial Profile. No protocol text, source-document 
 unstated inference is available. If a
 requested value is missing or cannot be established reliably, return null.
 
+Check requested variables together for consistency. Phase, dose escalation/expansion,
+randomization, arm count and single-agent treatment are distinct facts. A phase 1/2 title
+or monotherapy label alone does not establish a dedicated phase 2 single-arm cohort.
+For a conjunctive segment return true only when all criteria apply to the SAME population
+and treatment cohort; return null if that connection is uncertain. Do not combine features
+from different umbrella arms to manufacture an exact match.
+Preserve exceptions, alternative routes, conditional prior treatments and population-specific
+qualifiers in requested qualification variables. A feature mentioned with an exception is
+not a universal requirement. Absence of a statement is not evidence that it is not required.
+
 Return every requested variable exactly once under its supplied name and conform exactly to its requested
 type. Return only the values object required by the schema. Do not return status, explanation, evidence,
 source, document name, page or any other metadata.

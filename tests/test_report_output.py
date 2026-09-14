@@ -179,4 +179,4 @@ async def test_max_runner_handles_long_units_and_repairs_only_failed_objective(i
     assert result.title == "Approved title"
     assert result.sub_analyses[0].visual.unit == original["sub_analyses"][0]["visual"]["unit"]
     assert len(calls) == (2 if invalid_first else 1)
-    assert set(calls) == {"intel_max_objective_v2_0"}
+    assert set(calls) == {"intel_max_objective_v3_0"}

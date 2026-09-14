@@ -13,7 +13,7 @@ INTERNAL = re.compile(
     r"documentation recency|lifecycle (?:update|documentation|label)|"
     r"evidence (?:notes|base|groups)|approved plan|system (?:message|prompt)|"
     r"instructions?|lowercased|alphabetical tie.breaker)\b|"
-    r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b|```|https?://|\bN\s*(?:=|:)\s*0\b|"
+    r"\b[a-z][a-z0-9]*_[a-z0-9_]+\b|```|https?://|\b(?:N|sample size|denominator)\s*(?:=|:|of|is)?\s*0\b|"
     r"\b(?:zero|0|no)\s+(?:(?:direct|exact|eligible|matching|available|relevant|phase[ -]?\d|single.arm|ADC|CRPC)\s+){0,8}(?:trials?|analogues?|comparators?|matches)\b",
     re.I,
 )
@@ -91,6 +91,28 @@ def filter_objective(result, rows, definitions):
                 if not ids or not ids.issubset(by_id) or not set(names).issubset(definitions):
                     reason = "empty_or_unknown_support"
                     break
+                numerator = support.numerator_trial_ids
+                if numerator is not None:
+                    numerator_ids = set(numerator)
+                    if not numerator_ids:
+                        reason = "empty_numerator"
+                        break
+                    if not numerator_ids.issubset(ids):
+                        reason = "numerator_outside_denominator"
+                        break
+                    # A single frequency/count must agree with the supplied
+                    # distinct trial identities. Differences have null numerators.
+                    if len(supports) == 1:
+                        expected = None
+                        tolerance = 1e-9
+                        if re.search(r"%|percent", sub.visual.unit, re.I):
+                            expected = 100 * len(numerator_ids) / len(ids)
+                            tolerance = 0.50000001
+                        elif re.fullmatch(r"(?:trials?|studies|n|count)", sub.visual.unit.strip(), re.I):
+                            expected = len(numerator_ids)
+                        if expected is not None and abs(value - expected) > tolerance:
+                            reason = "metric_does_not_match_support"
+                            break
                 if support.segment_key is not None and any(support.segment_key not in by_id[i].get("segment_keys", []) for i in ids):
                     reason = "incorrect_segment_denominator"
                     break
@@ -103,7 +125,7 @@ def filter_objective(result, rows, definitions):
                     or SMALL_COMPARISON.search(_text(sub))):
                     reason = "insufficient_support"
                     break
-            if re.search(r"\b(?:trials?|studies)\b", sub.visual.unit, re.I) and value == 0:
+            if value == 0 and (re.search(r"\b(?:trials?|studies|count|n)\b|%|percent", sub.visual.unit, re.I)) and not re.search(r"difference|change|delta|points", sub.visual.unit, re.I):
                 reason = "empty_trial_count"
             if reason:
                 reject(f"{location}.series_{index}", reason)
@@ -154,7 +176,7 @@ def filter_objective(result, rows, definitions):
             retained.append(sub)
     result.sub_analyses = retained
     result.limitations = []
-    if changed:
+    if changed or not retained:
         result.summary_sentences = [""]
         result.conclusion = ""
     else:
@@ -189,7 +211,7 @@ def public_cohort_summary(cohort):
 
 def public_section(result):
     """Remove support metadata from both report JSON and reducer inputs."""
-    private = {"trial_ids", "supports", "small_sample_reason", "limitations", "qa_warnings"}
+    private = {"trial_ids", "numerator_trial_ids", "supports", "small_sample_reason", "limitations", "qa_warnings", "group_assessments", "analysis_audit"}
     def clean(value):
         if isinstance(value, dict):
             return {k: clean(v) for k, v in value.items() if k not in private}
