@@ -49,7 +49,7 @@ def test_candidate_filter_schema_requires_explicit_nullable_fields() -> None:
     assert "diseases" not in item["properties"]
 
 
-def test_candidate_screen_validation_requires_every_trial_once_in_order() -> None:
+def test_candidate_screen_validation_matches_ids_and_restores_input_order() -> None:
     payload = {
         "assessments": [
             {
@@ -78,12 +78,9 @@ def test_candidate_screen_validation_requires_every_trial_once_in_order() -> Non
     assert [item.trial_id for item in result] == ["T1", "T2"]
 
     payload["assessments"].reverse()
-    with pytest.raises(ValueError):
-        validate_candidate_screen(
-            payload,
-            trial_ids=["T1", "T2"],
-            segment_keys=["primary", "adjacent"],
-        )
+    reordered = validate_candidate_screen(payload, trial_ids=["T1", "T2"], segment_keys=["primary", "adjacent"])
+    assert [item.trial_id for item in reordered] == ["T1", "T2"]
+    assert [item.tier for item in reordered] == ["exact", "adjacent"]
 
 
 def test_selection_excludes_irrelevant_trials_and_preserves_adjacent_representation() -> None:
