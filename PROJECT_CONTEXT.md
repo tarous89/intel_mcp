@@ -113,7 +113,9 @@ Initial generation limits remain per-call cost and latency guardrails (objective
 uses 12,000 output tokens). Terminal-response logs record status, incomplete/error reason,
 response/request IDs and usage without prompts or clinical payloads.
 
-Max publication is model-free: each finding and named recommendation must have actual supporting trial IDs and populated variables; empty results are removed, and N<5 requires a concrete objective-specific descriptive precedent, including adjacent trials when justified by their source facts. Internal IDs, evidence metadata and processing language are excluded from report sections and synthesis; support details and profile status are saved in the dataset. Existing models, token ceilings, candidate/extraction/variable limits and correction budgets stay unchanged. Broader discovery can change actual usage within those ceilings.
+Max objective contract v3 requires every analysis to account for every nonempty planned group and relevant unassigned trials. Private assessments must cite retained group-specific findings or give an objective-specific reason for non-applicability/insufficient evidence. The existing single correction budget repairs missing coverage; unresolved coverage fails closed. Up to eight useful findings can be retained per objective, and the App renders all of them online and in PDF. Public report version remains 2.
+
+Max publication validates supporting trial identities, populated variables and supplied count/frequency numerators. N=0 and zero-frequency results are omitted; supported continuous values or differences of zero remain valid. N<5 requires a concrete objective-specific descriptive precedent. Overlapping groups are not additive; pooling requires clinical comparability and deduplication. SAP/extraction instructions preserve eligibility exceptions and distinguish phase, arm count and treatment composition. Internal assessments, support and status stay in the dataset. Existing models, token ceilings, candidate/extraction/variable limits and correction budgets stay unchanged; fuller analyses can change actual token usage.
 
 ## Site Agent
 

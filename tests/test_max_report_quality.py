@@ -120,3 +120,48 @@ def test_named_recommendations_cannot_borrow_the_overall_denominator(ids):
     assert len(kept.sub_analyses) == 1
     assert kept.sub_analyses[0].items == []
     assert kept.qa_warnings
+
+
+@pytest.mark.parametrize('unit', ['trials', 'studies', 'n', 'count', '%', '% of trials'])
+def test_zero_count_or_frequency_is_omitted_even_when_denominator_is_populated(unit):
+    result, rows, definitions = sample()
+    result.sub_analyses[0].visual.values = [0]
+    result.sub_analyses[0].visual.unit = unit
+    result = filter_objective(result, rows, definitions)
+    assert result.sub_analyses == []
+    assert result.summary_sentences == ['']
+    assert result.conclusion == ''
+
+
+@pytest.mark.parametrize('unit', ['months', 'percentage point difference'])
+def test_supported_zero_measurement_is_not_confused_with_an_empty_sample(unit):
+    result, rows, definitions = sample()
+    result.sub_analyses[0].visual.values = [0]
+    result.sub_analyses[0].visual.unit = unit
+    assert filter_objective(result, rows, definitions).sub_analyses
+
+
+@pytest.mark.parametrize('numerator', [[], ['T999']])
+def test_empty_or_unknown_numerator_cannot_borrow_a_valid_denominator(numerator):
+    result, rows, definitions = sample()
+    result.sub_analyses[0].visual.supports[0].numerator_trial_ids = numerator
+    assert not filter_objective(result, rows, definitions).sub_analyses
+
+
+def test_percentage_is_reconciled_to_distinct_numerator_and_denominator_trials():
+    result, rows, definitions = sample()
+    visual = result.sub_analyses[0].visual
+    visual.unit = '%'
+    visual.values = [83.3]
+    visual.supports[0].numerator_trial_ids = ['T001', 'T002', 'T003', 'T004', 'T005', 'T005']
+    assert filter_objective(result.model_copy(deep=True), rows, definitions).sub_analyses
+    visual.values = [100]
+    assert not filter_objective(result, rows, definitions).sub_analyses
+
+
+def test_empty_objective_cannot_retain_unsupported_summary():
+    result, rows, definitions = sample()
+    result.sub_analyses = []
+    result = filter_objective(result, rows, definitions)
+    assert result.summary_sentences == ['']
+    assert result.conclusion == ''
