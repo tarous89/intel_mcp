@@ -180,7 +180,8 @@ async def test_dataset_population_fuses_group_classification_and_semantic_extrac
         def __init__(self) -> None:
             self.calls: list[tuple[str, list[str]]] = []
 
-        async def extract(self, *, trial_id, profile, variables, model):
+        async def extract(self, *, trial_id, profile, variables, model, advisory_validation):
+            assert advisory_validation is True
             assert model == "gpt-5.6-terra"
             assert "filtering_variables" in profile
             self.calls.append((trial_id, [item.name for item in variables]))
@@ -291,10 +292,14 @@ async def test_dataset_population_fuses_group_classification_and_semantic_extrac
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("storage_fails", [False, True])
-async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch, tmp_path, storage_fails) -> None:
+@pytest.mark.parametrize("recovery_case", ["normal", "one_empty", "all_empty", "analysis_failure", "final_snapshot_failure"])
+async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch, tmp_path, storage_fails, recovery_case) -> None:
     from intel_mcp.report_dataset import write_snapshot, snapshot_records
+    events = []
     async def save_snapshot(_settings, **kwargs):
-        if storage_fails:
+        final = "publication_audit" in kwargs
+        events.append("final_snapshot" if final else "extraction_checkpoint")
+        if storage_fails or (final and recovery_case == "final_snapshot_failure"):
             raise OSError("Synthetic storage unavailable")
         return write_snapshot(tmp_path / "frozen.gz", **kwargs)
     monkeypatch.setattr("intel_mcp.max_report_execution.save_dataset", save_snapshot)
@@ -339,6 +344,7 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
 
         async def fail(self, _report_run_id: str, code: str, message: str, _progress: dict) -> None:
             self.failed = (code, message)
+            self.failed_progress = _progress.copy()
 
     class AnalysisControl:
         async def start_analysis(self, _report_run_id: str) -> SimpleNamespace:
@@ -363,7 +369,8 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
             return SimpleNamespace(access=SimpleNamespace(extraction_key=key))
 
     class Extractor:
-        async def extract(self, *, trial_id, profile, variables, model):
+        async def extract(self, *, trial_id, profile, variables, model, advisory_validation):
+            assert advisory_validation is True
             assert model == "gpt-5.6-terra"
             assert "filtering_variables" in profile
             return {
@@ -416,8 +423,13 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
             )
 
         async def analyze_objective(self, **kwargs) -> MaxObjectiveResult:
+            assert events[0] == "extraction_checkpoint"
+            index = kwargs["specification"].analysis_index
+            events.append(f"analysis_{index}")
+            if recovery_case == "analysis_failure":
+                raise MaxReportError("MAX_REPORT_TIMEOUT", "Synthetic operational failure", True)
             assert len(kwargs["rows"]) == 2
-            return MaxObjectiveResult.model_validate(
+            result = MaxObjectiveResult.model_validate(
                 {
                     "title": kwargs["pair"]["maxAnalysis"]["title"],
                     "summary_sentences": ["The frozen evidence supports a bounded comparison."],
@@ -442,9 +454,15 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
                     "limitations": [],
                 }
             )
+            if recovery_case == "all_empty" or (recovery_case == "one_empty" and index == 0):
+                result.sub_analyses = []
+                result.summary_sentences = [""]
+                result.conclusion = ""
+                result.analysis_audit = {"status": "omitted_after_analysis", "publicationIssues": ["synthetic"]}
+            return result
 
         async def synthesize(self, **kwargs) -> MaxFinalSynthesis:
-            assert len(kwargs["sections"]) == 5
+            assert len(kwargs["sections"]) == (0 if recovery_case == "all_empty" else 4 if recovery_case == "one_empty" else 5)
             assert kwargs["analyzed_cohort"]["cohorts"][0]["trialCount"] == 1
             return MaxFinalSynthesis(
                 title="Max report",
@@ -473,11 +491,19 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
     executor._load_profiles = load_profiles
     await executor.execute("run-123")
 
+    if recovery_case == "analysis_failure":
+        assert executor._control.failed[0] == "MAX_REPORT_TIMEOUT"
+        assert executor._control.completed is None
+        if not storage_fails:
+            assert executor._control.failed_progress["datasetCheckpoint"]["status"] == "available"
+            assert list(snapshot_records(tmp_path / "frozen.gz"))[1]["row"]["values"]["sample_size"] == 80
+        return
     assert executor._control.failed is None
     assert executor._control.completed is not None
     final_report = executor._control.completed["final_report"]
     assert final_report["tier"] == "max"
-    assert len(final_report["sections"]) == 5
+    assert len(final_report["sections"]) == (0 if recovery_case == "all_empty" else 4 if recovery_case == "one_empty" else 5)
+    assert all(f"analysis_{index}" in events for index in range(5))
     assert final_report["analyzedCohort"]["totalTrials"] == 2
     if storage_fails:
         assert final_report["dataset"]["status"] == "unavailable"

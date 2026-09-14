@@ -707,6 +707,7 @@ class MaxReportExecutor:
                 profile=profile.profile,
                 variables=variables,
                 model=MAX_REPORT_MODEL,
+                advisory_validation=True,
             )
         except ExtractorError as error:
             try:
@@ -1094,6 +1095,18 @@ class MaxReportExecutor:
                 assessment = selected_assessments.get(row["trial_id"])
                 row["relevance_tier"] = assessment.tier if assessment else "adjacent"
             definitions = _definitions(analysis_plan, group_variables, segment_metadata)
+            # Freeze extraction before any objective or publication check. This
+            # survives a later operational failure without rerunning extraction.
+            try:
+                checkpoint = await save_dataset(
+                    self._settings, report_run_id=report_run_id, profiles=profiles, rows=rows,
+                    definitions=definitions, analysis_plan=analysis_plan.model_dump(mode="json"),
+                    segments=segment_metadata, approved_plan=approved_plan,
+                )
+                progress["datasetCheckpoint"] = checkpoint
+                progress["dataset"] = checkpoint
+            except Exception as error:
+                LOGGER.warning("Max extraction checkpoint unavailable: run=%s error_type=%s", report_run_id, type(error).__name__)
             for index in range(len(sections)):
                 progress = _mark(progress, f"objective_{index + 1}", "in_progress")
             await self._control.progress(report_run_id, progress)
@@ -1141,7 +1154,7 @@ class MaxReportExecutor:
             publication_audit = [{"title": item.title, **item.analysis_audit} for item in results]
             results = [item for item in results if item.sub_analyses]
             if not results:
-                raise MaxReportError("MAX_REPORT_INSUFFICIENT_FINDINGS", "This report could not be completed. Please revise your request and try again.", False)
+                LOGGER.warning("Max publication advisory: run=%s no retained findings; preserving trial summary and dataset", report_run_id)
             analyzed_cohort = self._cohort_summary(rows, segment_metadata)
             if candidate_overview is not None:
                 analyzed_cohort.update(candidate_overview)
@@ -1156,7 +1169,7 @@ class MaxReportExecutor:
             except Exception as error:
                 # Export availability must never discard a valid scientific report.
                 LOGGER.warning("Max dataset snapshot unavailable: run=%s error_type=%s", report_run_id, type(error).__name__)
-                progress["dataset"] = {"version": 1, "status": "unavailable"}
+                progress["dataset"] = progress.get("datasetCheckpoint") or {"version": 1, "status": "unavailable"}
             progress = _mark(progress, "final_report", "in_progress")
             await self._control.progress(report_run_id, progress)
             synthesis = await self._runner.synthesize(
