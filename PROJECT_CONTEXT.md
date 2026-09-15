@@ -50,7 +50,7 @@ Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 New and revised plans use `intel_agent_report_plan_v4` with `gpt-5.6-sol`, medium reasoning and no tools.
 
 - One shared Light + Max trial group uses exactly one structured dimension: disease, therapeutic area, phase, modality or country.
-- Plans contain 3–5 groups: the broadest useful shared umbrella first, then 2–4 contained Max subgroups covering distinct query aspects. Subgroups may be broader, narrower, adjacent or exact relative to the query. They remain overlapping lenses, never admission gates or objective assignments.
+- Plans contain 3–5 groups. When the user names a disease, the shared first group is that disease alone, without stage, biomarker, phase, modality or setting restrictions. Do not widen it to solid tumors, a broader disease family or therapeutic area for volume. Only disease-free requests use a relevant therapeutic area, phase, modality or country as the shared dimension. Then add 2–4 contained Max subgroups covering distinct query aspects; adjacent perspectives must stay within the first group. Groups remain overlapping lenses, never admission gates or objective assignments.
 - Every group carries a deterministic discovery filter and stable machine-readable selection-segment labels and literal criteria for Max execution.
 - Plans contain 1–7 request-aligned analysis pairs: one shared analysis and one deeper Max analysis per distinct user-requested decision or output; closely related considerations remain details within that pair.
 - Every analysis must answer a medical, clinical-development or trial-operational question.

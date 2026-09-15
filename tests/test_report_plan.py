@@ -183,7 +183,8 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
 
         developer_text = payload["input"][0]["content"][0]["text"]
         assert "Use exactly ONE selection dimension" in developer_text
-        assert "broadest clinically useful umbrella that contains ALL the later groups" in developer_text
+        assert 'If the user names a disease, the first group MUST use that disease alone' in developer_text
+        assert 'filterDimension="disease", discoveryFilter.field="diseases"' in developer_text
         assert "Do not use disease stage, biomarker, mutation, PD-L1" in developer_text
         assert "prefer one compact \"X vs Y\" group" in developer_text
         assert "Do not say \"regardless of\"" in developer_text
