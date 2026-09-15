@@ -71,7 +71,8 @@ def test_adjacent_trial_can_be_a_directly_relevant_descriptive_precedent_for_thi
 
 
 def test_planner_requests_actual_broadening_and_narrowing_without_objective_admission_rules():
-    assert '1 to 2 clinically broader cohorts AND 1 to 2 narrower cohorts' in REPORT_PLAN_INSTRUCTIONS
+    assert 'broadest shared umbrella first' in REPORT_PLAN_INSTRUCTIONS
+    assert 'Each later group is a clinically meaningful subset of the first umbrella' in REPORT_PLAN_INSTRUCTIONS
     assert 'not admission rules or objective assignments' in REPORT_PLAN_INSTRUCTIONS
     assert 'including unapproved profiles' in REPORT_PLAN_INSTRUCTIONS
     assert len(REPORT_PLAN_INSTRUCTIONS) < 9500

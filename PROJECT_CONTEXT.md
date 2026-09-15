@@ -1,6 +1,6 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
@@ -50,7 +50,7 @@ Canonical detail: `REPORT_EXECUTION_CONTEXT.md`.
 New and revised plans use `intel_agent_report_plan_v4` with `gpt-5.6-sol`, medium reasoning and no tools.
 
 - One shared Light + Max trial group uses exactly one structured dimension: disease, therapeutic area, phase, modality or country.
-- Max adds 1–2 genuinely broader and 1–2 narrower trial groups, adapted to brief specificity; these are overlapping lenses, never admission gates or objective assignments.
+- Plans contain 3–5 groups: the broadest useful shared umbrella first, then 2–4 contained Max subgroups covering distinct query aspects. Subgroups may be broader, narrower, adjacent or exact relative to the query. They remain overlapping lenses, never admission gates or objective assignments.
 - Every group carries a deterministic discovery filter and stable machine-readable selection-segment labels and literal criteria for Max execution.
 - Plans contain 1–7 request-aligned analysis pairs: one shared analysis and one deeper Max analysis per distinct user-requested decision or output; closely related considerations remain details within that pair.
 - Every analysis must answer a medical, clinical-development or trial-operational question.
@@ -118,6 +118,8 @@ Max objective contract v4 asks every analysis to account for every nonempty plan
 Max publication validates supporting trial identities, populated variables, numerator arithmetic, small samples, named-item support, prose and chart alignment. N=0 and zero-frequency results are omitted; supported continuous zeros remain valid. Overlapping groups are not additive. Eligibility exceptions and phase/design distinctions remain preserved. Max extraction gets one exceptional validation correction, then retains valid facts and nulls for unresolved values; public extraction stays strict. Group trial-ID unions are derived from supports, and source passages are not duplicated in deterministic summaries. Models, per-call token ceilings and clinical-data allowances remain bounded; exceptional corrections can add usage.
 
 The frozen dataset is checkpointed to Engine storage before objective work; its manifest is persisted in progress. A final snapshot adds analytical support/audit, falling back to the early checkpoint on storage failure. This adds at most one compressed snapshot per run and does not automatically reopen failed runs. Authentication, ownership, approved-plan prerequisites, data access/identity and resource allowances remain enforced; operational failures can still fail a run. Advisory codes and counts are logged without clinical payloads.
+
+Each Max analysis starts with supported broad context and then detailed subgroup findings in planned order. Presentation ordering preserves chart labels, values, support indices and within-group rankings. Counts use actual contributing trials; stratification replaces misleading pooled estimates. Planner titles omit "for your study" personalization. Finalization becomes active in the last objective-completion update, before the final dataset snapshot is saved. These changes add no model calls or hard validation gates.
 
 ## Site Agent
 

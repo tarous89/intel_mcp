@@ -1,6 +1,6 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
 
@@ -10,7 +10,7 @@ Planning uses `gpt-5.6-sol`, medium reasoning, strict structured output and no M
 
 ### Trial groups
 
-Every v4 plan has one shared Light + Max group and 2–4 Max-only groups. The shared group uses exactly one supported dimension:
+Every v4 plan has 3–5 groups: the broadest useful shared Light + Max umbrella first, then 2–4 contained Max subgroups covering distinct requested aspects. Subgroups can overlap and may be broader, narrower, adjacent or exact relative to the user query. The shared group uses exactly one supported dimension:
 
 ```text
 disease | therapeutic_area | phase | modality | country
@@ -102,7 +102,7 @@ Candidate-filter planning and compact-profile screening use Sol/medium/Flex. SAP
 
 ### Stages
 
-1. Preserve every approved group's existing discovery filter as an exact seed, then have a report-start candidate planner create an ordered focused-to-broad progression using `therapeutic_areas`, `phase`, `modalities`, `country_codes` and bounded literal `title_terms`. Max text terms search the Engine-maintained `report_search_v1` clinical narrative projection as well as titles; they run independently of structured intersections and still require clinical screening. Disease remains a seed rather than the sole recall gate.
+1. Preserve every approved group's discovery filter as an exact seed, starting with the broad umbrella, then search planned subgroups using `therapeutic_areas`, `phase`, `modalities`, `country_codes` and bounded literal `title_terms`. Max text searches also use Engine's `report_search_v1` clinical narrative projection, independently of structured intersections. Disease remains a seed rather than the sole recall gate. Broad-group membership alone is not an exact query match; useful contextual trials remain eligible.
 2. Execute the seed and broad filters in bounded round-robin pages, deduplicate and stop at the 500-candidate target or when the available current-profile pool is exhausted. Max alone reads the all-state report views; approval metadata is preserved in its dataset.
 3. Load compact `overview`, `population`, `trial_design` and `interventions` projections plus up to 1,200 characters of relevant eligibility excerpts per candidate. Sol screens them in batches of 25 against the approved rich disease, biomarker, treatment-setting and population segments, assigning `exact`, `close`, `adjacent` or `exclude` without changing any approved analysis. The v2 response requires one keyed assessment per trial ID. Results are joined by ID and restored to input order, not rejected for ordering. Legacy arrays must contain every expected trial exactly once. Missing, duplicate and unknown identities or conflicting segment memberships still fail with a specific, payload-free diagnostic. Screening and SAP contracts allow all nine possible planned segments.
 4. Select at most 100 non-excluded profiles while preserving group diversity. Planned groups are not admission gates: useful unassigned adjacent trials remain eligible and fill unused capacity. Missing structured fields create uncertainty, not exclusion. Reload selected profiles completely and classify overlapping segments in the existing extraction call. Analysts decide objective-specific membership later.
@@ -198,7 +198,7 @@ response/request IDs; they do not include prompts or clinical payloads.
 
 ### Broad-pool source access and rollout
 
-The planner requests 1–2 genuinely broader and 1–2 narrower cohorts according to brief specificity. All requested decisions are analyzed over one pool; no minimum published objective count is forced. SAP methods are conditional on actual support and should recover explicit design/endpoint facts from existing narrative within the same 20-variable/per-trial extraction budget. Each analyst additionally receives at most 60,000 total characters of verbatim source passages, selected without a model call from the shared full-profile store. Passages and publication-attempt diagnostics are saved in the downloadable snapshot, including omitted objectives; they are never public report prose.
+The planner requests the broadest useful umbrella first and 2–4 contained subgroups. Every analysis presents supported broad context before meaningful subgroup detail, using stratification when a pooled estimate would mislead. No minimum published count or assumed trial count is forced. Presentation ordering keeps labels, values and support indices aligned; within-group rankings and multi-group differences retain their order. SAP methods remain conditional on actual support within the same 20-variable/per-trial budget. Analysts receive at most 60,000 total characters of verbatim source passages without another model call. Passages and diagnostics remain in Download Dataset. The last objective-completion update activates finalization before the final snapshot upload; saving and synthesis share that active stage.
 
 Deploy Engine migration 041 before this MCP release. Keep the testing cap at 100. Scaling final selection to 300–500 later requires coordinated extractor/lease/support-schema limits; passage input is already capped independently of trial count. More selected trials can increase actual extraction use toward the existing 100-trial ceiling; unchanged ceilings are not a promise of identical runtime cost. No additional model stage, document fetch or infrastructure is introduced.
 

@@ -183,7 +183,7 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
 
         developer_text = payload["input"][0]["content"][0]["text"]
         assert "Use exactly ONE selection dimension" in developer_text
-        assert "Prefer disease when a meaningful disease is specified" in developer_text
+        assert "broadest clinically useful umbrella that contains ALL the later groups" in developer_text
         assert "Do not use disease stage, biomarker, mutation, PD-L1" in developer_text
         assert "prefer one compact \"X vs Y\" group" in developer_text
         assert "Do not say \"regardless of\"" in developer_text
@@ -193,8 +193,8 @@ async def test_report_plan_is_generated_by_sol_with_paired_v4_contract() -> None
         assert "Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize" in developer_text
         assert "Do not use Quantify or Describe" in developer_text
         assert "Do not use Benchmark as a title verb" in developer_text
-        assert "Prioritize trial sites for your planned study" in developer_text
-        assert "Estimate enrollment range for your planned trial" in developer_text
+        assert "Prioritize experienced trial sites" in developer_text
+        assert "Estimate enrollment ranges across comparable trials" in developer_text
         assert "Never phrase the title as a question" in developer_text
         assert "Do not hard-code result breadth" in developer_text
         assert "Never create an analysis about database coverage" in developer_text
@@ -308,7 +308,7 @@ def test_v4_rejects_segment_rules_that_cannot_execute_without_truncation() -> No
 def test_report_plan_prompt_is_compact_and_current() -> None:
     assert REPORT_PLAN_MODEL == "gpt-5.6-sol"
     assert REPORT_PLAN_VERSION == 4
-    assert "2 to 4 Max groups" in REPORT_PLAN_INSTRUCTIONS
+    assert "2 to 4 distinct Max subgroups" in REPORT_PLAN_INSTRUCTIONS
     assert "distinct requested decisions or outputs to 1 to 7 analysis pairs" in REPORT_PLAN_INSTRUCTIONS
     assert "complete objective set" in REPORT_PLAN_INSTRUCTIONS
     assert "List, Name, Count, Rank, Report, Calculate, Summarize, Show, Compare, Collect" in REPORT_PLAN_INSTRUCTIONS

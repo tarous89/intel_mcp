@@ -298,6 +298,8 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
     events = []
     async def save_snapshot(_settings, **kwargs):
         final = "publication_audit" in kwargs
+        if final:
+            assert "finalization_active" in events
         events.append("final_snapshot" if final else "extraction_checkpoint")
         if storage_fails or (final and recovery_case == "final_snapshot_failure"):
             raise OSError("Synthetic storage unavailable")
@@ -337,7 +339,11 @@ async def test_max_executor_runs_the_complete_profile_only_pipeline(monkeypatch,
             }
 
         async def progress(self, _report_run_id: str, _progress: dict) -> None:
-            return None
+            steps = _progress.get("steps", [])
+            objectives = [step for step in steps if step["key"].startswith("objective_")]
+            if objectives and all(step["status"] == "completed" for step in objectives):
+                assert next(step for step in steps if step["key"] == "final_report")["status"] == "in_progress"
+                events.append("finalization_active")
 
         async def complete(self, _report_run_id: str, progress: dict, final_report: dict) -> None:
             self.completed = {"progress": progress, "final_report": final_report}

@@ -4,7 +4,7 @@ import json
 import httpx
 import pytest
 
-from intel_mcp.max_group_analysis import examined_groups, check_group_assessments, group_accounting_complete
+from intel_mcp.max_group_analysis import examined_groups, check_group_assessments, group_accounting_complete, order_group_findings
 from intel_mcp.max_report import (
     AnalysisSpecification, MaxGroupAssessment, MaxReportError, TerraMaxReportRunner,
     objective_schema, summarize_dataset,
@@ -89,6 +89,51 @@ def test_group_statistics_count_trials_not_repeated_tags_and_omit_empty_groups()
     assert [group['segment_key'] for group in summary['segments']] == ['all_trials', 'broad']
     assert summary['segments'][1]['variables'][0]['summary']['top_values'] == [
         {'value': 'ORR', 'count': 2}, {'value': 'PFS', 'count': 1}]
+
+
+def test_broad_first_sort_preserves_chart_values_and_all_support_links():
+    result, _, _ = sample()
+    sub = result.sub_analyses[0]
+    sub.visual.kind = 'bar'
+    sub.visual.labels = ['STEMI', 'Cardiovascular', 'Coronary disease']
+    sub.visual.values = [7, 0, 12]
+    template = sub.visual.supports[0]
+    sub.visual.supports = [template.model_copy(update={
+        'value_index': index, 'segment_key': key, 'trial_ids': [f'T{index + 1:03}'],
+        'numerator_trial_ids': [f'T{index + 1:03}'],
+    }) for index, key in enumerate(['stemi', 'cvd', 'coronary'])]
+    original = {sub.visual.labels[s.value_index]: s.model_dump(exclude={'value_index'}) for s in sub.visual.supports}
+    order_group_findings(result, [{'key': 'cvd'}, {'key': 'coronary'}, {'key': 'stemi'}])
+    assert sub.visual.labels == ['Cardiovascular', 'Coronary disease', 'STEMI']
+    assert sub.visual.values == [0, 12, 7]  # A supported continuous zero is preserved.
+    assert {sub.visual.labels[s.value_index]: s.model_dump(exclude={'value_index'}) for s in sub.visual.supports} == original
+
+
+def test_broad_findings_lead_while_rankings_and_group_differences_stay_intact():
+    result, _, _ = sample()
+    narrow = result.sub_analyses[0]
+    broad = narrow.model_copy(deep=True)
+    broad.title = 'Broad group sites'
+    broad.visual.kind = 'bar'
+    broad.visual.labels = ['Site Z', 'Site A']
+    broad.visual.values = [12, 8]
+    broad.visual.supports = [broad.visual.supports[0].model_copy(update={
+        'segment_key': 'broad', 'value_index': i,
+    }) for i in range(2)]
+    difference = broad.model_copy(deep=True)
+    difference.title = 'Group differences'
+    difference.visual.supports.extend([support.model_copy(update={'segment_key': 'mcrpc'}) for support in difference.visual.supports])
+    result.sub_analyses = [narrow, broad, difference]
+    originals = [item.model_dump() for item in result.sub_analyses]
+    order_group_findings(result, [{'key': 'broad'}, {'key': 'mcrpc'}])
+    assert [item.title for item in result.sub_analyses] == [broad.title, difference.title, narrow.title]
+    assert [item.model_dump() for item in result.sub_analyses] == [originals[1], originals[2], originals[0]]
+
+
+def test_group_ordering_does_not_restore_omitted_zero_sample_findings():
+    result, rows, definitions = sample(0)
+    result = filter_objective(result, rows, definitions)
+    assert order_group_findings(result, [{'key': 'mcrpc'}]).sub_analyses == []
 
 
 @pytest.mark.anyio

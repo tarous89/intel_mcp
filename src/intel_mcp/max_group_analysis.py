@@ -104,5 +104,36 @@ def publication_dispositions(audit, result, groups):
     return published
 
 
+def order_group_findings(result, metadata):
+    """Keep the planned broad-to-specific order without changing any measure.
+
+    Only reorder chart values when each has one explicit group identity. Ranked
+    categories within a group and differences supported by multiple groups retain
+    their original order. Remap support indices together with labels and values.
+    """
+    ranks = {item["key"]: index for index, item in enumerate(metadata)}
+    unknown = len(ranks)
+    for finding in result.sub_analyses:
+        visual = finding.visual
+        value_groups = [
+            {support.segment_key for support in visual.supports if support.value_index == index}
+            for index in range(len(visual.values))
+        ]
+        if value_groups and all(len(keys) == 1 and next(iter(keys)) in ranks for keys in value_groups):
+            order = sorted(range(len(value_groups)), key=lambda index: ranks[next(iter(value_groups[index]))])
+            if order != list(range(len(order))):
+                visual.labels = [visual.labels[index] for index in order]
+                visual.values = [visual.values[index] for index in order]
+                new_indices = {old: new for new, old in enumerate(order)}
+                for support in visual.supports:
+                    support.value_index = new_indices[support.value_index]
+                visual.supports.sort(key=lambda support: support.value_index)
+    result.sub_analyses.sort(key=lambda finding: min(
+        (ranks.get(support.segment_key, unknown) for support in finding.visual.supports),
+        default=unknown,
+    ))
+    return result
+
+
 def group_accounting_complete(result: Any) -> bool:
     return not any(issue.startswith("publication:groups:") for issue in result.qa_warnings)

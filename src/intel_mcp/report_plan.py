@@ -48,24 +48,24 @@ GENERAL
 - Activity and experience are not quality. Recommend only when the planned analysis evaluates relevant evidence.
 
 TRIAL GROUPS
-Create 3 to 5 groups total: one shared group first, followed by 2 to 4 Max groups.
+Create 3 to 5 groups total: the broadest shared umbrella first, followed by 2 to 4 distinct Max subgroups. Design the full hierarchy before choosing the shared filter.
 
 Shared group:
 - role="primary", maxOnly=false.
 - filterDimension is exactly one of: disease, therapeutic_area, phase, modality, country.
 - Use exactly ONE selection dimension. Never combine multiple structured dimensions in the shared group.
-- Prefer disease when a meaningful disease is specified; otherwise therapeutic area. If neither is useful, choose the more informative of phase or modality, then country as fallback.
+- Choose the broadest clinically useful umbrella that contains ALL the later groups. Use a parent disease, therapeutic area, phase or modality; country only if useful. Do not default to the closest disease match. Every subgroup must fit this rule. Seek useful context, not unrelated volume; promise no count before discovery.
 - Do not use disease stage, biomarker, mutation, PD-L1, molecular subtype, line of therapy, treatment setting, eligibility detail or another fine-grained concept in the shared group.
-- The title mentions only the selected dimension, for example "NSCLC trials", "Solid tumor oncology trials", "Phase II trials", "ADC trials", or "Trials in Germany".
+- The title mentions only the selected dimension, e.g. "Cardiovascular trials", "Phase II trials" or "ADC trials".
 - details briefly state the single selection rule and must not smuggle in additional filters.
 - discoveryFilter must encode that same single broad rule using one supported field and exact values. Use diseases for disease, therapeutic_areas for therapeutic area, phase for phase, modalities for modality, or country_codes for country. Phase values are strings such as "2"; country values are ISO alpha-2 codes.
 - selectionSegments contains exactly one stable backend segment. Give it a short unique snake_case key, a plain clinical label, and literal inclusion/exclusion criteria.
 
 Max groups:
 - role="adjacent", maxOnly=true, filterDimension=null.
-- Create 1 to 2 clinically broader cohorts AND 1 to 2 narrower cohorts, in addition to the shared group. Adapt to specificity: generally two broader/one narrower for a specific brief, one broader/two narrower for a broad brief; use both pairs only for distinct clinical perspectives.
-- Broader cohorts must actually relax a clinical restriction or explore a transferable adjacent population/intervention. They must not all be narrower subsets of the shared group or repeat the same restrictive disease seed. For ADC mCRPC, consider prostate cancer across settings and ADCs in other solid tumors.
-- Narrower cohorts sharpen a requested population, modality, stage or design; do not invent precision.
+- Each later group is a clinically meaningful subset of the first umbrella. Cover distinct requested aspects: disease/subtype, phase, modality, stage, setting or adjacent population. Order broader to more selective; siblings may overlap.
+- Relative to the query, subgroups can be broader, narrower, adjacent or exact. Include an exact match when meaningful; invent no precision. Widen the umbrella if an adjacent perspective falls outside it.
+- Phase II STEMI example: cardiovascular trials, cardiovascular Phase II, coronary-disease Phase II, STEMI Phase II. Hierarchies can also branch by modality or setting.
 - Groups overlap in one shared Max pool; they are not admission rules or objective assignments. Analysts assign relevance after reading the evidence.
 - Fine-grained stage, biomarker, molecular subtype, line of therapy and combinations belong here.
 - When comparison is the useful lens, prefer one compact "X vs Y" group instead of two repetitive groups.
@@ -96,8 +96,8 @@ Max analysis — interpretation/decision layer:
 - The title should normally start with one of these verbs: Analyze, Assess, Evaluate, Prioritize, Recommend, Estimate, Determine, Identify, Match, Synthesize.
 - Choose the verb that best reflects the actual deliverable. Do not mechanically start every Max title with Analyze.
 - Do not use Benchmark as a title verb.
-- Examples: "Prioritize trial sites for your planned study", "Estimate enrollment range for your planned trial".
-- The collapsed title must tell the user what the deeper analysis will do for their own trial, study, target population, rollout or decision. Describe the deliverable, not an abstract category.
+- Examples: "Prioritize experienced trial sites", "Estimate enrollment ranges across comparable trials".
+- State the analytical deliverable. Do not append "for your study", "for your planned trial" or similar personalization.
 - Never phrase the title as a question or end it with a question mark.
 - details contain 2 to 4 distinct decision factors or sub-analyses such as exact disease/setting fit, phase/modality experience, recency, competition, PI-site relationships, profile-derived eligibility or endpoint detail, variation/robustness, trade-offs, or an evidence-supported shortlist/recommendation.
 - Do not simply repeat the shared analysis with stronger wording. Max must add evidence or reasoning that can change or strengthen the user's decision.
