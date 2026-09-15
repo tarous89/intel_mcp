@@ -1137,6 +1137,10 @@ class MaxReportExecutor:
                         public_section(item) for item in available_results if item.sub_analyses
                     ]
                     progress = _mark(progress, f"objective_{index + 1}", "completed")
+                    if len(available_results) == len(sections):
+                        # Finalization includes the evidence snapshot, not only
+                        # synthesis. Publish the handoff with the last objective.
+                        progress = _mark(progress, "final_report", "in_progress")
                     await self._control.progress(report_run_id, progress)
             except Exception:
                 for task in tasks:
