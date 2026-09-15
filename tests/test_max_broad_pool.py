@@ -70,8 +70,12 @@ def test_adjacent_trial_can_be_a_directly_relevant_descriptive_precedent_for_thi
     assert len(filter_objective(result, rows, definitions).sub_analyses) == 1
 
 
-def test_planner_requests_actual_broadening_and_narrowing_without_objective_admission_rules():
-    assert 'broadest shared umbrella first' in REPORT_PLAN_INSTRUCTIONS
+def test_planner_anchors_broad_context_to_named_disease_without_objective_admission_rules():
+    assert 'disease-only shared group first when a disease is named' in REPORT_PLAN_INSTRUCTIONS
+    assert 'Only when no disease is named, choose a relevant therapeutic area, phase or modality' in REPORT_PLAN_INSTRUCTIONS
+    assert 'Never replace it with solid tumors, a broader disease family or therapeutic area to increase volume' in REPORT_PLAN_INSTRUCTIONS
+    assert 'Keep adjacent perspectives within the first group; never widen it to accommodate them' in REPORT_PLAN_INSTRUCTIONS
+    assert 'NSCLC stays NSCLC; STEMI stays STEMI' in REPORT_PLAN_INSTRUCTIONS
     assert 'Each later group is a clinically meaningful subset of the first umbrella' in REPORT_PLAN_INSTRUCTIONS
     assert 'not admission rules or objective assignments' in REPORT_PLAN_INSTRUCTIONS
     assert 'including unapproved profiles' in REPORT_PLAN_INSTRUCTIONS

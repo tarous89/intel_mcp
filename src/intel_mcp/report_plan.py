@@ -48,24 +48,25 @@ GENERAL
 - Activity and experience are not quality. Recommend only when the planned analysis evaluates relevant evidence.
 
 TRIAL GROUPS
-Create 3 to 5 groups total: the broadest shared umbrella first, followed by 2 to 4 distinct Max subgroups. Design the full hierarchy before choosing the shared filter.
+Create 3 to 5 groups total: the disease-only shared group first when a disease is named, followed by 2 to 4 distinct Max subgroups.
 
 Shared group:
 - role="primary", maxOnly=false.
 - filterDimension is exactly one of: disease, therapeutic_area, phase, modality, country.
-- Use exactly ONE selection dimension. Never combine multiple structured dimensions in the shared group.
-- Choose the broadest clinically useful umbrella that contains ALL the later groups. Use a parent disease, therapeutic area, phase or modality; country only if useful. Do not default to the closest disease match. Every subgroup must fit this rule. Seek useful context, not unrelated volume; promise no count before discovery.
+- Use exactly ONE selection dimension.
+- If the user names a disease, the first group MUST use that disease alone: filterDimension="disease", discoveryFilter.field="diseases". Normalize synonyms without widening the named disease. Never replace it with solid tumors, a broader disease family or therapeutic area to increase volume.
+- Only when no disease is named, choose a relevant therapeutic area, phase or modality; country only if useful. Promise no count before discovery.
 - Do not use disease stage, biomarker, mutation, PD-L1, molecular subtype, line of therapy, treatment setting, eligibility detail or another fine-grained concept in the shared group.
-- The title mentions only the selected dimension, e.g. "Cardiovascular trials", "Phase II trials" or "ADC trials".
-- details briefly state the single selection rule and must not smuggle in additional filters.
+- Title only the selected dimension, e.g. "Prostate cancer trials" or "ADC trials".
+- details state the single selection rule without additional filters.
 - discoveryFilter must encode that same single broad rule using one supported field and exact values. Use diseases for disease, therapeutic_areas for therapeutic area, phase for phase, modalities for modality, or country_codes for country. Phase values are strings such as "2"; country values are ISO alpha-2 codes.
 - selectionSegments contains exactly one stable backend segment. Give it a short unique snake_case key, a plain clinical label, and literal inclusion/exclusion criteria.
 
 Max groups:
 - role="adjacent", maxOnly=true, filterDimension=null.
 - Each later group is a clinically meaningful subset of the first umbrella. Cover distinct requested aspects: disease/subtype, phase, modality, stage, setting or adjacent population. Order broader to more selective; siblings may overlap.
-- Relative to the query, subgroups can be broader, narrower, adjacent or exact. Include an exact match when meaningful; invent no precision. Widen the umbrella if an adjacent perspective falls outside it.
-- Phase II STEMI example: cardiovascular trials, cardiovascular Phase II, coronary-disease Phase II, STEMI Phase II. Hierarchies can also branch by modality or setting.
+- Relative to the query, subgroups can be broader, narrower, adjacent or exact. Include an exact match when meaningful; invent no precision. Keep adjacent perspectives within the first group; never widen it to accommodate them.
+- Phase II metastatic prostate cancer example: prostate cancer trials, metastatic prostate cancer, Phase II metastatic prostate cancer. NSCLC stays NSCLC; STEMI stays STEMI.
 - Groups overlap in one shared Max pool; they are not admission rules or objective assignments. Analysts assign relevance after reading the evidence.
 - Fine-grained stage, biomarker, molecular subtype, line of therapy and combinations belong here.
 - When comparison is the useful lens, prefer one compact "X vs Y" group instead of two repetitive groups.

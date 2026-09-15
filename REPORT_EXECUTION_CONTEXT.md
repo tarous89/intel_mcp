@@ -10,7 +10,7 @@ Planning uses `gpt-5.6-sol`, medium reasoning, strict structured output and no M
 
 ### Trial groups
 
-Every v4 plan has 3–5 groups: the broadest useful shared Light + Max umbrella first, then 2–4 contained Max subgroups covering distinct requested aspects. Subgroups can overlap and may be broader, narrower, adjacent or exact relative to the user query. The shared group uses exactly one supported dimension:
+Every v4 plan has 3–5 groups. If the user names a disease, the shared Light + Max first group uses that disease alone, dropping stage, biomarker, phase, modality and setting restrictions without widening to solid tumors, a broader disease family or therapeutic area. For example, Phase II metastatic prostate cancer starts with prostate cancer; NSCLC stays NSCLC and STEMI stays STEMI. Only when no disease is named may the planner use a relevant therapeutic area, phase, modality or country. Then add 2–4 contained Max subgroups covering distinct requested aspects. Subgroups can overlap and be broader, narrower, adjacent or exact relative to the query, but cannot widen the first group. The shared group uses exactly one supported dimension:
 
 ```text
 disease | therapeutic_area | phase | modality | country
@@ -198,7 +198,7 @@ response/request IDs; they do not include prompts or clinical payloads.
 
 ### Broad-pool source access and rollout
 
-The planner requests the broadest useful umbrella first and 2–4 contained subgroups. Every analysis presents supported broad context before meaningful subgroup detail, using stratification when a pooled estimate would mislead. No minimum published count or assumed trial count is forced. Presentation ordering keeps labels, values and support indices aligned; within-group rankings and multi-group differences retain their order. SAP methods remain conditional on actual support within the same 20-variable/per-trial budget. Analysts receive at most 60,000 total characters of verbatim source passages without another model call. Passages and diagnostics remain in Download Dataset. The last objective-completion update activates finalization before the final snapshot upload; saving and synthesis share that active stage.
+The planner uses the named disease alone as the first group, falling back to another shared dimension only when no disease is named, then adds 2–4 contained subgroups. Every analysis presents supported broad context before meaningful subgroup detail, using stratification when a pooled estimate would mislead. No minimum published count or assumed trial count is forced. Presentation ordering keeps labels, values and support indices aligned; within-group rankings and multi-group differences retain their order. SAP methods remain conditional on actual support within the same 20-variable/per-trial budget. Analysts receive at most 60,000 total characters of verbatim source passages without another model call. Passages and diagnostics remain in Download Dataset. The last objective-completion update activates finalization before the final snapshot upload; saving and synthesis share that active stage.
 
 Deploy Engine migration 041 before this MCP release. Keep the testing cap at 100. Scaling final selection to 300–500 later requires coordinated extractor/lease/support-schema limits; passage input is already capped independently of trial count. More selected trials can increase actual extraction use toward the existing 100-trial ceiling; unchanged ceilings are not a promise of identical runtime cost. No additional model stage, document fetch or infrastructure is introduced.
 
