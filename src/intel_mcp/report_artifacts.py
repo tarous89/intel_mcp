@@ -27,7 +27,7 @@ class ArtifactStore:
         self.settings = settings
 
     def url(self, run_id, sha, extension):
-        if not UUID.fullmatch(run_id) or not SHA.fullmatch(sha) or extension not in {"jsonl.gz", "xlsx"}:
+        if not UUID.fullmatch(run_id) or not SHA.fullmatch(sha) or extension not in {"jsonl.gz", "xlsx", "json.gz", "html", "pdf"}:
             raise ValueError("Invalid artifact identity")
         if not self.settings.engine_api_url or not self.settings.engine_service_token:
             raise ValueError("Report artifact storage is not configured")
@@ -98,6 +98,26 @@ async def export_workbook(snapshot, target, run_id):
 
 
 def register_report_dataset(mcp, settings, authorized):
+    @mcp.custom_route("/internal/max-report/artifact/{report_run_id}/{sha}/{extension}", methods=["GET"])
+    async def artifact(request):
+        if not authorized(request):
+            return JSONResponse({"error": "Unauthorized."}, status_code=401)
+        run_id, sha, extension = (request.path_params[k] for k in ("report_run_id", "sha", "extension"))
+        if not UUID.fullmatch(run_id) or not SHA.fullmatch(sha) or extension not in {"html", "pdf", "xlsx"}:
+            return JSONResponse({"error": "Invalid artifact identity."}, status_code=400)
+        # App has checked ownership and resolved the version's immutable reference.
+        directory = tempfile.TemporaryDirectory(prefix="max-artifact-")
+        try:
+            target = Path(directory.name) / ("report." + extension)
+            await ArtifactStore(settings).download(run_id, sha, extension, target)
+            mime = {"html": "text/html", "pdf": "application/pdf", "xlsx": MIME}[extension]
+            return FileResponse(target, media_type=mime, background=BackgroundTask(directory.cleanup),
+                headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+                         "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'"})
+        except Exception:
+            directory.cleanup()
+            return JSONResponse({"error": "Report artifact unavailable."}, status_code=503)
+
     @mcp.custom_route("/internal/max-report/dataset/{report_run_id}", methods=["GET"])
     async def download(request):
         if not authorized(request):

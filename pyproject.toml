@@ -15,6 +15,7 @@ dependencies = [
   "uvicorn>=0.31,<1",
   "openpyxl>=3.1.5,<4",
   "lxml>=5,<7",
+  "jsonschema>=4,<5",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,7 @@ dev = [
 
 [project.scripts]
 intel-mcp = "intel_mcp.bootstrap:main"
+intel-max-worker = "intel_mcp.max_agent_execution:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

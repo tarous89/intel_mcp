@@ -187,16 +187,21 @@ def _pack_parts(blocks: list[str]) -> list[str]:
 
 
 def get_approved_document_text(
-    connection: psycopg.Connection[Any], request: Any
+    connection: psycopg.Connection[Any], request: Any, *, all_profiles: bool = False
 ) -> dict[str, Any]:
     selection = validate_document_retrieval_request(request)
 
+    # This switch is backend-owned. Public tools never accept it as input.
+    profiles_view = "report_profiles_v1" if all_profiles else "approved_profiles_v1"
+    documents_view = "report_documents_v1" if all_profiles else "documents_v1"
+    text_view = "report_document_text_v1" if all_profiles else "document_text_v1"
+    approval_clause = "" if all_profiles else "approval_status = 'approved' AND"
+
     profile = connection.execute(
-        """
+        f"""
         SELECT profile_json
-        FROM mcp_serving.approved_profiles_v1
-        WHERE approval_status = 'approved'
-          AND eu_number = %s
+        FROM mcp_serving.{profiles_view}
+        WHERE {approval_clause} eu_number = %s
         LIMIT 1
         """,
         (selection.trial_id,),
@@ -216,14 +221,14 @@ def get_approved_document_text(
     # the catalogue and text serving views: both are security-barrier views and that
     # join can force a broad document-text scan under the restricted role's 15s timeout.
     rows = connection.execute(
-        """
+        f"""
         SELECT document_id,
                ctis_uuid,
                document_category,
                document_type_label_raw,
                title_raw,
                filename_raw
-        FROM mcp_serving.documents_v1
+        FROM mcp_serving.{documents_view}
         WHERE eu_number = %s
         ORDER BY document_id
         """,
@@ -249,9 +254,9 @@ def get_approved_document_text(
         )
 
     text_row = connection.execute(
-        """
+        f"""
         SELECT full_text, pages_json
-        FROM mcp_serving.document_text_v1
+        FROM mcp_serving.{text_view}
         WHERE document_id = %s
           AND extraction_status IN ('success', 'partial')
           AND COALESCE(length(full_text), 0) > 0
