@@ -1,6 +1,46 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-15
+Last updated: 2026-09-17 (implementation branch; production behavior below is unchanged)
+
+## Managed Max redesign — disabled implementation
+
+The new source path is gated by `MAX_AGENT_ENABLED=false` by default. It has not
+been deployed or validated with a live managed-agent account. Legacy execution
+and stored v2 reports remain the production path.
+
+The implementation adds page/batch evidence checkpoints, a single managed
+analyst session, an authenticated report-bound three-tool endpoint, source-backed
+calculations, sanitized v3 HTML, deterministic XLSX and optional isolated Chromium
+PDF generation. The App stores jobs, session/turn IDs and immutable report versions;
+clinical evidence and work files stay in Engine artifact storage. The supervised
+worker entrypoint is `python -m intel_mcp.max_agent_execution`. Web requests only
+acknowledge durable jobs; they do not own the analyst task lifetime.
+
+Configuration must agree between App and MCP: `MAX_AGENT_TRIAL_LIMIT` (default 100,
+maximum 100), `MAX_AGENT_DISCOVERY_LIMIT` (10000), `MAX_AGENT_DOCUMENT_LIMIT` (20),
+and `MAX_AGENT_DOCUMENT_CHARACTERS` (2000000). MCP additionally requires an explicit
+`MAX_AGENT_MODEL`, `MAX_AGENT_MAX_TURNS` (12), `MAX_AGENT_MAX_MINUTES` (180), the
+existing OpenAI/Engine/App service credentials, and optionally `MAX_AGENT_CHROMIUM`.
+No model was selected by a live quality/cost comparison yet.
+
+Local evidence: the existing 359-test MCP suite passed with a test-only
+`httpx2` compatibility import because the declared `httpx` wheel was unavailable
+in this workspace; 11 added tests passed, covering frozen batches, document
+parts, scope/dispatch denial, calculation rules, sanitizer, XLSX continuations,
+idle session creation and evidence-stage resume. Repeat with declared dependencies
+in CI before merge.
+
+Release gates remain: live CRPC snapshot pilot and model/account access, semantic
+quality/cost comparison with the existing report and mCRC reference, actual
+session/environment recovery, representative 100-trial runtime/memory, Chromium
+PDF visual inspection, full App build and coordinated migration/worker deployment.
+The English new-evidence and formatting-intent checks are conservative heuristics
+and need product validation, including non-English requests. Optional PDF failure
+preserves HTML, but an automatic PDF retry queue is not implemented. Source-pointer
+checks establish traceability, not independent clinical interpretation validation.
+Do not enable the flag or increase the advertised-envelope runtime allowance
+until these gates pass. Rollback leaves v3 rendering available and routes new
+unmarked runs through the legacy executor.
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
 
