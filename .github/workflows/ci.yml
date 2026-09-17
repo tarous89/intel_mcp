@@ -17,6 +17,15 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: pytest -q
 
+  max-worker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dedicated worker with Chromium sandbox
+        run: docker build -f Dockerfile.max-worker -t intel-max-worker:check .
+      - name: Verify non-root runtime and installed browser
+        run: docker run --rm intel-max-worker:check sh -c 'test "$(id -u)" != 0 && chromium --version && intel-max-worker --help'
+
   live-health:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: tests

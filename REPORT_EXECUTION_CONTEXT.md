@@ -1,12 +1,12 @@
 # Intel MCP — Report Execution Current Context
 
-Last updated: 2026-09-17 (implementation branch; production behavior below is unchanged)
+Last updated: 2026-09-17 (code deployed; managed worker activation pending)
 
-## Managed Max redesign — disabled implementation
+## Managed Max redesign — deployment pending activation
 
-The new source path is gated by `MAX_AGENT_ENABLED=false` by default. It has not
-been deployed or validated with a live managed-agent account. Legacy execution
-and stored v2 reports remain the production path.
+The new source path is gated by `MAX_AGENT_ENABLED=false` by default. The code and App/Engine migrations are deployed. Read-only Agents API account
+access passed; no session or model turn was created. Legacy execution and stored
+v2 reports remain the production path until worker activation.
 
 The implementation adds page/batch evidence checkpoints, a single managed
 analyst session, an authenticated report-bound three-tool endpoint, source-backed
@@ -21,7 +21,11 @@ maximum 100), `MAX_AGENT_DISCOVERY_LIMIT` (10000), `MAX_AGENT_DOCUMENT_LIMIT` (2
 and `MAX_AGENT_DOCUMENT_CHARACTERS` (2000000). MCP additionally requires an explicit
 `MAX_AGENT_MODEL`, `MAX_AGENT_MAX_TURNS` (12), `MAX_AGENT_MAX_MINUTES` (180), the
 existing OpenAI/Engine/App service credentials, and optionally `MAX_AGENT_CHROMIUM`.
-No model was selected by a live quality/cost comparison yet.
+The worker Blueprint explicitly selects `gpt-5.6-sol`; no live quality/cost
+comparison has been performed. `render.max-worker.yaml` reuses only existing MCP
+credentials. `Dockerfile.max-worker` includes sandboxed Chromium and starts with
+synthetic XLSX/PDF and read-only account checks. The new $7/month worker awaits
+recurring-cost approval. App/MCP remain disabled until its startup is validated.
 
 Verified locally: the full MCP suite passes with the declared `httpx` dependency.
 Checks include frozen batches, document parts, scope/dispatch denial, calculation
@@ -48,8 +52,10 @@ PDF failures enqueue a version-bound derivative job in App; the worker retries t
 sanitized HTML up to three times, with no model calls or changes to report content.
 The `intel-max-worker --preflight` command checks configuration/account access without
 starting a session. The normal `intel-max-worker` command runs the supervised worker.
-Do not enable the flag or increase the advertised-envelope runtime allowance
-until these gates pass. Rollback leaves v3 rendering available and routes new
+The user authorized deployment validation without inference and reserved the
+first real report for their own test. After worker startup and empty-queue checks,
+enable the coordinated flags for that test without starting a report. Do not
+increase the 100-trial pilot envelope before representative live validation. Rollback leaves v3 rendering available and routes new
 unmarked runs through the legacy executor.
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
