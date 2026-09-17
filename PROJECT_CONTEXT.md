@@ -1,21 +1,26 @@
 # Intel MCP — Current Context
 
-Last updated: 2026-09-15
+Last updated: 2026-09-17
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
-The managed-Max code is deployed, with activation disabled. The existing web
-service exposes the restricted retrieval endpoint; the separate `intel-max-worker`
-process has not been provisioned. App and Engine migrations are deployed.
-Before enabling new Max reports, provision the worker with the existing restricted
-MCP/service credentials, an explicit `MAX_AGENT_MODEL`, and a working sandboxed
-Chromium renderer. Run `intel-max-worker --preflight` for read-only account access
-verification, inspect pending jobs, and enable the coordinated App/worker flags.
-The user reserved real-report/model validation for their own test; deployment
-validation must not start sessions or model turns. Render dashboard authentication
-is still required for worker setup; the connector cannot create background workers.
-App/MCP health checks passed. Live analyst behavior, exports and PDF layout remain
-unverified. Legacy Max remains the active generation path.
+The managed-Max application code and migrations are deployed; activation remains
+disabled in App and MCP pending the dedicated worker. Read-only production
+Agents API access and model-list checks passed without creating a session.
+`render.max-worker.yaml` provisions one Frankfurt Starter worker using
+`Dockerfile.max-worker`, the existing restricted MCP credentials via `fromService`,
+and explicit `gpt-5.6-sol` (not yet quality/cost benchmarked). The image runs as a
+non-root user and retains Chromium's sandbox. Startup verifies synthetic XLSX/PDF
+exports and read-only Agents access before polling; it fails closed if PDF rendering
+is unavailable. No App database or Engine owner credential is included.
+
+Render lists the new worker at $7/month. Creation is pending confirmation of the
+new recurring service; browser sign-in is complete. After provisioning, validate
+runtime/export startup, inspect the empty managed queues, then enable the coordinated
+App/MCP flags. Keep the 100-trial pilot cap. The user will perform the first real
+report test: do not create sessions or submit model turns during deployment checks.
+Live analyst behavior, full-report exports, PDF layout and 100-trial memory remain
+unverified. Legacy Max remains active until worker activation.
 
 ## Boundaries
 
