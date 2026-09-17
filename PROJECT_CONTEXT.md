@@ -4,9 +4,18 @@ Last updated: 2026-09-15
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
-The current implementation branch contains a disabled managed-Max redesign.
-See `REPORT_EXECUTION_CONTEXT.md` for verified checks and outstanding release
-gates. No managed-Max production activation has been performed. The branch includes version-bound PDF retry jobs and failed-revision session isolation.
+The managed-Max code is deployed, with activation disabled. The existing web
+service exposes the restricted retrieval endpoint; the separate `intel-max-worker`
+process has not been provisioned. App and Engine migrations are deployed.
+Before enabling new Max reports, provision the worker with the existing restricted
+MCP/service credentials, an explicit `MAX_AGENT_MODEL`, and a working sandboxed
+Chromium renderer. Run `intel-max-worker --preflight` for read-only account access
+verification, inspect pending jobs, and enable the coordinated App/worker flags.
+The user reserved real-report/model validation for their own test; deployment
+validation must not start sessions or model turns. Render dashboard authentication
+is still required for worker setup; the connector cannot create background workers.
+App/MCP health checks passed. Live analyst behavior, exports and PDF layout remain
+unverified. Legacy Max remains the active generation path.
 
 ## Boundaries
 
