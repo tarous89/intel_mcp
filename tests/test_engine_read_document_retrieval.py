@@ -88,6 +88,23 @@ def test_request_accepts_only_the_three_contract_fields() -> None:
     assert captured.value.code == "INVALID_REQUEST"
 
 
+def test_max_document_reader_uses_all_state_views_only_when_explicit():
+    class MaxConnection(_Connection):
+        def execute(self, statement, parameters):
+            actual = statement
+            normalized = statement.replace("mcp_serving.report_profiles_v1", "mcp_serving.approved_profiles_v1")
+            normalized = normalized.replace("mcp_serving.report_documents_v1", "mcp_serving.documents_v1")
+            normalized = normalized.replace("mcp_serving.report_document_text_v1", "mcp_serving.document_text_v1")
+            result = super().execute(normalized, parameters)
+            self.calls[-1] = (actual, parameters)
+            return result
+    connection = MaxConnection(_profile_row(), [_document_row("saved text", [])])
+    assert get_approved_document_text(connection, _request(), all_profiles=True)["text"] == "[[PAGE 1]]\nsaved text"
+    statements = "\n".join(sql for sql, _ in connection.calls)
+    assert "report_profiles_v1" in statements and "report_documents_v1" in statements and "report_document_text_v1" in statements
+    assert "approval_status = 'approved'" not in statements
+
+
 def test_get_document_returns_simple_text_only_contract_and_case_insensitive_name() -> None:
     connection = _Connection(
         _profile_row(),

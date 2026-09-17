@@ -4,6 +4,10 @@ Last updated: 2026-09-15
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
+The current implementation branch contains a disabled managed-Max redesign.
+See `REPORT_EXECUTION_CONTEXT.md` for verified checks and outstanding release
+gates. No managed-Max production activation has been performed.
+
 ## Boundaries
 
 - `tarous89/intel-agent` owns CTIS ingestion, documents, Trial Profiles, serving views and all clinical-store writes.
