@@ -4,23 +4,15 @@ Last updated: 2026-09-17
 
 Intel MCP is the isolated distribution and bounded-analysis layer between TrialAgents clinical data and downstream clients.
 
-The managed-Max application code and migrations are deployed; activation remains
-disabled in App and MCP pending the dedicated worker. Read-only production
-Agents API access and model-list checks passed without creating a session.
-`render.max-worker.yaml` provisions one Frankfurt Starter worker using
-`Dockerfile.max-worker`, the existing restricted MCP credentials via `fromService`,
-and explicit `gpt-5.6-sol` (not yet quality/cost benchmarked). The image runs as a
-non-root user and retains Chromium's sandbox. Startup verifies synthetic XLSX/PDF
-exports and read-only Agents access before polling; it fails closed if PDF rendering
-is unavailable. No App database or Engine owner credential is included.
-
-Render lists the new worker at $7/month. Creation is pending confirmation of the
-new recurring service; browser sign-in is complete. After provisioning, validate
-runtime/export startup, inspect the empty managed queues, then enable the coordinated
-App/MCP flags. Keep the 100-trial pilot cap. The user will perform the first real
-report test: do not create sessions or submit model turns during deployment checks.
-Live analyst behavior, full-report exports, PDF layout and 100-trial memory remain
-unverified. Legacy Max remains active until worker activation.
+Managed Max execution now belongs to the App's existing Render service. App owns
+its Python worker, report-bound evidence endpoint and immutable versions; Engine
+supplies bounded all-state reads and artifacts through dedicated HTTP APIs.
+The standalone MCP service is excluded from the new workflow. The unused worker
+Blueprint/Docker image and worker CLI entrypoint are removed. No additional Render
+service was created. Light, legacy Max, Site and public MCP retain their paths.
+Old managed-Max modules remain for regression compatibility, but are not registered
+or started by this service. The user will run the first real report; deployment
+checks must not start sessions or model turns. Keep MAX_AGENT_ENABLED disabled here.
 
 ## Boundaries
 

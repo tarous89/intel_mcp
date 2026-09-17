@@ -25,7 +25,6 @@ dev = [
 
 [project.scripts]
 intel-mcp = "intel_mcp.bootstrap:main"
-intel-max-worker = "intel_mcp.max_agent_execution:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
