@@ -198,7 +198,7 @@ class DatabaseEngineClient:
         part: int,
     ) -> EngineDocumentResponse:
         result = await self._read(
-            get_approved_document_text,
+            partial(get_approved_document_text, all_profiles=self._all_profiles),
             {
                 "trial_id": trial_id,
                 "document_name": document_name,
