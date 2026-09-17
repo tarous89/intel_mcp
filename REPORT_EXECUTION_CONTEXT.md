@@ -2,61 +2,14 @@
 
 Last updated: 2026-09-17 (code deployed; managed worker activation pending)
 
-## Managed Max redesign — deployment pending activation
+## Managed Max ownership
 
-The new source path is gated by `MAX_AGENT_ENABLED=false` by default. The code and App/Engine migrations are deployed. Read-only Agents API account
-access passed; no session or model turn was created. Legacy execution and stored
-v2 reports remain the production path until worker activation.
-
-The implementation adds page/batch evidence checkpoints, a single managed
-analyst session, an authenticated report-bound three-tool endpoint, source-backed
-calculations, sanitized v3 HTML, deterministic XLSX and optional isolated Chromium
-PDF generation. The App stores jobs, session/turn IDs and immutable report versions;
-clinical evidence and work files stay in Engine artifact storage. The supervised
-worker entrypoint is `python -m intel_mcp.max_agent_execution`. Web requests only
-acknowledge durable jobs; they do not own the analyst task lifetime.
-
-Configuration must agree between App and MCP: `MAX_AGENT_TRIAL_LIMIT` (default 100,
-maximum 100), `MAX_AGENT_DISCOVERY_LIMIT` (10000), `MAX_AGENT_DOCUMENT_LIMIT` (20),
-and `MAX_AGENT_DOCUMENT_CHARACTERS` (2000000). MCP additionally requires an explicit
-`MAX_AGENT_MODEL`, `MAX_AGENT_MAX_TURNS` (12), `MAX_AGENT_MAX_MINUTES` (180), the
-existing OpenAI/Engine/App service credentials, and optionally `MAX_AGENT_CHROMIUM`.
-The worker Blueprint explicitly selects `gpt-5.6-sol`; no live quality/cost
-comparison has been performed. `render.max-worker.yaml` reuses only existing MCP
-credentials. `Dockerfile.max-worker` includes sandboxed Chromium and starts with
-synthetic XLSX/PDF and read-only account checks. The new $7/month worker awaits
-recurring-cost approval. App/MCP remain disabled until its startup is validated.
-
-Verified locally: the full MCP suite passes with the declared `httpx` dependency.
-Checks include frozen batches, document parts, scope/dispatch denial, calculation
-rules, malformed-data recovery, sanitizer, lossless XLSX, idle sessions, large-input
-file references, restored-turn identity, evidence-stage resume and PDF retry isolation.
-App integration and TypeScript checks and the production Next build also pass;
-the build used `PUBLIC_SNAPSHOTS_PREBUILT=1` to omit unrelated public-page fetching.
-
-Release gates remain: live CRPC snapshot pilot and model/account access, semantic
-quality/cost comparison with the existing report and mCRC reference, real hosted
-session/environment recovery, representative 100-trial runtime/memory, Chromium
-PDF visual inspection, and coordinated migration/worker deployment. Local SSH access
-to Render and browser access to the local preview were unavailable during validation;
-no live agent run or visual PDF acceptance is claimed. English new-evidence and
-formatting-intent checks remain conservative heuristics requiring multilingual
-product validation. Source-pointer checks establish traceability, not independent
-clinical interpretation validation.
-
-Large hosted inputs use Files API references with checkpointed IDs and content hashes.
-Failed revisions start replacement sessions from published evidence/work rather than
-reuse a session containing unpublished changes. The UI permits editing only the latest
-version and resolves PDF availability for the selected historical version.
-PDF failures enqueue a version-bound derivative job in App; the worker retries the exact
-sanitized HTML up to three times, with no model calls or changes to report content.
-The `intel-max-worker --preflight` command checks configuration/account access without
-starting a session. The normal `intel-max-worker` command runs the supervised worker.
-The user authorized deployment validation without inference and reserved the
-first real report for their own test. After worker startup and empty-queue checks,
-enable the coordinated flags for that test without starting a report. Do not
-increase the 100-trial pilot envelope before representative live validation. Rollback leaves v3 rendering available and routes new
-unmarked runs through the legacy executor.
+Managed Max execution moved to `tarous89/intel_agent_app/report_worker`. The existing
+App service supervises the worker, serves report-bound retrieval and streams Engine
+artifacts. This workflow does not call standalone MCP. No additional Render worker
+is required; unused deployment files and CLI entrypoint are removed. Retained Max
+modules/tests here are migration reference only, not the active new executor.
+App's `PROJECT_CONTEXT.md` is authoritative for managed Max deployment.
 
 This is the source of truth for report planning and Light/Max execution. Light remains capped at 20 analyzed trials. Max screens a broad candidate pool and freezes at most 100 current Trial Profiles across all stored approval states for report analysis.
 
