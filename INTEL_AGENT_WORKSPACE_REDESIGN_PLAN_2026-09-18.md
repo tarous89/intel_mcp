@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S02.
-- Next step: S03, after S02 verification.
-- Last completed implementation step: S01.
+- Active step: S03.
+- Next step: S04, after S03 verification.
+- Last completed implementation step: S02.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: complete and verify the shared renderer in S02, then continue in sequence.
+- Next action: restore and verify the single-report PDF exporter in S03.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -517,8 +517,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | Step | Bounded deliverable | Status | Evidence / blocker |
 |---|---|---|---|
 | [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `5c58b66`; 23 contract/source-integrity tests; [render/PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35402017466); inspected reference artifacts committed. |
-| [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | IN_PROGRESS | Reusing S01 pinned source, structured contract and identical synthetic inputs. |
-| [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | NOT_STARTED | — |
+| [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `a0796b3`; eight renderer tests, type check and [responsive parity CI](https://github.com/tarous89/intel_agent_app/actions/runs/35403015732). |
+| [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | IN_PROGRESS | Shared renderer verified; adapting the pinned pagination behavior to a bounded App worker export. |
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | NOT_STARTED | — |
 | [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | NOT_STARTED | — |
 | [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | NOT_STARTED | — |
@@ -599,7 +599,14 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S03 receives a deterministic renderer and validated fixtures.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:**
+- Status detail: shared React and isolated static HTML renderers use the actual pinned styles and graph algorithms, extended to the new report contract.
+- Implementation reference: [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `5d3d84c`, `a5e660b`, `a0796b3`.
+- Verification: eight focused renderer tests and TypeScript check passed; [CI](https://github.com/tarous89/intel_agent_app/actions/runs/35403015732) verifies eight desktop/mobile captures, exact visual primitive styles/frame geometry, ten long paired points, four sections and no horizontal clipping. Desktop and mobile stress output visually inspected. All content is synthetic; no model calls.
+- Context updates: App PROJECT_CONTEXT.md and REPORT_EXECUTION_CONTEXT.md describe the unconnected presentation foundation; production behavior remains unchanged.
+- Remaining risks: new PDF export and live workflow integration are subsequent gates. Runtime evidence truth remains a publication responsibility, not a renderer claim.
+- Handoff: S03 reuses WorkspaceReport.tsx, generated namespaced styles, workspace-report-html.tsx and the same four fixtures; no unrestricted model HTML/CSS.
+
 
 ### S03 — Restore PDF design and lossless pagination
 
