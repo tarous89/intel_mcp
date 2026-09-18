@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S04.
-- Next step: S05, after S04 verification.
-- Last completed implementation step: S03.
+- Active step: S05.
+- Next step: S06, after S05 verification.
+- Last completed implementation step: S04.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: recover reusable branded progress and workspace controls in S04.
+- Next action: add workspace persistence, usage primitives and the disabled feature boundary in S05.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -519,8 +519,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `5c58b66`; 23 contract/source-integrity tests; [render/PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35402017466); inspected reference artifacts committed. |
 | [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `a0796b3`; eight renderer tests, type check and [responsive parity CI](https://github.com/tarous89/intel_agent_app/actions/runs/35403015732). |
 | [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `fc016b0`; 51 worker tests, eight renderer tests, type check and [five-fixture PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35404414376); inspected standard/stress PDFs committed. |
-| [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | IN_PROGRESS | Screen/PDF foundations verified; recovering reusable controls with synthetic state fixtures. |
-| [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | NOT_STARTED | — |
+| [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9e5f88b`; six component tests, type check, ten responsive states and [browser CI](https://github.com/tarous89/intel_agent_app/actions/runs/35405533990); inspected captures committed. |
+| [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | IN_PROGRESS | Presentation foundation verified; beginning additive App storage/accounting behind a disabled feature flag. |
 | [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | NOT_STARTED | — |
 | [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | NOT_STARTED | — |
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | NOT_STARTED | — |
@@ -648,7 +648,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** The presentation foundation is ready. S05 begins backend foundations; later UI steps consume these components.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** Implemented and verified in App PR #153. Recovered progress/action/Max-card styling; caller-fed stages/quantities/copy; labelled controls and native package selection. Six component tests, type check and desktop/mobile interaction/painted-progress/reduced-motion checks pass (CI 35405533990). Final active/completed/error views inspected; evidence in `acceptance-s04.json` and `rendered-s04`. All events remain synthetic pending later workflow integration.
 
 ### S05 — Add workspace persistence, usage primitives and the feature boundary
 
