@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: none.
-- Next step: S01.
+- Active step: S01.
+- Next step: S02, after S01 verification.
 - Last completed implementation step: none.
-- Overall implementation: NOT_STARTED.
+- Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: when implementation is requested, execute S01 only.
+- Next action: complete S01, verify and record evidence, then continue sequentially as authorized by the user.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -516,7 +516,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 
 | Step | Bounded deliverable | Status | Evidence / blocker |
 |---|---|---|---|
-| [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | NOT_STARTED | — |
+| [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | IN_PROGRESS | App implementation branch `codex/workspace-redesign-20260918`; historical render capture and schema work. |
 | [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | NOT_STARTED | — |
 | [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | NOT_STARTED | — |
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | NOT_STARTED | — |
