@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S01.
-- Next step: S02, after S01 verification.
-- Last completed implementation step: none.
+- Active step: S02.
+- Next step: S03, after S02 verification.
+- Last completed implementation step: S01.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: complete S01, verify and record evidence, then continue sequentially as authorized by the user.
+- Next action: complete and verify the shared renderer in S02, then continue in sequence.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -516,8 +516,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 
 | Step | Bounded deliverable | Status | Evidence / blocker |
 |---|---|---|---|
-| [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | IN_PROGRESS | App implementation branch `codex/workspace-redesign-20260918`; historical render capture and schema work. |
-| [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | NOT_STARTED | — |
+| [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `5c58b66`; 23 contract/source-integrity tests; [render/PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35402017466); inspected reference artifacts committed. |
+| [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | IN_PROGRESS | Reusing S01 pinned source, structured contract and identical synthetic inputs. |
 | [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | NOT_STARTED | — |
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | NOT_STARTED | — |
 | [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | NOT_STARTED | — |
@@ -571,7 +571,14 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S02 receives the pinned source mapping, schema and fixture inputs.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:**
+- Status detail: pinned historical sources, structured report contract and reconstructed synthetic reference renders are complete.
+- Implementation reference: [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), commits `81ea494` and `5c58b66`.
+- Verification: 23 local contract/source-integrity checks; original 22 contract checks plus desktop/mobile and 4/4/8/2-page PDF captures passed [CI](https://github.com/tarous89/intel_agent_app/actions/runs/35402017466). Exact paginated text and graphic counts retained, source DOM unchanged. Reference desktop/mobile, cover/analysis PDF and stress pages visually inspected; artifacts saved under `tests/fixtures/workspace-baseline/rendered/`.
+- Context updates: no runtime or interface change; versioned schema, source mapping and explicit adaptations are self-contained in the App branch. Production context remains unchanged.
+- Remaining risks: real clinical quality is untested; the historical five-point slicing and lack of method/table fields are baseline limitations explicitly replaced by S02. Schema validation does not establish evidence truth.
+- Handoff: S02 uses `workspace_report.py`, generated JSON Schema/TypeScript types, pinned source manifest, four fixtures and recorded visual baseline. No model calls or production changes.
+
 
 ### S02 — Recover the shared report renderer and chart components
 
