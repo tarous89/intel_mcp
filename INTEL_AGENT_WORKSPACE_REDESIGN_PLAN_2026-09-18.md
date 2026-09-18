@@ -6,6 +6,7 @@ Primary implementation owner: tarous89/intel_agent_app.
 Plan location: intel_mcp repository root, beside MAX_AGENT_REDESIGN_SCOPE.md, at the user's explicit request.
 Source of decisions: the product-design discussion completed on 2026-09-18.
 Approved supplement: pre-agent presentation restoration and integrated delivery, documented on 2026-09-18; see section 20.
+Execution tracker: section 16 defines 20 bounded sequential steps, each with status, prerequisites, completion criteria and handoff. Use the section 16 checkpoint and tracker for current progress.
 
 ## 1. Product objective and authority
 
@@ -468,87 +469,547 @@ Paths verified in the App repository tree during planning include:
 
 Inspect current source before assigning exact edits. Add migrations using the next available sequence at implementation time. Do not blindly retrofit the legacy MCP executor or reuse its obsolete ownership instructions.
 
-## 16. Delivery sequence
+## 16. Sequential implementation steps and status tracker
 
-The approved approach is one integrated build and release: recover the presentation foundation first, verify it against the pinned pre-agent version, connect the new workspace flow to it, then validate and deploy together. Do not restore the old production application as an intermediate deployment.
+This is the canonical execution order. It replaces the earlier broad phase list; sections 1–15 and 17–20 remain the detailed requirements and acceptance contract.
 
-### Phase 0 — recover and verify the presentation foundation
+“One integrated build and release” does not mean “implement everything in one session.” Complete and verify the bounded steps below one at a time, retaining intermediate work in the implementation branch. Recover the presentation first; deploy the restored presentation and new workflow together. Do not deploy the old application as a preliminary rollback.
 
-- Pin the App and analyst-source baselines listed in section 20.
-- Extract the actual legacy report renderer, styles, chart palettes, progress components and PDF rules into reusable App-owned presentation components.
-- Preserve the current durable worker, jobs, evidence interfaces and security boundaries.
-- Define a versioned structured report contract and adapter so agent output uses the restored renderer.
-- Render the original and recovered foundation with identical synthetic content; compare desktop, mobile and PDF before connecting new workflow behavior.
-- Apply only the explicit adaptations listed in section 20: four analyses per run, ten graph items, concise opening and method, independent report history and the newly agreed package/group rules.
-- Capture checked reference fixtures and a source/behavior mapping in the implementation repository. This planning update itself creates no implementation or deployment.
+### 16.1 How to use this tracker
 
-Exit: the recovered foundation demonstrably matches the old visual system and PDF behavior apart from documented, intentional adaptations. “Looks roughly dark green” is not acceptance.
+- Start or resume the first unfinished step whose prerequisites are complete. Read its detailed card, referenced scope sections and the owning current context.
+- At most one step is IN_PROGRESS. Do not start later-step implementation while the current step is incomplete.
+- Each step after S01 requires the preceding step to be DONE; additional inputs are described in its card. Stub/mock later dependencies rather than implementing them early.
+- Respect the user's requested boundary: “build S03” means finish and verify S03, record the handoff and report its status. “Continue” without a broader instruction means resume the active step, or complete the next ready step; it does not authorize silently attempting the whole plan.
+- Routine implementation choices within an authorized step do not need repeated approval. External deployment, paid inference and unresolved commercial decisions retain the authorization rules already stated in this scope.
+- Stop at the step boundary after producing its deliverable and acceptance evidence. Update this GitHub tracker before reporting completion.
+- If prerequisite work is missing or a defect is discovered, mark the current step BLOCKED with the specific dependency. Reopen the affected earlier step as necessary; do not mark later work complete on top of a known failed prerequisite.
+- DONE means implemented and verified to the card's completion criterion, not merely drafted, locally edited or described in a plan. S01–S18 completion does not imply production deployment.
+- Existing components are reusable inputs, not evidence that a new-flow step is already complete. Verify their required behavior before marking the step DONE.
+- Keep detailed test outputs in CI/PR/artifacts and link them. Tracker notes should stay concise and state-based, without secrets, clinical payloads or chronological debugging logs.
+- No implementation has started as part of this documentation update.
 
-### Phase 1 — contracts, state and feature boundary
+Status vocabulary:
 
-- Define versioned discovery expressions, workspace/dataset/run/report contracts and package terms.
-- Add additive schema/ledger changes and a server-side new-workflow flag.
-- Preserve legacy routes/renderers and entitlements.
-- Establish immutable publication, idempotent usage and artifact ownership invariants.
-- Inventory enabled retrieval/document capabilities and verify Engine contract gaps.
+| Status | Meaning |
+|---|---|
+| NOT_STARTED | No implementation work for this step has been recorded. |
+| IN_PROGRESS | The single active step; current work and remaining verification are recorded. |
+| BLOCKED | Cannot finish because of a specific unresolved dependency, decision or external gate. |
+| DONE | Deliverable and completion checks passed, with linked evidence and handoff. |
 
-Exit: synthetic state transitions, cross-user checks, concurrency and allowance recovery pass.
+The table below is the single source of truth for step statuses. Do not maintain independent conflicting status copies in each card.
 
-### Phase 2 — trial discovery and fallback
+### 16.2 Current checkpoint
 
-- Implement controlled catalogue input and the quick structured planner.
-- Implement validated nested AND/OR search through Engine interfaces.
-- Add paginated exact counts, deduplication, fallback execution and group refinement.
-- Deliver the single-field initial UX and factual progress bars.
-- Include disease-free queries and nonnested adjacent cohorts.
+- Active step: none.
+- Next step: S01.
+- Last completed implementation step: none.
+- Overall implementation: NOT_STARTED.
+- Production rollout: NOT_STARTED.
+- Next action: when implementation is requested, execute S01 only.
+- Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
-Exit: deterministic fixtures demonstrate correct expressions, overlap counts, fallback thresholds and visible group names.
+Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
 
-### Phase 3 — packages and frozen datasets
+### 16.3 Step tracker
 
-- Implement Light formula and stable representative selection.
-- Implement Max private 100-trial pilot selection with the public 1,000 allowance unchanged.
-- Freeze profile snapshots/checkpoints before analyst work.
-- Wire €450 workspace grants and 5/100-run accounting.
-- Remove the account-wide single-Light-project limit only for the new flow.
-- Retain existing verified checkout, discounts and replay protections.
+| Step | Bounded deliverable | Status | Evidence / blocker |
+|---|---|---|---|
+| [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | NOT_STARTED | — |
+| [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | NOT_STARTED | — |
+| [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | NOT_STARTED | — |
+| [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | NOT_STARTED | — |
+| [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | NOT_STARTED | — |
+| [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | NOT_STARTED | — |
+| [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | NOT_STARTED | — |
+| [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | NOT_STARTED | — |
+| [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | NOT_STARTED | — |
+| [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | NOT_STARTED | — |
+| [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | NOT_STARTED | — |
+| [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | NOT_STARTED | — |
+| [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | NOT_STARTED | — |
+| [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | NOT_STARTED | — |
+| [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | NOT_STARTED | — |
+| [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | NOT_STARTED | — |
+| [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | NOT_STARTED | — |
+| [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | NOT_STARTED | — |
+| [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | NOT_STARTED | — |
+| [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | NOT_STARTED | — |
 
-Exit: same dataset survives repeated runs/restarts; sampling and entitlement boundaries are correct.
+### 16.4 Completion record required for each step
 
-### Phase 4 — unified run execution
+When work starts or status changes, add/update one concise record below the affected step card:
 
-- Route both tiers through the durable App-owned orchestration for the new workflow.
-- Implement one composer, explicit reference capture and fresh bounded run context.
-- Identify up to four analyses internally without a second plan screen.
-- Add objective-level correction/salvage and persist independent findings.
-- Publish one immutable report per successful message.
-- Verify all-state equality and dataset-scoped tools.
+- Status detail: what is complete and what remains, or the precise blocker.
+- Implementation reference: repository and commit/PR.
+- Verification: relevant tests plus visual/PDF evidence where required; identify mocked versus real model results.
+- Context updates: owning context/interface docs changed, or “not required” with a short reason.
+- Remaining risks: concrete unresolved issues, not generic warnings.
+- Handoff: next ready step and the exact artifacts/contracts it should reuse.
 
-Exit: new question, revision, older-report reference and partial-success cases work without full-history loading or duplicate usage.
+A step cannot become DONE with missing verification or an unexplained required acceptance failure. Avoid unnecessary re-testing: reuse still-applicable evidence, and repeat only when a change or gap makes it necessary.
 
-### Phase 5 — presentation, sidebar and exports
+### 16.5 Detailed step cards
 
-- Connect the new run/report records to the already recovered and verified Phase 0 renderer; do not introduce a second presentation redesign at this phase.
-- Add right sidebar previews, open/rename/delete, responsive layout and run counter.
-- Add individual PDFs for both tiers, selected-report combined PDF and Max-only XLSX.
-- Make HTML usable during a derivative PDF retry.
-- Render and inspect desktop, mobile and multi-page PDF fixtures.
+### S01 — Pin the old presentation and define the report contract
 
-Exit: online/PDF consistency, reliable page flow and 100-entry navigation are verified.
+**Owner:** App. **Prerequisite:** approved scope; no earlier implementation step. **Requirements:** sections 2, 9–10, 14 and 20.1–20.4.
 
-### Phase 6 — migration, pilot and release
+**Deliverable:** A pinned presentation baseline, synthetic reference fixtures and a versioned structured report schema.
 
-- Keep stored reports and existing purchases available through their original contracts.
-- Decide explicitly whether/how prior paid customers receive new grants; do not silently reduce unlimited legacy revisions to 100.
-- Launch to controlled new projects behind the flag.
-- Keep the 100-trial testing ceiling.
-- Run non-model verification first. Existing user direction reserves the first real managed-report test for the user; planning does not authorize background paid report runs.
-- Measure real quality, runtime, memory, per-run cost, partial completion and export success during the authorized pilot.
-- Coordinate launch copy across App and canonical public owners.
-- Update owning current contexts only when behavior is actually implemented or interfaces change.
-- Roll back new-workflow creation independently of preserving access to completed reports/jobs.
+**In scope:**
 
-Exit: release gates below pass and user acceptance is recorded. Expansion to 500/1,000 trials requires separate measured readiness.
+- Record the exact historical App/MCP commits and relevant source-to-component mapping from section 20.
+- Create representative synthetic report inputs and capture the original renderer's desktop/mobile/PDF behavior. Label reconstructed fixtures accurately.
+- Define the new structured report fields, four-analysis ceiling, ten-item graphs, brief methods and source/calculation references.
+- List the intended adaptations explicitly so subsequent visual comparisons distinguish approved changes from regressions.
+
+**Outside this step:** No new discovery, database migrations, billing, agent execution or production changes.
+
+**Complete when:** The baseline and schema are reviewable in the implementation branch; representative inputs validate; reference artifacts and intentional differences are recorded. Source links alone do not count as a rendered baseline.
+
+**Handoff:** S02 receives the pinned source mapping, schema and fixture inputs.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S02 — Recover the shared report renderer and chart components
+
+**Owner:** App. **Prerequisite:** S01 is DONE. **Requirements:** sections 9–10 and 20.4–20.7.
+
+**Deliverable:** The actual old visual foundation as reusable components that accept the S01 schema.
+
+**In scope:**
+
+- Extract/reuse the pinned styles, dark hero, typography, spacing, cohort strip and green/blue/amber palettes.
+- Implement the agreed result/graph/subgroup/method hierarchy and preserve unboxed findings.
+- Adapt graphs to ten items and four analyses without truncating valid data; preserve signed and zero measures, wrapping and correct units.
+- Provide static/isolated HTML rendering from the same content/style contract. Agent-authored arbitrary styling must not control the report.
+
+**Outside this step:** No live analyst integration, sidebar, usage accounting or new PDF backend.
+
+**Complete when:** Identical synthetic content matches the baseline on desktop/mobile apart from documented adaptations; long labels and all supported sections render correctly; isolation protections remain enforced.
+
+**Handoff:** S03 receives a deterministic renderer and validated fixtures.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S03 — Restore PDF design and lossless pagination
+
+**Owner:** App. **Prerequisite:** S02 is DONE. **Requirements:** sections 10 and 20.8.
+
+**Deliverable:** A verified PDF renderer for a single report using the recovered visual foundation.
+
+**In scope:**
+
+- Restore A4 dark pages, designed cover, header/footer branding, page numbering and analysis page starts.
+- Preserve readable fonts, complete text/inline markup and intact graphics; safely continue oversized content.
+- Reuse the HTML/data contract, without another LLM call or a presentation rewrite.
+- Keep export work bounded in the existing worker architecture and release temporary resources on failure.
+
+**Outside this step:** No authenticated download routes, combined export, dataset XLSX wiring or live customer runs.
+
+**Complete when:** Representative and stress PDFs are visually inspected; text/values match HTML; long units, labels and non-ASCII text are preserved; no clipping or shrink-to-fit text.
+
+**Handoff:** S04 receives a stable screen/PDF presentation foundation; export integration waits until S16.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S04 — Recover branded progress and workspace controls
+
+**Owner:** App. **Prerequisite:** S03 is DONE. **Requirements:** sections 4, 10–11 and 20.5/20.9.
+
+**Deliverable:** Reusable progress bars, inputs, actions and package-card presentation.
+
+**In scope:**
+
+- Recover overall/stage bars, status labels, indeterminate activity and reduced-motion behavior.
+- Restore export/action styling, light workspace/dark navigation relationship and the Max package-card design.
+- Make stages, quantities and package text inputs to the components rather than hard-coding obsolete workflow labels.
+- Validate loading/error/disabled states with synthetic events.
+
+**Outside this step:** No live search orchestration, checkout activation, report history or model calls.
+
+**Complete when:** Components render in waiting/active/completed/error states with truthful progress and readable responsive styling; old unlimited-revision copy is absent from new-flow fixtures.
+
+**Handoff:** The presentation foundation is ready. S05 begins backend foundations; later UI steps consume these components.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S05 — Add workspace persistence, usage primitives and the feature boundary
+
+**Owner:** App. **Prerequisite:** S04 is DONE. **Requirements:** sections 3.2, 13–14.
+
+**Deliverable:** Additive storage/contracts for the new workflow behind a disabled flag.
+
+**In scope:**
+
+- Define/version workspace, search, dataset-reference, grant, run, report and export records using current compatible structures where possible.
+- Add ownership, immutable publication/reference and idempotency constraints plus reserve/commit/release ledger primitives.
+- Keep clinical evidence and large artifacts Engine-owned; App stores workflow references.
+- Preserve legacy records/routes and add a new-flow discriminator/flag without granting new customer entitlements.
+
+**Outside this step:** No live package activation, new model execution, production data migration or public switch.
+
+**Complete when:** Migration rehearsal and synthetic database checks cover ownership, uniqueness, concurrent reservation, release and immutable report references; old records remain readable.
+
+**Handoff:** S06 receives versioned metadata contracts. Record any Engine interface gaps narrowly.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S06 — Implement the deterministic Engine search contract
+
+**Owner:** Engine + App adapter. **Prerequisite:** S05 is DONE. **Requirements:** sections 5.2–5.3 and 13.
+
+**Deliverable:** A versioned supported-field catalogue and deterministic query/count interface.
+
+**In scope:**
+
+- Read the Engine's current owning context when entering this interface work.
+- Validate controlled category values and bounded nested AND/OR expressions; execute parameterized search over verified supported fields.
+- Implement synonym phrase/token behavior, full pagination, canonical-ID deduplication, group counts and unique unions.
+- Ensure equal approval-state eligibility for this authorized workflow while preserving public MCP/Site read boundaries.
+- Record query/source versions and distinguish search failure from genuine zero results.
+
+**Outside this step:** No planner prompt, fallback choice, customer UI, OCR or broader public access.
+
+**Complete when:** Deterministic fixtures prove precedence, synonyms, missing fields, overlapping counts, pagination and unauthorized access behavior; App–Engine contract reads pass.
+
+**Handoff:** S07 receives the actual catalogue, expression schema and count/ID interface; update both owning contexts only if their interface changes.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S07 — Implement query planning, fallback orchestration and group revisions
+
+**Owner:** App using Engine search. **Prerequisite:** S06 is DONE. **Requirements:** sections 5.1 and 6.
+
+**Deliverable:** A durable discovery service from one description to named groups/counts.
+
+**In scope:**
+
+- Build the quick structured planner using actual controlled values and the approved group/fallback rules.
+- Validate/repair expressions and execute regular groups deterministically.
+- Activate bounded fallback searches below 100 unique initial matches; name/count every activated fallback visibly.
+- Support disease-free and nonnested adjacent groups, store search versions and retain the original brief.
+- Support refinement as a new search version; setup refinement does not consume a report run.
+
+**Outside this step:** No frozen dataset, payment, report analysis or real paid model test without the established authorization.
+
+**Complete when:** Mocked planner responses and deterministic search fixtures cover valid/invalid criteria, 99/100 boundaries, zero/small results and fallback exhaustion. Prompt quality remains a later user-pilot gate.
+
+**Handoff:** S08 receives an observable discovery/refinement API and persisted group versions.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S08 — Connect the single-field discovery and group-approval UI
+
+**Owner:** App. **Prerequisite:** S07 is DONE. **Requirements:** sections 4 and 11.
+
+**Deliverable:** A complete discovery-to-package-selection screen flow.
+
+**In scope:**
+
+- Keep one concise trial-description input and remove the initial analysis-objective field for new workspaces.
+- Connect real progress events, named counts and the deduplicated total to recovered UI components.
+- Reveal the refinement composer only on its button; preserve earlier results while refinement runs.
+- Approve an explicit search version and enter the package-selection stage with correct trial/run expectations.
+- Allow multiple Light-project drafts; handle reload, no results and retry safely.
+
+**Outside this step:** No actual entitlement grant, snapshot preparation or report-agent launch.
+
+**Complete when:** Browser flow with controlled backend fixtures verifies describe/search/refine/approve/reload and prevents stale search approval; accessibility and mobile layout are checked.
+
+**Handoff:** S09 receives an approved search-version/selection contract.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S09 — Freeze and reuse the selected dataset
+
+**Owner:** App orchestration + Engine evidence storage. **Prerequisite:** S08 is DONE. **Requirements:** sections 3.1 and 7.
+
+**Deliverable:** A durable immutable dataset prepared once for the selected tier.
+
+**In scope:**
+
+- Implement the exact Light sample formula from matched union N, not the Max testing cap; use stable representative selection.
+- Select up to 100 Max trials for the pilot while preserving relevant group diversity and truthful analyzed counts.
+- Snapshot complete selected profiles, versions, memberships, selection trace and hashes before analytical work.
+- Checkpoint retrieval and reuse snapshots across runs without silent refresh or resampling.
+- Define bounded dataset-scoped evidence reads and versioned derived artifacts.
+
+**Outside this step:** No live purchase grant, real analysis, dataset-universe refresh or increase to 500/1,000 runtime trials.
+
+**Complete when:** Formula boundary fixtures pass; interruption/restart retains one snapshot; repeat reads preserve IDs/hashes; match/selected/contributing counts remain distinct.
+
+**Handoff:** S10 receives stable tier-specific dataset references and cost/resource bounds.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S10 — Wire Light/Max grants, checkout and run allowances
+
+**Owner:** App. **Prerequisite:** S09 is DONE. **Requirements:** sections 3 and 14.
+
+**Deliverable:** Server-authoritative new-workspace package activation and counters.
+
+**In scope:**
+
+- Grant five runs per Light project and permit additional Light projects.
+- Wire the €450 Max purchase to one workspace with 100 runs, preserving verified payment/discount behavior.
+- Bind grants/quotes to approved search/dataset identity; protect against stale tabs and replay.
+- Connect allowance primitives to package state and display; downloads/views/deletions do not consume runs.
+- Keep legacy grants intact; do not invent conversion/top-up/subscription policies.
+
+**Outside this step:** No real purchase transaction for testing, production offer change or agent submission.
+
+**Complete when:** Synthetic billing/ledger scenarios cover ordinary and 100% discounts, replay, ownership, multiple Light projects, final-run concurrency and unchanged legacy terms.
+
+**Handoff:** S11 receives authoritative grants and reservation APIs.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S11 — Implement durable run submission and job control
+
+**Owner:** App and existing worker. **Prerequisite:** S10 is DONE. **Requirements:** sections 8, 12 and 14.
+
+**Deliverable:** A restart-safe run lifecycle exercised with a stub analyst.
+
+**In scope:**
+
+- Accept message, immutable reference report, dataset identity and request key; reserve once and queue in the existing worker.
+- Implement bounded per-workspace execution/queue behavior, claims, checkpoints, progress and callback fencing.
+- Atomically publish one report and commit usage; failed/no-report or clarification-only outcomes release the reservation.
+- Capture the selected reference at submit time; later sidebar navigation cannot change it.
+- Keep completed reports visible and immutable during new work.
+
+**Outside this step:** No real analyst, new worker service, full history UI or live deployment.
+
+**Complete when:** A stub executor proves duplicate-submit/replay safety, last-allowance races, restart recovery, clarification release and rejection of late publication after release.
+
+**Handoff:** S12 receives a tested run/job/publication boundary.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S12 — Connect the analyst and bounded report context
+
+**Owner:** App worker. **Prerequisite:** S11 is DONE. **Requirements:** sections 8–9 and 20.4/20.6/20.7.
+
+**Deliverable:** One analyst execution produces structured report content through the restored renderer.
+
+**In scope:**
+
+- Use the new message, frozen dataset and only the currently referenced report in a fresh logical run context.
+- Let the analyst distinguish new/revision intent in the same execution; no separate classifier or mandatory plan screen.
+- Apply recovered writing/analytical instructions and identify up to four useful analyses with ten-item graph limits.
+- Use scoped evidence/calculation tools; retain provenance and prevent dataset expansion or worker/admin access.
+- Adapt validated output to the shared renderer without losing supported findings.
+
+**Outside this step:** No growing conversation history, separate design model, source-access expansion or unauthorized paid pilot.
+
+**Complete when:** Mocked provider/tool tests cover new question, wording revision, older reference, Germany subset, ambiguity and unsupported evidence. Structured results render correctly; real clinical quality is explicitly still unverified.
+
+**Handoff:** S13 receives the integrated analyst boundary and persisted intermediate result contract.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S13 — Add targeted recovery and useful partial publication
+
+**Owner:** App worker. **Prerequisite:** S12 is DONE. **Requirements:** section 12 and 20.10.
+
+**Deliverable:** Objective-level recovery that retains valid work and handles no-report outcomes correctly.
+
+**In scope:**
+
+- Apply bounded backoff/checkpoint reuse to transient failures and targeted correction to invalid units.
+- Omit unsupported objectives and update the summary while preserving independent valid siblings.
+- Distinguish advisory prose/design preferences from hard evidence, arithmetic, ownership and sanitization checks.
+- Preserve valid original wording when optional editing fails; never publish fabricated support.
+- Release allowance only when no valid report survives; partial valid reports consume one run.
+
+**Outside this step:** No unlimited retries, relaxed access/numerical checks, rerun of every valid objective or dataset-only success charge.
+
+**Complete when:** Failure-injection fixtures prove partial publication, unchanged source facts after editing, correct accounting and preservation of earlier reports; existing HTML survives PDF-derivative failure.
+
+**Handoff:** S14 receives a useful end-to-end execution service with tested partial-success semantics.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S14 — Connect the analysis composer and live report view
+
+**Owner:** App. **Prerequisite:** S13 is DONE. **Requirements:** sections 8, 10–12.
+
+**Deliverable:** A usable single-message analysis/revision experience.
+
+**In scope:**
+
+- Connect the branded single composer, run counter and selected report reference to S11–S13.
+- Show factual named progress and the previous report while work runs.
+- Render new reports through S02, automatically save them and clear successful submissions without duplicate requests.
+- Handle clarification, partial success, technical retry and exhausted allowance clearly.
+- Do not require a new-versus-revise selector or another objective approval.
+
+**Outside this step:** No complete right history sidebar, sharing links or combined export.
+
+**Complete when:** Browser fixtures verify submit/reload/double-click/clarification/retry and a new result with correct usage/reference behavior on desktop/mobile.
+
+**Handoff:** S15 receives the composer and report-selection state needed by the sidebar.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S15 — Build the right sidebar and report lifecycle
+
+**Owner:** App. **Prerequisite:** S14 is DONE. **Requirements:** section 11 and 20.9.
+
+**Deliverable:** Navigable independent saved reports and responsive history.
+
+**In scope:**
+
+- Add named cards/previews for every successful run, including revisions, on the right.
+- Implement open, rename and delete with immutable parent/reference lineage and safe artifact references.
+- Opening an older report makes it the next message reference; retain independent descendants after a deletion.
+- Lazy-load previews and compact metadata for 100 reports; use a collapsible mobile layout.
+- Deleting does not refund allowance; failed attempts do not become empty successful cards.
+
+**Outside this step:** No full-history agent context, shared links, new dataset refresh or implemented download services beyond existing hooks.
+
+**Complete when:** Browser/storage fixtures verify 100-entry navigation, older-report revision, deletion of a referenced parent, rename persistence, reload and ownership isolation.
+
+**Handoff:** S16 receives exact report/version selection for download actions.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S16 — Integrate individual, combined and dataset exports
+
+**Owner:** App + Engine artifact interface. **Prerequisite:** S15 is DONE. **Requirements:** sections 7, 10–11 and 20.8.
+
+**Deliverable:** Authorized immutable exports connected to the workspace.
+
+**In scope:**
+
+- Wire the verified S03 PDF renderer to each report and expose PDF download for both tiers.
+- Implement derivative retries that attach PDFs to the same published report without another run.
+- Assemble selected-report PDFs in the selected order, preserving report boundaries.
+- Wire Max-only XLSX with frozen full profiles, groups, derived data, definitions, rankings and support; preserve long text.
+- Stream/version/checksum artifacts through existing Engine storage and bind every download to ownership/tier.
+
+**Outside this step:** No model-generated export rewrite, extra usage charges, Light dataset access or new storage service.
+
+**Complete when:** Exact report/version and combined-order checks pass; XLSX round-trip retains evidence; cross-user/tier bypasses fail; export retry leaves HTML and usage unchanged.
+
+**Handoff:** S17 receives the complete new-workspace feature path.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S17 — Prepare legacy compatibility and launch copy
+
+**Owner:** App; public repository only for its owned copy. **Prerequisite:** S16 is DONE. **Requirements:** sections 3, 13, 18–19 and 20.10.
+
+**Deliverable:** A compatible release candidate with accurate package language.
+
+**In scope:**
+
+- Ensure old reports/purchases remain accessible under original contracts; new flow has its own discriminator.
+- Resolve any required migration policy explicitly; until decided, leave historic purchases unchanged rather than blocking new-project implementation.
+- Prepare canonical App/public copy for €450, 100 runs, four analyses per run and Light five-run projects; preserve the 1,000 public ceiling and private 100 pilot cap.
+- Remove obsolete new-flow unlimited-revision and one-free-report claims wherever the new offer is shown.
+- Prepare owning context changes and keep public copy publication aligned with actual availability.
+
+**Outside this step:** No silent entitlement conversion, public activation, unrelated editorial changes or expansion of trial limits.
+
+**Complete when:** Legacy compatibility checks pass; a launch-copy inventory identifies owner/location/timing; unresolved historic migration cannot reduce existing rights.
+
+**Handoff:** S18 receives one reviewable integrated candidate and a narrow release checklist.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S18 — Verify the integrated candidate without paid model runs
+
+**Owner:** App, with changed-interface owners. **Prerequisite:** S17 is DONE. **Requirements:** sections 17 and 20.11–20.12.
+
+**Deliverable:** Release evidence for the entire new flow and restored presentation.
+
+**In scope:**
+
+- Map every section 17 and 20.11 requirement to prior step evidence or one remaining integrated test; do not repeat checks without a concrete gap.
+- Exercise describe/refine/choose/freeze/run/revise/history/export end to end with synthetic provider responses.
+- Verify security, concurrency, restart/replay, partial completion and derivative export boundaries across integrated components.
+- Inspect desktop/mobile and full PDF output against pinned presentation fixtures.
+- Validate build/migrations/readiness and resource behavior on the existing service envelope without starting real analyst sessions.
+
+**Outside this step:** No background paid reports, broad production activation, new compute or claiming synthetic tests prove clinical quality.
+
+**Complete when:** All implementation acceptance items pass or have explicit release-blocking reasons; exact commit/artifact/evidence references are recorded. Real model quality/cost remains for S19.
+
+**Handoff:** S19 receives a verified release candidate, rollback controls and a list of real-pilot questions only.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S19 — Deploy the integrated candidate for the user-led pilot
+
+**Owner:** App deployment; user performs first real test. **Prerequisite:** S18 is DONE. **Requirements:** sections 16, 18 and 20.3.
+
+**Deliverable:** The restored presentation and new workflow tested together under a controlled rollout.
+
+**In scope:**
+
+- Deploy only when release authorization is available; keep new-flow exposure restricted and retain the 100-trial pilot ceiling.
+- Deploy the integrated candidate on the existing App service, not a separate old-version rollback or new worker.
+- Verify synthetic/live readiness and unchanged legacy access without model calls.
+- Let the user perform the first real managed report; observe actual report/PDF quality, latency, memory and run cost.
+- Fix a pilot defect through its owning step, update evidence and repeat only the affected validation before resuming.
+
+**Outside this step:** No autonomous paid baseline runs, public rollout before pilot acceptance or increase to 500/1,000 trials.
+
+**Complete when:** Exact deployed commit is recorded; the authorized pilot demonstrates useful reports and acceptable HTML/PDF behavior; actual cost/resource observations and any blockers are recorded. If the user test has not happened, this step is not Done.
+
+**Handoff:** S20 receives pilot acceptance and the actual activation-ready version.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### S20 — Activate the new flow and finish the handoff
+
+**Owner:** App plus canonical public-copy owner. **Prerequisite:** S19 is DONE. **Requirements:** sections 13, 18–19 and 20.12.
+
+**Deliverable:** A controlled completed release with current operational documentation.
+
+**In scope:**
+
+- Activate only the tested integrated version under the available release authorization and the agreed rollout policy.
+- Publish prepared package copy when the offer becomes available; keep current discounts and legacy contracts intact.
+- Check live navigation, new-workspace entry, downloads and ownership-safe behavior without unsolicited model runs.
+- Record rollback controls that disable new creation without erasing completed reports/jobs.
+- Update owning PROJECT_CONTEXT/subsystem docs with verified state, link this plan, complete tracker/evidence and list deferred work separately.
+
+**Outside this step:** No new scope, pricing changes, migration entitlement invention, share links or higher trial ceiling.
+
+**Complete when:** Actual deployment and activation evidence are recorded; all required acceptance items are satisfied; current contexts match shipped behavior and no unresolved release blockers remain.
+
+**Handoff:** Implementation is complete. Deferred enhancements require their own scoped work; do not reopen completed steps merely to expand the product.
+
+**Completion record:** Not started; no implementation or verification evidence yet.
+
+### 16.6 Coverage map
+
+This map preserves the full scope while giving each concern a bounded implementation home.
+
+| Scope area | Primary steps | Integrated verification |
+|---|---|---|
+| Pinned old design, typography, palettes and report layout | S01–S02 | S18 |
+| PDF cover, branding, page flow and readable content | S03; download integration S16 | S18–S19 |
+| Branded controls and truthful progress bars | S04; live wiring S08/S14 | S18 |
+| Persistent state, ownership, idempotency and usage ledger | S05, S10–S11 | S18 |
+| Controlled search fields, synonyms, nested AND/OR and exact counts | S06 | S07–S08, S18 |
+| Quick planning, adjacent groups, fallback and refinement | S07–S08 | S18–S19 |
+| Fixed Light/Max datasets, selection formula and 100-trial pilot | S09 | S18–S19 |
+| €450/100-run Max and repeatable five-run Light projects | S10 | S18 |
+| Reference-aware messages, fresh context and four analyses per run | S11–S12, S14 | S18–S19 |
+| Partial success, retries, no-report allowance release | S11, S13 | S18–S19 |
+| Right sidebar, independent report history, rename/delete | S15 | S18 |
+| Individual/combined PDF and Max-only XLSX | S16 | S18–S19 |
+| Legacy contracts, accurate copy and migration boundaries | S17 | S18–S20 |
+| Security, recovery, resource and cross-component checks | Narrow checks in each owning step | S18; real-pilot observations S19 |
+| Controlled deployment, first user test, activation and contexts | S19–S20 | Recorded rollout evidence |
+
+Section 17's acceptance checklist and section 20's detailed presentation matrix remain binding. A completed tracker row does not silently waive an acceptance item. If a requirement has no owning step after a future scope edit, assign it explicitly before implementation proceeds.
 
 ## 17. Acceptance checklist
 
@@ -598,7 +1059,7 @@ Exit: release gates below pass and user acceptance is recorded. Expansion to 500
 
 ### Design, exports and operations
 
-- [ ] Phase 0 source recovery and the detailed section 20 visual/PDF acceptance matrix pass.
+- [ ] S01–S04 presentation recovery and the detailed section 20 visual/PDF acceptance matrix pass.
 - [ ] Dark branded HTML/PDF matches the pinned pre-agent visual reference, with only documented new-workflow adaptations.
 - [ ] Summary is short; each analysis follows headline/result/graph/subgroups/method order.
 - [ ] Ten-item graphs, long labels, negative values, zero values and small subgroups render correctly.
