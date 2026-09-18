@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S05.
-- Next step: S06, after S05 verification.
-- Last completed implementation step: S04.
+- Active step: S06.
+- Next step: S07, after S06 verification.
+- Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: add workspace persistence, usage primitives and the disabled feature boundary in S05.
+- Next action: verify and implement the deterministic Engine search/catalogue contract in S06.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -520,8 +520,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `a0796b3`; eight renderer tests, type check and [responsive parity CI](https://github.com/tarous89/intel_agent_app/actions/runs/35403015732). |
 | [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `fc016b0`; 51 worker tests, eight renderer tests, type check and [five-fixture PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35404414376); inspected standard/stress PDFs committed. |
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9e5f88b`; six component tests, type check, ten responsive states and [browser CI](https://github.com/tarous89/intel_agent_app/actions/runs/35405533990); inspected captures committed. |
-| [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | IN_PROGRESS | Presentation foundation verified; beginning additive App storage/accounting behind a disabled feature flag. |
-| [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | NOT_STARTED | — |
+| [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `7973be8`; full migration rehearsal, 12 PGlite + 12 real PostgreSQL tests and [CI](https://github.com/tarous89/intel_agent_app/actions/runs/35406777909); default-disabled flag, no production migration/grants. |
+| [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | IN_PROGRESS | Versioned App metadata and accounting verified; inspecting the Engine-owned catalogue/search boundary. |
 | [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | NOT_STARTED | — |
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | NOT_STARTED | — |
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | NOT_STARTED | — |
@@ -669,7 +669,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S06 receives versioned metadata contracts. Record any Engine interface gaps narrowly.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** Implemented and verified in App PR #153. Additive migration 0027 and disabled `INTEL_WORKSPACE_ENABLED` boundary; App metadata retains Engine artifact references. Full prior migration chain + repeat rehearsal and 12 tests each on PGlite/PostgreSQL 16 pass, including ownership, immutable references, idempotency, concurrent last allowance, publication/release fencing and transaction rollback (CI 35406777909). Evidence: `tests/fixtures/workspace-persistence/acceptance-s05.json`. Production migration/grant activation remain outside this step.
 
 ### S06 — Implement the deterministic Engine search contract
 
