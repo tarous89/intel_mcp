@@ -502,12 +502,12 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S03.
-- Next step: S04, after S03 verification.
-- Last completed implementation step: S02.
+- Active step: S04.
+- Next step: S05, after S04 verification.
+- Last completed implementation step: S03.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: restore and verify the single-report PDF exporter in S03.
+- Next action: recover reusable branded progress and workspace controls in S04.
 - Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
@@ -518,8 +518,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 |---|---|---|---|
 | [S01](#s01--pin-the-old-presentation-and-define-the-report-contract) | Pin the old presentation and define the report contract | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `5c58b66`; 23 contract/source-integrity tests; [render/PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35402017466); inspected reference artifacts committed. |
 | [S02](#s02--recover-the-shared-report-renderer-and-chart-components) | Recover the shared report renderer and chart components | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `a0796b3`; eight renderer tests, type check and [responsive parity CI](https://github.com/tarous89/intel_agent_app/actions/runs/35403015732). |
-| [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | IN_PROGRESS | Shared renderer verified; adapting the pinned pagination behavior to a bounded App worker export. |
-| [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | NOT_STARTED | — |
+| [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `fc016b0`; 51 worker tests, eight renderer tests, type check and [five-fixture PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35404414376); inspected standard/stress PDFs committed. |
+| [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | IN_PROGRESS | Screen/PDF foundations verified; recovering reusable controls with synthetic state fixtures. |
 | [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | NOT_STARTED | — |
 | [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | NOT_STARTED | — |
 | [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | NOT_STARTED | — |
@@ -627,7 +627,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S04 receives a stable screen/PDF presentation foundation; export integration waits until S16.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** Implemented and verified in App PR #153 (`fc016b0`). Bounded isolated worker export restores A4 cover/branding and recovered DOM/grapheme pagination. All five PDF fixtures pass exact DOM text/graphics, clipping, extracted-text and atomic-worker checks; standard/stress/Unicode pages visually inspected. Evidence: `tests/fixtures/workspace-baseline/acceptance-s03.json`, committed standard/stress PDFs and CI run 35404414376. Live export wiring remains S16.
 
 ### S04 — Recover branded progress and workspace controls
 
