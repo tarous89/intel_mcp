@@ -534,7 +534,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | DONE | App `4e97aae`; 24 PGlite/PostgreSQL entries, 9 export/PDF tests; all five CI gates pass; desktop/mobile export flows and rendered captures inspected. [Evidence](https://github.com/tarous89/intel_agent_app/actions/runs/35430852902). |
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | DONE | App `faaa0d3`; 15 local billing/entry test entries pass, including legacy paid/discount grants; launch inventory saved. Public copy [PR #29](https://github.com/tarous89/trialagents-public/pull/29) predeploy passes and remains unpublished. |
 | [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | DONE | App `bb583cd`; all five App workflows green, Engine PR #225 exact head green, zero paid model calls, continuous desktop/mobile journey and 512 MiB resource gates passed. Evidence: `contracts/workspace-integrated-evidence.json` in App PR #153. |
-| [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | NOT_STARTED | — |
+| [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | IN_PROGRESS | Engine `e606612` and App `035c242` deployed; migrations/readiness passed with zero model turns. Workspace is enabled but deny-all/paused pending the owner's exact App user ID and first real report. |
 | [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | NOT_STARTED | — |
 
 ### 16.4 Completion record required for each step
@@ -977,7 +977,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S20 receives pilot acceptance and the actual activation-ready version.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS. Engine merge `e606612c057019927fa181d032977bec3db264f4` is live with migration 045 and HTTP 200 health. App merge `035c2422df3909f95ad3d910e3769a373cc343f3` is live; migrations 0027–0031 applied and deploy `dep-dan5qu6gekts73fqk89g` passed Max/Workspace export readiness, Engine catalogue/health, App health and Workspace queue probes without starting a model turn. `INTEL_WORKSPACE_ENABLED=true`, but the exact-account allowlist is intentionally empty and `INTEL_WORKSPACE_NEW_WORK_ENABLED=false`, so the pilot remains deny-all/paused. S19 cannot be DONE until the owner account ID is added, new work is unpaused for that account only, and the user completes the first real report so quality, HTML/PDF, latency, actual cost and whole-service production memory can be recorded.
 
 ### S20 — Activate the new flow and finish the handoff
 
