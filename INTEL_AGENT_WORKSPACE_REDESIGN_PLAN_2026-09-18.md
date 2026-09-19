@@ -533,7 +533,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | DONE | App `ce9a3d4`; 19 PGlite + 19 PostgreSQL test entries, strict client/storage types, [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35420326351), 100-entry desktop/mobile history and inspected captures pass. Evidence: acceptance-s15.json in App PR #153. |
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | DONE | App `4e97aae`; 24 PGlite/PostgreSQL entries, 9 export/PDF tests; all five CI gates pass; desktop/mobile export flows and rendered captures inspected. [Evidence](https://github.com/tarous89/intel_agent_app/actions/runs/35430852902). |
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | DONE | App `faaa0d3`; 15 local billing/entry test entries pass, including legacy paid/discount grants; launch inventory saved. Public copy [PR #29](https://github.com/tarous89/trialagents-public/pull/29) predeploy passes and remains unpublished. |
-| [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | IN_PROGRESS | Mapping prior gates; verifying a continuous synthetic journey, resource envelope and restricted rollout readiness. |
+| [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | DONE | App `bb583cd`; all five App workflows green, Engine PR #225 exact head green, zero paid model calls, continuous desktop/mobile journey and 512 MiB resource gates passed. Evidence: `contracts/workspace-integrated-evidence.json` in App PR #153. |
 | [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | NOT_STARTED | — |
 | [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | NOT_STARTED | — |
 
@@ -955,7 +955,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S19 receives a verified release candidate, rollback controls and a list of real-pilot questions only.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** DONE at App `bb583cdbb86ddace27060f13feb61c77c08dc739`. All five App workflows passed on that exact final documented head: Report dataset `35435451523`, Managed Max `35435451439`, Site Agent `35435451448`, Public site `35435451454`, and Workspace redesign `35435451463`. Engine PR #225 exact head `c3218a9d45d2456d2215fd13bb3aed4ee053b574` passed report-boundary `35413038473`, Workspace discovery `35413038405`, and CTIS validation `35413038424`. No paid/model analyst call ran. Synthetic runtime measured 171 MiB combined App/worker peak PSS with a 219 MiB cohost reserve; installed readiness, four-analysis stress PDF, ordered combined PDF and 100-profile long-text XLSX all passed within the 512 MiB service budget. Desktop/mobile synthetic journeys passed describe/refine/approve, package activation, fixed dataset, run/revise, 100-report history and exports with no page errors. The new flow remains default-off and undeployed; S19 is the next step and retains the first real clinical report, production memory, latency and cost validation.
 
 ### S19 — Deploy the integrated candidate for the user-led pilot
 
