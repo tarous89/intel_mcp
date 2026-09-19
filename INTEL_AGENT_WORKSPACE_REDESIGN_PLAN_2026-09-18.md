@@ -502,13 +502,13 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S14.
-- Next step: S15, after S14 verification.
-- Last completed implementation step: S13.
+- Active step: S15.
+- Next step: S16, after S15 verification.
+- Last completed implementation step: S14.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: connect the analysis composer and live report view in S14.
-- Known step blockers: none for S14. Production release and the user-led clinical pilot remain later gates.
+- Next action: build the right sidebar and saved-report lifecycle in S15.
+- Known step blockers: none for S15. Production release and the user-led clinical pilot remain later gates.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
 
@@ -529,8 +529,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | DONE | App 73049ac; 11 PGlite + 11 PostgreSQL lifecycle checks, 14 stub recovery fixtures, all 139 worker tests and five CI suites pass. |
 | [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | DONE | App `a0bcee3`; 34 mocked analyst cases, 173 worker tests, 12 PGlite + 12 PostgreSQL checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35416719966) pass. Clinical quality remains unverified. |
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | DONE | App `5389d81`; 15 failure-injection cases, all 188 worker tests, 14 PGlite + 14 PostgreSQL lifecycle checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35417823467) pass. |
-| [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | IN_PROGRESS | S13 verified; connecting the single composer, captured reference and real run progress to the restored report surface. |
-| [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | NOT_STARTED | — |
+| [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | DONE | App cbc125b; 16 PGlite + 16 PostgreSQL test entries, all five CI suites and desktop/mobile recovery/selection flows pass; 24 composer/report captures reviewed. |
+| [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | IN_PROGRESS | S14 verified; implementing compact history, exact report selection, rename and safe deletion. |
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | NOT_STARTED | — |
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | NOT_STARTED | — |
 | [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | NOT_STARTED | — |
@@ -867,7 +867,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S15 receives the composer and report-selection state needed by the sidebar.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S13 is complete. Connecting the single composer and report reference to durable submission, truthful progress and the restored live report view; browser fixtures remain synthetic.
+**Completion record:** DONE — 2026-09-19. App `cbc125b` ([PR #153](https://github.com/tarous89/intel_agent_app/pull/153)); single-message composer, authoritative counters, captured selected-report reference, factual progress and isolated restored report HTML. 16 PGlite + 16 PostgreSQL test entries (15 child scenarios each), strict types and all five CI suites pass. Desktop/mobile fixtures verify double-submit, reload/lost replies, older references, clarification, partial results, original-request retry, offline recovery, artifact retry and exhausted/revoked allowances. 24 composer/report captures reviewed, including scrolled mobile report content and width. Evidence: `tests/fixtures/workspace-runs/acceptance-s14.json`; owning contexts updated. No real model/report, deployment or production migration. S15 receives the composer and exact report-selection callbacks.
 
 ### S15 — Build the right sidebar and report lifecycle
 
@@ -889,7 +889,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S16 receives exact report/version selection for download actions.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S14 is complete. Building compact saved-report history, exact-version opening, rename and soft deletion with independent descendants; verifying desktop/mobile navigation and ownership with synthetic fixtures.
 
 ### S16 — Integrate individual, combined and dataset exports
 
