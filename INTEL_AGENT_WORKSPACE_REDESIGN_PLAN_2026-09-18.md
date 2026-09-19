@@ -502,13 +502,13 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S12.
-- Next step: S13, after S12 verification.
-- Last completed implementation step: S05.
+- Active step: S13.
+- Next step: S14, after S13 verification.
+- Last completed implementation step: S12.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: verify and implement the deterministic Engine search/catalogue contract in S06.
-- Known step blockers: none assessed yet; not a claim that later external dependencies have been validated.
+- Next action: implement targeted objective recovery and useful partial publication in S13.
+- Known step blockers: none for S13. Production release and the user-led clinical pilot remain later gates.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
 
@@ -527,8 +527,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | DONE | App `af0a7bf` / Engine `efebfc6`; 6 PGlite + 6 PostgreSQL metadata tests, 29 snapshot tests, 125 App worker tests, 53 Engine boundary / 463 full tests; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35412782403). |
 | [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | DONE | App 76a0a7c; 13 PGlite + 13 PostgreSQL billing checks, all five CI suites and desktop/mobile package activation pass. Evidence: App tests/fixtures/workspace-packages/acceptance-s10.json. |
 | [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | DONE | App 73049ac; 11 PGlite + 11 PostgreSQL lifecycle checks, 14 stub recovery fixtures, all 139 worker tests and five CI suites pass. |
-| [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | IN_PROGRESS | S11 lifecycle verified; connecting a scoped analyst to frozen evidence and the selected report only, using mocked provider tests. |
-| [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | NOT_STARTED | — |
+| [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | DONE | App `a0bcee3`; 34 mocked analyst cases, 173 worker tests, 12 PGlite + 12 PostgreSQL checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35416719966) pass. Clinical quality remains unverified. |
+| [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | IN_PROGRESS | S12 verified; adding objective-level correction and partial salvage from persisted work, with failure-injection tests. |
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | NOT_STARTED | — |
 | [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | NOT_STARTED | — |
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | NOT_STARTED | — |
@@ -823,7 +823,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S13 receives the integrated analyst boundary and persisted intermediate result contract.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S11 is complete. Connecting the fresh, bounded analyst context to frozen evidence and only the submitted report reference; mocked provider/tool scenarios only.
+**Completion record:** DONE — 2026-09-19. App `a0bcee3` ([PR #153](https://github.com/tarous89/intel_agent_app/pull/153)); exact message/dataset/reference context, three scoped tools, verified arithmetic and shared structured renderer. 34 mocked analyst cases, all 173 worker tests, 12 PGlite + 12 PostgreSQL lifecycle checks and all five CI suites pass. Accepted evidence: `tests/fixtures/workspace-runs/acceptance-s12.json`; owning contexts updated. No real model session, report, purchase, deployment or production migration. Clinical quality remains unverified. S13 receives persisted `workspace-analyst-work-1` results and immutable source/calculation references.
 
 ### S13 — Add targeted recovery and useful partial publication
 
@@ -845,7 +845,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S14 receives a useful end-to-end execution service with tested partial-success semantics.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S12 is complete. Implementing bounded objective-level recovery, useful partial publication and no-report release with synthetic failure injection.
 
 ### S14 — Connect the analysis composer and live report view
 
