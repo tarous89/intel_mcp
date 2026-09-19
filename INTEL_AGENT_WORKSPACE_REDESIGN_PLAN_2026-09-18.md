@@ -502,13 +502,13 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S17.
-- Next step: S17.
-- Last completed implementation step: S16.
+- Active step: S18.
+- Next step: S18.
+- Last completed implementation step: S17.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: verify legacy compatibility and prepare the launch-copy inventory in S17.
-- Known step blockers: none for S17. Production release and the user-led clinical pilot remain later gates.
+- Next action: close remaining integrated, readiness and resource acceptance gaps in S18 without paid model runs.
+- Known step blockers: none for S18. Production release and the user-led clinical pilot remain later gates.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
 
@@ -532,8 +532,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | DONE | App cbc125b; 16 PGlite + 16 PostgreSQL test entries, all five CI suites and desktop/mobile recovery/selection flows pass; 24 composer/report captures reviewed. |
 | [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | DONE | App `ce9a3d4`; 19 PGlite + 19 PostgreSQL test entries, strict client/storage types, [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35420326351), 100-entry desktop/mobile history and inspected captures pass. Evidence: acceptance-s15.json in App PR #153. |
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | DONE | App `4e97aae`; 24 PGlite/PostgreSQL entries, 9 export/PDF tests; all five CI gates pass; desktop/mobile export flows and rendered captures inspected. [Evidence](https://github.com/tarous89/intel_agent_app/actions/runs/35430852902). |
-| [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | IN_PROGRESS | Checking legacy contracts and preparing App/public launch-copy inventory. |
-| [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | NOT_STARTED | — |
+| [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | DONE | App `faaa0d3`; 15 local billing/entry test entries pass, including legacy paid/discount grants; launch inventory saved. Public copy [PR #29](https://github.com/tarous89/trialagents-public/pull/29) predeploy passes and remains unpublished. |
+| [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | IN_PROGRESS | Mapping prior gates; verifying a continuous synthetic journey, resource envelope and restricted rollout readiness. |
 | [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | NOT_STARTED | — |
 | [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | NOT_STARTED | — |
 
@@ -933,7 +933,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S18 receives one reviewable integrated candidate and a narrow release checklist.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** App `faaa0d34253c4d1b5e092f6be3dcd879590ba57c` centralizes new-flow copy (5/100 runs, four analyses, PDF/XLSX and workspace basis) without changing legacy terms. Fifteen local billing/entry test entries pass, including paid/100%-discount legacy fulfillment with the new flag off and no workspace conversion. `contracts/workspace-release-inventory.json` identifies owner/location/timing. Public PR #29 at `e8619a1` stages the canonical offer and passes predeploy; no public activation. Full App CI is retained for S18's integrated candidate gate.
 
 ### S18 — Verify the integrated candidate without paid model runs
 
