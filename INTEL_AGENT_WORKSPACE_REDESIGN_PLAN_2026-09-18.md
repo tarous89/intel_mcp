@@ -502,7 +502,7 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: none; S15 is DONE.
+- Active step: S16.
 - Next step: S16.
 - Last completed implementation step: S15.
 - Overall implementation: IN_PROGRESS.
@@ -531,7 +531,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | DONE | App `5389d81`; 15 failure-injection cases, all 188 worker tests, 14 PGlite + 14 PostgreSQL lifecycle checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35417823467) pass. |
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | DONE | App cbc125b; 16 PGlite + 16 PostgreSQL test entries, all five CI suites and desktop/mobile recovery/selection flows pass; 24 composer/report captures reviewed. |
 | [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | DONE | App `ce9a3d4`; 19 PGlite + 19 PostgreSQL test entries, strict client/storage types, [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35420326351), 100-entry desktop/mobile history and inspected captures pass. Evidence: acceptance-s15.json in App PR #153. |
-| [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | NOT_STARTED | — |
+| [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | IN_PROGRESS | Implementing owned derivative PDF/combined/XLSX exports and retry verification. |
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | NOT_STARTED | — |
 | [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | NOT_STARTED | — |
 | [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | NOT_STARTED | — |
