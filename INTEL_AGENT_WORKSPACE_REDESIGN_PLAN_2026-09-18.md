@@ -502,13 +502,13 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S15.
-- Next step: S16, after S15 verification.
-- Last completed implementation step: S14.
+- Active step: none; S15 is DONE.
+- Next step: S16.
+- Last completed implementation step: S15.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
-- Next action: build the right sidebar and saved-report lifecycle in S15.
-- Known step blockers: none for S15. Production release and the user-led clinical pilot remain later gates.
+- Next action: integrate individual/combined PDF and Max dataset exports in S16, reusing exact report/version selection and the verified S03 renderer.
+- Known step blockers: none for S16. Production release and the user-led clinical pilot remain later gates.
 
 Update this checkpoint and the corresponding tracker row together whenever work starts, blocks or completes.
 
@@ -530,7 +530,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | DONE | App `a0bcee3`; 34 mocked analyst cases, 173 worker tests, 12 PGlite + 12 PostgreSQL checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35416719966) pass. Clinical quality remains unverified. |
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | DONE | App `5389d81`; 15 failure-injection cases, all 188 worker tests, 14 PGlite + 14 PostgreSQL lifecycle checks and [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35417823467) pass. |
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | DONE | App cbc125b; 16 PGlite + 16 PostgreSQL test entries, all five CI suites and desktop/mobile recovery/selection flows pass; 24 composer/report captures reviewed. |
-| [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | IN_PROGRESS | S14 verified; implementing compact history, exact report selection, rename and safe deletion. |
+| [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | DONE | App `ce9a3d4`; 19 PGlite + 19 PostgreSQL test entries, strict client/storage types, [all five CI suites](https://github.com/tarous89/intel_agent_app/actions/runs/35420326351), 100-entry desktop/mobile history and inspected captures pass. Evidence: acceptance-s15.json in App PR #153. |
 | [S16](#s16--integrate-individual-combined-and-dataset-exports) | Integrate individual, combined and dataset exports | NOT_STARTED | — |
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | NOT_STARTED | — |
 | [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | NOT_STARTED | — |
@@ -889,7 +889,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S16 receives exact report/version selection for download actions.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S14 is complete. Building compact saved-report history, exact-version opening, rename and soft deletion with independent descendants; verifying desktop/mobile navigation and ownership with synthetic fixtures.
+**Completion record:** DONE — 2026-09-19. App PR #153, verified implementation `ce9a3d4`, acceptance `7dcd3d4`. Compact 100-entry history, two-at-a-time lazy snippets, exact-version opening, conflict-aware persistent rename and safe soft deletion are implemented. Captured references and independent descendants survive parent deletion; deletion never refunds usage. Nineteen test entries pass in both PGlite and PostgreSQL, strict client/storage types and all five CI suites pass. Desktop/mobile browser flows and five inspected captures verify navigation, older-report revision, rename/reload and parent/current deletion. Evidence: App `tests/fixtures/workspace-runs/acceptance-s15.json` and [presentation artifact](https://github.com/tarous89/intel_agent_app/actions/runs/35420326351/artifacts/10577107287). Owning Project/Report contexts updated. Synthetic fixtures only; no paid models or production actions. S16 receives exact report/version selection for individual/combined PDF and dataset exports. New flow remains default-off and undeployed.
 
 ### S16 — Integrate individual, combined and dataset exports
 
