@@ -535,7 +535,7 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S17](#s17--prepare-legacy-compatibility-and-launch-copy) | Prepare legacy compatibility and launch copy | DONE | App `faaa0d3`; 15 local billing/entry test entries pass, including legacy paid/discount grants; launch inventory saved. Public copy [PR #29](https://github.com/tarous89/trialagents-public/pull/29) predeploy passes and remains unpublished. |
 | [S18](#s18--verify-the-integrated-candidate-without-paid-model-runs) | Verify the integrated candidate without paid model runs | DONE | App `bb583cd`; all five App workflows green, Engine PR #225 exact head green, zero paid model calls, continuous desktop/mobile journey and 512 MiB resource gates passed. Evidence: `contracts/workspace-integrated-evidence.json` in App PR #153. |
 | [S19](#s19--deploy-the-integrated-candidate-for-the-user-led-pilot) | Deploy the integrated candidate for the user-led pilot | IN_PROGRESS | Restricted owner pilot remains live. App `63eb5b5` / `dep-dan6ssks728c73aj0ld0` makes discovery progress immediate, aligns setup/progress, and truncates long briefs. First real search then exposed Engine Phase 3 `INTEGER[]` vs generic `text[]` binding; Engine `47ae825` / `dep-dan74gcs728c73aj71jg` fixes it, full Engine CI is green and health is 200. Awaiting retry and full real report. |
-| [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | NOT_STARTED | — |
+| [S20](#s20--activate-the-new-flow-and-finish-the-handoff) | Activate the new flow and finish the handoff | IN_PROGRESS | Owner-authorized full-test activation is live: App `076ea286` / Render `dep-dan8q6ek1f9s73fsc17g`, rollout allowlist `*`, all App release gates green. Public offer merged in trialagents-public #35. Final acceptance still requires the user's complete real report and live CDN-copy verification. |
 
 ### 16.4 Completion record required for each step
 
@@ -999,7 +999,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** Implementation is complete. Deferred enhancements require their own scoped work; do not reopen completed steps merely to expand the product.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — activated for full production testing by explicit owner authorization on 2026-09-19. App PR #159 merged as `076ea28644b2eb6341aef4894210e791afd8385b`; Report dataset, Managed Max, Public site and Workspace redesign workflows all passed. Render deploy `dep-dan8q6ek1f9s73fsc17g` is live on that exact code with `INTEL_WORKSPACE_PILOT_USERS=*`, `INTEL_WORKSPACE_ENABLED=true` and new work enabled. Explicit legacy project/payment routes and historic entitlements remain unchanged. Rollback is to replace `*` with explicit account IDs and/or set `INTEL_WORKSPACE_NEW_WORK_ENABLED=false`; neither action erases reports/jobs/exports. Canonical prospective offer copy was merged through trialagents-public PR #35. This owner-authorized activation intentionally precedes S19 acceptance so the user can test the full live flow; do not mark S19 or S20 DONE until the complete real report records usefulness, HTML/PDF, latency, cost and production memory and the public CDN copy is verified live.
 
 ### 16.6 Coverage map
 
