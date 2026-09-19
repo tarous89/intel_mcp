@@ -502,8 +502,8 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S10.
-- Next step: S11, after S10 verification.
+- Active step: S11.
+- Next step: S12, after S11 verification.
 - Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
@@ -525,8 +525,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9a37e42`; 27 mocked planner tests, 95 worker tests, 11 PGlite + 11 PostgreSQL discovery/API checks; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35410198070). |
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `cf730ec`; 13 PGlite + 13 PostgreSQL API checks, 96 worker tests, desktop/mobile browser flows and 12 inspected screenshots; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35411526641). |
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | DONE | App `af0a7bf` / Engine `efebfc6`; 6 PGlite + 6 PostgreSQL metadata tests, 29 snapshot tests, 125 App worker tests, 53 Engine boundary / 463 full tests; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35412782403). |
-| [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | IN_PROGRESS | S09 frozen dataset references verified; wiring server-authoritative Light/Max activation, verified checkout/discounts and allowances. |
-| [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | NOT_STARTED | — |
+| [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | DONE | App 76a0a7c; 13 PGlite + 13 PostgreSQL billing checks, all five CI suites and desktop/mobile package activation pass. Evidence: App tests/fixtures/workspace-packages/acceptance-s10.json. |
+| [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | IN_PROGRESS | S10 authoritative grants verified; implementing durable run claims, recovery and fenced publication using a stub executor. |
 | [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | NOT_STARTED | — |
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | NOT_STARTED | — |
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | NOT_STARTED | — |
@@ -779,7 +779,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S11 receives authoritative grants and reservation APIs.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S09 is complete. Connecting owned package activation and stable dataset identity to Light/Max grants, verified checkout/discount handling and authoritative counters. Synthetic billing only.
+**Completion record:** DONE — 2026-09-19. App tested commit `76a0a7c7985668d9880a9491d2328362c7142dba` connects exact frozen datasets to Light five-run grants and €450-base/100-run Max verified checkout or authorized discounts. 13 PGlite + 13 PostgreSQL synthetic billing/ledger checks and five Stripe signature/dispatch checks pass; duplicate callbacks, quote freezing, 100% discounts, ownership, revocation, final-run races and unchanged legacy terms are covered. All five CI workflows pass. Desktop 1280/mobile 390 activation, preparation reload and owned payment return pass with eight new screenshots inspected. Browser fixture label selection was corrected before acceptance. Evidence: App `tests/fixtures/workspace-packages/acceptance-s10.json`; Workspace run 35414353898/artifact 10574862910, SHA-256 b6fff52e4fb83caef09e56717936443ad1c5dd550fc16dd8e4cbb4de6a11a96b. No real purchase, model call, production migration or deployment.
 
 ### S11 — Implement durable run submission and job control
 
@@ -801,7 +801,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S12 receives a tested run/job/publication boundary.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S10 is complete. Implementing durable run submission, bounded claims/checkpoints and fenced publication/release in the existing worker; stub execution only.
 
 ### S12 — Connect the analyst and bounded report context
 
