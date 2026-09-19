@@ -502,8 +502,8 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S07.
-- Next step: S08, after S07 verification.
+- Active step: S08.
+- Next step: S09, after S08 verification.
 - Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
@@ -522,8 +522,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9e5f88b`; six component tests, type check, ten responsive states and [browser CI](https://github.com/tarous89/intel_agent_app/actions/runs/35405533990); inspected captures committed. |
 | [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `7973be8`; full migration rehearsal, 12 PGlite + 12 real PostgreSQL tests and [CI](https://github.com/tarous89/intel_agent_app/actions/runs/35406777909); default-disabled flag, no production migration/grants. |
 | [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | DONE | [Engine PR #225](https://github.com/tarous89/intel-agent/pull/225), `4616769`, and [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `6ac2f4e`; 42 PostgreSQL/private-HTTP checks, 452 Engine and 68 App tests; all CI gates pass. |
-| [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | IN_PROGRESS | S06 catalogue/search contract verified; implementing durable planning, bounded fallbacks and versioned refinement with mocked model responses. |
-| [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | NOT_STARTED | — |
+| [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9a37e42`; 27 mocked planner tests, 95 worker tests, 11 PGlite + 11 PostgreSQL discovery/API checks; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35410198070). |
+| [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | IN_PROGRESS | S07 durable discovery/refinement API verified; connecting the single-description, counts/progress, refinement and versioned approval flow. |
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | NOT_STARTED | — |
 | [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | NOT_STARTED | — |
 | [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | NOT_STARTED | — |
@@ -713,7 +713,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S08 receives an observable discovery/refinement API and persisted group versions.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S06 is complete. Building the App-owned durable discovery/refinement service using the actual Engine catalogue and deterministic search interface; planner tests will use mocked responses only.
+**Completion record:** DONE — 2026-09-19. App `9a37e42` adds authenticated observable discovery/refinement routes, migration 0028, fenced durable setup jobs and an existing-worker planner/search loop. Structured planning uses the actual catalogue with one initial call plus one bounded repair; all provider tests are mocked. Tests cover valid/invalid criteria, disease-free and nonnested groups, the 99/100 unique-union boundary, ordered useful fallbacks, zero/small results, exhaustion, retained original briefs, immutable refinement versions, lost claims, restart recovery and publication rollback. 27 planner/orchestration and 95 total worker tests pass; 11 discovery/API cases pass in both PGlite and real PostgreSQL. [Workspace CI](https://github.com/tarous89/intel_agent_app/actions/runs/35410198070), full build, report, public-site and Site Agent checks all pass. Evidence: `tests/fixtures/workspace-discovery/acceptance-s07.json`. Setup work creates no grants, report reservations or usage. No deployment, production migration or real model call.
 
 ### S08 — Connect the single-field discovery and group-approval UI
 
@@ -735,7 +735,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S09 receives an approved search-version/selection contract.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S07 is complete. Connecting the recovered controls to the owned discovery API and adding explicit search-version approval; browser verification will use controlled backend fixtures.
 
 ### S09 — Freeze and reuse the selected dataset
 
