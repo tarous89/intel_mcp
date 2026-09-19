@@ -502,8 +502,8 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S11.
-- Next step: S12, after S11 verification.
+- Active step: S12.
+- Next step: S13, after S12 verification.
 - Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
@@ -526,8 +526,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `cf730ec`; 13 PGlite + 13 PostgreSQL API checks, 96 worker tests, desktop/mobile browser flows and 12 inspected screenshots; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35411526641). |
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | DONE | App `af0a7bf` / Engine `efebfc6`; 6 PGlite + 6 PostgreSQL metadata tests, 29 snapshot tests, 125 App worker tests, 53 Engine boundary / 463 full tests; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35412782403). |
 | [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | DONE | App 76a0a7c; 13 PGlite + 13 PostgreSQL billing checks, all five CI suites and desktop/mobile package activation pass. Evidence: App tests/fixtures/workspace-packages/acceptance-s10.json. |
-| [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | IN_PROGRESS | S10 authoritative grants verified; implementing durable run claims, recovery and fenced publication using a stub executor. |
-| [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | NOT_STARTED | — |
+| [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | DONE | App 73049ac; 11 PGlite + 11 PostgreSQL lifecycle checks, 14 stub recovery fixtures, all 139 worker tests and five CI suites pass. |
+| [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | IN_PROGRESS | S11 lifecycle verified; connecting a scoped analyst to frozen evidence and the selected report only, using mocked provider tests. |
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | NOT_STARTED | — |
 | [S14](#s14--connect-the-analysis-composer-and-live-report-view) | Connect the analysis composer and live report view | NOT_STARTED | — |
 | [S15](#s15--build-the-right-sidebar-and-report-lifecycle) | Build the right sidebar and report lifecycle | NOT_STARTED | — |
@@ -801,7 +801,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S12 receives a tested run/job/publication boundary.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S10 is complete. Implementing durable run submission, bounded claims/checkpoints and fenced publication/release in the existing worker; stub execution only.
+**Completion record:** DONE — 2026-09-19. App tested commit `73049acddd68176a1c436e1177db1b727ad1bdfe` provides owned run submission/status/cancellation, exact immutable dataset/reference capture, one reserved run per workspace, rotating worker claims, monotonic Engine checkpoints and atomic publication/usage or no-report release. Recovery is bounded to eight claims/four transport failures with a fixed execution deadline; this does not expire package grants. 11 PGlite + 11 PostgreSQL lifecycle checks, 14 stub recovery fixtures and all 139 worker tests pass. All five CI workflows pass, including builds and legacy/browser checks. Fault injection covers duplicate submission, last allowance, restart/lost replies, clarification release, prior-report preservation and stale publication rejection. Evidence: App `tests/fixtures/workspace-runs/acceptance-s11.json`; Workspace run 35415189814 / PostgreSQL job 105822333004. No real model call, production migration or deployment. S12 supplies the production analyst; the absent executor cannot manufacture a report.
 
 ### S12 — Connect the analyst and bounded report context
 
@@ -823,7 +823,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S13 receives the integrated analyst boundary and persisted intermediate result contract.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S11 is complete. Connecting the fresh, bounded analyst context to frozen evidence and only the submitted report reference; mocked provider/tool scenarios only.
 
 ### S13 — Add targeted recovery and useful partial publication
 
