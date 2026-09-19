@@ -502,8 +502,8 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S06.
-- Next step: S07, after S06 verification.
+- Active step: S07.
+- Next step: S08, after S07 verification.
 - Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
@@ -521,8 +521,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S03](#s03--restore-pdf-design-and-lossless-pagination) | Restore PDF design and lossless pagination | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `fc016b0`; 51 worker tests, eight renderer tests, type check and [five-fixture PDF CI](https://github.com/tarous89/intel_agent_app/actions/runs/35404414376); inspected standard/stress PDFs committed. |
 | [S04](#s04--recover-branded-progress-and-workspace-controls) | Recover branded progress and workspace controls | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9e5f88b`; six component tests, type check, ten responsive states and [browser CI](https://github.com/tarous89/intel_agent_app/actions/runs/35405533990); inspected captures committed. |
 | [S05](#s05--add-workspace-persistence-usage-primitives-and-the-feature-boundary) | Add workspace persistence, usage primitives and the feature boundary | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `7973be8`; full migration rehearsal, 12 PGlite + 12 real PostgreSQL tests and [CI](https://github.com/tarous89/intel_agent_app/actions/runs/35406777909); default-disabled flag, no production migration/grants. |
-| [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | IN_PROGRESS | Versioned App metadata and accounting verified; inspecting the Engine-owned catalogue/search boundary. |
-| [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | NOT_STARTED | — |
+| [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | DONE | [Engine PR #225](https://github.com/tarous89/intel-agent/pull/225), `4616769`, and [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `6ac2f4e`; 42 PostgreSQL/private-HTTP checks, 452 Engine and 68 App tests; all CI gates pass. |
+| [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | IN_PROGRESS | S06 catalogue/search contract verified; implementing durable planning, bounded fallbacks and versioned refinement with mocked model responses. |
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | NOT_STARTED | — |
 | [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | NOT_STARTED | — |
 | [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | NOT_STARTED | — |
@@ -691,7 +691,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S07 receives the actual catalogue, expression schema and count/ID interface; update both owning contexts only if their interface changes.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** DONE — 2026-09-19. Engine private catalogue/query/source v1 and App full-pagination adapter implemented in Engine PR #225 / App PR #153. Controlled values come from schema 11.0.0. Tests prove nested precedence, literal synonyms, missing-vs-negative values, canonical deduplication, overlapping counts, approval-independent eligibility, 107-trial pagination, stale-source errors and private-token boundaries. [Engine discovery CI](https://github.com/tarous89/intel-agent/actions/runs/35408617360) passes 42 tests; [full Engine CI](https://github.com/tarous89/intel-agent/actions/runs/35408617363) passes 452. App consumes actual synthetic PostgreSQL/private-HTTP wire captures and passes all 68 worker tests, [Workspace gates](https://github.com/tarous89/intel_agent_app/actions/runs/35408588406), build, report, public-site and Site Agent checks. Evidence: `tests/fixtures/workspace-search/acceptance-s06.json`. Both owning contexts record the interface and S09 exact-revision freeze requirement. No production migration, deployment, entitlement or model call.
 
 ### S07 — Implement query planning, fallback orchestration and group revisions
 
@@ -713,7 +713,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S08 receives an observable discovery/refinement API and persisted group versions.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S06 is complete. Building the App-owned durable discovery/refinement service using the actual Engine catalogue and deterministic search interface; planner tests will use mocked responses only.
 
 ### S08 — Connect the single-field discovery and group-approval UI
 
