@@ -502,8 +502,8 @@ The table below is the single source of truth for step statuses. Do not maintain
 
 ### 16.2 Current checkpoint
 
-- Active step: S09.
-- Next step: S10, after S09 verification.
+- Active step: S10.
+- Next step: S11, after S10 verification.
 - Last completed implementation step: S05.
 - Overall implementation: IN_PROGRESS.
 - Production rollout: NOT_STARTED.
@@ -524,8 +524,8 @@ Update this checkpoint and the corresponding tracker row together whenever work 
 | [S06](#s06--implement-the-deterministic-engine-search-contract) | Implement the deterministic Engine search contract | DONE | [Engine PR #225](https://github.com/tarous89/intel-agent/pull/225), `4616769`, and [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `6ac2f4e`; 42 PostgreSQL/private-HTTP checks, 452 Engine and 68 App tests; all CI gates pass. |
 | [S07](#s07--implement-query-planning-fallback-orchestration-and-group-revisions) | Implement query planning, fallback orchestration and group revisions | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `9a37e42`; 27 mocked planner tests, 95 worker tests, 11 PGlite + 11 PostgreSQL discovery/API checks; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35410198070). |
 | [S08](#s08--connect-the-single-field-discovery-and-group-approval-ui) | Connect the single-field discovery and group-approval UI | DONE | [App PR #153](https://github.com/tarous89/intel_agent_app/pull/153), `cf730ec`; 13 PGlite + 13 PostgreSQL API checks, 96 worker tests, desktop/mobile browser flows and 12 inspected screenshots; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35411526641). |
-| [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | IN_PROGRESS | S08 exact-version approval and tier selection verified; implementing deterministic selection and immutable exact-profile snapshots in Engine-owned storage. |
-| [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | NOT_STARTED | — |
+| [S09](#s09--freeze-and-reuse-the-selected-dataset) | Freeze and reuse the selected dataset | DONE | App `af0a7bf` / Engine `efebfc6`; 6 PGlite + 6 PostgreSQL metadata tests, 29 snapshot tests, 125 App worker tests, 53 Engine boundary / 463 full tests; [all CI gates pass](https://github.com/tarous89/intel_agent_app/actions/runs/35412782403). |
+| [S10](#s10--wire-lightmax-grants-checkout-and-run-allowances) | Wire Light/Max grants, checkout and run allowances | IN_PROGRESS | S09 frozen dataset references verified; wiring server-authoritative Light/Max activation, verified checkout/discounts and allowances. |
 | [S11](#s11--implement-durable-run-submission-and-job-control) | Implement durable run submission and job control | NOT_STARTED | — |
 | [S12](#s12--connect-the-analyst-and-bounded-report-context) | Connect the analyst and bounded report context | NOT_STARTED | — |
 | [S13](#s13--add-targeted-recovery-and-useful-partial-publication) | Add targeted recovery and useful partial publication | NOT_STARTED | — |
@@ -757,7 +757,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S10 receives stable tier-specific dataset references and cost/resource bounds.
 
-**Completion record:** IN_PROGRESS — 2026-09-19. S08 is complete. Implementing stable tier-specific selection, exact source-profile retrieval and restart-safe immutable dataset snapshots; synthetic fixtures only.
+**Completion record:** DONE — 2026-09-19. App `af0a7bf` / Engine `efebfc6` implement seeded representative selection using the exact Light formula and Max runtime cap 100. Selection is checkpointed before retrieval; exact profile IDs/schema/discovery revisions are read without legacy ranking or runtime overlays, then full profile checksums/timestamps, memberships and selection trace are frozen in Engine artifacts. Completed batches and immutable snapshots survive recreated workers and lost replies; scoped reads cannot expand or refresh evidence. Derived artifacts bind dataset/source hashes and preserve matched/selected/contributing counts. 6 PGlite + 6 PostgreSQL metadata checks, 29 snapshot tests and all 125 App worker tests pass; Engine passes 53 boundary and 463 full tests. [App CI](https://github.com/tarous89/intel_agent_app/actions/runs/35412782403), [Engine CI](https://github.com/tarous89/intel-agent/actions/runs/35412351539) and all legacy gates pass. Evidence: `tests/fixtures/workspace-dataset/acceptance-s09.json` and actual synthetic private-HTTP profile captures. No production migration/deployment, entitlement, purchase, report or model call.
 
 ### S10 — Wire Light/Max grants, checkout and run allowances
 
@@ -779,7 +779,7 @@ A step cannot become DONE with missing verification or an unexplained required a
 
 **Handoff:** S11 receives authoritative grants and reservation APIs.
 
-**Completion record:** Not started; no implementation or verification evidence yet.
+**Completion record:** IN_PROGRESS — 2026-09-19. S09 is complete. Connecting owned package activation and stable dataset identity to Light/Max grants, verified checkout/discount handling and authoritative counters. Synthetic billing only.
 
 ### S11 — Implement durable run submission and job control
 
