@@ -51,10 +51,10 @@ def completion(criteria):
 
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
-    async def test_planner_extracts_criteria_and_display_summary_with_terra(self):
+    async def test_planner_extracts_criteria_and_display_summary_with_sol(self):
         def handler(request):
             payload = json.loads(request.content)
-            self.assertEqual(payload["model"], "gpt-5.6-terra")
+            self.assertEqual(payload["model"], "gpt-6-sol")
             self.assertEqual(payload["reasoning"]["effort"], "low")
             self.assertFalse(payload["store"])
             self.assertNotIn("tools", payload)
@@ -77,7 +77,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             transport=httpx.MockTransport(handler),
         )
         self.assertEqual(criteria, CRITERIA)
-        self.assertEqual(usage, {"model": "gpt-5.6-terra", "inputTokens": 10, "outputTokens": 20})
+        self.assertEqual(usage, {"model": "gpt-6-sol", "inputTokens": 10, "outputTokens": 20})
 
     async def test_planner_deduplicates_disease_terms_and_countries(self):
         output = {**PLANNER_OUTPUT, "disease_terms": [" NSCLC ", "nsclc", "lung"], "countries": ["de", "DE"]}

@@ -142,3 +142,7 @@ Site Agent uses one Terra/low call for initial criteria and one strict function 
 - Personal contact data is removed from classifier model input.
 - Identity, tier, payment and allowance are resolved server-side.
 - No patient-level PHI, credentials, prompts or traces in public output or context files.
+
+## Current Site Agent model — 2026-09-24
+
+Site Agent interpretation and Premium revision both use `SITE_AGENT_MODEL=gpt-6-sol` in `site_search.py`. They are two distinct Responses API request paths. Search and ranking remain deterministic; each interpretation or revision still makes at most one model request.
