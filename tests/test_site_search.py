@@ -51,7 +51,7 @@ def completion(criteria):
 
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
-    async def test_planner_extracts_criteria_and_display_summary_with_terra(self):
+    async def test_planner_extracts_criteria_and_display_summary_with_sol(self):
         def handler(request):
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "gpt-6-sol")
