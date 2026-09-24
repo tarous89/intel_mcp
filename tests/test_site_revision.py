@@ -22,6 +22,7 @@ class RevisionTests(unittest.IsolatedAsyncioTestCase):
     async def call(self, response, message="Focus on Germany"):
         def handler(request):
             payload = json.loads(request.content)
+            self.assertEqual(payload["model"], "gpt-6-sol")
             self.assertEqual(payload["tool_choice"], {"type": "function", "name": "apply_site_revision"})
             self.assertFalse(payload["parallel_tool_calls"])
             self.assertTrue(payload["tools"][0]["strict"])
