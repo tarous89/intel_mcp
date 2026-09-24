@@ -18,7 +18,7 @@ from intel_mcp.site_ranking import DISEASE_FIELDS, VERSION as RANKING_VERSION, P
 MAX_CONTEXT = 12000
 MAX_DISEASE_TERMS = 16
 MAX_PRIORITIZED_EXPERIENCE = 160
-SITE_AGENT_MODEL = "gpt-5.6-terra"
+SITE_AGENT_MODEL = "gpt-6-sol"
 COUNTRIES = (
     "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
     "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL", "PT", "RO",
