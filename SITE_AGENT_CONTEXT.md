@@ -111,3 +111,7 @@ cache keyed by validated criteria, ranking version and UTC date. Premium pages f
 snapshot rather than rereading all profiles. A cold, expired or restarted process safely rebuilds it from
 the approved serving views. Bands are computed once per metric distribution (O(n log n), same tied
 percentiles). The Engine serving-view envelope remains unchanged.
+
+## Current model routing — 2026-09-24
+
+Both `/interpret` and `/revise` use `gpt-6-sol` through the shared `SITE_AGENT_MODEL`; each performs one Responses API request per accepted action. Earlier model references above describe the initial rollout. Criteria, function schema, low reasoning, limits and deterministic search are unchanged.
