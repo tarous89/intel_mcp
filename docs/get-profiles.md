@@ -1,10 +1,12 @@
 # `get_profiles` contract
 
+Reviewed 2026-10-03. This is the standalone MCP tool/read contract, not the current Intel subscription or combined App execution contract. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
+
 ## Purpose
 
 Return current approved Trial Profile 11.0.0 data for explicit EU trial numbers. The tool is a bounded deterministic read path: it performs no model work, summarization, semantic search or profile generation.
 
-Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light may retrieve up to **100 unique profiles** across calls and the current Max candidate workflow may retrieve up to **500**.
+Every `get_profiles` call accepts up to **10 trial IDs**, regardless of whether the caller requests selected sections or the complete profile. The per-analysis profile allowance is separate from the per-call cap: Light may retrieve up to **100 unique profiles** across calls and the legacy Max compatibility allowance may retrieve up to **500**.
 
 Use `sections` when only part of the structured profile is needed. Omit `sections` or pass `[]` when the complete profile is needed. There is no separate allowance or call-size tier for section versus complete-profile reads.
 

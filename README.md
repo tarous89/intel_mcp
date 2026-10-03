@@ -1,5 +1,7 @@
 # Intel MCP
 
+Reviewed 2026-10-03. Standalone MCP tools and Engine read contracts below remain active. Older Intel Light/Max/Workspace and Site Agent products are archived. Their allowance names and compatibility modules are not current pricing. New combined Intel reports are App-owned. Read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [current combined contract](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) before product changes. Previous offers/design decisions are in [history.md](history.md).
+
 Remote Model Context Protocol service for TrialAgents Intel Agent.
 
 The service root serves the public Intel MCP documentation page. It explains
@@ -70,7 +72,7 @@ General behavior:
 - Conditions within one `countries` group must match the same country row. Multiple country groups combine with AND and may match different rows.
 - Default order is `latest_country_submission_or_approval_date desc`, with `eu_number asc` as the stable tie-breaker.
 - Pages are capped at 100. Use `offset: 0` first, then increase offset by the prior call's limit while more matches remain.
-- Light may receive at most 100 unique filtered trial IDs. The current Max candidate workflow may receive up to 1,000. Repeated IDs do not consume allowance twice.
+- Light may receive at most 100 unique filtered trial IDs. The legacy Max compatibility allowance may receive up to 1,000. Repeated IDs do not consume allowance twice.
 - The MCP annotation uses `readOnlyHint: false`: the Engine query is read-only, but admitting a previously unseen trial ID updates the analysis's observable allowance state.
 
 Exposed structured fields:
@@ -101,7 +103,7 @@ Sponsor-name limitation: the structured CTIS sponsor value can sometimes refer t
 - With `sections`, the tool returns an exact deterministic projection of the stored profile. It performs no LLM summarization, rewriting or inference.
 - With `sections` omitted or `[]`, the tool returns the complete stored current approved Trial Profile, including contacts, extracted-document inventory and results.
 - Candidate/rejected/missing profiles are reported in `unavailable_trial_ids`; there is no raw-CTIS fallback.
-- Light may retrieve **100 unique profiles across the analysis**; the current Max candidate workflow may retrieve **500**. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
+- Light may retrieve **100 unique profiles across the analysis**; the legacy Max compatibility allowance may retrieve **500**. Exact repeated IDs do not consume allowance twice, even if a later call requests different sections or the complete profile.
 - Every approved profile admitted by the allowance is returned without field-level truncation within the requested projection. Unavailable IDs and IDs blocked because allowance was reached are returned as separate ID arrays.
 - The tool does not refresh profiles, retrieve document text, classify, search semantically, extract variables or write report prose.
 - Because returning a newly seen profile updates observable allowance state, annotations are non-read-only, non-destructive, idempotent and closed-world.
