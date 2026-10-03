@@ -1,5 +1,7 @@
 # `classify_trials` contract
 
+Reviewed 2026-10-03. This is the standalone MCP tool/read contract, not the current Intel subscription or combined App execution contract. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
+
 Current contract: 2026-08-27
 
 ## Purpose

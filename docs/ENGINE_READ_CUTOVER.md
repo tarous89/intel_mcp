@@ -1,5 +1,7 @@
 # Engine read boundary and rollback
 
+Reviewed 2026-10-03. This is the standalone MCP tool/read contract, not the current Intel subscription or combined App execution contract. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
+
 Last updated: 2026-09-08
 
 Production MCP reads the Engine database directly through the exact restricted role `intel_mcp_reader_v1`. The role is read-only and limited to approved-only `mcp_serving.*_v1` views. Engine retains every write, migration, ingestion, extraction and profile-generation responsibility.

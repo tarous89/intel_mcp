@@ -1,5 +1,7 @@
 # `get_documents`
 
+Reviewed 2026-10-03. This is the standalone MCP tool/read contract, not the current Intel subscription or combined App execution contract. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
+
 `get_documents` returns extracted text for one explicitly named CTIS document belonging to a trial with a current approved Trial Profile.
 
 ## Input

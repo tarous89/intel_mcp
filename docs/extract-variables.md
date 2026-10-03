@@ -1,5 +1,7 @@
 # `extract_variables`
 
+Reviewed 2026-10-03. This is the standalone MCP tool/read contract, not the current Intel subscription or combined App execution contract. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
+
 `extract_variables` extracts a bounded caller-defined schema from one clinical
 trial in one Terra worker request.
 
