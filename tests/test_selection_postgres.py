@@ -20,6 +20,7 @@ def connection():
         conn.execute('CREATE SCHEMA mcp_serving')
         conn.execute('CREATE TABLE mcp_serving.profile_filter_v1 (id integer, eu_number text, approval_status text, phase integer[])')
         conn.execute('CREATE TABLE mcp_serving.approved_profiles_v1 (eu_number text, schema_version text, profile_json jsonb, ctis_data jsonb)')
+        conn.execute('CREATE TABLE mcp_serving.selection_search_v1 (profile_id integer, eu_number text, title text, diseases text, population text, stages text, settings text, inclusion text, exclusion text)')
         yield conn
         conn.rollback()
 
@@ -29,6 +30,7 @@ def insert(conn, i, title, phase=None, population=''):
     row['profile']['classification_variables'].update(trial_title=title, target_population_summary=population)
     row['profile']['filtering_variables']['phase'] = phase
     conn.execute('INSERT INTO mcp_serving.profile_filter_v1 VALUES (%s,%s,%s,%s)', (i, row['trial_id'], 'approved', phase))
+    conn.execute('INSERT INTO mcp_serving.selection_search_v1 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)', (i,row['trial_id'],title,'Lung cancer',population,'','','',''))
     conn.execute('INSERT INTO mcp_serving.approved_profiles_v1 VALUES (%s,%s,%s,NULL)', (row['trial_id'], '11.0.0', Jsonb(row['profile'])))
 
 

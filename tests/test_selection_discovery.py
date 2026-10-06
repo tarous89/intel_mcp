@@ -109,9 +109,9 @@ def test_reviewed_group_union_preserves_roles_and_country_before_merge():
     assert SelectionDataset(criteria(), [record(providers=[spain, impostor])]).rank().total_entities == 2
 
 
-def test_default_five_and_explicit_ten():
+def test_default_ten():
     d = SelectionDataset(criteria(), [record(i, providers=[provider(str(i))]) for i in range(1, 21)])
-    assert d.rank().returned == 5
+    assert d.rank().returned == 10
     assert d.rank(10).returned == 10
 
 

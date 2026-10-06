@@ -93,7 +93,7 @@ class SelectionCatalogue(Contract):
     filter_fields: list[str]
     max_base_profiles: int = MAX_COHORT
     max_results: int = 10
-    default_results: int = 5
+    default_results: int = 10
     discovery_fields: list[str] = Field(default_factory=lambda: ["title", "diseases", "population", "stages", "settings", "inclusion", "exclusion"])
     profile_policy: str = "approved schema 11 only"
     authorization: str = "Existing App analysis lease with filter_trials and get_profiles permissions"
@@ -107,6 +107,7 @@ class EntityResult(Contract):
     countries: list[str]
     organization_types: list[str]
     affiliations: list[dict]
+    contacts: list[dict] = Field(default_factory=list)
     identity_basis: str = "conservative_record_match"
     legal_entities: list[dict] = Field(default_factory=list)
     trial_counts: dict[str, int]
@@ -233,6 +234,15 @@ class SelectionDataset:
                     labels = [s.strip() for s in str(provider.get("function") or "").split(";") if s.strip()]
                     codes = {duty_keys[key] for label in labels if (key := normalized(label).replace(" ", "")) in duty_keys}
                     row = entities.setdefault(identity, {"id": identity, "names": set(), "countries": set(), "types": set(), "affiliations": [], "trials": set(), "roles": defaultdict(set), "functions": defaultdict(set)})
+                    row.setdefault("contacts", [])
+                    email = str(provider.get("email") or "").strip()
+                    if re.fullmatch(r"[^\s@*<>]+@[^\s@*<>]+\.[^\s@*<>]+", email) and not any(x in email.lower() for x in ("redacted", "masked")):
+                        row["contacts"].append({"email": email, "kind": "recorded_business_contact", "legal_entity": name,
+                            "country": country, "trial_id": tid,
+                            "name": " ".join(str(provider.get(k) or "").strip() for k in ("contact_first_name", "contact_last_name")).strip()})
+                    address = provider.get("address")
+                    if isinstance(address, str) and address.strip():
+                        row["contacts"].append({"address": address.strip(), "kind": "recorded_business_address", "legal_entity": name, "country": country, "trial_id": tid})
                     row["names"].add(name)
                     if provider.get("organisation_type"):
                         row["types"].add(provider["organisation_type"])
@@ -249,6 +259,7 @@ class SelectionDataset:
                     if not eligible:
                         del entities[identity]
                         continue
+                    row["contacts"] = [c for c in row.get("contacts", []) if c["trial_id"] in eligible]
                     row["trials"] = set(eligible)
                     row["roles"] = {tid: roles for tid, roles in row["roles"].items() if tid in eligible}
                     row["functions"] = {code: tids & eligible for code, tids in row["functions"].items() if tids & eligible}
@@ -265,6 +276,7 @@ class SelectionDataset:
                         "countries": set(), "types": set(), "affiliations": [], "trials": set(),
                         "roles": defaultdict(set), "functions": defaultdict(set), "legal_entities": [],
                         "identity_basis": "reviewed_historical_group_not_trial_time_ownership"})
+                    target.setdefault("contacts", []).extend(row.get("contacts", []))
                     target["countries"].update(row["countries"])
                     target["types"].update(row["types"])
                     target["trials"].update(row["trials"])
@@ -293,6 +305,7 @@ class SelectionDataset:
                 names = {item["name"]} if self.criteria.entity_type == "sites" else set(item["names"])
                 countries = {item["country"]} if self.criteria.entity_type == "sites" else {s["country"] for s in item["sites"].values()}
                 entities[identity] = {"id": identity, "names": names, "countries": countries,
+                    "contacts": ([{"email": email, "kind": "recorded_pi_email"} for email in sorted(item["emails"])] if self.criteria.entity_type == "pis" else []),
                     "trials": set(item["trials"]), "roles": {}, "functions": {}, "types": set(),
                     "affiliations": ([] if self.criteria.entity_type == "sites" else sorted(
                         [{"name": site["name"], "country": site["country"], "relationship": "recorded_trial_affiliation"}
@@ -321,7 +334,7 @@ class SelectionDataset:
     def _ordered_trials(self, row):
         return sorted(row["trials"], key=lambda tid: (BUCKETS.index(self.buckets[tid]), tid))
 
-    def rank(self, limit=5, subgroup_ids=None):
+    def rank(self, limit=10, subgroup_ids=None):
         rows = []
         for row in self._entities_for_selection(subgroup_ids).values():
             counts = Counter(self.buckets[tid] for tid in row["trials"])
@@ -345,6 +358,7 @@ class SelectionDataset:
             name = min(row["names"], key=lambda x: (normalized_name(x), x))
             rows.append(EntityResult(id=row["id"], rank=0, name=name, countries=sorted(row["countries"]),
                 organization_types=sorted(row["types"]), affiliations=row["affiliations"],
+                contacts=list({digest(c): c for c in row.get("contacts", [])}.values()),
                 identity_basis=row.get("identity_basis", "conservative_record_match"), legal_entities=row.get("legal_entities", []),
                 trial_counts=trial_counts, function_counts={k: len(v) for k, v in sorted(row["functions"].items())},
                 sponsors=[{"name": sponsor_labels[k], "trial_count": len(v), "relationship": "recorded_same_trial"} for k, v in sorted(sponsors.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:5]],

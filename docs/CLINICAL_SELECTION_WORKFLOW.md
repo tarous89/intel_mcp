@@ -137,3 +137,10 @@ Publication boundary, checked against OpenAI's published Directory guidelines on
 - Sources: https://developers.openai.com/plugins/plugin-guidelines and https://developers.openai.com/plugins/build/auth . Recheck before Directory submission.
 
 Implementation sequence: optimize and validate discovery; add explicit entity-bound contacts and total-count contract; introduce anonymous selection sessions plus a server-owned top-ten allowlist; connect existing paid entitlements and full pagination; validate cross-tool access; then package the ChatGPT workflow. These are agreed requirements, not claims that the current tools already allow anonymous use or enforce a free-tier boundary.
+
+
+## Research connector implementation boundary (2026-10-06)
+
+The staged public endpoint is `/research/mcp`, independently disabled by default. Start with `search_research_trials`, then `rank_research_entities`; use `get_research_entity_evidence` only for displayed entities. State exact criteria, fields searched, cohort/subgroup counts, total eligible entities and up to ten rows per requested category. New subgroup searches may yield a new ten; do not describe this as a lifetime quota. Missing contacts stay missing. Free evidence omits unrestricted narratives, so do not promise operational findings unless actually returned.
+
+For full lists, use `list_research_projects` to initiate account connection and inspect existing project access. An eligible project must cover the whole selected trial cohort; connecting any paid account is insufficient. No checkout is initiated in this workflow. OAuth setup and public performance validation precede ChatGPT packaging.

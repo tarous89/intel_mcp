@@ -235,12 +235,12 @@ async def rank_entities(
     analysis_id: Annotated[str, Field(min_length=20, max_length=128)],
     criteria: SelectionCriteria,
     expected_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")],
-    limit: Annotated[int, Field(ge=1, le=10)] = 5,
+    limit: Annotated[int, Field(ge=1, le=10)] = 10,
     subgroup_ids: Annotated[list[str], Field(max_length=12)] | None = None,
 ) -> RankingResult:
     """Rank the complete eligible cohort by direct then related distinct-trial experience.
 
-    Use criteria and snapshot from search_trial_cohort. Default five; request ten explicitly.
+    Use criteria and snapshot from search_trial_cohort. Default ten.
     Optional subgroup_ids select primary (disjoint) subgroup membership. CRO function restrictions apply
     on each trial before counting. Registered country is not service coverage. Trials
     with operational findings do not receive a quality penalty. Results are historical
@@ -1114,7 +1114,28 @@ class MCPServiceAuthMiddleware:
         return f'Bearer resource_metadata="{origin}/.well-known/oauth-protected-resource", scope="{OAUTH_SCOPE}"'
 
 
-app = MCPServiceAuthMiddleware(mcp.streamable_http_app(transport_security=transport_security))
+legacy_http = mcp.streamable_http_app(transport_security=transport_security)
+app = MCPServiceAuthMiddleware(legacy_http)
+if settings.research_enabled:
+    from contextlib import AsyncExitStack, asynccontextmanager
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from intel_mcp.research_server import create_research_server
+    research, ResearchAuth, research_store, research_resource, research_challenge = create_research_server(
+        settings, engine_client, control_plane_client)
+    research_http = research.streamable_http_app(stateless_http=True, transport_security=transport_security)
+
+    @asynccontextmanager
+    async def lifespan(application):
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(legacy_http.router.lifespan_context(legacy_http))
+            await stack.enter_async_context(research_http.router.lifespan_context(research_http))
+            yield
+
+    app = Starlette(routes=[
+        Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
+        Mount('/', app=app),
+    ], lifespan=lifespan)
 
 
 def main() -> None:

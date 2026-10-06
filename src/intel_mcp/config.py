@@ -36,6 +36,7 @@ class Settings:
     port: int
     request_timeout_seconds: float
     selection_enabled: bool = False
+    research_enabled: bool = False
     report_plan_service_token: str = ""
     engine_source: str = "http"
     engine_database_url: str = ""
@@ -71,6 +72,7 @@ class Settings:
             "database" if engine_database_url or engine_database_host else "http"
         )
         return cls(
+            research_enabled=os.getenv("MCP_RESEARCH_ENABLED", "false").lower() == "true",
             selection_enabled=os.getenv("MCP_SELECTION_ENABLED", "false").lower() == "true",
             app_control_url=os.getenv("INTEL_APP_CONTROL_URL", "").strip().rstrip("/"),
             app_service_token=os.getenv("INTEL_APP_SERVICE_TOKEN", "").strip(),

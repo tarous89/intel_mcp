@@ -14,7 +14,7 @@ def _text_where(query):
     if query is None:
         return "TRUE", []
     # Paths are closed enums, while all user search terms remain bound parameters.
-    columns = ["COALESCE(source.profile_json #>> '{" + ",".join(TEXT_PATHS[field]) + "}', '')" for field in query.fields]
+    columns = ["search." + field for field in query.fields]
     params = []
     def term_clause(term):
         params.extend(["%" + _escape_like(term) + "%"] * len(columns))
@@ -38,7 +38,7 @@ def _group_where(group):
         romans = {1: "i", 2: "ii", 3: "iii", 4: "iv"}
         choices = "|".join(str(v) + "|" + romans[v] for v in sorted(set(phase.values)))
         pattern = r"\mphase[[:space:]-]*(" + choices + r")\M"
-        structured += f" AND (({phase_sql}) OR (COALESCE(cardinality(p.phase), 0) = 0 AND COALESCE(source.profile_json #>> '{{classification_variables,trial_title}}', '') ~* %s))"
+        structured += f" AND (({phase_sql}) OR (COALESCE(cardinality(p.phase), 0) = 0 AND search.title ~* %s))"
         params += [*phase_params, pattern]
     text_sql, text_params = _text_where(group.text)
     return f"({structured}) AND ({text_sql})", params + text_params
@@ -64,6 +64,7 @@ def read_selection(connection, request):
                    ({direct}) AS direct_match, ({related}) AS related_match
                    {''.join(group_columns)}
             FROM mcp_serving.profile_filter_v1 p
+            JOIN mcp_serving.selection_search_v1 search ON search.profile_id = p.id
             JOIN mcp_serving.approved_profiles_v1 source ON source.eu_number = p.eu_number
             WHERE {base}
             ORDER BY p.eu_number

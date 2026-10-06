@@ -65,4 +65,4 @@ async def test_catalogue_is_static_and_exposes_function_vocabulary():
     result = await server.get_selection_catalogue()
     assert result.function_codes['1'] == 'On site monitoring'
     assert 'diseases' in result.filter_fields and result.max_results == 10
-    assert result.default_results == 5 and 'title' in result.discovery_fields
+    assert result.default_results == 10 and 'title' in result.discovery_fields
