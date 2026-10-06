@@ -40,6 +40,8 @@ async def test_cache_and_expiry_do_not_reread_every_tool():
     store.entries[token]['expires']=0
     with pytest.raises(SelectionError,match='EXPIRED'): store.get(token)
     new,_=await store.search(criteria());assert new!=token and engine.calls==2
+    with pytest.raises(SelectionError,match='SELECTION_DATABASE_REQUIRED'):
+        await ResearchStore(lambda:object()).search(criteria())
 
 
 @pytest.mark.anyio

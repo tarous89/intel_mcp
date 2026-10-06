@@ -27,7 +27,10 @@ class ResearchStore:
             for token, entry in self.entries.items():
                 if entry['key']==key:
                     return token, entry['dataset']
-            dataset=await self.engine_factory().selection(criteria)
+            engine=self.engine_factory()
+            if not hasattr(engine, 'selection'):
+                raise SelectionError('SELECTION_DATABASE_REQUIRED: Configure the restricted database reader.')
+            dataset=await engine.selection(criteria)
             import json
             size=len(json.dumps(dataset.records, ensure_ascii=False).encode())
             while self.entries and (len(self.entries)>=8 or sum(e['bytes'] for e in self.entries.values())+size>self.max_bytes):
