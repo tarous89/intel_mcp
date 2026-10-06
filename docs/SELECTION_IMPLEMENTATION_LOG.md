@@ -119,3 +119,11 @@ An owner-requested operator-side shortlist preview found that newly available de
 Duplicate site blocks also exposed a person-record identity collision in the existing aggregation path. The preview consolidated duplicate site blocks before aggregation; the production path still requires a regression-backed correction. PI counts remain provisional where missing classification or differing identities prevent resolution. Provider counts include laboratories and vendors; a monitoring-function shortlist was kept separate from all-provider counts. Stored trial findings were not replaced with inferred provider performance.
 
 Decisions: keep tools disabled until structured-field fallback/provenance, duplicate-block handling and restricted-account end-to-end validation are addressed. Manual cohort classification and preview preprocessing must not be represented as already implemented public-tool behavior. No clinical records were modified by the preview.
+
+## 9. Broad first-response workflow and normalization — requirements recorded
+
+Owner requested a larger relevant first-response landscape, explicit subgroups, consolidated CRO/site/PI identities, table-based shortlists and clear ways to drill deeper. See CLINICAL_SELECTION_WORKFLOW.md for the implementation-ready specification and future description draft.
+
+Recommendation: target approximately 200–500 relevant trials where supported, without a hard minimum or irrelevant padding; retain the current 500-profile execution cap until complete-cohort scaling exists. Default to top five per entity type and offer ten/full authorized results. Keep exact matches primary and show expansions transparently. Corporate-group counts use trial-ID unions; campus and person identity uncertainty remain visible.
+
+Split work into MCP discovery/provenance and subgroup contracts, data identity normalization, then ChatGPT presentation/packaging. This turn records requirements and updates handover context only; no tools were enabled and no ranking behavior changed.
