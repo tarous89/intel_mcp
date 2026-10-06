@@ -145,15 +145,7 @@ Learnings and limitations:
 
 Steps and decisions:
 1. Fixed person-record alias re-entry: duplicated site blocks can no longer recreate or overwrite a merged person. Added a regression spanning repeated blocks and multiple trials.
-2. Selection-specific PI matching uses full name plus recorded site identity, or full name plus a valid email. Missing therapeutic area no longer prevents same-site consolidation. A first name or surname plus shared email is insufficient. Legacy App matching retains its existing policy, apart from the alias bug fix.
-3. Added a small versioned, source-backed corporate alias seed for IQVIA and Syneos. Country plus exact normalized alias is required; no prefix or fuzzy merges. Each grouped result preserves source links, source period, review date, legal entities and their per-trial roles. Grouping describes historically documented relationships, not ownership at trial time or a guarantee of current ownership.
-4. Applied CRO function/country constraints before corporate group union. Counts union trial IDs; one subsidiary cannot borrow a sibling's function. `cro_identity=legal_entity` retains separate entities. Mapping changes invalidate the snapshot.
-
-Learnings: name-plus-affiliation is still an imperfect PI identity, and the registry is a seed, not exhaustive corporate resolution. Site name/country normalization remains conservative; no unsupported campus/network aliases were introduced. More site/PI identity review and explicit identifiers are required before claiming complete deduplication.
-
-## 12. Verification and remaining rollout gates — 2026-10-06
-
-Added synthetic regressions for missing fields, explicit source excerpts, literal SQL terms, disjoint/overlapping groups, subgroup drilldown, top-five defaults, PI aliases/namesakes and corporate function attribution. Extended the real in-process MCP workflow test with cohort listing and invalid subgroup handling. Added isolated PostgreSQL CI service tests for actual discovery SQL, title fallback, structured contradictions, exclusions and SQL injection/literal wildcard handling. The database test refuses an existing serving schema and rolls back its synthetic fixtures.
+2. Selection-specific PI matching uses full name plus recorded site identity, or full name plus a valid email. Missing therapeutic area no longer prevents same-site consolidation. A first name or surname plus shared email is i…365 tokens truncated…bgroup handling. Added isolated PostgreSQL CI service tests for actual discovery SQL, title fallback, structured contradictions, exclusions and SQL injection/literal wildcard handling. The database test refuses an existing serving schema and rolls back its synthetic fixtures.
 
 Validation: 403 tests passed locally with two PostgreSQL tests skipped because no local test database was configured. GitHub MCP CI passed with its disposable PostgreSQL service (including both SQL tests); Site agent integration also passed on code commit `d9fad80d888e9a67ab3a172854cd611de995b00a`. The existing workbook binary-equality test failed once locally and passed on rerun; no workbook implementation changed. `git diff --check` passed. Published as PR #79; this iteration is not merged or deployed. Public selection tools remain disabled. Restricted-reader production/staging execution, latency measurement, App-owned selection sessions/atomic admission and representative clinical review remain enablement gates. ChatGPT workflow packaging is still deferred.
 
@@ -232,3 +224,13 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - Gate A remains blocked until the support URL is live and the remaining legal/source/data/readiness checks are evidenced. Gate B additionally requires packaged ChatGPT testing, reviewer access, verification/scans, video, attestations and approval/publication.
 
 - Delivery: App support/legal-draft PR https://github.com/tarous89/intel_agent_app/pull/247; package/checklist remains PR #81. Local validation retry encountered missing project/pytest dependencies in the refreshed workspace; use current GitHub CI results, not a claimed local pass.
+
+## Step 20 — Pre-test verification and support deployment (2026-10-06)
+
+- Confirmed current package build/MCP CI and all three App PR checks succeeded. Expanded readiness into individual checklist outcomes with source/code/CI evidence and explicit factual blockers.
+- Merged approved support/legal-draft PR #247 as c5a06ad0c903c1e19a6032732febe30a6be37216; Render auto-deploy dep-db2g923l550s73cf1aug started on the existing App service. No service plan/env/billing/LLM change. Legal draft remains internal, not a new published policy.
+- Fresh MCP health and both research OAuth discovery endpoints returned 200 with correct audience/issuer. Support initially returned 404 during the build; final status is recorded in the readiness record.
+- Reviewed owned-project output fields, complete-manifest authorization, ephemeral cache semantics and source-version identifiers. Verified expiry must not be described as guaranteed physical deletion. Render workspace retention cannot be inferred from instance pricing tier.
+- Gate A remains blocked on actual legal/controller, source reuse and retention facts plus final publication/verification. No download/test-ready or public approval claim. Owner factual requests are specific in docs/releases/0.1.1-readiness.md.
+
+- Deployment verified live. Found main-host support URL 404 versus Intel App support URL 200; corrected only plugin supportURL to https://intel.trialagents.com/support/intel. Live tool scan returned all four expected tools/auth declarations. New CI artifact required after this metadata correction.

@@ -30,7 +30,7 @@
           "Read supporting trial evidence"
         ],
         "websiteURL": "https://trialagents.com/intel-agent",
-        "supportURL": "https://trialagents.com/support/intel",
+        "supportURL": "https://intel.trialagents.com/support/intel",
         "privacyPolicyURL": "https://trialagents.com/privacy-policy",
         "termsOfServiceURL": "https://trialagents.com/terms-of-service",
         "defaultPrompt": [
