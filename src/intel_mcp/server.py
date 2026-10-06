@@ -158,6 +158,99 @@ def track_tool_call(tool_name: str):
     return decorate
 
 
+from intel_mcp.selection import (SelectionCriteria, SelectionError, CohortSummary, RankingResult, EvidenceResult,
+                                 SelectionCatalogue, DUTIES, LIMITATIONS)
+from intel_mcp.selection_service import authorized_selection
+
+
+def selection_tool(**kwargs):
+    # Backend pilot is opt-in; legacy production tools remain unchanged until enabled.
+    return mcp.tool(**kwargs) if settings.selection_enabled else (lambda function: function)
+
+
+async def _selection(analysis_id, criteria, expected_snapshot=None):
+    try:
+        return await authorized_selection(control_plane_client(), engine_client(), analysis_id, criteria, expected_snapshot)
+    except (ControlPlaneError, EngineError) as error:
+        raise ToolError(f"{error.code}: {error.message}") from error
+    except SelectionError as error:
+        raise ToolError(str(error)) from error
+
+
+@selection_tool(title="Read selection capabilities", meta=OAUTH_TOOL_META,
+                annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+async def get_selection_catalogue() -> SelectionCatalogue:
+    """Return static supported criteria, function codes and explicit pilot limits. No clinical data or model calls."""
+    return SelectionCatalogue(entity_types=["cros", "sites", "pis"],
+        function_codes={str(k): v for k, v in DUTIES.items()},
+        filter_fields=list(TrialFilters.model_fields), limitations=LIMITATIONS)
+
+
+@selection_tool(title="Search a complete trial selection cohort", meta=OAUTH_TOOL_META,
+          annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+@track_tool_call("search_trial_cohort")
+async def search_trial_cohort(
+    analysis_id: Annotated[str, Field(min_length=20, max_length=128)],
+    criteria: SelectionCriteria,
+) -> CohortSummary:
+    """Build direct/related/broader counts from a complete approved-profile base.
+
+    Requires an existing App analysis lease with filter_trials and get_profiles permissions.
+    Meters every base trial/profile, not only the displayed top ten. Fails on incomplete
+    allowance or more than 500 base profiles; never samples. No LLM calls. Return the
+    snapshot and unchanged criteria to rank_entities. Disease filters are literal.
+    """
+    return (await _selection(analysis_id, criteria)).summary()
+
+
+@selection_tool(title="Rank CROs, sites or principal investigators", meta=OAUTH_TOOL_META,
+          annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+@track_tool_call("rank_entities")
+async def rank_entities(
+    analysis_id: Annotated[str, Field(min_length=20, max_length=128)],
+    criteria: SelectionCriteria,
+    expected_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")],
+    limit: Annotated[int, Field(ge=1, le=10)] = 10,
+) -> RankingResult:
+    """Rank the complete eligible cohort by direct then related distinct-trial experience.
+
+    Use criteria and snapshot from search_trial_cohort. CRO function restrictions apply
+    on each trial before counting. Registered country is not service coverage. Trials
+    with operational findings do not receive a quality penalty. Results are historical
+    evidence, not proof of capacity or performance. Zero backend LLM requests.
+    """
+    return (await _selection(analysis_id, criteria, expected_snapshot)).rank(limit)
+
+
+@selection_tool(title="Read selection evidence for an entity", meta=OAUTH_TOOL_META,
+          annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+@track_tool_call("get_entity_evidence")
+async def get_entity_evidence(
+    analysis_id: Annotated[str, Field(min_length=20, max_length=128)],
+    criteria: SelectionCriteria,
+    expected_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")],
+    entity_id: Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")],
+    offset: Annotated[int, Field(ge=0, le=500)] = 0,
+    limit: Annotated[int, Field(ge=1, le=10)] = 10,
+    sections: Annotated[list[ProfileSection], Field(max_length=14)] | None = None,
+) -> EvidenceResult:
+    """Read linked trial roles, findings and optional exact profile sections.
+
+    Use an entity ID from rank_entities. All evidence is bound to the same selection
+    snapshot. Findings are explicitly trial-level, never automatically CRO-attributed.
+    Requested sections use the existing deterministic projection, not summarization.
+    """
+    dataset = await _selection(analysis_id, criteria, expected_snapshot)
+    try:
+        result = dataset.evidence(entity_id, offset, limit)
+    except SelectionError as error:
+        raise ToolError(str(error)) from error
+    if sections:
+        for trial in result.trials:
+            trial["profile_sections"] = project_profile(dataset.records[trial["trial_id"]]["profile"], sections)
+    return result
+
+
 @mcp.tool(
     title="Start Intel analysis",
     meta=OAUTH_TOOL_META,
@@ -995,3 +1088,4 @@ app = MCPServiceAuthMiddleware(mcp.streamable_http_app(transport_security=transp
 
 def main() -> None:
     uvicorn.run("intel_mcp.server:app", host="0.0.0.0", port=settings.port, proxy_headers=True)
+

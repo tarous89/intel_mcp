@@ -35,6 +35,7 @@ class Settings:
     allowed_hosts: tuple[str, ...]
     port: int
     request_timeout_seconds: float
+    selection_enabled: bool = False
     report_plan_service_token: str = ""
     engine_source: str = "http"
     engine_database_url: str = ""
@@ -70,6 +71,7 @@ class Settings:
             "database" if engine_database_url or engine_database_host else "http"
         )
         return cls(
+            selection_enabled=os.getenv("MCP_SELECTION_ENABLED", "false").lower() == "true",
             app_control_url=os.getenv("INTEL_APP_CONTROL_URL", "").strip().rstrip("/"),
             app_service_token=os.getenv("INTEL_APP_SERVICE_TOKEN", "").strip(),
             engine_api_url=os.getenv("INTEL_ENGINE_API_URL", "").strip().rstrip("/"),
@@ -206,3 +208,4 @@ class Settings:
             raise RuntimeError("MCP_EXTRACTOR_MODEL is not configured")
         if self.extractor_max_output_tokens < 1:
             raise RuntimeError("MCP_EXTRACTOR_MAX_OUTPUT_TOKENS must be positive")
+
