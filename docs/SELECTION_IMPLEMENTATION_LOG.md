@@ -92,7 +92,7 @@ Learnings and decisions:
 
 Detailed operational inventory is intentionally omitted from repository documentation. No database mutations, privilege changes, merges, deployments or workflow packaging were performed.
 
-## 6. Owner revision: include every trial — implementation in progress
+## 6. Owner revision: include every trial — implementation and CI complete; deployment blocked
 
 The owner explicitly superseded approved-only population selection and requested existing and future studies be available. Engine migration 047 retains the compatibility approval column, promotes one current profile for every study, and defaults future studies to available. Existing enriched profiles take precedence; retained duplicate versions do not become duplicate studies. Run provenance continues to distinguish deterministic-only content and controls enrichment eligibility independently.
 
@@ -100,4 +100,6 @@ Iteration: a blanket status update would conflict with the one-serving-profile c
 
 Performance iteration: MCP selection now uses a server-side cursor in batches of ten, instead of loading every raw CTIS payload at once. It preserves one SQL snapshot and the whole-cohort failure bounds. This reduces client-side buffering; it does not reduce total wire bytes or establish production latency.
 
-Validation: MCP suite passes locally. Engine unit tests pass; real PostgreSQL migration regression runs in existing Engine CI using synthetic records. Production migration and restricted-login workflow verification are still pending. No ChatGPT workflow packaging is included.
+Validation: 395 MCP tests and 52 targeted Engine tests passed locally. Engine PR #249 passed CTIS Validation, Workspace Engine discovery and App report Engine boundary CI, including the PostgreSQL migration regression against synthetic records. MCP PR #78 passed MCP CI after streaming changes.
+
+Deployment status: Engine PR #249 is ready for review. Automatic approval review rejected its merge because it requires explicit user approval for a production-impacting merge/deployment. No production migration was executed. Ask for explicit approval to merge/deploy #249 before proceeding; do not route around the rejection. Restricted-login selection validation remains pending. ChatGPT workflow packaging is deferred.
