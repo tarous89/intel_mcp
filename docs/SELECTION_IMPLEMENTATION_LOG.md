@@ -241,3 +241,10 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - Explicit restriction: do not add Atlas Consulting or an address to any public TrialAgents page without asking for permission first. No App source, privacy/terms/support page or deployment changed in this step.
 - Verification status is unconfirmed. Official business verification guidance requests the current registered/operating address privately; published plugin manifest requirements do not include a postal-address field. Public website identification/disclosure remains a separate approval-dependent check, not waived.
 - Sources checked: https://help.openai.com/en/articles/10910291-api-organization-verification and https://developers.openai.com/plugins/deploy/submission .
+
+## Step 22 — Authorized public publisher identification (2026-10-06)
+
+- Owner confirmed Germany, supplied an address for Terms only, and then explicitly authorized Atlas Consulting identification on all plugin-review public pages. Earlier blanket public-name restriction is superseded within this scope; postal-address placement remains Terms only.
+- App PR https://github.com/tarous89/intel_agent_app/pull/248 adds operator/publisher identification to the Intel product footer, support, privacy and terms. No verified/approved claim, new Impressum route, app-usage/workflow/tracking change or new LLM call.
+- Learning: trialagents.com is served by the separate trialagents-public snapshot. App source merge/deploy alone is not proof that all four package URLs have updated.
+- Decisions: owner will complete Atlas Consulting verification. Keep Gate A/B factual blockers open; existing privacy/retention/source-rights and stale legal wording are not resolved by this identity-only patch. Deployment/live evidence must be recorded before closing the public-identity check.
