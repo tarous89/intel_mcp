@@ -51,7 +51,7 @@ def test_direct_experience_beats_larger_related_provider():
 def test_top_ten_applies_after_complete_aggregation():
     rows = [record(i, providers=[provider(f"CRO {i:02d}")]) for i in range(1, 21)]
     rows += [record(21, providers=[provider("CRO 20")])]
-    result = SelectionDataset(criteria(), rows).rank()
+    result = SelectionDataset(criteria(), rows).rank(limit=10)
     assert result.total_entities == 20 and result.returned == 10
     assert result.entities[0].name == "CRO 20"
 

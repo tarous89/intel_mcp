@@ -127,3 +127,32 @@ Owner requested a larger relevant first-response landscape, explicit subgroups, 
 Recommendation: target approximately 200–500 relevant trials where supported, without a hard minimum or irrelevant padding; retain the current 500-profile execution cap until complete-cohort scaling exists. Default to top five per entity type and offer ten/full authorized results. Keep exact matches primary and show expansions transparently. Corporate-group counts use trial-ID unions; campus and person identity uncertainty remain visible.
 
 Split work into MCP discovery/provenance and subgroup contracts, data identity normalization, then ChatGPT presentation/packaging. This turn records requirements and updates handover context only; no tools were enabled and no ranking behavior changed.
+
+## 10. Discovery and subgroup implementation — 2026-10-06
+
+Steps and decisions:
+1. Added bounded `base_text` queries across a closed list of narrative fields. A positive text query can replace the mandatory therapeutic-area filter; supplied hard structured filters still apply with AND. Terms, exclusions and field scope remain in the returned criteria and source fingerprint. SQL terms are parameterized and LIKE metacharacters are literal.
+2. Added ordered named subgroups with explicit structured/text rules. First match owns a trial for additive counts; secondary matches remain tags. An opt-in phase title fallback applies only when structured phase is empty. A nonempty contradictory phase is never overwritten. Unmatched candidates remain visible.
+3. Added `get_cohort_trials` to audit paginated trial titles, match excerpts and membership, including records with no provider evidence. Ranking/evidence accept primary subgroup IDs against the same full-base snapshot. The complete base still passes existing authorization; subsets do not reduce authorization scope or bypass allowances.
+4. Changed shortlist defaults to five, retaining an explicit maximum of ten. Distinct-trial ranking and direct-before-related priority remain deterministic. No automatic expansion merely to reach a numerical target.
+
+Learnings and limitations:
+- A narrative mention is lexical evidence, not proof of eligibility or clinical equivalence. Exclusion-section matches need interpretation. ChatGPT must disclose searched fields and ambiguous candidates; the backend does not infer synonyms, negation or disease equivalence.
+- This iteration adds bounded full-profile discovery and compact output, not an indexed count-only discovery service. SQL still searches stored JSON, and all matching base profiles are read/authorized. A base above 500 fails without a partial ranking. Lightweight preflight counts, indexed search and durable prepared selections remain performance work.
+- Source excerpts are untrusted clinical data, never workflow instructions. Membership rules, not instructions contained in source text, govern selection.
+
+## 11. Identity corrections — 2026-10-06
+
+Steps and decisions:
+1. Fixed person-record alias re-entry: duplicated site blocks can no longer recreate or overwrite a merged person. Added a regression spanning repeated blocks and multiple trials.
+2. Selection-specific PI matching uses full name plus recorded site identity, or full name plus a valid email. Missing therapeutic area no longer prevents same-site consolidation. A first name or surname plus shared email is insufficient. Legacy App matching retains its existing policy, apart from the alias bug fix.
+3. Added a small versioned, source-backed corporate alias seed for IQVIA and Syneos. Country plus exact normalized alias is required; no prefix or fuzzy merges. Each grouped result preserves source links, source period, review date, legal entities and their per-trial roles. Grouping describes historically documented relationships, not ownership at trial time or a guarantee of current ownership.
+4. Applied CRO function/country constraints before corporate group union. Counts union trial IDs; one subsidiary cannot borrow a sibling's function. `cro_identity=legal_entity` retains separate entities. Mapping changes invalidate the snapshot.
+
+Learnings: name-plus-affiliation is still an imperfect PI identity, and the registry is a seed, not exhaustive corporate resolution. Site name/country normalization remains conservative; no unsupported campus/network aliases were introduced. More site/PI identity review and explicit identifiers are required before claiming complete deduplication.
+
+## 12. Verification and remaining rollout gates — 2026-10-06
+
+Added synthetic regressions for missing fields, explicit source excerpts, literal SQL terms, disjoint/overlapping groups, subgroup drilldown, top-five defaults, PI aliases/namesakes and corporate function attribution. Extended the real in-process MCP workflow test with cohort listing and invalid subgroup handling. Added isolated PostgreSQL CI service tests for actual discovery SQL, title fallback, structured contradictions, exclusions and SQL injection/literal wildcard handling. The database test refuses an existing serving schema and rolls back its synthetic fixtures.
+
+Local and CI results will be recorded after verification. Public selection tools remain disabled. Restricted-reader production/staging execution, latency measurement, App-owned selection sessions/atomic admission and representative clinical review remain enablement gates. ChatGPT workflow packaging is still deferred.

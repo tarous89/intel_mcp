@@ -71,3 +71,49 @@ Never present all third-party providers as full-service CROs. Offer a general pr
 Proposed description for later packaging: “Find CROs, investigators and trial sites using recorded clinical-trial experience. Explore a relevant trial landscape, compare evidence-backed shortlists, and drill into diseases, phases, countries and provider functions.”
 
 Keep tools disabled until existing enablement gates pass. This document records agreed direction and recommendations; it does not enable or deploy these capabilities.
+
+## Implemented contract: selection version 2
+
+The next implementation supports `base_text` (explicit fields, terms, any/all operator and exclusions), ordered `subgroups` (ID, label, bucket, structured filters, optional text query and optional phase title fallback), `get_cohort_trials`, and `subgroup_ids` on ranking/evidence. Default ranking limit is five. Text clauses AND with hard structured filters. To include missing therapeutic areas, omit that structured filter and supply positive disease/population text criteria.
+
+Example discovery criteria fragment for an initial prostate landscape:
+
+```json
+{
+  "base": {},
+  "base_text": {
+    "fields": ["title", "diseases", "population"],
+    "terms": ["prostate cancer", "prostatic carcinoma"]
+  },
+  "subgroups": [
+    {
+      "id": "exact_phrase_phase3",
+      "label": "Explicit mHSPC/mCSPC phrase, phase III evidence",
+      "bucket": "direct",
+      "filters": {"phase": {"values": [3]}},
+      "phase_title_fallback": true,
+      "text": {
+        "fields": ["title", "population"],
+        "terms": ["metastatic hormone-sensitive prostate cancer", "metastatic castration-sensitive prostate cancer", "mhspc", "mcspc"]
+      }
+    },
+    {
+      "id": "other_prostate",
+      "label": "Other prostate cancer evidence; clinical review required",
+      "bucket": "related",
+      "text": {"fields": ["title", "diseases", "population"], "terms": ["prostate cancer", "prostatic carcinoma"]}
+    }
+  ],
+  "include_broader": true,
+  "entity_type": "cros",
+  "as_of": "2026-10-06"
+}
+```
+
+This is an illustrative lexical query, not a validated exhaustive clinical phenotype. Adapt explicit synonyms and inspect unresolved titles/population/eligibility. Do not label all remaining prostate studies mHSPC or equally transferable. If the landscape exceeds the cap, narrow a disclosed constraint; no partial top-five result is valid. The 200–500 target is a workflow goal, never a minimum enforced by padding.
+
+Subgroup counts are disjoint first-match counts. `overlapping_count` and trial tags expose overlap; they are not additive. `subgroup_ids` selects the primary groups, not all overlapping tags. Reuse the same criteria/snapshot for listing, ranking and entity evidence. To rank broader groups, `include_broader` must be true in the original search. Changing criteria requires a new search/snapshot.
+
+Corporate-group output uses a limited reviewed alias registry, with legal-entity mode available. Unmapped names remain separate. Country filters describe recorded legal entities or site affiliations, not corporate worldwide service capacity. The current historical mappings do not reconstruct acquisition timing. Site campus alias resolution remains future work.
+
+Performance boundary: this implementation does not yet count/search a large candidate population without loading the bounded matching profiles. It makes responses compact but does not eliminate database JSON scanning, repeated authorization or source reads. Indexed lightweight discovery and prepared selections are the next scaling steps.

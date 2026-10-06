@@ -8,6 +8,20 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: selection_test
+          POSTGRES_PASSWORD: selection_test
+          POSTGRES_DB: selection_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U selection_test -d selection_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_SELECTION_DATABASE_URL: postgresql://selection_test:selection_test@localhost:5432/selection_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,3 +49,4 @@ jobs:
           done
           echo 'MCP health did not report classifier_configured=true.' >&2
           exit 1
+
