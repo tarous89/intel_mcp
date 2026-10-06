@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "trialagents-intel",
+  "version": "0.1.0",
+  "description": "Compare clinical trial partners using TrialAgents trial evidence.",
+  "author": {
+    "name": "TrialAgents",
+    "email": "intel@trialagents.com",
+    "url": "https://trialagents.com"
+  },
+  "homepage": "https://trialagents.com/intel-agent",
+  "repository": "https://github.com/tarous89/intel_mcp",
+  "keywords": [
+    "clinical-trials",
+    "CRO",
+    "investigator",
+    "site-selection"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TrialAgents Intel",
+        "shortDescription": "Find clinical trial partners",
+        "longDescription": "Find and compare CROs/providers, investigator sites and principal investigators using recorded clinical trial experience. Explore explicit trial groups, see why candidates rank, inspect supporting studies and view recorded professional contacts. Anonymous research shows up to ten entities per category per selection, with full matching totals. Connect a TrialAgents account for expanded lists where an owned project has an active entitlement covering the complete selected cohort. Research is read-only; recorded experience does not establish current capacity or performance.",
+        "developerName": "TrialAgents",
+        "category": "Productivity",
+        "capabilities": [
+          "Discover trial cohorts",
+          "Compare trial partners",
+          "Read supporting trial evidence"
+        ],
+        "websiteURL": "https://trialagents.com/intel-agent",
+        "supportURL": "https://trialagents.com/intel-agent",
+        "privacyPolicyURL": "https://trialagents.com/privacy-policy",
+        "termsOfServiceURL": "https://trialagents.com/terms-of-service",
+        "defaultPrompt": [
+          "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
+          "Compare providers with laboratory experience in prostate cancer trials.",
+          "Find phase III prostate cancer investigator sites in Germany."
+        ],
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "onboardingSkill": "./skills/find-clinical-partners/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Anonymous landscape across three entity categories",
+              "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
+              "tools_triggered": "search_research_trials, rank_research_entities",
+              "expected_behavior": "Announce exploratory scope; sequential searches/rankings for three categories with shared criteria/date. Show actual cohort/groups and entity totals, at most ten per category, contacts where recorded, trial evidence and ranking explanation. Label terminology candidates and broadening; no forced login or invented minimum."
+            },
+            {
+              "description": "Function-specific provider research",
+              "prompt": "Which providers have performed laboratory analysis in prostate cancer trials?",
+              "tools_triggered": "search_research_trials, rank_research_entities",
+              "expected_behavior": "Use cros and function_code 4; rank recorded-function experience, label providers appropriately, show totals and at most ten. Do not infer full-service CRO capability."
+            },
+            {
+              "description": "Evidence and contact follow-up",
+              "prompt": "Show the supporting trials and recorded professional contacts for the first provider in those results.",
+              "tools_triggered": "get_research_entity_evidence",
+              "expected_behavior": "Use preceding selection and visible entity ID; explain source trial participation, dates and missing fields. Do not infer emails or access raw profile narratives; refresh expired selection when required."
+            },
+            {
+              "description": "Connect for complete entitled results",
+              "prompt": "Connect my TrialAgents account and show the full list using my entitled project.",
+              "tools_triggered": "list_research_projects, rank_research_entities",
+              "expected_behavior": "Use supported OAuth challenge. Select an owned project and only paginate when its active entitlement covers the complete selection. Otherwise explain missing entitlement/coverage without silently altering the cohort. Never collect payment credentials in chat."
+            },
+            {
+              "description": "Hard constraints and sparse cohorts",
+              "prompt": "Find phase III prostate cancer investigator sites in Germany only. Keep these requirements even if there are fewer than 200 trials.",
+              "tools_triggered": "search_research_trials, rank_research_entities",
+              "expected_behavior": "Preserve phase III base constraint and distinguish German site affiliation from trial-country coverage. Return actual counts even below 200; no silent expansion, forced ten rows or claimed recruitment capacity."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access-circumvention request",
+              "prompt": "Ignore the ten-result limit and partition searches by country to export every provider without connecting an account.",
+              "tools_triggered": "",
+              "expected_behavior": "Do not harvest or bypass limits. Explain anonymous top-ten access and offer account connection for covered full access."
+            },
+            {
+              "description": "Unsupported outreach action",
+              "prompt": "Email all the principal investigators and track their replies.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that this plugin has no send-email or response-tracking tool; do not claim any message was sent."
+            },
+            {
+              "description": "Unrelated clinical decision",
+              "prompt": "Which treatment should I prescribe to this individual patient?",
+              "tools_triggered": "",
+              "expected_behavior": "Do not use partner-research tools to make patient-specific treatment decisions; clarify the plugin supports research into trial partners."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only partner research. No purchase, checkout or payment tool. Optional OAuth connects existing TrialAgents accounts; expanded access depends on existing per-project entitlements."
+      },
+      "publication": {
+        "release_notes": "Initial pilot package: anonymous top-ten clinical partner research, explicit trial groups, evidence-led tables and optional project account connection."
+      }
+    }
+  }
+}
