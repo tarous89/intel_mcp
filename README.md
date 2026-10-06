@@ -1,5 +1,7 @@
 # Intel MCP
 
+Backend pilot in progress: [deterministic selection tools](docs/deterministic-selection.md) and [step-by-step implementation log](docs/SELECTION_IMPLEMENTATION_LOG.md). Four additional tools are opt-in through `MCP_SELECTION_ENABLED`; production defaults and original six tools are unchanged. ChatGPT workflow packaging is deferred.
+
 Reviewed 2026-10-03. Standalone MCP tools and Engine read contracts below remain active. Older Intel Light/Max/Workspace and Site Agent products are archived. Their allowance names and compatibility modules are not current pricing. New combined Intel reports are App-owned. Read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [current combined contract](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) before product changes. Previous offers/design decisions are in [history.md](history.md).
 
 Remote Model Context Protocol service for TrialAgents Intel Agent.
@@ -233,3 +235,4 @@ schema migrations and all writes. PostgreSQL enforces the split: the MCP role ca
 only `mcp_serving.*_v1`, every MCP checkout begins `SET TRANSACTION READ ONLY`, and MCP
 startup rejects any database URL whose username is not the restricted role. See
 `docs/ENGINE_READ_CUTOVER.md` for the current boundary and deliberate rollback.
+

@@ -237,6 +237,18 @@ class DatabaseEngineClient:
             )
         return parsed
 
+    async def selection(self, criteria):
+        from intel_mcp.engine_read.selection import read_selection
+        from intel_mcp.selection import SelectionError
+        if self._all_profiles:
+            raise SelectionError("SELECTION_SOURCE_FORBIDDEN: Approved-only reader required.")
+        # Preserve domain errors, rather than rewriting them as database outages.
+        self._settings.validate_engine()
+        try:
+            return await asyncio.to_thread(self._execute, read_selection, criteria.model_dump(mode="json"))
+        except (PoolTimeout, psycopg.Error) as error:
+            raise EngineError("ENGINE_UNAVAILABLE", "Selection data store is unavailable.", 503) from error
+
     async def healthcheck(self) -> None:
         def check(connection: psycopg.Connection[Any], _request: dict[str, Any]) -> dict[str, Any]:
             connection.execute("SELECT 1 FROM mcp_serving.profile_filter_v1 LIMIT 0")
@@ -247,3 +259,4 @@ class DatabaseEngineClient:
     def close(self) -> None:
         if self._pool is not None:
             self._pool.close()
+

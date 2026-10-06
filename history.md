@@ -29,3 +29,8 @@ Previous `REPORT_EXECUTION_CONTEXT.md`: [original document at the audited revisi
 ## project-context-md
 
 Previous `PROJECT_CONTEXT.md`: [original document at the audited revision](https://github.com/tarous89/intel_mcp/blob/862ef4aa6a4337510b86a8d419e4843a75a316f7/PROJECT_CONTEXT.md). Its older offer, milestone or implementation narrative is historical. Use the current owning contract before making changes.
+
+
+## 2026-10-06: deterministic selection backend pilot
+
+Owner requested an MCP-specific implementation log, validation and deterministic CRO/site/PI tools before ChatGPT packaging. Chose additive opt-in tools and existing approved-only access; preserved old entitlements. Complete bounded cohorts are ranked with direct/related/broader experience and recorded CRO function evidence. Source drift fails explicitly. Reused legacy authorization batching for the pilot, with partial-admission metering documented; a new atomic session/admission API is a rollout gate. No production settings or schema changes.
