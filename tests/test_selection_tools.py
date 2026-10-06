@@ -24,16 +24,21 @@ async def test_real_mcp_serialization_workflow_no_model_tokens(monkeypatch):
     mcp = MCPServer('selection-test')
     monkeypatch.setattr(server, 'mcp', mcp)
     monkeypatch.setattr(server, 'settings', replace(server.settings, selection_enabled=True))
-    for function in (server.search_trial_cohort, server.rank_entities, server.get_entity_evidence):
+    for function in (server.search_trial_cohort, server.get_cohort_trials, server.rank_entities, server.get_entity_evidence):
         server.selection_tool(meta=server.OAUTH_TOOL_META, annotations=ToolAnnotations(
             read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))(function)
     async with Client(mcp) as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 3 and all(tool.output_schema for tool in tools)
+        assert len(tools) == 4 and all(tool.output_schema for tool in tools)
         arguments = {'analysis_id': 'ana_' + '1' * 24, 'criteria': criteria().model_dump(mode='json')}
         cohort = await client.call_tool('search_trial_cohort', arguments)
         assert not cohort.is_error
         arguments['expected_snapshot'] = cohort.structured_content['snapshot']
+        listed = await client.call_tool('get_cohort_trials', arguments)
+        assert not listed.is_error and listed.structured_content['total_trials'] == 1
+        assert listed.structured_content['trials'][0]['title'] == 'Study 1'
+        bad_group = await client.call_tool('rank_entities', {**arguments, 'subgroup_ids': ['missing']})
+        assert bad_group.is_error
         ranked = await client.call_tool('rank_entities', arguments)
         assert not ranked.is_error
         entity = ranked.structured_content['entities'][0]
@@ -60,3 +65,4 @@ async def test_catalogue_is_static_and_exposes_function_vocabulary():
     result = await server.get_selection_catalogue()
     assert result.function_codes['1'] == 'On site monitoring'
     assert 'diseases' in result.filter_fields and result.max_results == 10
+    assert result.default_results == 10 and 'title' in result.discovery_fields

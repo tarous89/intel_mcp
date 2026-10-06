@@ -459,8 +459,15 @@ class ProfileRanker:
                         for therapeutic_area in trial["therapeutic_areas"]
                         if first_name and last_name
                     }
+                    if self.criteria.get("strict_identity"):
+                        # Same complete name at the same site, independent of missing TA.
+                        full_name_ta_keys = {(first_name, last_name, site_id)} if first_name and last_name else set()
                     email_first_key = (email, first_name) if email and first_name else None
                     email_last_key = (email, last_name) if email and last_name else None
+                    if self.criteria.get("strict_identity"):
+                        # Shared addresses plus only a first/last name are insufficient.
+                        email_first_key = (email, first_name + "|" + last_name) if email and first_name and last_name else None
+                        email_last_key = None
                     matches = {
                         self._person_root(person_id)
                         for person_id in (
@@ -474,7 +481,8 @@ class ProfileRanker:
                         "person-record", trial_id, site_id, str(investigator_index),
                         first_name, last_name, email,
                     )
-                    self.people[record_id] = self._empty_person(record_id)
+                    record_id = self._person_root(record_id)
+                    self.people.setdefault(record_id, self._empty_person(record_id))
                     person_id = self._merge_people(matches | {record_id})
                     person = self.people[person_id]
                     for identity in full_name_ta_keys:
@@ -593,3 +601,4 @@ def rank_profiles(items: list[dict], criteria: dict, *, preview_limit: int = PRE
     ranker = ProfileRanker(criteria)
     ranker.add(items)
     return ranker.result(preview_limit)
+

@@ -71,3 +71,76 @@ Never present all third-party providers as full-service CROs. Offer a general pr
 Proposed description for later packaging: “Find CROs, investigators and trial sites using recorded clinical-trial experience. Explore a relevant trial landscape, compare evidence-backed shortlists, and drill into diseases, phases, countries and provider functions.”
 
 Keep tools disabled until existing enablement gates pass. This document records agreed direction and recommendations; it does not enable or deploy these capabilities.
+
+## Implemented contract: selection version 2
+
+The next implementation supports `base_text` (explicit fields, terms, any/all operator and exclusions), ordered `subgroups` (ID, label, bucket, structured filters, optional text query and optional phase title fallback), `get_cohort_trials`, and `subgroup_ids` on ranking/evidence. Default ranking limit is five. Text clauses AND with hard structured filters. To include missing therapeutic areas, omit that structured filter and supply positive disease/population text criteria.
+
+Example discovery criteria fragment for an initial prostate landscape:
+
+```json
+{
+  "base": {},
+  "base_text": {
+    "fields": ["title", "diseases", "population"],
+    "terms": ["prostate cancer", "prostatic carcinoma"]
+  },
+  "subgroups": [
+    {
+      "id": "exact_phrase_phase3",
+      "label": "Explicit mHSPC/mCSPC phrase, phase III evidence",
+      "bucket": "direct",
+      "filters": {"phase": {"values": [3]}},
+      "phase_title_fallback": true,
+      "text": {
+        "fields": ["title", "population"],
+        "terms": ["metastatic hormone-sensitive prostate cancer", "metastatic castration-sensitive prostate cancer", "mhspc", "mcspc"]
+      }
+    },
+    {
+      "id": "other_prostate",
+      "label": "Other prostate cancer evidence; clinical review required",
+      "bucket": "related",
+      "text": {"fields": ["title", "diseases", "population"], "terms": ["prostate cancer", "prostatic carcinoma"]}
+    }
+  ],
+  "include_broader": true,
+  "entity_type": "cros",
+  "as_of": "2026-10-06"
+}
+```
+
+This is an illustrative lexical query, not a validated exhaustive clinical phenotype. Adapt explicit synonyms and inspect unresolved titles/population/eligibility. Do not label all remaining prostate studies mHSPC or equally transferable. If the landscape exceeds the cap, narrow a disclosed constraint; no partial top-five result is valid. The 200–500 target is a workflow goal, never a minimum enforced by padding.
+
+Subgroup counts are disjoint first-match counts. `overlapping_count` and trial tags expose overlap; they are not additive. `subgroup_ids` selects the primary groups, not all overlapping tags. Reuse the same criteria/snapshot for listing, ranking and entity evidence. To rank broader groups, `include_broader` must be true in the original search. Changing criteria requires a new search/snapshot.
+
+Corporate-group output uses a limited reviewed alias registry, with legal-entity mode available. Unmapped names remain separate. Country filters describe recorded legal entities or site affiliations, not corporate worldwide service capacity. The current historical mappings do not reconstruct acquisition timing. Site campus alias resolution remains future work.
+
+Performance boundary: this implementation does not yet count/search a large candidate population without loading the bounded matching profiles. It makes responses compact but does not eliminate database JSON scanning, repeated authorization or source reads. Indexed lightweight discovery and prepared selections are the next scaling steps.
+
+## Final access decision — 2026-10-06 (supersedes earlier defaults)
+
+Owner decision:
+- Initial research is free and anonymous. No registration or email collection is required. No business quota on research requests; operational rate/concurrency protections remain necessary.
+- Show up to TEN results per entity category per selection, with recorded professional emails/addresses where available. This supersedes the earlier top-five presentation default. Fewer than ten eligible entities must be reported honestly.
+- Always show the distinct trial population, disjoint subgroup counts, total eligible normalized entities per category, and returned count. Counts must use the same cohort, country/function filters and identity policy as the shortlist. Never imply unavailable data exists behind a paywall.
+- Repeated reads of a selection reveal only its allowed top ten. Evidence/contact/profile-section/export routes must enforce the same entity allowlist; a ten-row ranking response alone is insufficient. Different legitimate queries may produce different top tens: the owner wants unrestricted research, not a lifetime ten-entity cap.
+- Full access requires connecting a TrialAgents account and verifying the relevant existing Intel Agent entitlement server-side. Login alone does not confer paid access. Preserve existing per-project entitlement semantics; do not convert a project license into account-wide database access.
+- Keep existing Intel Agent pricing: EUR 490/month per project or EUR 2,900/year per project, VAT extra, automatic renewal; annual access includes monthly evidence updates. Reuse existing billing/entitlement logic. No separate ChatGPT surcharge. Trial offers versus payment upfront remain a future product decision; do not introduce either automatically.
+- Minimize connection friction with hosted sign-in/consent returning directly to ChatGPT. An anonymous caller's ChatGPT email is not supplied to us.
+
+Publication boundary, checked against OpenAI's published Directory guidelines on 2026-10-06:
+- A plugin may explain missing entitlement, connect an existing account, and link to an informational access page.
+- Do not initiate digital-subscription checkout, promote upgrades or link directly to Stripe/another page that starts a subscription. The owner's wish to subscribe from ChatGPT is conditional on platform acceptance; it is not approved by the current guidelines.
+- An independent TrialAgents subscription/account page can handle billing. The plugin's informational link must not itself initiate purchase. Use the existing Intel Agent purchase/account route where suitable rather than automatically creating a duplicate sales page.
+- Proposed neutral limit response: "Your current access includes ten results per selection. Connect your TrialAgents account to check full-list access." Connection checks entitlement; it does not promise all connected accounts qualify.
+- Sources: https://developers.openai.com/plugins/plugin-guidelines and https://developers.openai.com/plugins/build/auth . Recheck before Directory submission.
+
+Implementation sequence: optimize and validate discovery; add explicit entity-bound contacts and total-count contract; introduce anonymous selection sessions plus a server-owned top-ten allowlist; connect existing paid entitlements and full pagination; validate cross-tool access; then package the ChatGPT workflow. These are agreed requirements, not claims that the current tools already allow anonymous use or enforce a free-tier boundary.
+
+
+## Research connector implementation boundary (2026-10-06)
+
+The staged public endpoint is `/research/mcp`, independently disabled by default. Start with `search_research_trials`, then `rank_research_entities`; use `get_research_entity_evidence` only for displayed entities. State exact criteria, fields searched, cohort/subgroup counts, total eligible entities and up to ten rows per requested category. New subgroup searches may yield a new ten; do not describe this as a lifetime quota. Missing contacts stay missing. Free evidence omits unrestricted narratives, so do not promise operational findings unless actually returned.
+
+For full lists, use `list_research_projects` to initiate account connection and inspect existing project access. An eligible project must cover the whole selected trial cohort; connecting any paid account is insufficient. No checkout is initiated in this workflow. OAuth setup and public performance validation precede ChatGPT packaging.

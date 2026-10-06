@@ -66,6 +66,19 @@ class ControlPlaneClient:
             )
         return body
 
+    async def research_access(self, project_id: str | None, trial_ids: list[str]) -> dict:
+        if not current_oauth_subject():
+            raise ControlPlaneError("CONNECT_ACCOUNT_REQUIRED", "Connect your TrialAgents account.", 401)
+        self._settings.validate_control_plane()
+        response = await self._post(f"{self._settings.app_control_url}/api/internal/mcp/research-access",
+                                    {"projectId": project_id, "trialIds": trial_ids})
+        if not response.is_success:
+            raise self._response_error(response, "RESEARCH_ACCESS_UNAVAILABLE", "Project access could not be verified.")
+        body = response.json()
+        if not isinstance(body, dict):
+            raise ControlPlaneError("INVALID_ACCESS_RESPONSE", "Invalid project access response.", 502)
+        return body
+
     async def authorize_filter_results(
         self, analysis_id: str, trial_ids: list[str]
     ) -> AppFilterAccessResponse:
@@ -261,3 +274,4 @@ class ControlPlaneClient:
         except ValueError:
             pass
         return ControlPlaneError(code, message, response.status_code)
+
