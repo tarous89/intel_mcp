@@ -1114,29 +1114,34 @@ class MCPServiceAuthMiddleware:
         return f'Bearer resource_metadata="{origin}/.well-known/oauth-protected-resource", scope="{OAUTH_SCOPE}"'
 
 
-legacy_http = mcp.streamable_http_app(transport_security=transport_security)
-app = MCPServiceAuthMiddleware(legacy_http)
-if settings.research_enabled:
-    from contextlib import AsyncExitStack, asynccontextmanager
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
-    from intel_mcp.research_server import create_research_server
-    research, ResearchAuth, research_store, research_resource, research_challenge = create_research_server(
-        settings, engine_client, control_plane_client)
-    research_http = research.streamable_http_app(stateless_http=True, transport_security=transport_security)
+def build_app():
+    """Compose HTTP surfaces after all production routes have been registered."""
+    legacy_http = mcp.streamable_http_app(transport_security=transport_security)
+    app = MCPServiceAuthMiddleware(legacy_http)
+    if settings.research_enabled:
+        from contextlib import AsyncExitStack, asynccontextmanager
+        from starlette.applications import Starlette
+        from starlette.routing import Mount
+        from intel_mcp.research_server import create_research_server
+        research, ResearchAuth, research_store, research_resource, research_challenge = create_research_server(
+            settings, engine_client, control_plane_client)
+        research_http = research.streamable_http_app(stateless_http=True, transport_security=transport_security)
+    
+        @asynccontextmanager
+        async def lifespan(application):
+            async with AsyncExitStack() as stack:
+                await stack.enter_async_context(legacy_http.router.lifespan_context(legacy_http))
+                await stack.enter_async_context(research_http.router.lifespan_context(research_http))
+                yield
+    
+        app = Starlette(routes=[
+            Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
+            Mount('/', app=app),
+        ], lifespan=lifespan)
+    return app
 
-    @asynccontextmanager
-    async def lifespan(application):
-        async with AsyncExitStack() as stack:
-            await stack.enter_async_context(legacy_http.router.lifespan_context(legacy_http))
-            await stack.enter_async_context(research_http.router.lifespan_context(research_http))
-            yield
 
-    app = Starlette(routes=[
-        Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
-        Mount('/', app=app),
-    ], lifespan=lifespan)
-
+app = build_app()
 
 def main() -> None:
     uvicorn.run("intel_mcp.server:app", host="0.0.0.0", port=settings.port, proxy_headers=True)

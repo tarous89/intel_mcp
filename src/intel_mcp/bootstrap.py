@@ -72,10 +72,9 @@ register_report_dataset(server.mcp, server.settings, _authorized)
 
 # server.app is built before this module registers the routes. Rebuild the ASGI app
 # so the production entrypoint contains the public MCP and private app boundaries.
-app = server.MCPServiceAuthMiddleware(
-    server.mcp.streamable_http_app(transport_security=server.transport_security)
-)
+app = server.build_app()
 
 
 def main() -> None:
     uvicorn.run("intel_mcp.bootstrap:app", host="0.0.0.0", port=server.settings.port, proxy_headers=True)
+

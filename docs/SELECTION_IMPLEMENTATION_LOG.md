@@ -197,3 +197,10 @@ Rollout sequence:
 5. Only after those checks, package ChatGPT workflow/description and review directory requirements. The workflow must explain search criteria, cohort groups, ranking basis, missing contacts, totals and available follow-up questions.
 
 CI follow-up: MCP CI passed all 411 tests (including actual PostgreSQL discovery SQL); Engine CTIS Validation passed all 505 tests (including migration 048). App entitlement tests and whole-project TypeScript checks passed after changing the throwing validation helper to a function declaration so TypeScript retains validated input narrowing. The existing local workbook byte-equality test failed once and passed on isolated rerun; workbook code was unchanged and MCP CI passed it. Published changes: Engine PR #250, App PR #246 and MCP PR #79. Both new feature flags remain disabled, and these PRs are not yet merged/deployed. The public research endpoint requires `MCP_ENGINE_SOURCE=database` with the existing restricted reader credentials; unsupported HTTP-only configuration fails explicitly.
+
+
+## 16. Deployment validation and production startup correction — 2026-10-06
+
+Merged Engine #250, App #246 and MCP #79. Engine migration 048 completed; all 12,585 available profiles have search projections and the restricted role retains SELECT access. A database-only title/disease prostate index probe returned 192 candidates in 9.726 ms; this is not full profile retrieval or end-to-end MCP latency. App research OAuth metadata is live and the pre-existing BD root metadata is preserved.
+
+The production `intel-mcp` entrypoint uses `bootstrap.py`, which registers report/site routes and rebuilt only the legacy HTTP server. The first live research check therefore returned 404 despite the research flag. Corrected both entrypoints to call the same HTTP composition factory after route registration; changed the regression to load the actual production bootstrap. Existing private App routes retain their service-token boundary. Public access still requires live end-to-end validation after this correction.
