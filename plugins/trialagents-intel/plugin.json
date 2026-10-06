@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "TrialAgents",
@@ -30,7 +30,7 @@
           "Read supporting trial evidence"
         ],
         "websiteURL": "https://trialagents.com/intel-agent",
-        "supportURL": "https://trialagents.com/intel-agent",
+        "supportURL": "https://trialagents.com/support/intel",
         "privacyPolicyURL": "https://trialagents.com/privacy-policy",
         "termsOfServiceURL": "https://trialagents.com/terms-of-service",
         "defaultPrompt": [
@@ -59,15 +59,15 @@
             },
             {
               "description": "Evidence and contact follow-up",
-              "prompt": "Show the supporting trials and recorded professional contacts for the first provider in those results.",
-              "tools_triggered": "get_research_entity_evidence",
-              "expected_behavior": "Use preceding selection and visible entity ID; explain source trial participation, dates and missing fields. Do not infer emails or access raw profile narratives; refresh expired selection when required."
+              "prompt": "Find prostate cancer CROs, then show supporting trials and recorded contacts for the first ranked provider.",
+              "tools_triggered": "search_research_trials, rank_research_entities, get_research_entity_evidence",
+              "expected_behavior": "Start from a fresh chat. Search prostate trial experience and rank at most ten providers. Use the returned first entity and selection IDs for supporting evidence; if no entities exist, report that honestly. Show only recorded professional contacts and returned source links. No fixed IDs, raw profiles or invented contacts; refresh expired selections."
             },
             {
               "description": "Connect for complete entitled results",
-              "prompt": "Connect my TrialAgents account and show the full list using my entitled project.",
-              "tools_triggered": "list_research_projects, rank_research_entities",
-              "expected_behavior": "Use supported OAuth challenge. Select an owned project and only paginate when its active entitlement covers the complete selection. Otherwise explain missing entitlement/coverage without silently altering the cohort. Never collect payment credentials in chat."
+              "prompt": "Find prostate cancer CROs, connect my TrialAgents account, and show the full list using my entitled project.",
+              "tools_triggered": "search_research_trials, rank_research_entities, list_research_projects",
+              "expected_behavior": "Start from a fresh chat with the reviewer account/project configured in secure Review details. Create a prostate selection and show anonymous top-ten results; initiate supported OAuth and select the reviewer-owned project. With full cohort coverage and active entitlement, paginate the full list; otherwise explain denied coverage without changing the cohort. A denied outcome does not substitute for demonstrating the configured full-access success path. No purchase, passwords or payment credentials in chat."
             },
             {
               "description": "Hard constraints and sparse cohorts",
@@ -101,7 +101,7 @@
         "commerce_description": "Read-only partner research. No purchase, checkout or payment tool. Optional OAuth connects existing TrialAgents accounts; expanded access depends on existing per-project entitlements."
       },
       "publication": {
-        "release_notes": "Initial pilot package: anonymous top-ten clinical partner research, explicit trial groups, evidence-led tables and optional project account connection."
+        "release_notes": "Initial clinical partner research release: explicit trial cohorts, top-ten tables, supporting evidence and optional connection to existing TrialAgents project access."
       }
     }
   }
