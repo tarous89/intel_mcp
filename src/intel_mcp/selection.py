@@ -120,7 +120,7 @@ class EvidenceResult(Contract):
 
 
 LIMITATIONS = [
-    "Approved stored profiles only; this population can differ from the combined App.",
+    "Current serving profiles; full study coverage requires Engine availability migration 047. Deterministic-only profiles may have less evidence.",
     "Structured matching is literal; disease synonyms and semantic similarity are not inferred.",
     "Recorded participation is not verified capacity, recruitment performance or availability.",
     "Trial operational findings are not attributed to an entity without separate evidence.",

@@ -63,3 +63,7 @@ Tools remain disabled by default. Code tests do not establish live coverage, lat
 ### Live validation status
 
 Read-only aggregate validation confirmed profile/filter alignment and expected schema structure. Actual restricted-login execution, full workflow performance and clinical review remain rollout gates. The serialized-record size limit applies after lifecycle projection and does not bound raw SQL transfer; compact lifecycle/source projection must be evaluated before production scale. Broad cohorts may require narrower filters. Missing provider evidence does not establish absence of participation.
+
+### Revised population policy
+
+The owner requested all profiled studies, including deterministic-only studies. Engine migration 047 makes each study available through one current approved profile while preserving duplicate versions and enrichment provenance. Existing view names remain compatible. Deploy that migration before claiming all-trial coverage; migration deployment and restricted-login verification are pending. The 500-trial per-query cap still requires narrowing and never samples. Selection reads now stream ten raw profiles per batch; total transfer volume is unchanged.

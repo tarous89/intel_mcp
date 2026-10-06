@@ -11,8 +11,17 @@ class Connection:
     def execute(self, sql, params):
         self.calls.append((sql, params))
         return self
-    def fetchall(self):
-        return self.rows
+    def cursor(self, *, name):
+        assert name == 'selection_profiles'
+        return self
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        return None
+    def fetchmany(self, size):
+        assert size == 10
+        batch, self.rows = self.rows[:size], self.rows[size:]
+        return batch
 
 
 def dbrow(i=1):

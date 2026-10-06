@@ -91,3 +91,13 @@ Learnings and decisions:
 - Implementation CI passed. Tools remain disabled until restricted-login/staging workflow validation and clinical review are complete.
 
 Detailed operational inventory is intentionally omitted from repository documentation. No database mutations, privilege changes, merges, deployments or workflow packaging were performed.
+
+## 6. Owner revision: include every trial — implementation in progress
+
+The owner explicitly superseded approved-only population selection and requested existing and future studies be available. Engine migration 047 retains the compatibility approval column, promotes one current profile for every study, and defaults future studies to available. Existing enriched profiles take precedence; retained duplicate versions do not become duplicate studies. Run provenance continues to distinguish deterministic-only content and controls enrichment eligibility independently.
+
+Iteration: a blanket status update would conflict with the one-serving-profile constraint and the old deterministic-status trigger. The migration changes that trigger, retains versions, and preserves the unique serving invariant. Service regressions cover later enrichment of an available deterministic profile without inserting a conflicting new profile.
+
+Performance iteration: MCP selection now uses a server-side cursor in batches of ten, instead of loading every raw CTIS payload at once. It preserves one SQL snapshot and the whole-cohort failure bounds. This reduces client-side buffering; it does not reduce total wire bytes or establish production latency.
+
+Validation: MCP suite passes locally. Engine unit tests pass; real PostgreSQL migration regression runs in existing Engine CI using synthetic records. Production migration and restricted-login workflow verification are still pending. No ChatGPT workflow packaging is included.
