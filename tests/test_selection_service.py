@@ -60,3 +60,15 @@ def test_complete_authorization_batches_and_snapshot_change_before_metering():
 def test_http_source_cannot_silently_change_population():
     with pytest.raises(SelectionError, match='DATABASE_REQUIRED'):
         asyncio.run(authorized_selection(Control(), object(), 'analysis', criteria()))
+
+
+def test_expired_lease_after_metering_never_releases_dataset():
+    class ExpiringControl(Control):
+        async def authorize_filter_results(self, analysis_id, ids):
+            if not ids and self.profiles:
+                raise PermissionError('lease expired during cohort admission')
+            return await super().authorize_filter_results(analysis_id, ids)
+    control = ExpiringControl()
+    with pytest.raises(PermissionError, match='lease expired'):
+        asyncio.run(authorized_selection(control, Engine([record()]), 'analysis', criteria()))
+    assert control.profiles  # Failure occurs at the final gate, after reads/admission.

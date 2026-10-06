@@ -117,3 +117,23 @@ Subgroup counts are disjoint first-match counts. `overlapping_count` and trial t
 Corporate-group output uses a limited reviewed alias registry, with legal-entity mode available. Unmapped names remain separate. Country filters describe recorded legal entities or site affiliations, not corporate worldwide service capacity. The current historical mappings do not reconstruct acquisition timing. Site campus alias resolution remains future work.
 
 Performance boundary: this implementation does not yet count/search a large candidate population without loading the bounded matching profiles. It makes responses compact but does not eliminate database JSON scanning, repeated authorization or source reads. Indexed lightweight discovery and prepared selections are the next scaling steps.
+
+## Final access decision — 2026-10-06 (supersedes earlier defaults)
+
+Owner decision:
+- Initial research is free and anonymous. No registration or email collection is required. No business quota on research requests; operational rate/concurrency protections remain necessary.
+- Show up to TEN results per entity category per selection, with recorded professional emails/addresses where available. This supersedes the earlier top-five presentation default. Fewer than ten eligible entities must be reported honestly.
+- Always show the distinct trial population, disjoint subgroup counts, total eligible normalized entities per category, and returned count. Counts must use the same cohort, country/function filters and identity policy as the shortlist. Never imply unavailable data exists behind a paywall.
+- Repeated reads of a selection reveal only its allowed top ten. Evidence/contact/profile-section/export routes must enforce the same entity allowlist; a ten-row ranking response alone is insufficient. Different legitimate queries may produce different top tens: the owner wants unrestricted research, not a lifetime ten-entity cap.
+- Full access requires connecting a TrialAgents account and verifying the relevant existing Intel Agent entitlement server-side. Login alone does not confer paid access. Preserve existing per-project entitlement semantics; do not convert a project license into account-wide database access.
+- Keep existing Intel Agent pricing: EUR 490/month per project or EUR 2,900/year per project, VAT extra, automatic renewal; annual access includes monthly evidence updates. Reuse existing billing/entitlement logic. No separate ChatGPT surcharge. Trial offers versus payment upfront remain a future product decision; do not introduce either automatically.
+- Minimize connection friction with hosted sign-in/consent returning directly to ChatGPT. An anonymous caller's ChatGPT email is not supplied to us.
+
+Publication boundary, checked against OpenAI's published Directory guidelines on 2026-10-06:
+- A plugin may explain missing entitlement, connect an existing account, and link to an informational access page.
+- Do not initiate digital-subscription checkout, promote upgrades or link directly to Stripe/another page that starts a subscription. The owner's wish to subscribe from ChatGPT is conditional on platform acceptance; it is not approved by the current guidelines.
+- An independent TrialAgents subscription/account page can handle billing. The plugin's informational link must not itself initiate purchase. Use the existing Intel Agent purchase/account route where suitable rather than automatically creating a duplicate sales page.
+- Proposed neutral limit response: "Your current access includes ten results per selection. Connect your TrialAgents account to check full-list access." Connection checks entitlement; it does not promise all connected accounts qualify.
+- Sources: https://developers.openai.com/plugins/plugin-guidelines and https://developers.openai.com/plugins/build/auth . Recheck before Directory submission.
+
+Implementation sequence: optimize and validate discovery; add explicit entity-bound contacts and total-count contract; introduce anonymous selection sessions plus a server-owned top-ten allowlist; connect existing paid entitlements and full pagination; validate cross-tool access; then package the ChatGPT workflow. These are agreed requirements, not claims that the current tools already allow anonymous use or enforce a free-tier boundary.
