@@ -111,3 +111,11 @@ The owner explicitly approved merge and publication. Engine PR #249 and MCP PR #
 Automatic Engine deployment did not start despite passing checks and no pending deployment/event. Recovery deployments were started for the web service and affected scheduled services; scheduled services were rebuilt without manually invoking their tasks. This preserves the existing enrichment and TrialFeed eligibility boundaries.
 
 Next: verify cohort → ranking → evidence through the restricted MCP account, including authorization, evidence correctness and latency. Selection tools remain disabled pending this end-to-end gate. ChatGPT workflow packaging remains deferred. Earlier approval-blocker and pending-migration notes are historical and superseded by this rollout entry.
+
+## 8. Clinical shortlist preview — additional enablement gates
+
+An owner-requested operator-side shortlist preview found that newly available deterministic profiles can lack structured phase, therapeutic-area and disease fields. A mandatory structured filter therefore misses relevant records even after availability backfill. The preview used explicit title evidence and selected eligibility review, with match-basis distinctions; it was not an end-to-end public MCP authorization test.
+
+Duplicate site blocks also exposed a person-record identity collision in the existing aggregation path. The preview consolidated duplicate site blocks before aggregation; the production path still requires a regression-backed correction. PI counts remain provisional where missing classification or differing identities prevent resolution. Provider counts include laboratories and vendors; a monitoring-function shortlist was kept separate from all-provider counts. Stored trial findings were not replaced with inferred provider performance.
+
+Decisions: keep tools disabled until structured-field fallback/provenance, duplicate-block handling and restricted-account end-to-end validation are addressed. Manual cohort classification and preview preprocessing must not be represented as already implemented public-tool behavior. No clinical records were modified by the preview.
