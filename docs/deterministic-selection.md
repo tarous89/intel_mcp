@@ -59,3 +59,7 @@ The snapshot is a SHA-256 fingerprint of version, criteria and complete returned
 - `SELECTION_DATABASE_REQUIRED`: HTTP compatibility reader is intentionally unsupported for this pilot.
 
 Tools remain disabled by default. Code tests do not establish live coverage, latency, ranking quality, or production readiness.
+
+### Live validation status
+
+Read-only aggregate validation confirmed profile/filter alignment and expected schema structure. Actual restricted-login execution, full workflow performance and clinical review remain rollout gates. The serialized-record size limit applies after lifecycle projection and does not bound raw SQL transfer; compact lifecycle/source projection must be evaluated before production scale. Broad cohorts may require narrower filters. Missing provider evidence does not establish absence of participation.

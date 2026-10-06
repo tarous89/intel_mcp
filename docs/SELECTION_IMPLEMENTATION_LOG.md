@@ -2,7 +2,7 @@
 
 Started 2026-10-06. Owner scope: first validate and build deterministic CRO/site/PI selection tools; package ChatGPT workflows only in a later stage.
 
-## 1. Source and access contract validation — code complete; live audit pending
+## 1. Source and access contract validation — code and live aggregate audit complete
 
 Inspected MCP baseline `21231284009903e8be99950dfb4174fb6b9b469e`, App `combined_dataset_tables.py`, `combined_site_ranking.py`, table indexes, profile/filter authorization routes, and Engine `035_mcp_serving_v1.sql`.
 
@@ -21,8 +21,8 @@ Decisions:
 - Core query reads memberships and profile content in one SQL statement, ensuring one MVCC snapshot.
 
 Live validation status:
-- Render connector has no selected workspace. It returned one workspace, `Tarek Roustom's Workspace` (`tea-cspqipl6l47c739nslfg`), and explicitly requires user confirmation before selecting it.
-- No production SQL, real customer analyses, emails or payments have been run. Live coverage and latency are unmeasured.
+- Workspace confirmed by the owner on 2026-10-06; live read-only aggregate audit completed (see step 5).
+- No real customer analyses, emails or payments have been run. End-to-end selection latency remains unmeasured.
 
 ## 2. Deterministic tools — implemented, disabled by default
 
@@ -71,9 +71,23 @@ Verification on 2026-10-06:
 
 ## 4. Rollout gates and later work — pending
 
-1. Confirm Render workspace, then read-only audit approved-profile coverage, schema versions, role grants and source consistency; compare with App population using authorized access.
+1. Completed: confirmed workspace and audited live approved-profile coverage, schema versions, reader grants and source consistency. Actual restricted-login execution remains part of the staging gate.
 2. Run SQL integration/latency checks in staging with the restricted role. Local SQL tests validate compilation and parameters, not a real PostgreSQL execution plan.
 3. Add App-owned selection sessions and atomic full-cohort admission before a self-contained public ChatGPT journey. Current tools intentionally still require `start_analysis` with an App-created report run.
 4. Validate representative clinical briefs and top-10 evidence with the owner; evaluate terminology expansion and identity quality.
 5. For larger cohorts, add authorized indexed entity/trial/function relationships or durable prepared selections. Do not raise bounds or silently sample without resource measurements.
 6. Only then package ChatGPT skills/workflows, as separately requested. No plugin manifest or skills created in this phase.
+
+## 5. Live read-only audit — completed
+
+The owner confirmed the Render workspace. Read-only aggregate checks confirmed that the approved profile and filter populations align, required profile structures are present, and the expected schema version is in use. Reader permissions were inspected; the connector used its own database identity, so actual restricted-login execution remains a staging requirement. A representative selection statement passed PostgreSQL EXPLAIN; no end-to-end latency was measured.
+
+Learnings and decisions:
+- Approved-only selection and all-state App results have different coverage. Preserve the approved-only boundary.
+- Broad therapeutic-area cohorts can exceed the pilot cap. Keep explicit narrowing and fail-closed overflow; never sample to manufacture a top ten.
+- Provider evidence is incomplete even when site/investigator evidence is present. Missing provider records do not prove absence of participation.
+- Some recorded provider functions are outside the supported taxonomy. Preserve those labels as evidence; do not invent mappings.
+- The serialized-record size guard runs after lifecycle projection and does not bound raw database transfer. Reduce source payload and measure performance before production rollout; do not simply increase the limits.
+- Implementation CI passed. Tools remain disabled until restricted-login/staging workflow validation and clinical review are complete.
+
+Detailed operational inventory is intentionally omitted from repository documentation. No database mutations, privilege changes, merges, deployments or workflow packaging were performed.
