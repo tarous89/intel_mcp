@@ -103,7 +103,7 @@ async def test_mixed_auth_never_downgrades_invalid_token_to_anonymous():
 def test_enabled_http_mount_lifespans_metadata_and_private_isolation():
     script='''
 from starlette.testclient import TestClient
-from intel_mcp.server import app
+from intel_mcp.bootstrap import app
 with TestClient(app) as client:
     metadata=client.get('/research/.well-known/oauth-protected-resource')
     assert metadata.status_code==200, metadata.text
