@@ -92,7 +92,7 @@ Learnings and decisions:
 
 Detailed operational inventory is intentionally omitted from repository documentation. No database mutations, privilege changes, merges, deployments or workflow packaging were performed.
 
-## 6. Owner revision: include every trial — implementation and CI complete; deployment blocked
+## 6. Owner revision: include every trial — implementation and deployment complete
 
 The owner explicitly superseded approved-only population selection and requested existing and future studies be available. Engine migration 047 retains the compatibility approval column, promotes one current profile for every study, and defaults future studies to available. Existing enriched profiles take precedence; retained duplicate versions do not become duplicate studies. Run provenance continues to distinguish deterministic-only content and controls enrichment eligibility independently.
 
@@ -103,3 +103,11 @@ Performance iteration: MCP selection now uses a server-side cursor in batches of
 Validation: 395 MCP tests and 52 targeted Engine tests passed locally. Engine PR #249 passed CTIS Validation, Workspace Engine discovery and App report Engine boundary CI, including the PostgreSQL migration regression against synthetic records. MCP PR #78 passed MCP CI after streaming changes.
 
 Deployment status: Engine PR #249 is ready for review. Automatic approval review rejected its merge because it requires explicit user approval for a production-impacting merge/deployment. No production migration was executed. Ask for explicit approval to merge/deploy #249 before proceeding; do not route around the rejection. Restricted-login selection validation remains pending. ChatGPT workflow packaging is deferred.
+
+## 7. Authorized production rollout — 2026-10-06
+
+The owner explicitly approved merge and publication. Engine PR #249 and MCP PR #78 are merged. Both web services are live on the merged commits. The availability migration is recorded as applied; a read-only production check confirmed every profiled study has one available serving profile with no duplicate serving trials. Historical versions remain retained.
+
+Automatic Engine deployment did not start despite passing checks and no pending deployment/event. Recovery deployments were started for the web service and affected scheduled services; scheduled services were rebuilt without manually invoking their tasks. This preserves the existing enrichment and TrialFeed eligibility boundaries.
+
+Next: verify cohort → ranking → evidence through the restricted MCP account, including authorization, evidence correctness and latency. Selection tools remain disabled pending this end-to-end gate. ChatGPT workflow packaging remains deferred. Earlier approval-blocker and pending-migration notes are historical and superseded by this rollout entry.
