@@ -1,6 +1,6 @@
 # Intel MCP current handover
 
-Updated: 2026-10-03. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
+Updated: 2026-10-06. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
 
 ## Active interfaces
 
@@ -8,7 +8,7 @@ Production `https://mcp.trialagents.com/mcp`, public `/health`. MCP accepts the 
 
 Public tools remain `start_analysis`, `filter_trials`, `classify_trials`, `get_profiles`, `get_documents`, `extract_variables`. [README.md](README.md) and `docs/` specify current per-tool schemas, bounds, approvals and projections. Light/Max labels in these technical allowance interfaces remain compatibility identifiers, not the active public subscription offer. Do not rename a persisted protocol identifier merely because the customer product is archived.
 
-Engine reads use the restricted `intel_mcp_reader_v1` and approved-only `mcp_serving.*_v1` views, read-only transactions. Historical all-state report interfaces have separate authorization. The authenticated Engine HTTP path is explicit rollback compatibility. [docs/ENGINE_READ_CUTOVER.md](docs/ENGINE_READ_CUTOVER.md) owns that boundary.
+Engine reads use the restricted `intel_mcp_reader_v1` and compatibility `mcp_serving.*_v1` views, read-only transactions. Deployed Engine migration 047 makes one current profile per study available, including deterministic-only studies; the approval marker no longer means model enrichment. Historical all-state report interfaces have separate authorization. The authenticated Engine HTTP path is explicit rollback compatibility. [docs/ENGINE_READ_CUTOVER.md](docs/ENGINE_READ_CUTOVER.md) owns that boundary.
 
 ## Combined product boundary
 
@@ -25,4 +25,6 @@ Run tool/auth/Engine-boundary regression tests for changes. Routine QA must not 
 
 ## Deterministic selection pilot (2026-10-06)
 
-See `docs/SELECTION_IMPLEMENTATION_LOG.md` and `docs/deterministic-selection.md`. Optional catalogue/cohort/ranking/evidence tools reuse approved-only reads and existing App analysis permissions; zero model calls. Disabled by default (`MCP_SELECTION_ENABLED=false`). Exact source fingerprinting, full-cohort authorization and explicit safety-limit failures precede top-10 results. Live audit, dedicated selection sessions/atomic admission and ChatGPT packaging remain pending. Do not claim App cohort parity or production readiness.
+See `docs/SELECTION_IMPLEMENTATION_LOG.md` and `docs/deterministic-selection.md`. Catalogue/cohort/ranking/evidence code is deployed, disabled by default (`MCP_SELECTION_ENABLED=false`), with existing App analysis permissions and zero backend model calls. Exact source fingerprinting, full-cohort authorization and explicit safety-limit failures precede rankings. Live availability audit passed; missing-field discovery, duplicate identity handling, restricted-account end-to-end validation and dedicated selection sessions/atomic admission remain gates. Do not claim public-tool readiness.
+
+[Clinical selection workflow](docs/CLINICAL_SELECTION_WORKFLOW.md) owns the first-response direction: broad relevant landscape, approximately 200–500 trials where justified (no forced minimum), explicit subgroups, verified entity normalization before counts, top-five tables by default and contextual drill-down options. Structured fields plus title/section evidence must support discovery. This is a specification for later implementation/packaging, not an enabled workflow.
