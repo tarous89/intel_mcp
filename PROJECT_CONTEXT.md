@@ -38,3 +38,7 @@ See `docs/SELECTION_IMPLEMENTATION_LOG.md` steps 14–17 for deployment evidence
 ## Mandatory plugin release control
 
 Review `docs/CHATGPT_PLUGIN_RELEASE.md` before declaring a package ready to download/test AND before every release. Gate A covers pre-test readiness; Gate B covers tested public release. Record exact candidate/evidence in `docs/releases/`; CI artifacts are unreviewed candidates. Current 0.1.1 remains blocked pending support/legal/readiness work. Owner requires permission for changes to app usage, agreed workflow or added usage costs. Approved work is checklist/review metadata, legal drafts and a support page; no new LLMs, pricing/access changes or automatic public submission.
+
+## Publisher decision — 2026-10-06
+
+Owner designates **Atlas Consulting** as the company behind TrialAgents and plugin publisher. Keep product branding TrialAgents / TrialAgents Intel. This is owner-provided identity, not proof of OpenAI business verification; match the verified legal name before submission. Do NOT add Atlas Consulting or an address to any public TrialAgents website/App page (including privacy, terms, support or footer) without explicit owner permission first. Metadata and repository planning are authorized; no public-page edit or deployment is authorized by this identity instruction. No address supplied; obtain verification details through the secure OpenAI verification flow. Public disclosure requirements remain an approval-dependent release gate.

@@ -4,7 +4,7 @@
   "version": "0.1.1",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
-    "name": "TrialAgents",
+    "name": "Atlas Consulting",
     "email": "intel@trialagents.com",
     "url": "https://trialagents.com"
   },
@@ -22,7 +22,7 @@
         "displayName": "TrialAgents Intel",
         "shortDescription": "Find clinical trial partners",
         "longDescription": "Find and compare CROs/providers, investigator sites and principal investigators using recorded clinical trial experience. Explore explicit trial groups, see why candidates rank, inspect supporting studies and view recorded professional contacts. Anonymous research shows up to ten entities per category per selection, with full matching totals. Connect a TrialAgents account for expanded lists where an owned project has an active entitlement covering the complete selected cohort. Research is read-only; recorded experience does not establish current capacity or performance.",
-        "developerName": "TrialAgents",
+        "developerName": "Atlas Consulting",
         "category": "Productivity",
         "capabilities": [
           "Discover trial cohorts",

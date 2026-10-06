@@ -234,3 +234,10 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - Gate A remains blocked on actual legal/controller, source reuse and retention facts plus final publication/verification. No download/test-ready or public approval claim. Owner factual requests are specific in docs/releases/0.1.1-readiness.md.
 
 - Deployment verified live. Found main-host support URL 404 versus Intel App support URL 200; corrected only plugin supportURL to https://intel.trialagents.com/support/intel. Live tool scan returned all four expected tools/auth declarations. New CI artifact required after this metadata correction.
+
+## Step 21 — Atlas Consulting publisher identity (2026-10-06)
+
+- Owner chose Atlas Consulting as TrialAgents' operating company and plugin publisher. Updated only package author.name/developerName plus repository context/readiness notes; preserved product name, workflows, access and costs.
+- Explicit restriction: do not add Atlas Consulting or an address to any public TrialAgents page without asking for permission first. No App source, privacy/terms/support page or deployment changed in this step.
+- Verification status is unconfirmed. Official business verification guidance requests the current registered/operating address privately; published plugin manifest requirements do not include a postal-address field. Public website identification/disclosure remains a separate approval-dependent check, not waived.
+- Sources checked: https://help.openai.com/en/articles/10910291-api-organization-verification and https://developers.openai.com/plugins/deploy/submission .
