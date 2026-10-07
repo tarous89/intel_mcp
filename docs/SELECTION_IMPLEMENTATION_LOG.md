@@ -212,3 +212,18 @@ Engine #250 and App #246 are live; MCP #79 plus production-bootstrap correction 
 Live anonymous MCP tests used the deployed restricted database connection: title/disease lexical `prostate` yielded 192 profiles and 272 recorded provider entities, ten visible rows with contacts, and denied offset ten. The account tool returned the OAuth connection challenge. These are operational smoke-test candidates, not a reviewed mHSPC cohort or a claim that every provider is a full-service CRO. One external search call took 17.68s; tools/list and cached ranking calls were around 10s through this execution transport, so these are not isolated server benchmarks. The separate 9.726ms database probe measures only indexed text lookup.
 
 Remaining user check: complete real ChatGPT account connection with an existing entitled project and verify full-list access versus an unentitled/out-of-project selection. Automated entitlement tests cover ownership, revocation and trial scope, but do not replace this signed-in journey. Workflow packaging/directory submission and postal-address mapping remain unfinished. No main-site/App UI, pricing or checkout changes were made by this rollout.
+
+## 18. Seven-field discovery timeout — 2026-10-07
+
+Owner screenshots at 13:59 UTC showed ENGINE_UNAVAILABLE. Correlated database logs showed statement_timeout during FETCH FORWARD 10 FROM selection_profiles, not a database outage. Reproduced: three prostate terms across all seven text fields failed; the same three terms across title/diseases/population succeeded (180 records at investigation time).
+
+Read-only EXPLAIN ANALYZE identified a sequential eligibility-text scan: approximately 18.1 seconds. Splitting the positive cross-field OR into per-field UNION branches used existing trigram indexes: approximately 4.9 seconds. Materializing bounded candidate IDs/match flags before indexed profile retrieval measured approximately 5.1 seconds for the 501-row overflow probe. These are database measurements, not end-to-end ChatGPT benchmarks. The seven-field search matched 828 records including exclusion-text mentions; this is lexical discovery, not 828 clinically relevant prostate trials.
+
+Decision: preserve any/all-term and exclusion semantics, bound candidates to 501 for overflow detection, fetch payloads in batches of ten from one statement snapshot, and keep the hard 500 cap with no partial ranking. Keep existing restricted reader, 15-second timeout and infrastructure plan. Report query/pool timeout as ENGINE_TIMEOUT (504), retaining ENGINE_UNAVAILABLE (503) for database failures. No LLM, billing, OAuth, main App UI or entitlement changes.
+
+Mandatory checks before package download/test handoff and every release:
+- [ ] Run PostgreSQL regression for all seven fields, any/all terms across different fields, exclusions, wildcard escaping and duplicate prevention.
+- [ ] Confirm query timeout, pool timeout and connection failure have distinct safe error responses without database details.
+- [ ] Replay the seven-field production failure: obtain explicit COHORT_TOO_LARGE rather than timeout/outage, with no partial result.
+- [ ] Verify a bounded relevant cohort can be searched and ranked anonymously, with no more than ten entities returned.
+- [ ] Carry these checks/results into the package branch release guide; do not mark unobserved checks passed.

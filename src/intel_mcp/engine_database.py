@@ -246,7 +246,13 @@ class DatabaseEngineClient:
         self._settings.validate_engine()
         try:
             return await asyncio.to_thread(self._execute, read_selection, criteria.model_dump(mode="json"))
-        except (PoolTimeout, psycopg.Error) as error:
+        except (PoolTimeout, psycopg.errors.QueryCanceled) as error:
+            raise EngineError(
+                "ENGINE_TIMEOUT",
+                "Selection search exceeded its time budget. No partial ranking was produced. Retry with more focused criteria.",
+                504,
+            ) from error
+        except psycopg.Error as error:
             raise EngineError("ENGINE_UNAVAILABLE", "Selection data store is unavailable.", 503) from error
 
     async def healthcheck(self) -> None:
@@ -259,4 +265,3 @@ class DatabaseEngineClient:
     def close(self) -> None:
         if self._pool is not None:
             self._pool.close()
-

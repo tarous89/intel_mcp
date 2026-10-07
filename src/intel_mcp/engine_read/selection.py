@@ -44,10 +44,38 @@ def _group_where(group):
     return f"({structured}) AND ({text_sql})", params + text_params
 
 
+def _base_text_where(query):
+    """Search each indexed field separately before loading profile payloads.
+
+    A cross-field OR can make PostgreSQL scan every large eligibility text.
+    UNION preserves any-field matching while letting each field use its index.
+    ALL means every term occurs somewhere, not necessarily in the same field.
+    """
+    if query is None:
+        return "TRUE", []
+    params = []
+    term_groups = [query.terms] if query.operator == "any" else [[term] for term in query.terms]
+    clauses = []
+    for terms in term_groups:
+        branches = []
+        for field in query.fields:
+            predicates = [f"search.{field} ILIKE %s ESCAPE E'\\\\'" for _ in terms]
+            params.extend("%" + _escape_like(term) + "%" for term in terms)
+            branches.append("SELECT search.profile_id FROM mcp_serving.selection_search_v1 search WHERE (" + " OR ".join(predicates) + ")")
+        clauses.append("p.id IN (" + " UNION ".join(branches) + ")")
+    if query.exclude_terms:
+        excluded, excluded_params = _text_where(query.model_copy(update={
+            "terms": query.exclude_terms, "exclude_terms": [], "operator": "any",
+        }))
+        clauses.append("NOT (" + excluded + ")")
+        params.extend(excluded_params)
+    return " AND ".join(clauses), params
+
+
 def read_selection(connection, request):
     criteria = SelectionCriteria.model_validate(request)
     base, base_params = _where(criteria.base)
-    text_sql, text_params = _text_where(criteria.base_text)
+    text_sql, text_params = _base_text_where(criteria.base_text)
     base = f"({base}) AND ({text_sql})"
     base_params += text_params
     direct, direct_params = _where(criteria.direct)
@@ -55,20 +83,32 @@ def read_selection(connection, request):
     group_columns, group_params = [], []
     for group in criteria.subgroups:
         sql, params = _group_where(group)
-        group_columns.append(f", COALESCE(({sql}), FALSE)")
+        group_columns.append(f", COALESCE(({sql}), FALSE) AS subgroup_{len(group_columns)}")
         group_params.extend(params)
     records = []
     with connection.cursor(name="selection_profiles") as cursor:
         cursor.execute(f"""
-            SELECT p.eu_number, source.schema_version, source.profile_json, source.ctis_data,
+            WITH candidates AS MATERIALIZED (
+            SELECT p.eu_number,
                    ({direct}) AS direct_match, ({related}) AS related_match
                    {''.join(group_columns)}
             FROM mcp_serving.profile_filter_v1 p
             JOIN mcp_serving.selection_search_v1 search ON search.profile_id = p.id
-            JOIN mcp_serving.approved_profiles_v1 source ON source.eu_number = p.eu_number
             WHERE {base}
             ORDER BY p.eu_number
             LIMIT %s
+            )
+            SELECT c.eu_number, source.schema_version, source.profile_json, source.ctis_data,
+                   c.direct_match, c.related_match
+                   {''.join(f', c.subgroup_{i}' for i in range(len(group_columns)))}
+            FROM candidates c
+            JOIN LATERAL (
+                SELECT schema_version, profile_json, ctis_data
+                FROM mcp_serving.approved_profiles_v1
+                WHERE eu_number = c.eu_number
+                OFFSET 0
+            ) source ON TRUE
+            ORDER BY c.eu_number
             """, [*direct_params, *related_params, *group_params, *base_params, MAX_COHORT + 1])
         while batch := cursor.fetchmany(10):
             for tid, schema, profile, ctis, direct_match, related_match, *matches in batch:
