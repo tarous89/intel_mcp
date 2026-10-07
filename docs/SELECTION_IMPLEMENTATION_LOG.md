@@ -322,3 +322,38 @@ Owner approved the four Step 26 corrections. Used public MCP presentation change
 - Live installed-tool validation: same exploratory prostate rules gave 192 trials (18 phase III mHSPC terminology candidates, 49 other phase III candidates, 125 broader). Inventory: 272 CRO/providers, 1,002 sites, 1,918 PIs. Ranking returned ten with access notice; evidence succeeded; offset ten denied. Static migration warning absent. These are candidate/cohort counts, not confirmed eligibility or a market census.
 - Actual current conversation still advertises cached old search help/criteria: unknown, while tool responses reach the new backend. Refresh installed metadata and retest first-call schema comprehension plus full initial-report behavior. Do not claim this host presentation gate has passed.
 - Main validation checklist: docs/RESEARCH_HOST_WORKFLOW.md. Package Gate A/B remain subject to docs/CHATGPT_PLUGIN_RELEASE.md; this correction is not OpenAI approval or a public package release.
+
+
+## Step 28 — Second owner host test: next issues and OAuth investigation (2026-10-07)
+
+Investigation/planning only; no production behavior changed in this step.
+
+Owner requests:
+- Hide CRO/provider emails from initial results; return recorded contacts only on explicit request and label source/purpose without claiming business-development suitability. This does not remove CROs from the shortlist.
+- Default top ten should rank distinct-trial experience across the whole relevant cohort. Hide direct/related/broader/A-B-C breakdown unless requested. This supersedes direct-first default ranking for the public experience view; requires a deterministic ranking change, not just hiding columns.
+- Seek at least 100 relevant trials where available and raise the proposed ceiling to 1,000. Do not fabricate trials or silently relax mandatory constraints. Current cap remains 500; test memory/bytes/latency before increasing it and keep the 16 MB response/snapshot guard in view.
+- Concise initial output: cohort size, total inventory, top-ten experience counts and functions/affiliations; two or three contextual follow-ups.
+- Recommend horizontal bars for categorical trial-count comparison, with a compact table fallback. Optional MCP Apps HTML component can render inline; model/tier/host universal availability is not established. Use a reusable deterministic component, not per-response generated HTML or new LLM jobs.
+- Explain exactly which follow-up needs connection/entitlement before invoking auth. Country/function research and evidence for visible entities already work anonymously and must not be falsely paywalled. Full entity lists are access-gated. Trial-results/operational-narrative analysis is not presently exposed by this public tool surface; do not advertise it as unlocking merely through login.
+- Consent journey needs purpose/benefits, clear identity, cancel, and correct logged-out login/create-account navigation; already-signed-in users should see their account and continue/change-account options, not redundant signup.
+- Investigate repeated Approval expired.
+
+Confirmed code findings in intel_agent_app main:
+1. app/oauth/authorize/route.ts GET redirects logged-out users to /auth?mode=login&return_to=<original authorization path/query>.
+2. app/auth/page.tsx login/signup success ignores return_to; destination is selected from unrelated workspace/combined/share/legacy landing routes. This is a definite broken continuation for logged-out OAuth. It is not proof of the reported expired-approval cause.
+3. Already signed-in GET creates a user-bound approval request with ten-minute TTL. POST returns Approval expired whenever the request is absent, expired or mismatched to the current user; a successful/denied request is deleted. A repeated submit can therefore hit the same generic message.
+4. Consent text still describes approved clinical-trial analyses / analysis allowances instead of current project-based research access.
+5. Render OAuth-filtered logs for the reported recent window returned no entries; the exact failing request/cause is not established. Do not claim a ten-minute wait, double-click or user switch as fact.
+6. No safe restart/action UI is offered on the error page. Do not fix this by disabling expiry, user binding, state or PKCE.
+
+Priority order:
+- [ ] Repair and regression-test OAuth continuation through login/signup with a validated same-origin authorization return path; preserve unrelated app destinations.
+- [ ] Distinguish expiry/consumed/account-mismatch conditions with safe user-facing recovery and non-secret diagnostic reasons. Prevent accidental double submission; do not blindly reuse authorization codes or auto-approve.
+- [ ] Make consent purpose explicit and verify user-facing benefits match actual entitlements/tool scope. Keep authentication separate from purchase/entitlement.
+- [ ] Implement public overall-cohort ranking and explicit-request CRO contacts; retain audit breakdown for requested drill-downs and stable sorting.
+- [ ] Validate the 1,000-trial ceiling without new LLM usage or infrastructure purchases.
+- [ ] Add three honest, question-specific follow-ups with free/connected-access classification.
+- [ ] Build optional inline bar-chart component with text/table fallback only after host support/scoping is confirmed.
+- [ ] Review mandatory pre-test/pre-release guide, then repeat logged-out, already-signed-in, expired, duplicate-submit and denied-entitlement tests.
+
+Sources reviewed: https://developers.openai.com/plugins/build/auth (tool-level OAuth challenges can include error_description; native host banner wording is not documented as fully customizable); https://developers.openai.com/plugins/build/chatgpt-ui (inline MCP Apps components and non-UI fallback). Existing digital-subscription commerce restrictions continue to apply.
