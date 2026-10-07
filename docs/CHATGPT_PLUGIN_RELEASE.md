@@ -16,7 +16,7 @@ Use a dated release record under `docs/releases/` containing version, Git SHA, Z
 - [ ] A02 Use TrialAgents Intel for the plugin and explain its relationship to Intel Agent/TrialAgents; verified developer identity must match the actual verified publisher, not an assumed brand/legal name. Domains, logos, contacts and source links must identify the same service.
 - [ ] A03 Compare every advertised capability with exposed tools and accessible output. Do not promise raw profiles, operational narratives to anonymous users, outreach, saved lists, trial-list exports, performance or recruitment capacity where unsupported.
 - [ ] A04 Confirm source provenance and permission to use/distribute underlying CTIS-derived data and professional contacts. Do not present the plugin as an official CTIS/EMA connector or endorsement. Separate record-derived facts, lexical matches and interpretations; never assert worldwide completeness.
-- [ ] A05 Check cohort rules: explicit hard constraints, justified broadening, candidate labels, missing/contradictory phase handling, distinct primary groups versus overlaps, conservative identity normalization, true counts and deterministic ranking. Target a relevant 100–500-trial exploratory landscape; if below 100, verify justified broadening or a documented constraint/relevance exception. Never pad counts or guarantee ten when fewer exist.
+- [ ] A05 Check cohort rules: explicit hard constraints, justified broadening, candidate labels, missing/contradictory phase handling, distinct primary groups versus overlaps, conservative identity normalization, true counts and deterministic ranking. Target a relevant 200–500-trial exploratory landscape; if below 200, verify justified broadening or a documented constraint/relevance exception. Never pad counts or guarantee ten when fewer exist.
 - [ ] A06 Verify that every initial report shows displayed/total entity counts and the neutral access_info.message, including existing-account connection and required entitlement. Describe ten per category per selection, not ten lifetime results or ten trials. Legitimate new queries may return different tens; do not harvest partitions to bypass restrictions. Evidence pagination for visible entities is distinct from entity-list pagination.
 - [ ] A07 Anonymous use collects no account email by virtue of being anonymous. OAuth connection alone does not grant full access; ownership, entitlement and complete cohort coverage are required. Missing/expired/revoked/uncovered access must remain denied server-side.
 - [ ] A08 Confirm website/plugin access and service claims are consistent; same entitlement must not receive an intentionally inferior ChatGPT service or ChatGPT-only surcharge. Compare actual included features; explain the plugin's narrower supported surface rather than claim complete app parity.
@@ -126,8 +126,8 @@ Submission metadata includes five positive and three negative cases. The skill m
 
 Review these checks before any package download/test handoff and every release.
 - [ ] The installed host sees explicit nested criteria fields and succeeds on its first valid search; HTTP schema validation alone is insufficient proof of host import.
-- [ ] The owner's exploratory phase III mHSPC prompt produces a broad relevant prostate landscape with disjoint direct/related/broader counts, rather than stopping at a tiny exact group.
-- [ ] A below-100 exploratory search triggers relevant broadening or a clear exception. An explicit "phase III only, Germany only" request preserves both constraints even if sparse.
+- [ ] The owner's exploratory phase III mHSPC prompt produces a broad relevant prostate landscape targeting 200–500 trials and ranking the whole cohort, rather than stopping at a tiny exact group.
+- [ ] A below-200 exploratory search triggers relevant broadening or a clear exception. An explicit "phase III only, Germany only" request preserves both constraints even if sparse.
 - [ ] The report includes ten-result/access disclosure without forced login, subscription promotion or a promise that authentication alone unlocks results.
 - [ ] Source-scope and missing-field caveats reflect actual evidence; no stale migration-pending warnings, worldwide completeness claim, or hidden real identity uncertainty.
 - [ ] Record deployed server SHA and installed workflow version separately. A custom MCP connector may not load the ZIP skill; live tool descriptions and response guidance must stand alone.
@@ -137,3 +137,17 @@ OpenAI guidance rechecked 2026-10-07: https://developers.openai.com/plugins/plug
 permits neutral entitlement explanations and existing paid-account use; it prohibits subscription
 promotion and checkout/upgrade initiation. The initial notice therefore explains connection and
 existing entitlement, not "create an account and subscribe." No pricing or auth flow change.
+
+
+## Owner iteration 2026-10-07: mandatory before test handoff and every release
+- [ ] Target 200–500 relevant trials; keep the 500 hard ceiling. Broadening uses relevant therapeutic area, phase or modality, preserves explicit must/only constraints, and reports honest shortfalls.
+- [ ] Top ten rank by distinct trials across the whole cohort. Private app ranking is unchanged. Evidence eligibility matches public ordering.
+- [ ] No initial direct/related/broader breakdown. Requested subgroup drill-downs remain available.
+- [ ] CRO emails absent by default, including connected results; explicit requests label recorded contacts as unverified for commercial outreach.
+- [ ] Initial results show inventory, trial experience, functions/affiliations, a neutral access notice and 2–3 data-supported follow-ups.
+- [ ] Free refinements/evidence are not falsely gated; full-list linking explains existing project coverage and does not promise access from signup alone.
+- [ ] Login and signup resume the same validated OAuth request; unrelated app destinations retain their behavior.
+- [ ] Consent shows account, purpose, continue/change/cancel; changing account signs out the current session explicitly.
+- [ ] Expired, consumed, account-changed and logged-out approvals fail safely with recovery guidance. PKCE/state/user binding/TTL remain enforced.
+- [ ] Inline chart renders actual authorized counts without new DB/model work; table fallback remains usable. Test in ChatGPT, including refresh/reconnect of cached tool definitions.
+- [ ] Verify live deployment SHAs separately from package version. Host UI and authenticated end-to-end acceptance cannot be inferred from unit tests.

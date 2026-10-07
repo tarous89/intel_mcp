@@ -1,5 +1,8 @@
 """Isolated mixed-auth MCP: public top-ten research and project-bound full access."""
 import json
+from importlib.resources import files
+from mcp.server.apps import Apps, APP_MIME_TYPE
+from mcp.server.mcpserver.resources import TextResource
 from typing import Annotated, Any
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -38,7 +41,12 @@ def create_research_server(settings, engine_factory, control_factory):
     metadata_url=settings.mcp_public_resource_url.removesuffix('/mcp')+'/research/.well-known/oauth-protected-resource'
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
-    server=MCPServer('TrialAgents clinical research', middleware=[research_tool_security_schemes],
+    apps = Apps()
+    apps.add_resource(TextResource(uri="ui://trialagents/research-v013", name="Trial experience",
+        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v013.html").read_text(),
+        meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
+              "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
+    server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
                      instructions=RESEARCH_WORKFLOW)
 
     async def full_access(dataset, project_id):
@@ -64,23 +72,23 @@ def create_research_server(settings, engine_factory, control_factory):
         {"base":{},"base_text":{"fields":["title","diseases"],"terms":["prostate"]},
          "entity_type":"cros","as_of":"2026-10-07","include_broader":true}
 
-        For first exploratory discovery target 100–500 relevant disease-family trials.
+        For first exploratory discovery target 200–500 relevant disease-family trials.
         Do not restrict the base to exact population/phase preferences: use ordered
         subgroups [{id,label,bucket,filters,text}] for direct/related candidates.
         A phase subgroup uses filters={"phase":{"values":[3]}} and optional
         phase_title_fallback=true. Text uses fields plus terms (operator any/all).
         Preserve explicit only/must constraints in base. Explain broadening.
-        If fewer than 100 trials, follow discovery_guidance before finalizing.
+        If fewer than 200 trials, follow discovery_guidance before finalizing.
         Do not invent a minimum or broaden mandatory constraints. Over 500 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
-        Next call rank_research_entities. Show exact criteria, primary subgroup counts,
+        Next call rank_research_entities. Show concise scope and cohort size,
         total/visible entities and access_info.message in the initial report.
         No sign-in needed. Full access requires an entitled connected project.
         """
         try:
             token,dataset=await store.search(criteria)
-            rank=dataset.rank(limit=10)
+            rank=dataset.rank(limit=10, full_cohort=True)
             return {'selection_id':token,'expires_in_seconds':store.remaining_seconds(token),
                     'cohort':public_cohort(dataset.summary().model_dump(mode='json')),
                     'discovery_guidance':discovery_guidance(len(dataset.records)),
@@ -90,24 +98,25 @@ def create_research_server(settings, engine_factory, control_factory):
         except (SelectionError,EngineError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v013"}},annotations=ANNOTATIONS,structured_output=True)
     async def rank_research_entities(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         offset:Annotated[int,Field(ge=0)]=0,
         limit:Annotated[int,Field(ge=1,le=100)]=10,
+        include_cro_contacts:Annotated[bool,Field(description="Set true only when the user explicitly requests CRO/provider contacts. Source contacts are not verified commercial contacts.")]=False,
         project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')]|None=None,
     )->dict[str, Any]:
-        """Return top-ten ranked entities with contacts and total counts.
+        """Return top ten across the whole cohort by distinct trials, with total counts.
 
         Free access has no pagination past ten. An eligible connected project grants
         full pagination only for selections wholly within its licensed trial population.
         Always present returned/total counts and access_info.message once in the initial report.
-        Explain direct/related/broader trial counts; preserve server order. Include recorded contacts.
+        Preserve server order. Hide match breakdown unless asked. CRO emails require explicit contact request.
         """
         try:
             dataset=store.get(selection_id)
             full=await full_access(dataset,project_id)
-            result=public_ranking(dataset,offset=offset,limit=limit,full_access=full)
+            result=public_ranking(dataset,offset=offset,limit=limit,full_access=full,include_cro_contacts=include_cro_contacts)
             # Recheck after computing output: expired/revoked access releases no result.
             if full: await full_access(dataset,project_id)
             return {**result.model_dump(mode='json'),
@@ -143,7 +152,7 @@ def create_research_server(settings, engine_factory, control_factory):
     async def list_research_projects() -> CallToolResult:
         """List your connected TrialAgents projects and existing full-access status. No purchases."""
         if not current_oauth_subject():
-            return CallToolResult(is_error=True,content=[TextContent(type='text',text='Connect your TrialAgents account to view project access.')],
+            return CallToolResult(is_error=True,content=[TextContent(type='text',text='Free research includes the top ten. Connect your TrialAgents account to check whether an existing project covers the full matching list. Connecting alone does not grant full access.')],
                 _meta={'mcp/www_authenticate':[challenge]})
         try:
             result = await control_factory().research_access(None,[])

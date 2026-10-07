@@ -357,3 +357,13 @@ Priority order:
 - [ ] Review mandatory pre-test/pre-release guide, then repeat logged-out, already-signed-in, expired, duplicate-submit and denied-entitlement tests.
 
 Sources reviewed: https://developers.openai.com/plugins/build/auth (tool-level OAuth challenges can include error_description; native host banner wording is not documented as fully customizable); https://developers.openai.com/plugins/build/chatgpt-ui (inline MCP Apps components and non-UI fallback). Existing digital-subscription commerce restrictions continue to apply.
+
+
+## Step 29 — Approved owner iteration (2026-10-07)
+Latest decision supersedes Step 28's proposed 1,000 ceiling: target **200–500** relevant trials, hard cap500. Broaden through relevant therapeutic area, phase or modality without dropping mandatory constraints; report a shortfall when the available evidence cannot meet200. No padding or silent sampling.
+
+Implementation scope: public whole-cohort distinct-trial ranking (private ranking unchanged), matching evidence eligibility, explicit-request CRO emails with source-purpose caveat, concise inventory/experience presentation without default match tiers, contextual free versus account-required follow-ups, OAuth return allowlist/login continuation, consent benefits/account choice, safe expiry/replay recovery and optional deterministic inline bars/table.
+
+Confirmed learning: prior login ignored return_to. The prior generic Approval expired message conflated missing/consumed, expired and account-changed requests. Exact cause of owner's earlier incident remains unproven. Preserve expiry, state, PKCE, user binding and one-use codes; record only bounded failure reason, never secrets.
+
+No new LLM calls, pricing/billing changes, paid jobs or infrastructure purchases. Broader discovery can require additional bounded database searches. Check docs/CHATGPT_PLUGIN_RELEASE.md before package download/test handoff and every release. Host rendering and full authenticated journey require actual ChatGPT acceptance after deployment; do not mark those checks passed from local tests alone.

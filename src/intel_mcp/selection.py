@@ -210,19 +210,21 @@ class SelectionDataset:
         if subgroup_ids and not set(subgroup_ids) <= {g.id for g in self.criteria.subgroups} | {"unmatched"}:
             raise SelectionError("UNKNOWN_SUBGROUP: Use subgroup IDs from the cohort summary.")
 
-    def _included(self, tid, subgroup_ids=None):
+    def _included(self, tid, subgroup_ids=None, full_cohort=False):
         in_group = not subgroup_ids or (self.groups[tid][0] if self.groups[tid] else "unmatched") in subgroup_ids
-        return in_group and (self.criteria.include_broader or self.buckets[tid] != "broader")
+        return in_group and (full_cohort or self.criteria.include_broader or self.buckets[tid] != "broader")
 
-    def _entities_for_selection(self, subgroup_ids=None):
+    def _entities_for_selection(self, subgroup_ids=None, full_cohort=False):
         self._validate_subgroups(subgroup_ids)
-        if self._entities is not None and not subgroup_ids:
+        if full_cohort and not subgroup_ids and hasattr(self, "_public_entities"):
+            return self._public_entities
+        if self._entities is not None and not subgroup_ids and not full_cohort:
             return self._entities
         entities = {}
         if self.criteria.entity_type == "cros":
             duty_keys = {normalized(label).replace(" ", ""): code for code, label in DUTIES.items()}
             for tid, record in self.records.items():
-                if not self._included(tid, subgroup_ids):
+                if not self._included(tid, subgroup_ids, full_cohort):
                     continue
                 for provider in record["profile"].get("classification_variables", {}).get("third_party_organizations") or []:
                     name = str(provider.get("name") or "").strip()
@@ -291,7 +293,7 @@ class SelectionDataset:
         else:
             ranker = ProfileRanker({"countries": self.criteria.entity_countries, "strict_identity": True})
             for tid, record in self.records.items():
-                if not self._included(tid, subgroup_ids):
+                if not self._included(tid, subgroup_ids, full_cohort):
                     continue
                 profile = deepcopy(record["profile"])
                 for site in profile.get("classification_variables", {}).get("sites") or []:
@@ -315,7 +317,10 @@ class SelectionDataset:
                             tid: {item["sites"][sid]["country"] for sid, trials in item["site_trials"].items() if tid in trials}
                             for tid in item["trials"]})}
         if not subgroup_ids:
-            self._entities = entities
+            if full_cohort:
+                self._public_entities = entities
+            else:
+                self._entities = entities
         return entities
 
     def _trial_evidence(self, tid, entity):
@@ -334,9 +339,9 @@ class SelectionDataset:
     def _ordered_trials(self, row):
         return sorted(row["trials"], key=lambda tid: (BUCKETS.index(self.buckets[tid]), tid))
 
-    def rank(self, limit=10, subgroup_ids=None):
+    def rank(self, limit=10, subgroup_ids=None, *, full_cohort=False):
         rows = []
-        for row in self._entities_for_selection(subgroup_ids).values():
+        for row in self._entities_for_selection(subgroup_ids, full_cohort).values():
             counts = Counter(self.buckets[tid] for tid in row["trials"])
             sponsors = defaultdict(set)
             sponsor_labels = {}
@@ -366,13 +371,17 @@ class SelectionDataset:
                 rationale=f"{counts['direct']} direct, {counts['related']} related and {counts['broader']} broader distinct trials" + (f" with recorded function {self.criteria.function_code}." if self.criteria.function_code else ".")))
         rows.sort(key=lambda r: (-r.trial_counts["direct"], -r.trial_counts["related"], -r.recent_authorization_trials,
                                  -r.trial_counts["broader"], normalized_name(r.name), r.id))
+        if full_cohort:
+            rows.sort(key=lambda r: (-r.trial_counts["total"], normalized_name(r.name), r.id))
+            for row in rows:
+                row.rationale = f"{row.trial_counts['total']} distinct trials in the complete selected cohort."
         for i, row in enumerate(rows, 1):
             row.rank = i
         return RankingResult(cohort=self.summary(), selected_subgroups=subgroup_ids or [], total_entities=len(rows), returned=min(limit, len(rows)),
-            ranking_order=["direct_trials_desc", "related_trials_desc", "recent_authorization_trials_desc", "broader_trials_desc", "name_asc", "id_asc"], entities=rows[:limit])
+            ranking_order=["total_trials_desc", "name_asc", "id_asc"] if full_cohort else ["direct_trials_desc", "related_trials_desc", "recent_authorization_trials_desc", "broader_trials_desc", "name_asc", "id_asc"], entities=rows[:limit])
 
-    def evidence(self, entity_id, offset=0, limit=10, subgroup_ids=None):
-        row = self._entities_for_selection(subgroup_ids).get(entity_id)
+    def evidence(self, entity_id, offset=0, limit=10, subgroup_ids=None, *, full_cohort=False):
+        row = self._entities_for_selection(subgroup_ids, full_cohort).get(entity_id)
         if row is None:
             raise SelectionError("ENTITY_NOT_IN_SELECTION: Entity is not eligible in this selection.")
         ids = self._ordered_trials(row)

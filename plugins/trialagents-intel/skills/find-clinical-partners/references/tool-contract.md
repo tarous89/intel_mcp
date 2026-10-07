@@ -5,7 +5,7 @@ Endpoint: `https://mcp.trialagents.com/research/mcp`. Use only the exposed tools
 | Tool | Purpose | Access |
 |---|---|---|
 | search_research_trials(criteria) | Build a bounded selection; returns ID, cohort/groups and entity totals, not ranked rows | Anonymous |
-| rank_research_entities(selection_id, offset=0, limit=10, project_id=null) | Return ranked entities and recorded contacts | Anonymous first ten; entitled project for pagination |
+| rank_research_entities(selection_id, offset=0, limit=10, project_id=null, include_cro_contacts=false) | Rank the whole cohort; CRO emails only when explicitly requested | Anonymous first ten; entitled project for pagination |
 | get_research_entity_evidence(selection_id, entity_id, offset=0, project_id=null) | Supporting trials for one returned entity | Anonymous top-ten entities, bounded evidence; project for expanded access |
 | list_research_projects() | Connect account and list owned projects/access | OAuth |
 
@@ -17,7 +17,7 @@ Required: `base` (structured hard filters), `entity_type` (`cros`, `sites`, `pis
 
 `base_text`: `fields` from title/diseases/population/stages/settings/inclusion/exclusion, `terms` (1–20), `operator` any/all, optional `exclude_terms`. Terms are case-insensitive substrings across the selected fields. Different structured fields and base_text combine with AND.
 
-`subgroups`: up to 12 ordered objects with id, label, bucket direct/related/broader, optional structured filters and text predicate. At least one explicit predicate is required. Do not combine subgroups with direct/related shorthand filters. First matching group owns the primary count; other matches are overlap tags. `include_broader=true` includes unmatched base trials in the landscape/ranking.
+`subgroups`: up to 12 ordered objects with id, label, bucket direct/related/broader, optional structured filters and text predicate. At least one explicit predicate is required. Do not combine subgroups with direct/related shorthand filters. First matching group owns the primary count; other matches are overlap tags. Public ranking always includes the whole base cohort; private selection tools retain their include_broader behavior.
 
 `phase_title_fallback=true` belongs on a subgroup with a positive phase filter, not the base; it only fills missing structured phase from the title. It never overrides a known conflicting phase.
 
@@ -33,7 +33,7 @@ The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastat
 
 ## Discovery and coverage responses
 
-Search returns `discovery_guidance`: target 100–500, actual trial count, below_target/within_target and the next step. A below-target initial exploratory selection requires a justified broader search or an explanation of why hard constraints/relevance prevent expansion. This guidance does not alter filters or authorize silent broadening.
+Search returns `discovery_guidance`: target 200–500, actual trial count, below_target/within_target and the next step. A below-target initial exploratory selection requires a justified broader search or an explanation of why hard constraints/relevance prevent expansion. This guidance does not alter filters or authorize silent broadening.
 
 The public cohort uses `coverage=complete_available_profile_selection` and `source_scope`. It covers the successful bounded selection of available profiles; it does not assert every CTIS study exists in the database. Over-limit/unsupported-profile reads fail rather than returning a sampled or partially ranked cohort. Individual missing fields and uncertain identities are separate limitations.
 
