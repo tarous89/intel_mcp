@@ -17,13 +17,26 @@ MIXED={"securitySchemes":[{"type":"noauth"},{"type":"oauth2","scopes":["mcp:tool
 OAUTH={"securitySchemes":[{"type":"oauth2","scopes":["mcp:tools"]}]}
 
 
+async def research_tool_security_schemes(ctx, call_next):
+    """Preserve ChatGPT auth declarations after the SDK's protocol serialization."""
+    result = await call_next(ctx)
+    if ctx.method == 'tools/list':
+        # SDK 2.x sieves non-standard Tool fields during protocol serialization.
+        # Its public middleware API runs after that sieve on the response path.
+        return {**result, 'tools': [
+            {**tool, 'securitySchemes': tool['_meta']['securitySchemes']}
+            for tool in result['tools']
+        ]}
+    return result
+
+
 def create_research_server(settings, engine_factory, control_factory):
     store=ResearchStore(engine_factory)
     resource=settings.mcp_public_resource_url.removesuffix('/mcp')+'/research/mcp'
     metadata_url=settings.mcp_public_resource_url.removesuffix('/mcp')+'/research/.well-known/oauth-protected-resource'
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
-    server=MCPServer('TrialAgents clinical research', instructions=(
+    server=MCPServer('TrialAgents clinical research', middleware=[research_tool_security_schemes], instructions=(
         'Search recorded trial experience using explicit criteria. Show total trial and entity counts, '
         'subgroups and up to ten results per entity category with recorded contacts. Counts describe this '
         'bounded cohort, not all trials worldwide. For another subgroup, make a new explicit selection. '
