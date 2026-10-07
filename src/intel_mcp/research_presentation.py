@@ -11,8 +11,14 @@ RESEARCH_WORKFLOW = (
     'Never pad counts or include unrelated trials to reach 200. Report an actual shortfall and reason. '
     'Over 500 fails without sampling: narrow explicitly. Use the same cohort and date for requested categories. '
     'Rank the top ten by distinct trial experience across the WHOLE selected cohort, preserving server order. '
-    'Initial output: concise scope, cohort size, available entity totals, and table of name, trials out of '
-    'the cohort, countries, functions/affiliations. Do not show direct/related/broader breakdown unless asked. '
+    'Report structure: first a 2–3 sentence executive summary answering the actual question. Then show '
+    'criteria and a compact primary trial-group breakdown ONCE, including total trials and deliberate '
+    'expansions. Do not repeat the trial breakdown or access explanation for each category. '
+    'Only search and display entity categories the user requested: a CRO-only question must not add sites '
+    'or PIs. For each requested category show a heading, two short factual summary sentences and the '
+    'inline chart/table. Do not repeat match tiers in entity rows or repeat the chart as another text table. '
+    'Finish with two or three data-supported next actions, once at the end. Set show_followups=true only '
+    'on the last category chart, false on earlier charts; show_access_notice follows the same rule. '
     'Do not show CRO/provider emails unless explicitly requested; source contacts may serve regulatory '
     'purposes and are not verified commercial contacts. PI contacts remain available. '
     'Always show access_info.message once. Finish with two or three specific data-supported follow-ups: '
@@ -107,3 +113,16 @@ def access_info(total, returned, *, full=False, offset=0):
         'full_access_requirements': ['connected_account', 'owned_entitled_project', 'complete_cohort_coverage'],
         'message': message,
     }
+
+
+RESEARCH_CAPABILITIES = {
+    'anonymous': ['Top-ten CRO/provider, site or PI ranking across a bounded cohort',
+                  'Title/disease/profile-text discovery and structured country, phase, modality and therapeutic-area filters',
+                  'Recorded supporting trial titles, IDs, source links and entity roles for displayed entities',
+                  'Function-specific CRO experience, recorded sponsor co-occurrence and PI affiliations',
+                  'Explicit-request recorded CRO contacts; PI contacts where available'],
+    'existing_entitlement': ['Full entity lists only when an owned eligible project covers the entire cohort',
+                             'Recorded trial-level operational findings in evidence where present; not entity performance attribution'],
+    'not_exposed': ['Protocol document retrieval', 'Patient information documents or patient-level data',
+                    'Complete EU regulatory history', 'Full clinical-results tables', 'Outreach or response tracking'],
+}

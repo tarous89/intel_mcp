@@ -63,8 +63,8 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         listed=(await client.list_tools()).tools
         names={t.name for t in listed}
         ranked_tool=next(t for t in listed if t.name=='rank_research_entities')
-        assert ranked_tool.meta['ui']['resourceUri']=='ui://trialagents/research-v013'
-        resource=await client.read_resource('ui://trialagents/research-v013')
+        assert ranked_tool.meta['ui']['resourceUri']=='ui://trialagents/research-v014'
+        resource=await client.read_resource('ui://trialagents/research-v014')
         assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
         assert 'TrialAgents experience' in resource.contents[0].text
         assert names=={'search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects'}
@@ -76,8 +76,11 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         assert search.structured_content['access_info']['anonymous_limit']==10
         assert search.structured_content['discovery_guidance']['status']=='below_target'
         assert 'migration 047' not in str(search.structured_content)
+        assert 'Protocol document retrieval' in search.structured_content['capabilities']['not_exposed']
         token=search.structured_content['selection_id']
-        rank=await client.call_tool('rank_research_entities',{'selection_id':token})
+        rank=await client.call_tool('rank_research_entities',{'selection_id':token,'show_followups':False,'show_access_notice':False})
+        assert rank.structured_content['show_followups'] is False
+        assert rank.structured_content['entity_type']=='cros'
         assert not rank.is_error and rank.structured_content['returned']==10
         assert 'Showing 10 of 25' in rank.structured_content['access_info']['message']
         assert rank.structured_content['cohort']['coverage']=='complete_available_profile_selection'
