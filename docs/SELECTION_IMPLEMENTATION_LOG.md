@@ -248,3 +248,10 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - App PR https://github.com/tarous89/intel_agent_app/pull/248 adds operator/publisher identification to the Intel product footer, support, privacy and terms. No verified/approved claim, new Impressum route, app-usage/workflow/tracking change or new LLM call.
 - Learning: trialagents.com is served by the separate trialagents-public snapshot. App source merge/deploy alone is not proof that all four package URLs have updated.
 - Decisions: owner will complete Atlas Consulting verification. Keep Gate A/B factual blockers open; existing privacy/retention/source-rights and stale legal wording are not resolved by this identity-only patch. Deployment/live evidence must be recorded before closing the public-identity check.
+
+## Step 23 — Publish authorized disclosures and retain handover (2026-10-07)
+
+- Owner explicitly requested publication and durable MD context. All five App #248 checks passed on 70cf1928d3618d15410e2b388bb920d6bac99822 (test, verify, report-dataset, max-agent, app-worker). Merged as 7d9a548c31b164592ee81ab426c57ae4e67d034d; existing Render service started dep-db2tnduq1p3s73ercvu0 automatically.
+- Preserved decisions: Atlas Consulting operator/publisher; postal address in Terms only; no verified/approved claim; OpenAI verification to be completed by owner. No separate Impressum, workflow, entitlement, tracking, pricing or LLM change.
+- Main-site publishing is separate: trialagents-public PR #124 records source/deployment ordering and live checks. This session has GitHub/Render access but no connected Cloudflare publishing tool or authenticated Wrangler. Do not infer Cloudflare publication from App merge or documentation updates.
+- Current live evidence and remaining publication work are tracked in docs/releases/0.1.1-readiness.md. All existing source-rights, privacy/retention and package readiness gates remain mandatory.
