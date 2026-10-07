@@ -24,7 +24,7 @@ the installed client's configuration/cache still needs an end-to-end retest.
 
 Decision: preserve both declarations in serialized tools/list responses.
 Search, ranking and evidence declare noauth plus optional OAuth. Project listing
-remains OAuth-only. Implement a research-scoped list-result serializer because
+remains OAuth-only. Implement research-scoped response middleware after protocol serialization because
 the Python SDK Tool model drops extension fields. Do not change the legacy MCP,
 app login, token validation, entitlements, pricing, ten-result cap, or LLM usage.
 
