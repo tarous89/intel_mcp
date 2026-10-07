@@ -267,3 +267,15 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - Fix PR #82 adds `/.well-known/oauth-protected-resource/research/mcp` ahead of the legacy mount, with regression assertions for research issuer/resource and private isolation. Tests passed; merged b89a076a05fd4ad0980243f6dd5edd6310871850, Render dep-db2uckp5efls73bo6b10 live 06:28:36 UTC.
 - Live verification: new metadata path 200 with correct `/research/mcp` audience and `/oauth/intel` issuer; anonymous research tools/list 200; private `/mcp` remains 401. No access/workflow/pricing changes or backend LLM calls. Details in main-branch docs/RESEARCH_OAUTH_DISCOVERY_INCIDENT.md.
 - Owner retest: refresh/recreate only the custom TrialAgents Intel Test connection using the exact research URL; cached BD client registration may need replacement. OAuth must use `/oauth/authorize`, not the BD path. End-to-end ChatGPT behavior and initial anonymous-search prompting still need owner confirmation; a passing discovery probe is not OAuth acceptance.
+
+
+## Step 25 — Preserve anonymous-first tool authentication metadata (2026-10-07)
+
+- Owner reported first use still requested connection. New screenshot reached clinical /oauth/authorize and showed Approval expired. Previous discovery repair fixed routing only; it did not verify anonymous-first ChatGPT behavior.
+- Confirmed deployed tools/list omitted top-level securitySchemes, with declarations only under _meta. OpenAI documents that omission inherits server defaults. SDK 2.x drops unknown Tool fields and filters them again during protocol serialization.
+- Decision: research-only response middleware mirrors existing securitySchemes after SDK serialization. Search/rank/evidence remain noauth plus optional OAuth; project listing stays OAuth-only. No change to agreed workflow, ten-result enforcement, app usage, subscriptions, token validation or LLM costs.
+- Iteration: initial result serializer failed the new HTTP-wire regression because the later SDK protocol filter dropped the extension. Response middleware fixed that; all five focused tests and full CI passed.
+- PR #83 merged as 862e6087e8573fe7ad0a6184b8d0074738befd8c. Render dep-db2uqsp5efls73bokr60 live 06:58:39 UTC.
+- Live checks without credentials: three research descriptors include top-level noauth and matching compatibility metadata; prostate CRO search reported 272 entities, ranking returned ten, evidence succeeded, offset ten was denied, private /mcp remained 401. These counts describe this validation selection, not global coverage.
+- Required owner/client retest: refresh test app metadata and start a fresh conversation without connecting a TrialAgents account. First research must return results without external login. Optional full-access linking is a separate test. Installed-client settings/cache are not verified by server probes.
+- Keep anonymous-first behavior, HTTP-wire auth declarations and voluntary upgrade tests on the mandatory pre-test/pre-release checklist in docs/RESEARCH_OAUTH_DISCOVERY_INCIDENT.md. Broader publication blockers remain; do not mark the package submission-ready from this repair alone.
