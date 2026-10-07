@@ -22,7 +22,10 @@ def test_free_boundary_counts_contacts_and_no_evidence_enumeration():
     d=SelectionDataset(criteria(),many())
     r=public_ranking(d)
     assert r.total_entities==25 and r.returned==10
-    assert r.entities[0].contacts[0]['email']=='contact1@synthetic.invalid'
+    assert r.entities[0].contacts == []
+    explicit = public_ranking(d, include_cro_contacts=True)
+    assert explicit.entities[0].contacts[0]['email']=='contact1@synthetic.invalid'
+    assert 'unverified' in explicit.entities[0].contacts[0]['contact_caveat']
     assert 'operational_findings' not in r.entities[0].evidence[0]
     eleventh=d.rank(11).entities[-1].id
     for kwargs in ({'offset':10},{'limit':11}):
@@ -57,7 +60,13 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
     control=Control();engine=Engine(many())
     server,_,_,_,_=create_research_server(settings,lambda:engine,lambda:control)
     async with Client(server) as client:
-        names={t.name for t in (await client.list_tools()).tools}
+        listed=(await client.list_tools()).tools
+        names={t.name for t in listed}
+        ranked_tool=next(t for t in listed if t.name=='rank_research_entities')
+        assert ranked_tool.meta['ui']['resourceUri']=='ui://trialagents/research-v013'
+        resource=await client.read_resource('ui://trialagents/research-v013')
+        assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
+        assert 'TrialAgents experience' in resource.contents[0].text
         assert names=={'search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects'}
         linking=await client.call_tool('list_research_projects',{})
         assert linking.is_error and linking.meta['mcp/www_authenticate']
@@ -141,7 +150,7 @@ with TestClient(app) as client:
     assert criteria['type']=='object'
     assert {'base','entity_type','as_of'} <= set(criteria['required'])
     assert criteria['properties']['base_text']['anyOf'][0]['properties']['fields']['items']['enum']
-    assert '100–500' in descriptors['search_research_trials']['description']
+    assert '200–500' in descriptors['search_research_trials']['description']
     assert 'access_info.message' in descriptors['rank_research_entities']['description']
     for name, tool in descriptors.items():
         expected=[{'type':'oauth2','scopes':['mcp:tools']}]
@@ -152,3 +161,17 @@ with TestClient(app) as client:
 '''
     result=subprocess.run([sys.executable,'-c',script],env={**os.environ,'MCP_RESEARCH_ENABLED':'true','MCP_ALLOWED_HOSTS':'testserver','MCP_INBOUND_SERVICE_TOKEN':'synthetic-only'},capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
+
+
+def test_public_whole_cohort_order_and_evidence_do_not_change_private_contract():
+    rows = [record(1, providers=[provider('Specialist')])]
+    rows += [record(i, direct=False, providers=[provider('Broad provider')]) for i in range(2, 15)]
+    d = SelectionDataset(criteria(), rows)
+    assert d.rank().entities[0].name == 'Specialist'
+    public = public_ranking(d)
+    assert public.total_entities == 2
+    assert public.entities[0].name == 'Broad provider'
+    assert public.entities[0].trial_counts['total'] == 13
+    assert public_evidence(d, public.entities[0].id).total_trials == 13
+    assert public.ranking_order == ['total_trials_desc', 'name_asc', 'id_asc']
+    assert d.rank().entities[0].name == 'Specialist'

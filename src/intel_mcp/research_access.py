@@ -53,14 +53,20 @@ class ResearchStore:
         return entry['dataset']
 
 
-def public_ranking(dataset, *, offset=0, limit=10, full_access=False):
+def public_ranking(dataset, *, offset=0, limit=10, full_access=False, include_cro_contacts=False):
     if offset<0 or limit<1 or limit>100:
         raise SelectionError('INVALID_PAGE')
     if not full_access and (offset!=0 or limit>10):
         raise SelectionError('ACCOUNT_ACCESS_REQUIRED: Current access includes the top ten. Connect your TrialAgents account to check full-list access.')
-    ranked=dataset.rank(limit=offset+limit)
+    ranked=dataset.rank(limit=offset+limit, full_cohort=True)
     ranked.entities=ranked.entities[offset:offset+limit]
     ranked.returned=len(ranked.entities)
+    if dataset.criteria.entity_type == 'cros':
+        for entity in ranked.entities:
+            if not include_cro_contacts:
+                entity.contacts = [c for c in entity.contacts if 'email' not in c]
+            else:
+                entity.contacts = [{**c, 'contact_caveat': 'Recorded trial/regulatory source contact; suitability for commercial outreach is unverified.'} if 'email' in c else c for c in entity.contacts]
     if not full_access:
         for entity in ranked.entities:
             for trial in entity.evidence:
@@ -71,10 +77,10 @@ def public_ranking(dataset, *, offset=0, limit=10, full_access=False):
 
 
 def public_evidence(dataset, entity_id, *, offset=0, full_access=False):
-    allowed={e.id for e in dataset.rank(limit=10).entities}
+    allowed={e.id for e in dataset.rank(limit=10, full_cohort=True).entities}
     if not full_access and entity_id not in allowed:
         raise SelectionError('ENTITY_ACCESS_REQUIRED: Evidence is available for the displayed top ten.')
-    result=dataset.evidence(entity_id,offset=offset,limit=10)
+    result=dataset.evidence(entity_id,offset=offset,limit=10,full_cohort=True)
     # Source narratives/sections may enumerate unrelated entities. Public evidence
     # returns explicit trial and role links; unrestricted sections stay private.
     if not full_access:
