@@ -170,3 +170,11 @@ existing entitlement, not "create an account and subscribe." No pricing or auth 
 - [ ] Query/pool timeout returns ENGINE_TIMEOUT; connection failure returns ENGINE_UNAVAILABLE; no SQL, credentials or private database diagnostics leak.
 - [ ] Keep the restricted reader, existing timeout, 500 hard cap, one-statement snapshot and ten-row payload batches. No new LLM calls or infrastructure purchase.
 - [ ] Clinical relevance review: inclusion/exclusion-text mentions alone do not establish disease experience. Do not count lexical matches as clinical matches or pad the 200 target.
+
+
+## Full-list action — mandatory before package handoff and every release
+- [ ] One access CTA labelled Access full list when additional matching entities exist; do not imply a full dataset export.
+- [ ] Show returned/total counts and existing eligible-project coverage requirement before account connection. Connection alone does not grant access.
+- [ ] Preserve native OAuth consent and a free fallback when entitlement is absent. No purchase initiation or subscription promotion in the widget, account page or redirects.
+- [ ] Informational entitlement pages are allowed under the current guideline, but must not initiate upgrade/subscription/checkout. Recheck https://developers.openai.com/plugins/plugin-guidelines before changes.
+- [ ] Confirm the current hosted consent page and actual ChatGPT button rendering; code tests do not guarantee review approval.

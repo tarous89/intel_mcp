@@ -61,3 +61,6 @@ End with 2–3 supported next actions once. Set rank_research_entities show_foll
 Use the search response capabilities inventory. Public tools expose cohort filters, partner ranking, supporting trial links/roles, functions, affiliations, contacts and sponsor co-occurrence. Existing eligible project access allows full lists and recorded trial-level operational findings where present. Do NOT offer protocol downloads, patient information documents/patient-level data, complete EU trial history or full clinical-results tables: those are not exposed by this public MCP. Do not imply payment or login alone adds those tools.
 
 After account linking, explain the returned project access outcome. No eligible project means free research remains available; signup does not charge or unlock full lists. No subscription/checkout routing from the plugin.
+
+
+Full-list action: use a single **Access full list** access button, not Check my access or Access full dataset. It requests matching entity lists using existing eligible project access, not a dataset export or purchase. Explain required cohort coverage before connection; connection alone does not grant it. If unavailable, state the restriction neutrally and retain free research. Never route this action or hosted signup/consent into a subscription, upgrade or checkout flow.

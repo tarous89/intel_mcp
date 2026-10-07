@@ -404,3 +404,14 @@ Mandatory checks before package download/test handoff and every release:
 
 
 Validation after deployment: MCP PR87 merged as 5d0e1da44d406fb49c370d92b6cd16db0f192676; Render dep-db358uk9v7es73ccngi0 live at 2026-10-07T14:18:37Z. All 428 CI tests passed, including PostgreSQL. First replay reached draining old instance 8whwl and reproduced its timeout; logs confirm shutdown14:19:36Z. Subsequent replay returned COHORT_TOO_LARGE without partial results. Live broadened title/disease/population search for prostate/bladder/urothelial returned342 trials and462 recorded provider entities; anonymous ranking returned10. This is an operational discovery probe, not a clinical validation of every match; the copied phase3 subgroup label was prostate-specific despite the broader base, so do not reuse it as a reviewed report. No package reinstall or account reconnection is required for this server-side fix. Remaining real ChatGPT UI/OAuth acceptance checks stay open.
+
+
+## Step32 — Full-list access wording — 2026-10-07
+
+Owner requested a single Access full list button instead of Check my access. Implement that label for all categories; avoid Access full dataset because public tools do not provide dataset exports. Keep counts and the requirement for an existing eligible project covering the cohort visible before connection; signing in alone does not unlock access. On missing entitlement, explain the restriction and retain free research.
+
+Reviewed official https://developers.openai.com/plugins/plugin-guidelines (Commerce and monetization) on 2026-10-07. Existing paid-account access and neutral missing-entitlement explanations are allowed. Informational entitlement links are allowed, but direct/indirect subscription promotion, checkout and pages initiating an upgrade/subscription/purchase are not. Therefore no payment funnel on the hosted connection page or signup redirect. This is implementation guidance, not a guarantee of OpenAI approval.
+
+Reviewed current intel_agent_app app/oauth/authorize/route.ts: existing-project benefits, no purchase on connection/signup, and free fallback are already stated; retain the explicit Connect TrialAgents consent action. No main App, billing or authentication behavior changed. Widget continues to request the host-supported flow and cannot bypass native authorization.
+
+Before every release and package test handoff, verify: one Access full list action only when more results exist; accurate counts/entitlement disclosure; no purchase/upgrade links or signup-to-checkout redirects; unsupported-host text fallback; connected/unentitled accounts retain free use. Recheck current OpenAI guidelines for any later commerce change.

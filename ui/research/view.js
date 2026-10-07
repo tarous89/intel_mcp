@@ -27,7 +27,7 @@ function render(data){
   const status=el('p');status.setAttribute('role','status');
   if(first)add('Supporting studies',`Show the recorded supporting studies and roles for entity ID ${first.id} in the current ${label.toLowerCase()} selection.`);
   add('Refine by country',`Help me refine this ${label.toLowerCase()} selection by country. Ask which country I want, then keep the same clinical criteria.`);
-  if(data.access_info?.has_more)add('Check full-list access',`Check whether my connected TrialAgents account has an existing eligible project covering this cohort for the full ${label.toLowerCase()} list. Explain the access requirement before connecting.`);
+  if(data.access_info?.has_more)add('Access full list',`Access the full ${label.toLowerCase()} list for the current cohort using an existing eligible TrialAgents project. If account connection is needed, explain that full lists require existing project access covering this cohort and offer the supported connection flow. Connecting alone does not unlock access. If no eligible project covers the cohort, explain the restriction and keep free research available. Do not initiate a purchase or subscription.`);
   root.append(actions,status);
  }
 
