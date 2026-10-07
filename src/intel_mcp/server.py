@@ -1121,7 +1121,7 @@ def build_app():
     if settings.research_enabled:
         from contextlib import AsyncExitStack, asynccontextmanager
         from starlette.applications import Starlette
-        from starlette.routing import Mount
+        from starlette.routing import Mount, Route
         from intel_mcp.research_server import create_research_server
         research, ResearchAuth, research_store, research_resource, research_challenge = create_research_server(
             settings, engine_client, control_plane_client)
@@ -1134,7 +1134,17 @@ def build_app():
                 await stack.enter_async_context(research_http.router.lifespan_context(research_http))
                 yield
     
+        async def research_metadata(_request):
+            # RFC 9728 path-based discovery must precede the legacy root fallback.
+            return JSONResponse({
+                'resource': research_resource,
+                'authorization_servers': [settings.oauth_authorization_server_url.rstrip('/') + '/oauth/intel'],
+                'scopes_supported': [OAUTH_SCOPE],
+                'bearer_methods_supported': ['header'],
+            }, headers={'Cache-Control': 'no-store'})
+
         app = Starlette(routes=[
+            Route('/.well-known/oauth-protected-resource/research/mcp', research_metadata, methods=['GET']),
             Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
             Mount('/', app=app),
         ], lifespan=lifespan)
