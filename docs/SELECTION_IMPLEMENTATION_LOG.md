@@ -279,3 +279,30 @@ Remaining user check: complete real ChatGPT account connection with an existing 
 - Live checks without credentials: three research descriptors include top-level noauth and matching compatibility metadata; prostate CRO search reported 272 entities, ranking returned ten, evidence succeeded, offset ten was denied, private /mcp remained 401. These counts describe this validation selection, not global coverage.
 - Required owner/client retest: refresh test app metadata and start a fresh conversation without connecting a TrialAgents account. First research must return results without external login. Optional full-access linking is a separate test. Installed-client settings/cache are not verified by server probes.
 - Keep anonymous-first behavior, HTTP-wire auth declarations and voluntary upgrade tests on the mandatory pre-test/pre-release checklist in docs/RESEARCH_OAUTH_DISCOVERY_INCIDENT.md. Broader publication blockers remain; do not mark the package submission-ready from this repair alone.
+
+
+## Step 26 — Owner host-test findings and proposed workflow correction (2026-10-07)
+
+Status: investigation and planning only; obtain owner approval before changing the agreed workflow. No runtime/app usage, pricing or LLM-cost change in this entry.
+
+Evidence:
+- Owner screenshots show validation retries, a final six-trial cohort, omitted access explanation, and generic incomplete-coverage/identity caveats.
+- Installed ChatGPT search tool is exposed as criteria: unknown. The server uses a nested SelectionCriteria schema; test host rendering explicitly rather than assuming a valid server schema is sufficient. Exact importer cause remains unverified.
+- Successful installed-tool call with the existing bundled broad prostate example (date 2026-10-07) returned 192 trials: 18 phase III mHSPC terminology candidates, 49 other phase III prostate candidates, 125 unmatched broader prostate trials, and 272 CRO/provider entities with ten visible. These are lexical candidate groups, not validated exact eligibility; broader does not mean every trial is equally relevant.
+- Main selection.py still emits a static migration-047-pending coverage warning and complete_approved_base label. Earlier deployment entries record migration 047 applied and available-profile parity checked. This warning is not a live measurement of missing studies.
+- Identity alias limits remain a separate real limitation; do not delete them merely to improve appearances.
+- Bundled skill already instructs broader landscape discovery, but says explain the access limit only when relevant. It is not confirmed that the installed custom MCP test includes/loads this bundled skill. Server instructions alone do not contain the full broad-first procedure.
+
+Proposed acceptance checklist; review before package download/testing readiness and every release:
+- [ ] Expose explicit usable search requirements in the ChatGPT tool schema, with a validated minimal example in tool help. Validate a fresh first invocation without exploratory validation failures. Investigate inlining local schema references or a simpler typed public contract; retain server-side validation.
+- [ ] Ensure broad-first instructions are delivered in the actual tested installation, not only the unmerged ZIP source. Make first exploratory output a relevant 100–500-trial landscape when available; direct/related/broader groups must be explicit and disjoint.
+- [ ] If a first narrow query returns below 100, run the disclosed relevant broader landscape before finalizing. Never fabricate counts, sample silently, or relax explicit mandatory constraints. If relevant data remains below 100, explain the actual scope and counts.
+- [ ] Preserve direct-experience ranking priority; do not let broad counts imply exact clinical expertise.
+- [ ] Always show displayed/total entity counts and a neutral access footer on initial results: free use shows up to ten per category; connect or create a TrialAgents account for full-access options; full lists require an eligible entitled project covering the cohort. No forced login for the free result, no claim that login alone unlocks paid access.
+- [ ] Include structured access information in search/ranking responses and clear presentation instructions. Verify against current OpenAI guidance before adding external subscription CTA/link wording.
+- [ ] Replace historical migration warning and approval-era naming with verified serving-coverage semantics; check live coverage before claiming completeness. Distinguish database scope, missing individual fields, identity uncertainty and actual retrieval truncation/failure.
+- [ ] Keep real material caveats concise and tied to the returned evidence. Do not assert missing/unserved profiles from a static historical warning.
+- [ ] Repeat the owner's exact prompt in the installed ChatGPT plugin: no required login, no schema-guessing errors, broad subgroup counts, top ten per requested category, recorded contacts, access footer, source-based ranking explanation.
+- [ ] Record server deployment and installed workflow version separately; successful API calls alone do not establish host workflow compliance.
+
+Permission boundary: requested corrections are concrete above. Await owner approval for workflow/response-contract edits. No backend LLM is proposed; deterministic selection remains unchanged.
