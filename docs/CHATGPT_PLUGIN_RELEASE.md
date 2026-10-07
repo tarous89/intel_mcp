@@ -161,3 +161,12 @@ existing entitlement, not "create an account and subscribe." No pricing or auth 
 - [ ] Only final widget shows 2–3 supported follow-up buttons; unavailable message bridge falls back to text.
 - [ ] Capability catalog does not advertise unexposed protocols, patient documents, full lifecycle history or clinical-results tables.
 - [ ] Refresh host tool metadata; repeat actual ChatGPT logged-out/signup, signed-in consent and multi-category report acceptance. Local tests are not host acceptance.
+
+
+## Seven-field discovery regression — mandatory before test handoff/every release
+- [ ] Validate positive discovery across all seven indexed fields, any/all semantics across different fields, exclusions, wildcard literals and duplicate prevention with real PostgreSQL.
+- [ ] Reproduce the seven-field prostate overflow case: explicit COHORT_TOO_LARGE, no partial ranking and no false database-outage message.
+- [ ] Verify a bounded 200–500 relevant cohort can be searched and anonymously ranked with the ten-result cap preserved.
+- [ ] Query/pool timeout returns ENGINE_TIMEOUT; connection failure returns ENGINE_UNAVAILABLE; no SQL, credentials or private database diagnostics leak.
+- [ ] Keep the restricted reader, existing timeout, 500 hard cap, one-statement snapshot and ten-row payload batches. No new LLM calls or infrastructure purchase.
+- [ ] Clinical relevance review: inclusion/exclusion-text mentions alone do not establish disease experience. Do not count lexical matches as clinical matches or pad the 200 target.

@@ -11,6 +11,30 @@ from intel_mcp.config import ENGINE_READER_ROLE, Settings
 from intel_mcp.engine_database import DatabaseEngineClient
 
 
+@pytest.mark.parametrize('kind,code,status', [
+    ('query', 'ENGINE_TIMEOUT', 504),
+    ('pool', 'ENGINE_TIMEOUT', 504),
+    ('connection', 'ENGINE_UNAVAILABLE', 503),
+])
+def test_selection_distinguishes_timeouts_from_database_outages(monkeypatch, kind, code, status):
+    import asyncio
+    import psycopg
+    from psycopg_pool import PoolTimeout
+    from intel_mcp.engine import EngineError
+    from test_selection import criteria
+    errors = {'query': psycopg.errors.QueryCanceled, 'pool': PoolTimeout,
+              'connection': psycopg.OperationalError}
+    client = DatabaseEngineClient(database_settings())
+    def fail(*args):
+        raise errors[kind]('private database details')
+    monkeypatch.setattr(client, '_execute', fail)
+    with pytest.raises(EngineError) as caught:
+        asyncio.run(client.selection(criteria()))
+    assert caught.value.code == code
+    assert caught.value.status_code == status
+    assert 'private database details' not in str(caught.value)
+
+
 def database_settings(**overrides: Any) -> Settings:
     values: dict[str, Any] = {
         "app_control_url": "https://intel.example.test",

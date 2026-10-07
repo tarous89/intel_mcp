@@ -57,3 +57,18 @@ def test_literal_wildcards_and_no_sql_injection(connection):
     request = criteria(base={}, base_text={'fields': ['title'], 'terms': ['100%_response', "' OR TRUE --"], 'operator': 'all'})
     dataset = read_selection(connection, request.model_dump(mode='json'))
     assert list(dataset.records) == ['2024-000001-00-00']
+
+
+@pytest.mark.parametrize('operator,expected', [('any', [1, 2, 3]), ('all', [1])])
+def test_cross_field_terms_deduplicate_and_preserve_exclusions(connection, operator, expected):
+    insert(connection, 1, 'prostate trial', [3], 'hormone sensitive prostate')
+    insert(connection, 2, 'prostate trial', [3])
+    insert(connection, 3, 'other trial', [3], 'hormone sensitive')
+    insert(connection, 4, 'benign prostate trial', [3], 'hormone sensitive')
+    request = criteria(base={}, base_text={
+        'fields': ['title', 'diseases', 'population', 'stages', 'settings', 'inclusion', 'exclusion'],
+        'terms': ['prostate', 'hormone sensitive'], 'operator': operator,
+        'exclude_terms': ['benign'],
+    })
+    dataset = read_selection(connection, request.model_dump(mode='json'))
+    assert list(dataset.records) == [f'2024-{i:06d}-00-00' for i in expected]

@@ -385,3 +385,22 @@ Report decision supersedes earlier default hide-all-breakdowns: executive answer
 Payment decision: requested automatic signup→payment/free-versus-paid choice was NOT implemented. Official plugin guidelines rechecked2026-10-07 prohibit digital subscription upsell/checkout initiation, including indirect funnels. Existing paid-account access and neutral entitlement information are allowed. New/unentitled accounts return to free research, not checkout. Source https://developers.openai.com/plugins/plugin-guidelines. Existing pricing/billing untouched; no new backend LLM or paid analysis.
 
 Validation: MCP423 local tests passed/2 DB checks skipped; focused new tests passed. DOM checks validated requested-category display, text escaping, follow-up message and final-only controls. App route lifecycle/CSP tests passed; real Chromium local fixtures reproduced old block and verified corrected navigation. Actual ChatGPT signup/token exchange and UI acceptance still required after deployment. Review release checklist before test handoff/every release.
+
+
+## Step31 — Seven-field discovery timeout — 2026-10-07
+
+Owner screenshots at 13:59 UTC showed ENGINE_UNAVAILABLE. Correlated database logs showed statement_timeout during FETCH FORWARD 10 FROM selection_profiles, not a database outage. Reproduced: three prostate terms across all seven text fields failed; the same three terms across title/diseases/population succeeded (180 records at investigation time).
+
+Read-only EXPLAIN ANALYZE identified a sequential eligibility-text scan: approximately 18.1 seconds. Splitting the positive cross-field OR into per-field UNION branches used existing trigram indexes: approximately 4.9 seconds. Materializing bounded candidate IDs/match flags before indexed profile retrieval measured approximately 5.1 seconds for the 501-row overflow probe. These are database measurements, not end-to-end ChatGPT benchmarks. The seven-field search matched 828 records including exclusion-text mentions; this is lexical discovery, not 828 clinically relevant prostate trials.
+
+Decision: preserve any/all-term and exclusion semantics, bound candidates to 501 for overflow detection, fetch payloads in batches of ten from one statement snapshot, and keep the hard 500 cap with no partial ranking. Keep existing restricted reader, 15-second timeout and infrastructure plan. Report query/pool timeout as ENGINE_TIMEOUT (504), retaining ENGINE_UNAVAILABLE (503) for database failures. No LLM, billing, OAuth, main App UI or entitlement changes.
+
+Mandatory checks before package download/test handoff and every release:
+- [ ] Run PostgreSQL regression for all seven fields, any/all terms across different fields, exclusions, wildcard escaping and duplicate prevention.
+- [ ] Confirm query timeout, pool timeout and connection failure have distinct safe error responses without database details.
+- [ ] Replay the seven-field production failure: obtain explicit COHORT_TOO_LARGE rather than timeout/outage, with no partial result.
+- [ ] Verify a bounded relevant cohort can be searched and ranked anonymously, with no more than ten entities returned.
+- [ ] Carry these checks/results into the package branch release guide; do not mark unobserved checks passed.
+
+
+Validation after deployment: MCP PR87 merged as 5d0e1da44d406fb49c370d92b6cd16db0f192676; Render dep-db358uk9v7es73ccngi0 live at 2026-10-07T14:18:37Z. All 428 CI tests passed, including PostgreSQL. First replay reached draining old instance 8whwl and reproduced its timeout; logs confirm shutdown14:19:36Z. Subsequent replay returned COHORT_TOO_LARGE without partial results. Live broadened title/disease/population search for prostate/bladder/urothelial returned342 trials and462 recorded provider entities; anonymous ranking returned10. This is an operational discovery probe, not a clinical validation of every match; the copied phase3 subgroup label was prostate-specific despite the broader base, so do not reuse it as a reviewed report. No package reinstall or account reconnection is required for this server-side fix. Remaining real ChatGPT UI/OAuth acceptance checks stay open.
