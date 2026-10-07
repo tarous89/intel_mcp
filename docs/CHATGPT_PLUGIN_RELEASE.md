@@ -16,8 +16,8 @@ Use a dated release record under `docs/releases/` containing version, Git SHA, Z
 - [ ] A02 Use TrialAgents Intel for the plugin and explain its relationship to Intel Agent/TrialAgents; verified developer identity must match the actual verified publisher, not an assumed brand/legal name. Domains, logos, contacts and source links must identify the same service.
 - [ ] A03 Compare every advertised capability with exposed tools and accessible output. Do not promise raw profiles, operational narratives to anonymous users, outreach, saved lists, trial-list exports, performance or recruitment capacity where unsupported.
 - [ ] A04 Confirm source provenance and permission to use/distribute underlying CTIS-derived data and professional contacts. Do not present the plugin as an official CTIS/EMA connector or endorsement. Separate record-derived facts, lexical matches and interpretations; never assert worldwide completeness.
-- [ ] A05 Check cohort rules: explicit hard constraints, justified broadening, candidate labels, missing/contradictory phase handling, distinct primary groups versus overlaps, conservative identity normalization, true counts and deterministic ranking. Never pad to 200 or guarantee ten when fewer exist.
-- [ ] A06 Describe ten per category per selection, not ten lifetime results or ten trials. Legitimate new queries may return different tens; do not harvest partitions to bypass restrictions. Evidence pagination for visible entities is distinct from entity-list pagination.
+- [ ] A05 Check cohort rules: explicit hard constraints, justified broadening, candidate labels, missing/contradictory phase handling, distinct primary groups versus overlaps, conservative identity normalization, true counts and deterministic ranking. Target a relevant 100–500-trial exploratory landscape; if below 100, verify justified broadening or a documented constraint/relevance exception. Never pad counts or guarantee ten when fewer exist.
+- [ ] A06 Verify that every initial report shows displayed/total entity counts and the neutral access_info.message, including existing-account connection and required entitlement. Describe ten per category per selection, not ten lifetime results or ten trials. Legitimate new queries may return different tens; do not harvest partitions to bypass restrictions. Evidence pagination for visible entities is distinct from entity-list pagination.
 - [ ] A07 Anonymous use collects no account email by virtue of being anonymous. OAuth connection alone does not grant full access; ownership, entitlement and complete cohort coverage are required. Missing/expired/revoked/uncovered access must remain denied server-side.
 - [ ] A08 Confirm website/plugin access and service claims are consistent; same entitlement must not receive an intentionally inferior ChatGPT service or ChatGPT-only surcharge. Compare actual included features; explain the plugin's narrower supported surface rather than claim complete app parity.
 - [ ] A09 Keep neutral access explanations and existing-account connection distinct from digital upsells. No checkout links, upgrade initiation, subscription promotion or price advertisements in listing/workflow. Review all account redirects, not only tool names. Do not change the agreed access model without owner permission.
@@ -120,3 +120,20 @@ Official guidance checked 2026-10-06:
 - https://developers.openai.com/plugins/deploy/submission
 
 Submission metadata includes five positive and three negative cases. The skill makes no raw-profile, performance, patient-treatment, email-sending or payment-tool claims. Operational narratives are not disclosed by free evidence; do not advertise their availability as an anonymous feature.
+
+
+## Required regression checks after the 2026-10-07 owner test
+
+Review these checks before any package download/test handoff and every release.
+- [ ] The installed host sees explicit nested criteria fields and succeeds on its first valid search; HTTP schema validation alone is insufficient proof of host import.
+- [ ] The owner's exploratory phase III mHSPC prompt produces a broad relevant prostate landscape with disjoint direct/related/broader counts, rather than stopping at a tiny exact group.
+- [ ] A below-100 exploratory search triggers relevant broadening or a clear exception. An explicit "phase III only, Germany only" request preserves both constraints even if sparse.
+- [ ] The report includes ten-result/access disclosure without forced login, subscription promotion or a promise that authentication alone unlocks results.
+- [ ] Source-scope and missing-field caveats reflect actual evidence; no stale migration-pending warnings, worldwide completeness claim, or hidden real identity uncertainty.
+- [ ] Record deployed server SHA and installed workflow version separately. A custom MCP connector may not load the ZIP skill; live tool descriptions and response guidance must stand alone.
+- [ ] Recheck anonymous search/rank/evidence, offset denial, private-MCP isolation, and entitled/revoked project access.
+
+OpenAI guidance rechecked 2026-10-07: https://developers.openai.com/plugins/plugin-guidelines
+permits neutral entitlement explanations and existing paid-account use; it prohibits subscription
+promotion and checkout/upgrade initiation. The initial notice therefore explains connection and
+existing entitlement, not "create an account and subscribe." No pricing or auth flow change.

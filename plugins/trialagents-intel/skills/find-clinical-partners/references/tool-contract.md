@@ -31,6 +31,14 @@ Load `prostate-landscape.json` as an example, replace as_of with today's date an
 
 The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastatic as separate narrative predicates in one group. Acronym/specific-phrase candidates are not proof of complete clinical inclusion. Explain this limitation; do not silently label broad hormone-sensitive mentions “metastatic.” Review returned trial evidence for candidates; this public surface does not expose raw profile sections.
 
+## Discovery and coverage responses
+
+Search returns `discovery_guidance`: target 100–500, actual trial count, below_target/within_target and the next step. A below-target initial exploratory selection requires a justified broader search or an explanation of why hard constraints/relevance prevent expansion. This guidance does not alter filters or authorize silent broadening.
+
+The public cohort uses `coverage=complete_available_profile_selection` and `source_scope`. It covers the successful bounded selection of available profiles; it does not assert every CTIS study exists in the database. Over-limit/unsupported-profile reads fail rather than returning a sampled or partially ranked cohort. Individual missing fields and uncertain identities are separate limitations.
+
+The HTTP input schema expands local references so criteria fields are visible to the host; runtime Pydantic validation and every supported filter remain unchanged. If an installed client still displays criteria as unknown, refresh its tool metadata. Do not guess undocumented field names.
+
 ## Access and output
 
 Anonymous rank offset must remain zero, limit <=10. Evidence is limited to visible entities and ten-study pages; further evidence pages for those entities are allowed anonymously (this is not pagination of the entity list); free evidence omits discovery excerpts and operational narratives. Respect actual error codes/results. Never use repeated partitions to enumerate a paid list. A genuine user-requested narrower clinical question is a new selection and may yield different ten entities.
@@ -38,3 +46,5 @@ Anonymous rank offset must remain zero, limit <=10. Evidence is limited to visib
 Ranked rows supply trial_counts, function_counts, countries/affiliations, contacts, identity_basis/legal_entities, sponsor co-occurrences, recency and evidence. Counts are distinct trials within this selection, not lifetime experience. Preserve source URLs/trial IDs and distinguish missing data from zero. Sponsor trial counts are descriptive, not a collaboration quality metric. There is no performance score.
 
 Full access requires OAuth plus an owned entitled project whose granted trial manifest covers the complete selected cohort. Rank pages can be up to 100 when authorized. Authentication is not itself a subscription or a guarantee of coverage. Do not prescribe new pricing; TrialAgents owns subscription terms outside the plugin.
+
+Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Include the message once in each initial report, plus displayed/total counts per category. It explains existing-account/project access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.

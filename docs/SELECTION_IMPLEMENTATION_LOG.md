@@ -306,3 +306,19 @@ Proposed acceptance checklist; review before package download/testing readiness 
 - [ ] Record server deployment and installed workflow version separately; successful API calls alone do not establish host workflow compliance.
 
 Permission boundary: requested corrections are concrete above. Await owner approval for workflow/response-contract edits. No backend LLM is proposed; deterministic selection remains unchanged.
+
+
+## Step 27 — Implement approved host-test corrections (2026-10-07)
+
+Owner approved the four Step 26 corrections. Used public MCP presentation changes rather than changing App behavior, ranking, database reads/permissions, auth, entitlements or pricing. No backend LLM calls added.
+
+- Schema: inline local references in research HTTP input schemas after SDK serialization; retain all filters and Pydantic validation. Add explicit required fields, a valid minimal example and broad-first steps to search help. Descriptor size increases to roughly 94 KB; host metadata refresh/import is a separate gate.
+- Workflow: target 100–500 relevant trials; below-target exploratory output explicitly asks for justified broadening before finalizing, with hard-constraint/relevance exceptions. No automatic filter relaxation, fabricated minimum or silent sampling.
+- Access: search and rank always return access_info with actual total/displayed counts, cap and neutral existing-account/project entitlement explanation. The workflow requires it in the first report. OpenAI guideline check permits neutral access information but prohibits digital-subscription promotion; therefore no create-account-and-subscribe CTA, checkout link or pricing.
+- Coverage: public output uses complete_available_profile_selection and source_scope. Historical pending-migration wording is removed; genuine identity/missing-field limitations remain. Private selection labels and consumers are untouched.
+- Package: bump source to 0.1.2; update skill, contract, release checklist and context. Merge main's OAuth/discovery/host fixes into the package branch to prevent a later release restoring old metadata.
+- Validation: 421 local tests passed, two PostgreSQL checks skipped locally; required GitHub CI passed including database integration. Package boundary tests passed. HTTP descriptor exposes object properties and no unresolved refs; optional auth remains correct.
+- Runtime PR #84 merged as 3aa676ffdb7c7969d4bd2ef00e4e8dd16e549cbf. Render dep-db30htjrjlhs73fukn30 live 08:56:14 UTC.
+- Live installed-tool validation: same exploratory prostate rules gave 192 trials (18 phase III mHSPC terminology candidates, 49 other phase III candidates, 125 broader). Inventory: 272 CRO/providers, 1,002 sites, 1,918 PIs. Ranking returned ten with access notice; evidence succeeded; offset ten denied. Static migration warning absent. These are candidate/cohort counts, not confirmed eligibility or a market census.
+- Actual current conversation still advertises cached old search help/criteria: unknown, while tool responses reach the new backend. Refresh installed metadata and retest first-call schema comprehension plus full initial-report behavior. Do not claim this host presentation gate has passed.
+- Main validation checklist: docs/RESEARCH_HOST_WORKFLOW.md. Package Gate A/B remain subject to docs/CHATGPT_PLUGIN_RELEASE.md; this correction is not OpenAI approval or a public package release.
