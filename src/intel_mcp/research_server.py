@@ -3,8 +3,8 @@ import json
 from typing import Annotated, Any
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp.types import ToolAnnotations, CallToolResult, TextContent
-from pydantic import Field
+from mcp.types import ToolAnnotations, CallToolResult, TextContent, ListToolsResult
+from pydantic import Field, model_serializer
 from starlette.responses import JSONResponse
 from .auth_context import current_oauth_subject, set_oauth_subject, reset_oauth_subject
 from .selection import SelectionCriteria, SelectionError
@@ -17,13 +17,32 @@ MIXED={"securitySchemes":[{"type":"noauth"},{"type":"oauth2","scopes":["mcp:tool
 OAUTH={"securitySchemes":[{"type":"oauth2","scopes":["mcp:tools"]}]}
 
 
+class ResearchToolsResult(ListToolsResult):
+    """Preserve ChatGPT's top-level auth extension through SDK serialization."""
+
+    @model_serializer(mode='wrap')
+    def serialize_with_security_schemes(self, handler):
+        data = handler(self)
+        for tool in data['tools']:
+            # Keep the compatibility mirror and canonical declaration identical.
+            tool['securitySchemes'] = tool['_meta']['securitySchemes']
+        return data
+
+
+class ResearchMCPServer(MCPServer):
+    async def _handle_list_tools(self, ctx, params) -> ListToolsResult:
+        # MCP SDK 2.x Tool ignores non-standard fields. Extend the list result,
+        # rather than altering global SDK models or the authorization middleware.
+        return ResearchToolsResult(tools=await self.list_tools())
+
+
 def create_research_server(settings, engine_factory, control_factory):
     store=ResearchStore(engine_factory)
     resource=settings.mcp_public_resource_url.removesuffix('/mcp')+'/research/mcp'
     metadata_url=settings.mcp_public_resource_url.removesuffix('/mcp')+'/research/.well-known/oauth-protected-resource'
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
-    server=MCPServer('TrialAgents clinical research', instructions=(
+    server=ResearchMCPServer('TrialAgents clinical research', instructions=(
         'Search recorded trial experience using explicit criteria. Show total trial and entity counts, '
         'subgroups and up to ten results per entity category with recorded contacts. Counts describe this '
         'bounded cohort, not all trials worldwide. For another subgroup, make a new explicit selection. '

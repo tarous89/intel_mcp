@@ -102,6 +102,7 @@ async def test_mixed_auth_never_downgrades_invalid_token_to_anonymous():
 
 def test_enabled_http_mount_lifespans_metadata_and_private_isolation():
     script='''
+import json
 from starlette.testclient import TestClient
 from intel_mcp.bootstrap import app
 with TestClient(app) as client:
@@ -120,6 +121,18 @@ with TestClient(app) as client:
     assert response.status_code==200,response.text
     assert 'search_research_trials' in response.text
     assert 'get_trial_profiles' not in response.text
+    if response.headers['content-type'].startswith('text/event-stream'):
+        payload=json.loads(next(line[6:] for line in response.text.splitlines() if line.startswith('data: ')))
+    else:
+        payload=response.json()
+    descriptors={tool['name']:tool for tool in payload['result']['tools']}
+    assert len(descriptors)==4
+    for name, tool in descriptors.items():
+        expected=[{'type':'oauth2','scopes':['mcp:tools']}]
+        if name!='list_research_projects':
+            expected.insert(0,{'type':'noauth'})
+        assert tool['securitySchemes']==expected,tool
+        assert tool['_meta']['securitySchemes']==expected,tool
 '''
     result=subprocess.run([sys.executable,'-c',script],env={**os.environ,'MCP_RESEARCH_ENABLED':'true','MCP_ALLOWED_HOSTS':'testserver','MCP_INBOUND_SERVICE_TOKEN':'synthetic-only'},capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
