@@ -48,3 +48,6 @@ Ranked rows supply trial_counts, function_counts, countries/affiliations, contac
 Full access requires OAuth plus an owned entitled project whose granted trial manifest covers the complete selected cohort. Rank pages can be up to 100 when authorized. Authentication is not itself a subscription or a guarantee of coverage. Do not prescribe new pricing; TrialAgents owns subscription terms outside the plugin.
 
 Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Include the message once in each initial report, plus displayed/total counts per category. It explains existing-account/project access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.
+
+
+0.1.4: ranking accepts show_followups and show_access_notice (true by default). Set both false on earlier requested category charts and true on the last. Search returns capabilities with anonymous, existing_entitlement and not_exposed lists. Respect that inventory for next actions; private backend data is not automatically accessible from public tools.

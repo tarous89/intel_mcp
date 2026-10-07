@@ -142,7 +142,7 @@ existing entitlement, not "create an account and subscribe." No pricing or auth 
 ## Owner iteration 2026-10-07: mandatory before test handoff and every release
 - [ ] Target 200–500 relevant trials; keep the 500 hard ceiling. Broadening uses relevant therapeutic area, phase or modality, preserves explicit must/only constraints, and reports honest shortfalls.
 - [ ] Top ten rank by distinct trials across the whole cohort. Private app ranking is unchanged. Evidence eligibility matches public ordering.
-- [ ] No initial direct/related/broader breakdown. Requested subgroup drill-downs remain available.
+- [ ] One primary trial-group breakdown in the overview; no repeated match-tier breakdown in entity rows. Requested subgroup drill-downs remain available.
 - [ ] CRO emails absent by default, including connected results; explicit requests label recorded contacts as unverified for commercial outreach.
 - [ ] Initial results show inventory, trial experience, functions/affiliations, a neutral access notice and 2–3 data-supported follow-ups.
 - [ ] Free refinements/evidence are not falsely gated; full-list linking explains existing project coverage and does not promise access from signup alone.
@@ -151,3 +151,13 @@ existing entitlement, not "create an account and subscribe." No pricing or auth 
 - [ ] Expired, consumed, account-changed and logged-out approvals fail safely with recovery guidance. PKCE/state/user binding/TTL remain enforced.
 - [ ] Inline chart renders actual authorized counts without new DB/model work; table fallback remains usable. Test in ChatGPT, including refresh/reconnect of cached tool definitions.
 - [ ] Verify live deployment SHAs separately from package version. Host UI and authenticated end-to-end acceptance cannot be inferred from unit tests.
+
+## 0.1.4 report and OAuth regression — mandatory before test handoff/every release
+- [ ] Chromium callback navigation succeeds after form POST; consent CSP allows only self plus the registered/validated callback origin.
+- [ ] Signup-first OAuth entry retains login toggle and validated return path. Existing signed-in consent has one primary Connect TrialAgents action, account-change/cancel text controls and accurate benefits.
+- [ ] New/unentitled accounts return to ChatGPT with free-research explanation, no payment redirect or false full-access promise.
+- [ ] Executive summary and criteria/trial breakdown appear once; only requested entity sections follow with short summaries and charts.
+- [ ] Graph/table text uses host body sizing (minimum1rem); no tiny labels, duplicate charts/tables or repeated access footers.
+- [ ] Only final widget shows 2–3 supported follow-up buttons; unavailable message bridge falls back to text.
+- [ ] Capability catalog does not advertise unexposed protocols, patient documents, full lifecycle history or clinical-results tables.
+- [ ] Refresh host tool metadata; repeat actual ChatGPT logged-out/signup, signed-in consent and multi-category report acceptance. Local tests are not host acceptance.

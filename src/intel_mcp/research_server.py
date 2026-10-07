@@ -14,7 +14,7 @@ from .selection import SelectionCriteria, SelectionError
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .control_plane import ControlPlaneError
 from .engine import EngineError
-from .research_presentation import RESEARCH_WORKFLOW, inline_schema, public_cohort, discovery_guidance, access_info
+from .research_presentation import RESEARCH_WORKFLOW, inline_schema, public_cohort, discovery_guidance, access_info, RESEARCH_CAPABILITIES
 
 ANNOTATIONS=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 MIXED={"securitySchemes":[{"type":"noauth"},{"type":"oauth2","scopes":["mcp:tools"]}]}
@@ -42,8 +42,8 @@ def create_research_server(settings, engine_factory, control_factory):
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
     apps = Apps()
-    apps.add_resource(TextResource(uri="ui://trialagents/research-v013", name="Trial experience",
-        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v013.html").read_text(),
+    apps.add_resource(TextResource(uri="ui://trialagents/research-v014", name="Trial experience",
+        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v014.html").read_text(),
         meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
     server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
@@ -93,14 +93,17 @@ def create_research_server(settings, engine_factory, control_factory):
                     'cohort':public_cohort(dataset.summary().model_dump(mode='json')),
                     'discovery_guidance':discovery_guidance(len(dataset.records)),
                     'access_info':access_info(rank.total_entities,rank.returned),
+                    'capabilities':RESEARCH_CAPABILITIES,
                     'entity_type':criteria.entity_type,'total_entities':rank.total_entities,
                     'visible_entities':rank.returned,'access':'top_ten','limit':10}
         except (SelectionError,EngineError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v013"}},annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v014"}},annotations=ANNOTATIONS,structured_output=True)
     async def rank_research_entities(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
+        show_followups:Annotated[bool,Field(description="True only for the final requested entity category; show supported next-action buttons once.")]=True,
+        show_access_notice:Annotated[bool,Field(description="Show access notice once, in the final requested category chart.")]=True,
         offset:Annotated[int,Field(ge=0)]=0,
         limit:Annotated[int,Field(ge=1,le=100)]=10,
         include_cro_contacts:Annotated[bool,Field(description="Set true only when the user explicitly requests CRO/provider contacts. Source contacts are not verified commercial contacts.")]=False,
@@ -120,6 +123,8 @@ def create_research_server(settings, engine_factory, control_factory):
             # Recheck after computing output: expired/revoked access releases no result.
             if full: await full_access(dataset,project_id)
             return {**result.model_dump(mode='json'),
+                    'entity_type':dataset.criteria.entity_type,
+                    'show_followups':show_followups,'show_access_notice':show_access_notice,
                     'cohort':public_cohort(result.cohort.model_dump(mode='json')),
                     'access_info':access_info(result.total_entities,result.returned,full=full,offset=offset),
                     'access':'full' if full else 'top_ten',
@@ -156,6 +161,10 @@ def create_research_server(settings, engine_factory, control_factory):
                 _meta={'mcp/www_authenticate':[challenge]})
         try:
             result = await control_factory().research_access(None,[])
+            result = {**result, 'account_message': (
+                'Account connected. Select an eligible project to check complete-cohort access; connection alone does not grant it.'
+                if any(p.get('fullAccess') is True for p in result.get('projects', []) if isinstance(p, dict)) else
+                'Account connected, but no eligible project access was found. You can continue free top-ten research, refinements and evidence; creating an account does not purchase full-list access.')}
             return CallToolResult(content=[TextContent(type="text", text=json.dumps(result))], structured_content=result)
         except ControlPlaneError as e:
             raise ToolError(str(e)) from e

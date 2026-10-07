@@ -32,7 +32,7 @@ Explain the actual public ranking: distinct trials across the whole selected coh
 Present the first result as:
 
 1. What was searched: exact scope, fields/terms, filters, date and deliberate expansions.
-2. Cohort size and brief scope. Do not display direct/related/broader or A/B/C breakdown unless explicitly requested. Keep subgroup metadata for later drill-downs.
+2. Criteria, cohort size and one compact primary trial-group breakdown in the overview. Do not repeat it per entity section.
 3. Inventory: total matching providers, sites and PIs for each searched category, plus how many displayed. Say “not searched” for omitted categories.
 4. One top-ten table per requested category: rank, name, distinct trials out of the whole cohort, recorded functions or affiliation/country, and concise evidence with returned source links. Hide CRO/provider emails initially; set `include_cro_contacts=true` only for an explicit contact request. Explain that recorded regulatory/trial contacts are not verified commercial contacts. PI contacts and recorded addresses remain available. Mark missing contact data, never guess it.
 5. Explain ranking and material evidence limits. Include the neutral `access_info.message` once in every initial report, alongside displayed/total counts for each category. Do not wait for the user to ask about the cap.
@@ -50,3 +50,14 @@ Connected access also requires an entitled owned project covering the entire coh
 Describe missing individual fields precisely. `complete_available_profile_selection` means a successful bounded read of matching current available TrialAgents profiles, not every CTIS study. Do not turn a generic identity caveat into a claim that profiles were omitted. Do not repeat historical migration-pending warnings without current failure evidence. Keep genuine identity ambiguity and source-scope limitations concise.
 
 For expired selections, explain the refresh and rerun the original search before ranking. On busy/service errors, report the limitation and offer retry; do not invent results. Do not promise saved shortlists, outreach, exports, raw profiles or contact-response tracking: this MCP is read-only research. An in-chat report can summarize already accessible evidence on request.
+
+
+## Report structure — current owner decision
+
+Start with a 2–3 sentence executive summary answering the question. Show criteria and a compact breakdown of primary trial groups ONCE, with the cohort total and disclosed expansions; overlaps are not additive. Then show ONLY the entity categories requested, each with its heading, two short evidence-grounded summary sentences and the inline graph/table. A CRO-only request must not trigger site or PI searches. Do not repeat a chart as a second text table. Keep entity rows focused on whole-cohort trial experience rather than match-tier columns.
+
+End with 2–3 supported next actions once. Set rank_research_entities show_followups=false and show_access_notice=false on earlier category charts; true on the last. Use the host's body font size; no miniature labels. Buttons send user messages; when unavailable, offer the same actions as text.
+
+Use the search response capabilities inventory. Public tools expose cohort filters, partner ranking, supporting trial links/roles, functions, affiliations, contacts and sponsor co-occurrence. Existing eligible project access allows full lists and recorded trial-level operational findings where present. Do NOT offer protocol downloads, patient information documents/patient-level data, complete EU trial history or full clinical-results tables: those are not exposed by this public MCP. Do not imply payment or login alone adds those tools.
+
+After account linking, explain the returned project access outcome. No eligible project means free research remains available; signup does not charge or unlock full lists. No subscription/checkout routing from the plugin.
