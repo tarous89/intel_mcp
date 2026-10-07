@@ -56,12 +56,12 @@ def test_public_coverage_does_not_change_private_contract_or_hide_real_limits():
 
 
 @pytest.mark.parametrize('count,status', [(0, 'below_target'), (6, 'below_target'),
-                                        (99, 'below_target'), (100, 'within_target'),
-                                        (192, 'within_target'), (500, 'within_target')])
+                                        (99, 'below_target'), (100, 'below_target'),
+                                        (192, 'below_target'), (200, 'within_target'), (500, 'within_target')])
 def test_landscape_guidance_never_pads_counts_or_relaxes_hard_constraints(count, status):
     result = discovery_guidance(count)
     assert result['actual_trials'] == count and result['status'] == status
-    if count < 100:
+    if count < 200:
         assert 'Preserve explicit mandatory constraints' in result['next_step']
         assert 'report the actual count' in result['next_step']
 
