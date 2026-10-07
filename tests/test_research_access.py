@@ -63,9 +63,15 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         assert linking.is_error and linking.meta['mcp/www_authenticate']
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
         assert not search.is_error
+        assert search.structured_content['access_info']['total_matching']==25
+        assert search.structured_content['access_info']['anonymous_limit']==10
+        assert search.structured_content['discovery_guidance']['status']=='below_target'
+        assert 'migration 047' not in str(search.structured_content)
         token=search.structured_content['selection_id']
         rank=await client.call_tool('rank_research_entities',{'selection_id':token})
         assert not rank.is_error and rank.structured_content['returned']==10
+        assert 'Showing 10 of 25' in rank.structured_content['access_info']['message']
+        assert rank.structured_content['cohort']['coverage']=='complete_available_profile_selection'
         assert (await client.call_tool('rank_research_entities',{'selection_id':token,'offset':10})).is_error
         evidence = await client.call_tool('get_research_entity_evidence',{'selection_id':token,'entity_id':rank.structured_content['entities'][0]['id'],'sections':['sites']})
         assert 'sections' not in str(evidence.structured_content) and 'operational_findings' not in str(evidence.structured_content)
@@ -76,6 +82,7 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
             args={'selection_id':token,'offset':10,'project_id':'00000000-0000-0000-0000-000000000001'}
             paid=await client.call_tool('rank_research_entities',args)
             assert not paid.is_error and paid.structured_content['access']=='full'
+            assert paid.structured_content['access_info']['mode']=='full'
             assert control.calls==2
             control.allowed=False
             assert (await client.call_tool('rank_research_entities',args)).is_error
@@ -127,6 +134,15 @@ with TestClient(app) as client:
         payload=response.json()
     descriptors={tool['name']:tool for tool in payload['result']['tools']}
     assert len(descriptors)==4
+    schema=descriptors['search_research_trials']['inputSchema']
+    assert '"$ref"' not in json.dumps(schema)
+    assert '"$defs"' not in json.dumps(schema)
+    criteria=schema['properties']['criteria']
+    assert criteria['type']=='object'
+    assert {'base','entity_type','as_of'} <= set(criteria['required'])
+    assert criteria['properties']['base_text']['anyOf'][0]['properties']['fields']['items']['enum']
+    assert '100–500' in descriptors['search_research_trials']['description']
+    assert 'access_info.message' in descriptors['rank_research_entities']['description']
     for name, tool in descriptors.items():
         expected=[{'type':'oauth2','scopes':['mcp:tools']}]
         if name!='list_research_projects':
