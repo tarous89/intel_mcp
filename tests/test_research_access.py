@@ -108,6 +108,13 @@ with TestClient(app) as client:
     metadata=client.get('/research/.well-known/oauth-protected-resource')
     assert metadata.status_code==200, metadata.text
     assert metadata.json()['resource'].endswith('/research/mcp')
+    discovered=client.get('/.well-known/oauth-protected-resource/research/mcp')
+    assert discovered.status_code==200, discovered.text
+    assert discovered.json()['resource']==metadata.json()['resource']
+    assert discovered.json()['authorization_servers']==metadata.json()['authorization_servers']
+    assert discovered.json()['authorization_servers'][0].endswith('/oauth/intel')
+    legacy=client.get('/.well-known/oauth-protected-resource').json()
+    assert legacy['resource']!=discovered.json()['resource']
     assert client.post('/mcp',json={}).status_code==401
     response=client.post('/research/mcp',headers={'Accept':'application/json, text/event-stream'},json={'jsonrpc':'2.0','id':1,'method':'tools/list','params':{}})
     assert response.status_code==200,response.text
