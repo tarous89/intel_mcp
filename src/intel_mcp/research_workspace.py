@@ -55,7 +55,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         # Once owned, OAuth ownership is required and the capability is omitted.
         if not out['owned']:
             out['preview_token']=token
-            out['url']=f"https://intel.trialagents.com/research/workspaces/{project_id}#preview={token}"
+            out['url']=f"https://intel.trialagents.com/share/research/{project_id}#preview={token}"
         return out
 
     @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)

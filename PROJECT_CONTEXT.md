@@ -38,3 +38,5 @@ See `docs/SELECTION_IMPLEMENTATION_LOG.md` steps 14–17 for deployment evidence
 ## Approved next direction — 2026-10-08
 
 See [ChatGPT workspace direction](docs/CHATGPT_WORKSPACE_DIRECTION.md) for the owner-approved architecture and ordered implementation/acceptance steps. ChatGPT drives cohort selection and recommendations; the backend validates, normalizes and persists evidence. One project feeds the actual Intel Agent CRO/PI/site/trial tables in a preview/extension with an external fallback. Same account access applies to the model and UI; no embedded or directed subscription funnel. This is staged work, not yet the live workflow. Existing explicit save and renderer remain until replacement is verified.
+
+2026-10-08 correction: shared-preview shell, compact ChatGPT table tabs (no sidebar/Reports), /share/research/{id} fallback, authentication before save, informational /dataset-access; see workspace direction document. Draft only until App-first rollout and real-host acceptance.

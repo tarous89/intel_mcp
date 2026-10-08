@@ -53,7 +53,7 @@ def create_research_server(settings, engine_factory, control_factory):
         mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/workspace-v1.html").read_text(),
         meta={"ui":{"csp":{"connectDomains":[],"resourceDomains":[]}},
               "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
-              "openai/ui":{"preferredDisplayMode":"inline","availableDisplayModes":["inline","fullscreen"]}}))
+              "openai/ui":{"preferredDisplayMode":"fullscreen","availableDisplayModes":["fullscreen"]}}))
     server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
                      instructions=RESEARCH_WORKFLOW)
 

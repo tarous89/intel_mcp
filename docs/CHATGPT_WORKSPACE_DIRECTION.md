@@ -55,3 +55,16 @@ Next authorized steps once publication is unblocked: upload candidate App and de
 
 
 Approval resolution — 2026-10-08: the owner explicitly approved uploading these changes to tarous89/intel_agent_app and tarous89/intel_mcp, updating the PRs and continuing verification. The preceding source-upload block is resolved. Production migration/deployment and real-host acceptance remain pending.
+
+
+## Agreed correction — 2026-10-08
+
+The previous draft reused row components but introduced a separate research-page design. The owner rejected that presentation. Reuse the existing public preview shell through SharedProjectFrame (also used by /share/[token]/SharedProject) and the actual Intel tables. Inside ChatGPT remove the sidebar and Reports; use Sites, PIs, CROs, Trials, Dataset, Account and a factual access notice with totals. Prefer fullscreen host workspace; host placement still requires real-host acceptance. Keep recommendations/insights in chat.
+
+The research variant now opens at /share/research/{projectId}; old /research/workspaces URLs remain compatible. This shares visual components with the existing preview while preserving the validated MCP cohort/revision storage. It is not an existing combined-intel dataset and must not be passed to those dataset APIs. Dataset opens this project's metadata/counts, not a purchase/export endpoint. Existing ordinary /share/{token} purchase flows are unchanged.
+
+Anonymous viewing is allowed for one hour. Explicit save requires authentication; a per-tab pending-save marker resumes claiming after sign-in/registration, preserving the project ID. No admin ownership is used. Free account creation retains preview limits. Existing active paid access is rechecked server-side. Once claimed, anonymous token-only access is denied; ChatGPT must connect the same account to continue.
+
+About dataset access opens /dataset-access, an informational page explaining preview limits, full access and monthly/yearly options without prices, purchase buttons or transactional links. No plugin link initiates an upgrade. Approved basis: https://developers.openai.com/plugins/plugin-guidelines (commerce section, checked 2026-10-08).
+
+Regression coverage: four-table compact navigation, no sidebar/Reports/checkout, external link callbacks, source escaping, anonymous view and authenticated pending-save continuation with unchanged free entitlement. App PGlite and OAuth checks pass; targeted MCP tests pass. Draft publication and CI follow; no production migration or live-host verification is implied.
