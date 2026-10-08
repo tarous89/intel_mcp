@@ -1,0 +1,28 @@
+name: ChatGPT plugin package
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['plugins/**', 'scripts/build_chatgpt_plugin.py', 'tests/test_chatgpt_plugin.py', '.github/workflows/chatgpt-plugin.yml']
+  push:
+    branches: [main]
+    paths: ['plugins/**', 'scripts/build_chatgpt_plugin.py', 'tests/test_chatgpt_plugin.py', '.github/workflows/chatgpt-plugin.yml']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: python -m pytest -q tests/test_chatgpt_plugin.py
+      - run: python scripts/build_chatgpt_plugin.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trialagents-intel-plugin
+          path: dist/trialagents-intel-*.zip
+          if-no-files-found: error
+          retention-days: 30

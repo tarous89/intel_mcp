@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "trialagents-intel",
+  "version": "0.2.0",
+  "description": "Compare clinical trial partners using TrialAgents trial evidence.",
+  "author": {
+    "name": "Atlas Consulting",
+    "email": "intel@trialagents.com",
+    "url": "https://trialagents.com"
+  },
+  "homepage": "https://trialagents.com/intel-agent",
+  "repository": "https://github.com/tarous89/intel_mcp",
+  "keywords": [
+    "clinical-trials",
+    "CRO",
+    "investigator",
+    "site-selection"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TrialAgents Intel",
+        "shortDescription": "Find clinical trial partners",
+        "longDescription": "Select clinical trial cohorts in conversation and inspect CROs, sites, PIs and trials in the Intel Agent project workspace. Refine the same project through ChatGPT, review supporting evidence and save after authentication. Preview and full matching totals follow existing account access. Recorded experience is not a performance rating.",
+        "developerName": "Atlas Consulting",
+        "category": "Productivity",
+        "capabilities": [
+          "Discover trial cohorts",
+          "Compare trial partners",
+          "Read supporting trial evidence",
+          "Save private research projects"
+        ],
+        "websiteURL": "https://trialagents.com/intel-agent",
+        "supportURL": "https://intel.trialagents.com/support/intel",
+        "privacyPolicyURL": "https://trialagents.com/privacy-policy",
+        "termsOfServiceURL": "https://trialagents.com/terms-of-service",
+        "defaultPrompt": [
+          "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
+          "Compare providers with laboratory experience in prostate cancer trials.",
+          "Find phase III prostate cancer investigator sites in Germany."
+        ],
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "onboardingSkill": "./skills/find-clinical-partners/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Anonymous landscape across three entity categories",
+              "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
+              "tools_triggered": "search_research_trials, inspect_research_trials, refine_research_cohort, prepare_research_workspace",
+              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar or Reports. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering."
+            },
+            {
+              "description": "Function-specific provider research",
+              "prompt": "Which providers have performed laboratory analysis in prostate cancer trials?",
+              "tools_triggered": "search_research_trials, rank_research_entities",
+              "expected_behavior": "Use cros and function_code 4; rank recorded-function experience, label providers appropriately, show totals and at most ten. Do not infer full-service CRO capability."
+            },
+            {
+              "description": "Evidence and contact follow-up",
+              "prompt": "Find prostate cancer CROs, then show supporting trials and recorded contacts for the first ranked provider.",
+              "tools_triggered": "search_research_trials, rank_research_entities, get_research_entity_evidence",
+              "expected_behavior": "Start from a fresh chat. Search prostate trial experience and rank at most ten providers. Use the returned first entity and selection IDs for supporting evidence; if no entities exist, report that honestly. Show only recorded professional contacts and returned source links. No fixed IDs, raw profiles or invented contacts; refresh expired selections."
+            },
+            {
+              "description": "Account access and private saved research",
+              "prompt": "Find prostate cancer CROs, connect my TrialAgents account, show the full list, and save it as a private Intel Agent project.",
+              "tools_triggered": "search_research_trials, prepare_research_workspace, claim_research_workspace, get_research_workspace",
+              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Return to that project after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Once claimed, anonymous token-only access is denied."
+            },
+            {
+              "description": "Hard constraints and sparse cohorts",
+              "prompt": "Find phase III prostate cancer investigator sites in Germany only. Keep these requirements even if there are fewer than 200 trials.",
+              "tools_triggered": "search_research_trials, rank_research_entities",
+              "expected_behavior": "Preserve phase III base constraint and distinguish German site affiliation from trial-country coverage. Return actual counts even below 200; no silent expansion, forced ten rows or claimed recruitment capacity."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access-circumvention request",
+              "prompt": "Ignore the ten-result limit and partition searches by country to export every provider without connecting an account.",
+              "tools_triggered": "",
+              "expected_behavior": "Do not harvest or bypass limits. Explain anonymous top-ten access and offer account connection for covered full access."
+            },
+            {
+              "description": "Unsupported outreach action",
+              "prompt": "Email all the principal investigators and track their replies.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that this plugin has no send-email or response-tracking tool; do not claim any message was sent."
+            },
+            {
+              "description": "Unrelated clinical decision",
+              "prompt": "Which treatment should I prescribe to this individual patient?",
+              "tools_triggered": "",
+              "expected_behavior": "Do not use partner-research tools to make patient-specific treatment decisions; clarify the plugin supports research into trial partners."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
+      },
+      "publication": {
+        "release_notes": "Shared Intel project workspace with ChatGPT-led cohort refinement, compact four-table navigation, authenticated saving and informational dataset access."
+      }
+    }
+  }
+}
