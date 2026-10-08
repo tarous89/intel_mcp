@@ -1,4 +1,4 @@
-"""Isolated mixed-auth MCP: public top-ten research and project-bound full access."""
+"""Isolated mixed-auth MCP: public top-ten research and account-wide paid access."""
 import json
 from importlib.resources import files
 from mcp.server.apps import Apps, APP_MIME_TYPE
@@ -11,6 +11,7 @@ from pydantic import Field
 from starlette.responses import JSONResponse
 from .auth_context import current_oauth_subject, set_oauth_subject, reset_oauth_subject
 from .selection import SelectionCriteria, SelectionError
+from .research_views import result_view, evidence_view, account_view
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .control_plane import ControlPlaneError
 from .engine import EngineError
@@ -42,22 +43,27 @@ def create_research_server(settings, engine_factory, control_factory):
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
     apps = Apps()
-    apps.add_resource(TextResource(uri="ui://trialagents/research-v014", name="Trial experience",
-        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v014.html").read_text(),
+    apps.add_resource(TextResource(uri="ui://trialagents/research-v015", name="Trial experience",
+        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v015.html").read_text(),
         meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
     server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
                      instructions=RESEARCH_WORKFLOW)
 
-    async def full_access(dataset, project_id):
-        if project_id is None:
-            return False
+    async def full_access(dataset=None, project_id=None, *, require=False):
+        # project_id remains accepted for installed-client compatibility only.
         if not current_oauth_subject():
-            raise SelectionError('CONNECT_ACCOUNT_REQUIRED: Connect your TrialAgents account to check project access.')
-        result=await control_factory().research_access(project_id,list(dataset.records))
-        if result.get('fullAccess') is not True:
-            raise SelectionError('PROJECT_ACCESS_REQUIRED: This selection is not covered by the connected project entitlement.')
-        return True
+            if require: raise SelectionError('CONNECT_ACCOUNT_REQUIRED: Connect your TrialAgents account to use existing paid access.')
+            return False
+        result=await control_factory().research_access(None,[])
+        allowed=result.get('fullAccess') is True
+        if require and not allowed:
+            raise SelectionError('PAID_ACCOUNT_REQUIRED: Your account currently includes free top-ten research. Full lists require active paid access.')
+        return allowed
+
+    def connect_result():
+        return CallToolResult(is_error=True,content=[TextContent(type='text',text='Connect your TrialAgents account to view existing access or save private research. Free top-ten research needs no account. Full lists require active paid access; connecting alone does not activate it.')],
+            _meta={'mcp/www_authenticate':[challenge]})
 
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def search_research_trials(criteria:Annotated[SelectionCriteria, Field(description=(
@@ -84,7 +90,7 @@ def create_research_server(settings, engine_factory, control_factory):
 
         Next call rank_research_entities. Show concise scope and cohort size,
         total/visible entities and access_info.message in the initial report.
-        No sign-in needed. Full access requires an entitled connected project.
+        No sign-in needed. Full lists require active paid account access; no project matching is required.
         """
         try:
             token,dataset=await store.search(criteria)
@@ -99,7 +105,7 @@ def create_research_server(settings, engine_factory, control_factory):
         except (SelectionError,EngineError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v014"}},annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
     async def rank_research_entities(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         show_followups:Annotated[bool,Field(description="True only for the final requested entity category; show supported next-action buttons once.")]=True,
@@ -111,8 +117,8 @@ def create_research_server(settings, engine_factory, control_factory):
     )->dict[str, Any]:
         """Return top ten across the whole cohort by distinct trials, with total counts.
 
-        Free access has no pagination past ten. An eligible connected project grants
-        full pagination only for selections wholly within its licensed trial population.
+        Free access has no pagination past ten. Active paid account access grants
+        full pagination across research selections, without choosing an existing project.
         Always present returned/total counts and access_info.message once in the initial report.
         Preserve server order. Hide match breakdown unless asked. CRO emails require explicit contact request.
         """
@@ -121,18 +127,21 @@ def create_research_server(settings, engine_factory, control_factory):
             full=await full_access(dataset,project_id)
             result=public_ranking(dataset,offset=offset,limit=limit,full_access=full,include_cro_contacts=include_cro_contacts)
             # Recheck after computing output: expired/revoked access releases no result.
-            if full: await full_access(dataset,project_id)
-            return {**result.model_dump(mode='json'),
+            if full: await full_access(dataset,project_id,require=True)
+            output = {**result.model_dump(mode='json'),
                     'entity_type':dataset.criteria.entity_type,
                     'show_followups':show_followups,'show_access_notice':show_access_notice,
                     'cohort':public_cohort(result.cohort.model_dump(mode='json')),
                     'access_info':access_info(result.total_entities,result.returned,full=full,offset=offset),
                     'access':'full' if full else 'top_ten',
                     'next_offset':offset+result.returned if full and offset+result.returned<result.total_entities else None}
+            output['selection_id']=selection_id
+            output['view']=result_view(output,selection_id)
+            return output
         except (SelectionError,ControlPlaneError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
     async def get_research_entity_evidence(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         entity_id:Annotated[str,Field(pattern=r'^[a-f0-9]{24}$')],
@@ -148,26 +157,85 @@ def create_research_server(settings, engine_factory, control_factory):
             dataset=store.get(selection_id)
             full=await full_access(dataset,project_id)
             result=public_evidence(dataset,entity_id,offset=offset,full_access=full)
-            if full: await full_access(dataset,project_id)
-            return result.model_dump(mode='json')
+            if full: await full_access(dataset,project_id,require=True)
+            output=result.model_dump(mode='json')
+            output['view']=evidence_view(output,selection_id,entity_id)
+            return output
         except (SelectionError,ControlPlaneError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta=OAUTH,annotations=ANNOTATIONS)
+    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS)
     async def list_research_projects() -> CallToolResult:
-        """List your connected TrialAgents projects and existing full-access status. No purchases."""
-        if not current_oauth_subject():
-            return CallToolResult(is_error=True,content=[TextContent(type='text',text='Free research includes the top ten. Connect your TrialAgents account to check whether an existing project covers the full matching list. Connecting alone does not grant full access.')],
-                _meta={'mcp/www_authenticate':[challenge]})
+        """Show connected account capabilities and paid status. No project matching or purchases.
+
+        The historic tool name is retained for installed clients. Call when the user
+        requests full access or their account details; authentication is optional for free research.
+        """
+        if not current_oauth_subject(): return connect_result()
         try:
-            result = await control_factory().research_access(None,[])
-            result = {**result, 'account_message': (
-                'Account connected. Select an eligible project to check complete-cohort access; connection alone does not grant it.'
-                if any(p.get('fullAccess') is True for p in result.get('projects', []) if isinstance(p, dict)) else
-                'Account connected, but no eligible project access was found. You can continue free top-ten research, refinements and evidence; creating an account does not purchase full-list access.')}
-            return CallToolResult(content=[TextContent(type="text", text=json.dumps(result))], structured_content=result)
-        except ControlPlaneError as e:
-            raise ToolError(str(e)) from e
+            result=await control_factory().research_access(None,[])
+            result['view']=account_view(result)
+            return CallToolResult(content=[TextContent(type="text",text=json.dumps(result))],structured_content=result)
+        except ControlPlaneError as e: raise ToolError(str(e)) from e
+
+    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},
+                 annotations=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False))
+    async def save_research_project(
+        selection_ids:Annotated[list[str],Field(min_length=1,max_length=3)],
+        title:Annotated[str,Field(min_length=1,max_length=160)],
+        include_cro_contacts:Annotated[bool,Field(description="True only when CRO emails were explicitly requested for the saved project.")]=False,
+    )->CallToolResult:
+        """Save requested selections as a private Intel Agent project and return its link.
+
+        Call only when the user requests saving or opening research in Intel Agent.
+        Reuses computed snapshots; starts no analysis, payment, email or public sharing.
+        Repeat saves of the same snapshots reopen the same account-owned project.
+        A connected free account can save and preview ten; active paid access opens full lists.
+        """
+        if not current_oauth_subject(): return connect_result()
+        try:
+            sections=[]
+            for token in selection_ids:
+                dataset=store.get(token)
+                result=dataset.rank(limit=50000,full_cohort=True).model_dump(mode='json')
+                if result['returned']!=result['total_entities']:
+                    raise SelectionError('SNAPSHOT_TOO_LARGE: No partial project was saved.')
+                if dataset.criteria.entity_type=='cros':
+                    for entity in result['entities']:
+                        if not include_cro_contacts: entity['contacts']=[c for c in entity['contacts'] if 'email' not in c]
+                result['cohort']=public_cohort(result['cohort'])
+                result['entity_type']=dataset.criteria.entity_type
+                sections.append({'snapshot':dataset.snapshot,'contact_mode':'explicit' if include_cro_contacts else 'default','entity_type':dataset.criteria.entity_type,
+                                 'trial_ids':sorted(dataset.records),'result':result})
+            output=await control_factory().research_project({'operation':'save','title':title,'sections':sections})
+            output['view']={'title':'Private research saved','summary':output['message'],
+                'columns':['Project','Included selections'],'rows':[{'cells':[output['title'],', '.join(s['entity_type'] for s in sections)]}],
+                'notice':'Your account access applies when the project opens.',
+                'actions':[{'label':'Open in Intel Agent','url':output['url']},
+                           {'label':'Saved project data','prompt':f"Show saved research project {output['project_id']} in one branded table."},
+                           {'label':'Account capabilities','prompt':'Show what my connected TrialAgents account includes.'}]}
+            return CallToolResult(content=[TextContent(type='text',text=json.dumps(output))],structured_content=output)
+        except (SelectionError,ControlPlaneError) as e: raise ToolError(str(e)) from e
+
+    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
+    async def get_saved_research_project(project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')],
+        section:Annotated[int,Field(ge=0,le=2)]=0,offset:Annotated[int,Field(ge=0)]=0,
+        limit:Annotated[int,Field(ge=1,le=100)]=10)->CallToolResult:
+        """Revisit a private saved research project with current account access, without new analysis.
+
+        Free accounts can read its top ten; paid accounts can paginate the full list.
+        The App enforces ownership and rechecks current access before releasing results.
+        """
+        if not current_oauth_subject(): return connect_result()
+        try:
+            output=await control_factory().research_project({'operation':'read','projectId':project_id,'section':section,'offset':offset,'limit':limit})
+            output['view']=result_view(output['result'])
+            output['view']['actions']=[{'label':'Open in Intel Agent','url':f'https://intel.trialagents.com/research/projects/{project_id}'},
+              {'label':'Other saved selections','prompt':f"Show the saved category inventory for project {project_id}."},
+              {'label':'More results','prompt':f"Show the next results for saved project {project_id}, section {section}, offset {offset+limit}, subject to account access."} if output['result']['access_info']['has_more'] else
+              {'label':'Account capabilities','prompt':'Show what my TrialAgents account includes.'}]
+            return CallToolResult(content=[TextContent(type='text',text=json.dumps(output))],structured_content=output)
+        except ControlPlaneError as e: raise ToolError(str(e)) from e
 
     @server.custom_route('/.well-known/oauth-protected-resource',methods=['GET'])
     async def metadata(request):
