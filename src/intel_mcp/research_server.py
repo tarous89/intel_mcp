@@ -14,6 +14,7 @@ from .selection import SelectionCriteria, SelectionError
 from .research_views import result_view, evidence_view, account_view
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .research_cohort import CohortRefinement, candidate_trials
+from .research_workspace import register_workspace_tools, RESOURCE
 from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_presentation import RESEARCH_WORKFLOW, inline_schema, public_cohort, discovery_guidance, access_info, RESEARCH_CAPABILITIES
@@ -48,6 +49,11 @@ def create_research_server(settings, engine_factory, control_factory):
         mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v015.html").read_text(),
         meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
+    apps.add_resource(TextResource(uri=RESOURCE, name="Intel Agent workspace",
+        mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/workspace-v1.html").read_text(),
+        meta={"ui":{"csp":{"connectDomains":[],"resourceDomains":[]}},
+              "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
+              "openai/ui":{"preferredDisplayMode":"inline","availableDisplayModes":["inline","fullscreen"]}}))
     server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
                      instructions=RESEARCH_WORKFLOW)
 
@@ -278,6 +284,8 @@ def create_research_server(settings, engine_factory, control_factory):
               {'label':'Account capabilities','prompt':'Show what my TrialAgents account includes.'}]
             return CallToolResult(content=[TextContent(type='text',text=json.dumps(output))],structured_content=output)
         except ControlPlaneError as e: raise ToolError(str(e)) from e
+
+    register_workspace_tools(server,store,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
 
     @server.custom_route('/.well-known/oauth-protected-resource',methods=['GET'])
     async def metadata(request):

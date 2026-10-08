@@ -1,0 +1,13 @@
+import {build} from 'esbuild';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {writeFile,readFile} from 'node:fs/promises';
+const here=dirname(fileURLToPath(import.meta.url)),appSource=process.argv[2];
+if(!appSource)throw Error('Pass the Intel Agent App source checkout used for this release.');
+const source=resolve(appSource);
+const out=await build({entryPoints:[resolve(here,'workspace.tsx')],bundle:true,write:false,outdir:'out',minify:true,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},nodePaths:[resolve(source,'node_modules'),resolve(here,'node_modules')],plugins:[{name:'shared-intel-app',setup(b){b.onResolve({filter:/^intel-shared-workspace$/},()=>({path:resolve(source,'app/research/WorkspaceTables.tsx')}));b.onResolve({filter:/^@\//},args=>({path:resolve(source,args.path.slice(2))+(/\.[a-z]+$/i.test(args.path)?'':args.path.includes('combined-cro-functions')?'.ts':'.tsx')}));}}]});
+const js=out.outputFiles.find(f=>f.path.endsWith('.js')).text.replaceAll('</script','<\\/script');
+const css=out.outputFiles.find(f=>f.path.endsWith('.css'))?.text??'';
+const html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}'+css+'</style></head><body><main><p>Opening Intel Agent…</p></main><script>'+js+'</script></body></html>';
+await writeFile(resolve(here,'../../src/intel_mcp/ui/workspace-v1.html'),html);
+console.log('Built shared workspace:',html.length,'bytes');

@@ -66,6 +66,13 @@ class ControlPlaneClient:
             )
         return body
 
+    async def research_workspace(self, payload: dict) -> dict:
+        self._settings.validate_control_plane()
+        response = await self._post(f"{self._settings.app_control_url}/api/internal/mcp/research-workspaces", payload)
+        if response.status_code == 200:
+            return response.json()
+        raise self._response_error(response, "RESEARCH_WORKSPACE_UNAVAILABLE", "The research workspace is temporarily unavailable.")
+
     async def research_project(self, payload: dict) -> dict:
         self._settings.validate_control_plane()
         response = await self._post(f"{self._settings.app_control_url}/api/internal/mcp/research-projects", payload)

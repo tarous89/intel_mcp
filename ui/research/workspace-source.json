@@ -1,0 +1,18 @@
+{
+  "source_repository": "tarous89/intel_agent_app",
+  "base_commit": "4e29c868051eb88e43a6fe52d71f7e86c18f8b81",
+  "status": "Built from the shared App source pinned by source_commit; draft review and real-host acceptance pending.",
+  "files": {
+    "app/research/WorkspaceTables.tsx": "65bf63035f41f3c7fdad84980113e60b623d8757e93aa616ca0bf8830c46c470",
+    "app/research/workspace.css": "a2f7b8cd941aab6d7bc5f9bc7788312b29fdaca5fd71006bae9a5d74ca592dcd",
+    "app/_site-agent/SiteResultsTable.tsx": "9ea152d00f103d8e156a53d4e0c9f44d529fe403c2cdd17c8240b13cf9b97970",
+    "app/_site-agent/SiteAgentWorkspace.module.css": "9bff18064edf3289afd693847284713b8bb190835ce113453c7afdbb43cd0b3c",
+    "app/preview/combined/CombinedEntityTable.tsx": "3ff9a654229aaac9f6c8352182e8da732adc46c9c903452f61e1c4a3eba36de4",
+    "app/preview/combined/combined-workspace.css": "e0d941bb29a5654ba2ee89b2c7a88ad90d37fa63ab57b6dbe48dd923f4ea11c6",
+    "app/components/TrialEvidence.tsx": "28f22975c7a4988911cd7e93aa5512123c6a7563a81d4189ba4d695da5db70aa",
+    "app/lib/combined-cro-functions.ts": "fe73accf18cd3c4856a235526a6b84547df56bce7a1f2c052ac974b5962ad03c",
+    "app/app-icon.tsx": "40f4f231bf9ddd59a33780db8d6f8ec144b6a69c72b578cc2dfede7a7f4c7b44"
+  },
+  "bundle_sha256": "3415bb2a21917c7eb187d6545abac7bfd74dd4becb5b6c8a922453a97954454e",
+  "source_commit": "c9710aaf5aabd67f2c95520edecce7b50af30885"
+}
