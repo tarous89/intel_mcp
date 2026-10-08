@@ -53,3 +53,12 @@ Both search and ranking return `access_info` with total_matching, returned, offs
 0.1.4: ranking accepts show_followups and show_access_notice (true by default). Set both false on earlier requested category charts and true on the last. Search returns capabilities with anonymous, existing_entitlement and not_exposed lists. Respect that inventory for next actions; private backend data is not automatically accessible from public tools.
 
 0.1.5: rank, evidence, account and saved-project tools return one shared branded view. Render it without a duplicate Markdown table; fall back to one plain table only if unavailable. Exactly three final data actions, no generic narrowing prompts. Saving is explicit and private; repeat saves reopen the same owner/snapshot/category/contact-mode project. Stored results are not auto-refreshed; current access is rechecked on reopen. No additional LLM job or purchase starts.
+
+
+## Shared workspace tools (requires coordinated App/MCP rollout)
+
+Use live schemas as authoritative. inspect_research_trials pages safe candidate metadata; refine_research_cohort validates source snapshot, selected trial IDs and rationale. prepare_research_workspace creates one four-table project from that selection. get_research_workspace reads one authorized page; open_research_workspace opens the view; revise_research_workspace appends a revision with expected_revision; claim_research_workspace saves a preview to an authenticated account. Writes must retain write annotations.
+
+The extension prefers fullscreen (the supported host workspace), with no embedded sidebar or Reports. Dataset, Account and About dataset access use external App destinations. /share/research/{projectId} is the research variant of the existing shared-preview shell; preserve its #preview capability on anonymous links. Save after authentication preserves this ID. Existing /share/{token} links keep their existing behavior.
+
+Anonymous projects expire after one hour. Free accounts retain ten records per table; paid accounts use existing entitlements. User registration does not confer paid access. Show factual available/displayed counts; access information lives at /dataset-access and contains no purchase controls. Never direct a plugin user to a transactional subscription page.

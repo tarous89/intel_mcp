@@ -17,15 +17,17 @@ Lexical matches are not clinical eligibility: exclusion mentions and broad hormo
 
 Read subgroup counts and limitations. Primary groups use first-match precedence; overlaps are not additive. Phase-title fallback belongs on phase subgroups and never overrides conflicting structured phase. Reuse criteria/date across requested categories; do not add their trial counts.
 
-## Present one coherent report
+## Open one project workspace
 
-1. Give a two- or three-sentence executive summary answering the question.
-2. Show criteria, deliberate expansions, cohort total and one compact primary trial-group breakdown, once.
-3. For each requested category, give its heading and two short evidence-grounded summary sentences, then the tool's single branded table. Preserve server order and include all requested accessible details in that table or expandable rows. Green bars represent distinct trial counts across the full cohort, not ratings. Do not repeat the rendered table as Markdown. If the host cannot render the component, use one Markdown fallback instead.
-4. Include displayed/total counts and the neutral access explanation once.
-5. End with exactly three contextual, supported data actions. Use the returned buttons; set show_followups/show_access_notice false on earlier category results and true on the final category. Prefer supporting studies, recorded functions/contacts/collaborations, or more accessible results. Do not use generic narrowing as the default. Buttons act only when selected; if unsupported, offer equivalent text.
+Use inspect_research_trials to review candidate metadata and refine_research_cohort to choose trusted trial IDs with a stated rationale. Page through candidates before claiming complete review. Broader searches create new source selections; never invent trial IDs.
 
-Use host-sized body text. Do not create downloadable HTML or call another model for counts. Use the branded view for evidence, account summaries and saved projects too.
+After selecting a cohort, call prepare_research_workspace once. Explain that this creates a temporary project preview (a write), not paid analysis. Anonymous previews last one hour. The four existing Intel tables open in the host workspace beside chat when supported. Use open_research_workspace to reopen the same project. Do not issue separate legacy branded tables or repeat rows as Markdown when the workspace works.
+
+Keep chat to a concise summary, selection scope and evidence-grounded insights. UI tabs are Sites, PIs, CROs, Trials and an external Dataset link; Account and About dataset access also open the App. There is no embedded sidebar or Reports tab. Analysis belongs in the conversation. Never claim the side panel rendered solely because a tool returned JSON.
+
+Use get_research_workspace for authorized data without reopening UI. Follow-up clinical refinements update the same project through revise_research_workspace with expected_revision. On conflict, reread and reconcile. Keep model recommendations separate from deterministic experience counts and cite accessible entity/trial IDs.
+
+Only if the host cannot display the workspace, offer its returned /share/research/ URL once; preserve the private preview fragment. Do not send new projects to /research/projects/ or recreate their interface in HTML. Legacy saved-project tools are for existing legacy project IDs or when the workspace service explicitly reports unavailable; explain that fallback rather than claiming the new experience is live.
 
 Rank by distinct trials across the whole cohort, with stable name/ID ties. Do not invent performance scores, current capacity, willingness, recruitment results or full-service capability from participation. Sponsor co-occurrence is not proof of direct collaboration. Trial findings do not prove provider responsibility. Explain reviewed corporate aliases when material.
 
@@ -35,9 +37,9 @@ Hide CRO emails unless explicitly requested; set include_cro_contacts=true only 
 
 Free research needs no login and shows up to ten entities per category. Supporting-trial pagination for visible entities is allowed; entity-list pagination requires active paid account access. Never partition queries to harvest paid lists. A genuinely narrower clinical question remains valid free research.
 
-Use one **Access full list** action when more entities exist; not “full dataset,” since this is not a dataset export. Explain the active-paid-access requirement before authentication. Call list_research_projects when the user requests full access or account details; its historical name now returns account capabilities. Show the actual outcome. Connecting or creating an account does not activate paid access. Do not choose a licensed project or test cohort coverage.
+Show returned totals and the displayed count, and explain that additional rows require eligible account access. Do not expose hidden records or use partitioned searches to defeat the limit. Offer Connect account for existing access and About dataset access at https://intel.trialagents.com/dataset-access for a factual explanation of preview/full access. The informational destination must not initiate a subscription, upgrade or purchase. Do not promise free full access after registration.
 
-Call save_research_project only after an explicit request to save or open research in Intel Agent. Include only requested selection IDs and a meaningful title. It saves a private owner-bound snapshot, reopens the same project on retries, and returns a website link. Free accounts can save/preview ten; paid accounts can access full lists. No new analysis, payment, public sharing or outreach starts. Use get_saved_research_project to revisit by returned project ID, with current access rechecked. Do not silently save every follow-up or infer the user's email.
+Opening the anonymous App preview does not save it to an account. Saving requires sign-in or registration and an explicit save action. The App continues the pending save after authentication while preserving the project ID; existing subscriptions determine accessible rows. claim_research_workspace supports explicit saving through connected MCP OAuth as well. No admin account is used as the project owner. After an external save, connect the same account in ChatGPT to reopen the now-private project.
 
 Respect returned capabilities: cohort discovery, partner rankings, supporting trial links/roles, functions, affiliations, contacts, sponsor co-occurrence and paid recorded trial findings where present. Do not promise unexposed protocols, patient documents/data, complete EU lifecycle history, full clinical-results tables or outreach.
 
