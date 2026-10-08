@@ -84,7 +84,7 @@ def discovery_guidance(trial_count):
             'before finalizing; retain requested population/phase as named subgroups. Preserve explicit '
             'mandatory constraints. If no relevant broadening is possible, report the actual count and why.'
             if trial_count < 200 else
-            'Rank the whole cohort; show subgroup breakdown only if requested.'
+            'Rank the whole cohort; show one compact primary trial-group breakdown in the overview, without repeating match-tier columns in entity rows.'
         ),
         'ranking_priority': 'Distinct trial count across the whole selected cohort, then name and ID for stable ties.',
     }
