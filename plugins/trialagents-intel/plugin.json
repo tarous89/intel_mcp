@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -21,13 +21,14 @@
       "interface": {
         "displayName": "TrialAgents Intel",
         "shortDescription": "Find clinical trial partners",
-        "longDescription": "Find and compare CROs/providers, investigator sites and principal investigators using recorded clinical trial experience. Compare whole-cohort trial experience, inspect supporting studies and request recorded CRO contacts. PI contacts remain available. Anonymous research shows up to ten entities per category per selection, with full matching totals. Connect a TrialAgents account for expanded lists where an owned project has an active entitlement covering the complete selected cohort. Research is read-only; recorded experience does not establish current capacity or performance.",
+        "longDescription": "Find and compare CROs/providers, trial sites and principal investigators using recorded trial experience. Anonymous research shows up to ten entities per category with full matching totals. Use branded tables to inspect supporting studies, functions, affiliations and explicitly requested CRO contacts. Connected accounts with active paid access can paginate full lists across selections. Explicitly save research as a private Intel Agent project and reopen it with current account access. Recorded experience is not a performance rating.",
         "developerName": "Atlas Consulting",
         "category": "Productivity",
         "capabilities": [
           "Discover trial cohorts",
           "Compare trial partners",
-          "Read supporting trial evidence"
+          "Read supporting trial evidence",
+          "Save private research projects"
         ],
         "websiteURL": "https://trialagents.com/intel-agent",
         "supportURL": "https://intel.trialagents.com/support/intel",
@@ -49,7 +50,7 @@
               "description": "Anonymous landscape across three entity categories",
               "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
               "tools_triggered": "search_research_trials, rank_research_entities",
-              "expected_behavior": "Announce exploratory scope; sequential searches/rankings for three categories with shared criteria/date. Show actual cohort/groups and entity totals, at most ten per category, contacts where recorded, trial evidence and ranking explanation. Label terminology candidates and broadening; no forced login or invented minimum. Target a relevant 100–500-trial landscape; broaden a sparse exploratory first query or state why constraints/relevance prevent expansion. Initial report must show the access notice and displayed/total counts. First valid tool call must not require schema guessing."
+              "expected_behavior": "Announce exploratory scope; sequential searches/rankings for three categories with shared criteria/date. Show actual cohort/groups and entity totals, at most ten per category, contacts where recorded, trial evidence and ranking explanation. Label terminology candidates and broadening; no forced login or invented minimum. Target a relevant 200–500-trial landscape; broaden a sparse exploratory first query or state why constraints/relevance prevent expansion. Initial report must show the access notice and displayed/total counts. First valid tool call must not require schema guessing. Use one branded table per requested category, no duplicate Markdown table, and three supported final data actions."
             },
             {
               "description": "Function-specific provider research",
@@ -64,10 +65,10 @@
               "expected_behavior": "Start from a fresh chat. Search prostate trial experience and rank at most ten providers. Use the returned first entity and selection IDs for supporting evidence; if no entities exist, report that honestly. Show only recorded professional contacts and returned source links. No fixed IDs, raw profiles or invented contacts; refresh expired selections."
             },
             {
-              "description": "Connect for complete entitled results",
-              "prompt": "Find prostate cancer CROs, connect my TrialAgents account, and show the full list using my entitled project.",
-              "tools_triggered": "search_research_trials, rank_research_entities, list_research_projects",
-              "expected_behavior": "Start from a fresh chat with the reviewer account/project configured in secure Review details. Create a prostate selection and show anonymous top-ten results; initiate supported OAuth and select the reviewer-owned project. With full cohort coverage and active entitlement, paginate the full list; otherwise explain denied coverage without changing the cohort. A denied outcome does not substitute for demonstrating the configured full-access success path. No purchase, passwords or payment credentials in chat."
+              "description": "Account access and private saved research",
+              "prompt": "Find prostate cancer CROs, connect my TrialAgents account, show the full list, and save it as a private Intel Agent project.",
+              "tools_triggered": "search_research_trials, rank_research_entities, list_research_projects, save_research_project, get_saved_research_project",
+              "expected_behavior": "Start from a fresh chat with a reviewer account configured in secure Review details. Show anonymous top ten, use supported OAuth, report account capabilities and paginate full lists only with active paid account access. No licensed-project matching. Explicitly save the computed snapshot, open its private website link and revisit through get_saved_research_project. Repeat save reopens the same project; another owner is denied and expired access returns to the free limit. No checkout, new analysis job, passwords or payment credentials in chat."
             },
             {
               "description": "Hard constraints and sparse cohorts",
@@ -98,10 +99,10 @@
           ]
         },
         "commerce": false,
-        "commerce_description": "Read-only partner research. No purchase, checkout or payment tool. Optional OAuth connects existing TrialAgents accounts; expanded access depends on existing per-project entitlements."
+        "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
       },
       "publication": {
-        "release_notes": "Improve first research: explicit criteria schemas, relevant 100–500-trial landscape guidance, visible access limits and accurate source-scope disclosures."
+        "release_notes": "One branded table per data result, three supported next actions, account-wide paid access and explicit private saved-project handoff. Target 200–500 relevant trials; the 500 ceiling remains."
       }
     }
   }

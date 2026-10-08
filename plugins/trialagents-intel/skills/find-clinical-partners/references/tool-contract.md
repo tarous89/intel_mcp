@@ -5,11 +5,11 @@ Endpoint: `https://mcp.trialagents.com/research/mcp`. Use only the exposed tools
 | Tool | Purpose | Access |
 |---|---|---|
 | search_research_trials(criteria) | Build a bounded selection; returns ID, cohort/groups and entity totals, not ranked rows | Anonymous |
-| rank_research_entities(selection_id, offset=0, limit=10, project_id=null, include_cro_contacts=false) | Rank the whole cohort; CRO emails only when explicitly requested | Anonymous first ten; entitled project for pagination |
-| get_research_entity_evidence(selection_id, entity_id, offset=0, project_id=null) | Supporting trials for one returned entity | Anonymous top-ten entities, bounded evidence; project for expanded access |
-| list_research_projects() | Connect account and list owned projects/access | OAuth |
+| rank_research_entities(selection_id, offset=0, limit=10, project_id=null, include_cro_contacts=false) | Rank the whole cohort; CRO emails only when explicitly requested | Anonymous first ten; active paid account for pagination |
+| get_research_entity_evidence(selection_id, entity_id, offset=0, project_id=null) | Supporting trials for one returned entity | Anonymous top-ten entities, bounded evidence; paid account for expanded access |
+| list_research_projects() | Connect account and show account capabilities | OAuth |
 
-Selections expire (normally 15 minutes). Search construction is concurrency-limited: make entity-category searches sequentially. No arbitrary SQL, count-only catalogue, full-profile, outreach, saved report or checkout tool exists here.
+Selections expire (normally 15 minutes). Search construction is concurrency-limited: make entity-category searches sequentially. Explicit save_research_project(selection_ids, title, include_cro_contacts=false) is an OAuth-protected write that saves private snapshots without analysis or payment. get_saved_research_project(project_id, section=0, offset=0, limit=10) reopens them with current owner/access checks. No arbitrary SQL, count-only catalogue, full-profile, outreach or checkout tool exists here.
 
 ## Criteria
 
@@ -45,9 +45,11 @@ Anonymous rank offset must remain zero, limit <=10. Evidence is limited to visib
 
 Ranked rows supply trial_counts, function_counts, countries/affiliations, contacts, identity_basis/legal_entities, sponsor co-occurrences, recency and evidence. Counts are distinct trials within this selection, not lifetime experience. Preserve source URLs/trial IDs and distinguish missing data from zero. Sponsor trial counts are descriptive, not a collaboration quality metric. There is no performance score.
 
-Full access requires OAuth plus an owned entitled project whose granted trial manifest covers the complete selected cohort. Rank pages can be up to 100 when authorized. Authentication is not itself a subscription or a guarantee of coverage. Do not prescribe new pricing; TrialAgents owns subscription terms outside the plugin.
+Full access requires OAuth plus active paid account access, without project or cohort-coverage matching. Rank pages can be up to 100 when authorized. Authentication is not itself a subscription or a grant of paid access. Do not prescribe new pricing; TrialAgents owns subscription terms outside the plugin.
 
-Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Include the message once in each initial report, plus displayed/total counts per category. It explains existing-account/project access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.
+Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Include the message once in each initial report, plus displayed/total counts per category. It explains existing paid-account access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.
 
 
 0.1.4: ranking accepts show_followups and show_access_notice (true by default). Set both false on earlier requested category charts and true on the last. Search returns capabilities with anonymous, existing_entitlement and not_exposed lists. Respect that inventory for next actions; private backend data is not automatically accessible from public tools.
+
+0.1.5: rank, evidence, account and saved-project tools return one shared branded view. Render it without a duplicate Markdown table; fall back to one plain table only if unavailable. Exactly three final data actions, no generic narrowing prompts. Saving is explicit and private; repeat saves reopen the same owner/snapshot/category/contact-mode project. Stored results are not auto-refreshed; current access is rechecked on reopen. No additional LLM job or purchase starts.
