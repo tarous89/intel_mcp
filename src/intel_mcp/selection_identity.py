@@ -1,7 +1,7 @@
 """Reviewed exact aliases; no prefix, fuzzy or acquisition-date inference."""
 import re
 
-IDENTITY_VERSION = "reviewed-aliases-2026-10-06-v1"
+IDENTITY_VERSION = "reviewed-aliases-2026-10-08-v2"
 SYNEOS_SOURCE = "https://www.sec.gov/Archives/edgar/data/1610950/000095017023002928/synh-ex21_1.htm"
 # Historical source-backed grouping, not a claim about ownership at trial time.
 CRO_ALIASES = [
@@ -35,7 +35,22 @@ def alias_key(name):
 
 
 def reviewed_cro_group(names, countries):
-    matches = [a for a in CRO_ALIASES if a["country"] in countries and alias_key(a["name"]) in {alias_key(n) for n in names}]
-    if not matches or len({a["group"] for a in matches}) != 1:
+    # Exact canonical group labels must join their reviewed country entities too.
+    # Do not strip legal suffixes or match arbitrary prefixes/unknown countries.
+    canonical = {alias_key(a['group']): a for a in CRO_ALIASES}
+    matches = []
+    for name in names:
+        key = alias_key(name)
+        if key in canonical:
+            source = canonical[key]
+            matches.append({**source, 'name': name, 'country': None,
+                            'match_basis': 'exact_canonical_group_name'})
+            continue
+        found = [a for a in CRO_ALIASES if a['country'] in countries and alias_key(a['name']) == key]
+        if not found:
+            # One recognized name must not lend identity to unreviewed aliases.
+            return None
+        matches.extend(found)
+    if not matches or len({a['group'] for a in matches}) != 1:
         return None
     return matches[0]
