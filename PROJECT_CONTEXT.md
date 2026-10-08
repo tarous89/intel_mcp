@@ -1,6 +1,6 @@
 # Intel MCP current handover
 
-Updated: 2026-10-06. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
+Updated: 2026-10-08. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
 
 ## Active interfaces
 
@@ -14,7 +14,7 @@ Engine reads use the restricted `intel_mcp_reader_v1` and compatibility `mcp_ser
 
 New combined discovery, full frozen datasets, deterministic aggregation and staged Reports run in App's existing worker through private Engine HTTP/artifacts. Reused Site/PI pure ranking functions are current dependencies. The old standalone Site interpretation/search and report-plan/execution paths are archive compatibility, not a current Site product. Keep `MAX_AGENT_ENABLED` disabled in standalone MCP unless a separately scoped change explicitly requires it. No extra report service is required.
 
-Use [combined Intel](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) for product pricing/access/workspace semantics and [platform](https://github.com/tarous89/trialagents/blob/main/PLATFORM.md) for active names/routes. New Intel offers are €490/month and €2,900/year per project, VAT extra, recurring, annual monthly updates, not old Light/Max packages.
+Use [combined Intel](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) for product pricing/access/workspace semantics and [platform](https://github.com/tarous89/trialagents/blob/main/PLATFORM.md) for active names/routes. Existing billing remains €490/month and €2,900/year, VAT extra, recurring, annual monthly updates. Public MCP access is account-wide; do not infer project-bound access from older product documentation or change contracts automatically.
 
 ## Security and iteration
 
@@ -31,6 +31,12 @@ Search is deterministic: explicit title/profile-text predicates, optional missin
 
 Engine migration 048 indexes seven text fields and covers all 12,585 currently available profiles. Live restricted-reader MCP search succeeded with 192 prostate lexical candidates and 272 provider entities; exactly ten rows with contacts were returned and further pagination denied. One external search request took 17.68s including transport/profile retrieval/ranking; a separate database-only title/disease index probe took 9.726ms. These are single observations, not equivalent workloads or a latency guarantee.
 
-App `MCP_RESEARCH_ACCESS_ENABLED=true` accepts the research OAuth audience. Issuer `https://intel.trialagents.com/oauth/intel` reuses existing login/consent/token endpoints; unrelated BD root discovery is preserved. Full access requires ownership, existing per-project entitlement and complete trial coverage in the active granted manifest index. No pricing, checkout, subscription or website layout changes. Account-connection challenge is verified; real signed-in paid-project completion still requires a user test.
+App `MCP_RESEARCH_ACCESS_ENABLED=true` accepts the research OAuth audience. Issuer `https://intel.trialagents.com/oauth/intel` reuses existing login/consent/token endpoints; unrelated BD root discovery is preserved. Public research full lists now use active paid account access across cohorts. Saved projects remain owner-bound; source scope no longer needs to match a previously licensed project. No pricing, checkout, subscription or website layout changes. Account-connection challenge is verified; real signed-in paid-project completion still requires a user test.
 
 See `docs/SELECTION_IMPLEMENTATION_LOG.md` steps 14–17 for deployment evidence and remaining gates. ChatGPT workflow packaging and directory submission are NOT complete. First responses should use clinically relevant broad cohorts (roughly 200–500 where justified, never padded), explicit groups, top-ten tables, ranking evidence, totals and drill-down options. Operational narrative disclosure, broader identity curation and address mapping need further work.
+
+## Approved next direction — 2026-10-08
+
+See [ChatGPT workspace direction](docs/CHATGPT_WORKSPACE_DIRECTION.md) for the owner-approved architecture and ordered implementation/acceptance steps. ChatGPT drives cohort selection and recommendations; the backend validates, normalizes and persists evidence. One project feeds the actual Intel Agent CRO/PI/site/trial tables in a preview/extension with an external fallback. Same account access applies to the model and UI; no embedded or directed subscription funnel. This is staged work, not yet the live workflow. Existing explicit save and renderer remain until replacement is verified.
+
+2026-10-08 correction: shared-preview shell, compact ChatGPT table tabs (no sidebar/Reports), /share/research/{id} fallback, authentication before save, informational /dataset-access; see workspace direction document. Draft only until App-first rollout and real-host acceptance.

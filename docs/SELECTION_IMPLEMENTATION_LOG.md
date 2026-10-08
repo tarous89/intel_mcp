@@ -267,3 +267,15 @@ App PGlite account/ownership/idempotency/expiry checks and OAuth lifecycle tests
 Publication BLOCKED: automatic approval review rejected GitHub create_tree to tarous89/intel_agent_app, requiring explicit authorization to upload local source to that destination. Do not retry via another tool or route. No PR, merge, production migration or deployment was performed. Ask owner to approve publication and deployment to tarous89/intel_agent_app and tarous89/intel_mcp. Deploy App/migration 0055 before MCP. Existing prices and payment processing remain unchanged; EUR500 billing rollout is separate.
 
 Owner explicitly approved publication and deployment to both repositories on 2026-10-08. The preceding approval block is resolved; App-first rollout and remaining CI/host gates still apply.
+
+
+## Approved next direction — 2026-10-08
+
+See [ChatGPT workspace direction](CHATGPT_WORKSPACE_DIRECTION.md) for the owner-approved architecture and ordered implementation/acceptance steps. ChatGPT drives cohort selection and recommendations; the backend validates, normalizes and persists evidence. One project feeds the actual Intel Agent CRO/PI/site/trial tables in a preview/extension with an external fallback. Same account access applies to the model and UI; no embedded or directed subscription funnel. This is staged work, not yet the live workflow. Existing explicit save and renderer remain until replacement is verified.
+
+First build increment: paginated candidate inspection, validated source-ID cohort refinement, saved model-attributed selection provenance and exact canonical CRO-name grouping. See the direction document for tests and remaining milestones. Current deployment is unchanged.
+
+Shared-workspace build continued locally on 2026-10-08: four actual App tables, versioned projects/recommendations, expiring preview/claim and MCP extension bridge. See CHATGPT_WORKSPACE_DIRECTION.md for test evidence and exact upload block. GitHub create_tree to tarous89/intel_agent_app was rejected by automatic approval review; no workaround or production rollout is authorized by that rejection.
+
+
+Approval resolution — 2026-10-08: the owner explicitly approved uploading these changes to tarous89/intel_agent_app and tarous89/intel_mcp, updating the PRs and continuing verification. The preceding source-upload block is resolved. Production migration/deployment and real-host acceptance remain pending.
