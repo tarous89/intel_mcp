@@ -66,6 +66,13 @@ class ControlPlaneClient:
             )
         return body
 
+    async def research_project(self, payload: dict) -> dict:
+        self._settings.validate_control_plane()
+        response = await self._post(f"{self._settings.app_control_url}/api/internal/mcp/research-projects", payload)
+        if response.status_code == 200:
+            return response.json()
+        raise self._response_error(response, "RESEARCH_PROJECT_UNAVAILABLE", "Saved research is temporarily unavailable.")
+
     async def research_access(self, project_id: str | None, trial_ids: list[str]) -> dict:
         if not current_oauth_subject():
             raise ControlPlaneError("CONNECT_ACCOUNT_REQUIRED", "Connect your TrialAgents account.", 401)

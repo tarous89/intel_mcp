@@ -238,3 +238,32 @@ Reviewed official https://developers.openai.com/plugins/plugin-guidelines (Comme
 Reviewed current intel_agent_app app/oauth/authorize/route.ts: existing-project benefits, no purchase on connection/signup, and free fallback are already stated; retain the explicit Connect TrialAgents consent action. No main App, billing or authentication behavior changed. Widget continues to request the host-supported flow and cannot bypass native authorization.
 
 Before every release and package test handoff, verify: one Access full list action only when more results exist; accurate counts/entitlement disclosure; no purchase/upgrade links or signup-to-checkout redirects; unsupported-host text fallback; connected/unentitled accounts retain free use. Recheck current OpenAI guidelines for any later commerce change.
+
+
+## Account-wide research and saved projects — approved 2026-10-07
+
+Owner approved one branded table for every data response (including evidence/account details), in-row green experience bars, expandable detail in the same table, no duplicate Markdown table when UI renders, and three contextual data actions at the end. Plain Markdown is a single fallback only when host UI is unavailable. Stars are not performance ratings; trial findings must not be attributed to providers without evidence.
+
+Owner superseded project-bound public MCP entitlement: active paid account access grants full lists across selections without matching a licensed project's trial population. Existing live, unrevoked subscriptions with future paid_through and live paid combined_premium purchases qualify; pending/test/refunded/expired payments do not. Existing billing amounts (€490/month and €2,900/year) and Stripe behavior are unchanged in this release. The requested €500/month offer is a separate pending billing rollout; do not claim it is live or change existing contracts automatically. The 500-trial-per-selection ceiling remains technical, not a research-usage quota.
+
+Explicit Save/Open in Intel Agent creates a private, owner-bound snapshot at /research/projects/{id}; /research lists saved snapshots. Save reuses existing deterministic rankings and records criteria, trial IDs, snapshot and requested categories. Identical owner/snapshot/category/contact-mode retries reopen the same project. No automatic saving of every query, public sharing, checkout, extraction, analysis job or LLM call. Contacts respect explicit-request CRO-email policy. App returns only top-ten/redacted evidence to free users; paid full pagination rechecks account access, including after expiry/revocation. Saved research can be reopened through the MCP using its project ID. Stored snapshots do not auto-refresh with new source data. Database payload bound12MiB, maximum3 category selections,500 trials per selection; latest100 project titles listed on website.
+
+Hosted signup/consent now explains account-level access and keeps native OAuth checks; saved-project login return uses an exact same-origin UUID allowlist. Existing OAuth takes precedence. No email is inferred from ChatGPT. Sign in with ChatGPT integration and the new product overview remain separate future work. No digital-subscription funnel is added: existing-account access and neutral entitlement information only, per current OpenAI plugin guidelines.
+
+Mandatory before package test handoff and every release:
+- [ ] Real PostgreSQL/PGlite checks: owner isolation, repeat-save idempotency, completeness/size rejection, free ten, paid next page, expiry/revocation and payment states.
+- [ ] Tool metadata: saving is an explicit OAuth-protected write; account/evidence/read tools are read-only; anonymous research stays available.
+- [ ] One branded table with complete requested details, escaped source text, host-size typography and exactly three supported actions on the final result.
+- [ ] Apply additive migration0055 and deploy App before MCP; no LLM/checkout jobs start on save or open.
+- [ ] Real ChatGPT new metadata import: anonymous research, evidence widget, account summary, explicit save, private website reopen and MCP revisit. Do not mark host acceptance from unit tests.
+
+
+## Resume verification — 2026-10-08
+
+Recovered uncommitted account-wide access, private saved-project and branded-table changes. Compared against App main df6b19ac42a97ee95470e390f64c80fb7ca3e7e9 and MCP main db1c63db73c1cef58e988e0e58fdbd5a45061685. Exclude stale local combined-premium.ts, workspace-contract.ts and support/intel/page.tsx from App publication. Preserve current remote code outside the approved file set.
+
+App PGlite account/ownership/idempotency/expiry checks and OAuth lifecycle tests pass. MCP selection and research checks: 38 passed. DOM verification passes for a single branded table, three actions, escaped source content, count-derived bars and host follow-up messages. New widget bundle rebuilt. Whole-repository TypeScript/CI and actual ChatGPT rendering/save/reopen remain release gates.
+
+Publication BLOCKED: automatic approval review rejected GitHub create_tree to tarous89/intel_agent_app, requiring explicit authorization to upload local source to that destination. Do not retry via another tool or route. No PR, merge, production migration or deployment was performed. Ask owner to approve publication and deployment to tarous89/intel_agent_app and tarous89/intel_mcp. Deploy App/migration 0055 before MCP. Existing prices and payment processing remain unchanged; EUR500 billing rollout is separate.
+
+Owner explicitly approved publication and deployment to both repositories on 2026-10-08. The preceding approval block is resolved; App-first rollout and remaining CI/host gates still apply.
