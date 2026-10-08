@@ -50,7 +50,10 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
     ui={'ui':{'resourceUri':RESOURCE}}
     async def read(project_id,token,kind='cros',offset=0,revision=None):
-        out=await control_factory().research_workspace({'operation':'read','projectId':project_id,'previewToken':token,'kind':kind,'offset':offset,'limit':10,'revision':revision})
+        body={'operation':'read','projectId':project_id,'previewToken':token,'kind':kind,'offset':offset,'limit':10}
+        # The App distinguishes an omitted revision (latest) from JSON null (invalid).
+        if revision is not None:body['revision']=revision
+        out=await control_factory().research_workspace(body)
         # A bearer preview capability is necessary to resume an unclaimed project.
         # Once owned, OAuth ownership is required and the capability is omitted.
         if not out['owned']:

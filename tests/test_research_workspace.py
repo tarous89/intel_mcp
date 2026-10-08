@@ -25,6 +25,8 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
         calls=[]
         async def research_workspace(self,body):
             self.calls.append(body)
+            if body['operation']=='read':
+                assert 'revision' not in body or (isinstance(body['revision'],int) and body['revision']>0)
             if body['operation']=='create':return {'project_id':'00000000-0000-0000-0000-000000000001','revision':1}
             return {'project_id':body['projectId'],'revision':1,'owned':False,'result':{'entity_type':'cros','entities':[]}}
     control=Control();engine=Engine([record()])
