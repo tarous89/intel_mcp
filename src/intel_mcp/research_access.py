@@ -5,6 +5,7 @@ import secrets
 import time
 from collections import OrderedDict
 from .selection import SelectionDataset, SelectionError, digest
+from .research_cohort import refine_cohort
 
 class ResearchStore:
     """Bounded, short-lived public-data snapshots; restart/eviction requires a new search."""
@@ -31,15 +32,29 @@ class ResearchStore:
             if not hasattr(engine, 'selection'):
                 raise SelectionError('SELECTION_DATABASE_REQUIRED: Configure the restricted database reader.')
             dataset=await engine.selection(criteria)
-            import json
-            size=len(json.dumps(dataset.records, ensure_ascii=False).encode())
-            while self.entries and (len(self.entries)>=8 or sum(e['bytes'] for e in self.entries.values())+size>self.max_bytes):
-                self.entries.popitem(last=False)
-            if size>self.max_bytes:
-                raise SelectionError('SELECTION_TOO_LARGE: Narrow the selection.')
-            token=secrets.token_urlsafe(32)
-            self.entries[token]={'dataset':dataset,'expires':time.monotonic()+self.ttl,'key':key,'bytes':size}
-            return token,dataset
+            return self._put(dataset, key)
+
+    def _put(self, dataset, key):
+        import json
+        size=len(json.dumps(dataset.records, ensure_ascii=False).encode())
+        if size>self.max_bytes:
+            raise SelectionError('SELECTION_TOO_LARGE: Narrow the selection.')
+        while self.entries and (len(self.entries)>=8 or sum(e['bytes'] for e in self.entries.values())+size>self.max_bytes):
+            self.entries.popitem(last=False)
+        token=secrets.token_urlsafe(32)
+        self.entries[token]={'dataset':dataset,'expires':time.monotonic()+self.ttl,'key':key,'bytes':size}
+        return token,dataset
+
+    async def refine(self, token, request):
+        if self.lock.locked():
+            raise SelectionError('RESEARCH_BUSY: Another selection is being prepared; retry shortly.')
+        async with self.lock:
+            dataset=refine_cohort(self.get(token),request)
+            key='refined:'+dataset.snapshot
+            for cached, entry in self.entries.items():
+                if entry['key']==key and entry['expires']>time.monotonic():
+                    return cached,entry['dataset']
+            return self._put(dataset,key)
 
     def remaining_seconds(self, token):
         self.get(token)

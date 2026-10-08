@@ -6,7 +6,11 @@ RESEARCH_WORKFLOW = (
     'Initial research is anonymous: top ten per category. Target 200–500 relevant trials, hard cap 500. '
     'Broaden a disease family through relevant therapeutic area, phase or modality; explain broadening '
     'and preserve explicit only/must constraints. Never pad counts or sample an over-cap selection. '
-    'Rank the whole cohort by distinct trial experience, retaining server order. Search requested categories only. '
+    'Use inspect_research_trials to review paginated candidate metadata; follow next_offset before claiming full review. '
+    'Use refine_research_cohort to submit selected source IDs and clinical rationale for a revised question. '
+    'Search again to broaden beyond source IDs; never invent records or partition cohorts to bypass access. '
+    'Keep deterministic experience tables in server order; separately explain recommendations based on accessible evidence and user priorities. '
+    'Search requested categories only. '
     'Begin with a short executive answer and explain criteria/trial groups once. Every data answer, including '
     'follow-up evidence, contacts, functions and account capabilities, must use its branded tool view. '
     'Use green experience bars inside one complete table, with supporting details in its expandable rows. '
@@ -53,7 +57,7 @@ def inline_schema(schema):
     return expand(schema)
 
 
-def public_cohort(summary):
+def public_cohort(summary, selection_origin=None):
     """Describe a successful bounded read without legacy deployment warnings.
 
     Does not assert that the database contains every CTIS study. Legacy private
@@ -71,6 +75,13 @@ def public_cohort(summary):
         *[item for item in result['limitations']
           if not item.startswith('Current serving profiles; full study coverage requires Engine availability migration 047.')],
     ]
+    if selection_origin:
+        result['coverage'] = 'model_selected_source_subset'
+        result['source_scope'] = (
+            'Explicit trial IDs selected from a bounded source cohort. Original search criteria '
+            'describe retrieval, not proof that every matching trial remains in this selection. '
+            'Selection rationale is model interpretation; source facts and counts remain deterministic.'
+        )
     return result
 
 
