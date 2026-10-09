@@ -16,6 +16,9 @@ RESEARCH_WORKFLOW = (
     'not a paid analysis. Anonymous previews expire in one hour; connected projects are private and persistent. '
     'Prefer the fullscreen host workspace, with no sidebar or Reports; Dataset and Account open the App. '
     'Give a concise summary, scope and insights in chat. The actual Intel Agent tables render in the preview; do not duplicate them in Markdown. '
+    'Supporting-trial lists are out of scope unless the user explicitly requests them. '
+    'Inspect trial evidence internally for analysis, but do not render supporting-study tables or lists by default. '
+    'This request-only rule also applies after a workspace error; failure does not authorize extra output. '
     'If the host cannot render the workspace, offer its returned private URL; preserve the preview fragment so it can open. '
     'Use get_research_workspace for authorized data and open_research_workspace to reopen its preview. '
     'For user-requested changes, select/refine trials, then revise_research_workspace using the same project ID and expected revision. '
@@ -28,7 +31,7 @@ RESEARCH_WORKFLOW = (
     'Show displayed and total counts; About dataset access links to https://intel.trialagents.com/dataset-access, an informational page only. '
     'Connecting alone does not activate paid access. Explain restrictions neutrally, with no subscription promotion or checkout redirects. '
     'If the workspace feature is unavailable, retain the existing rank/evidence and explicit-save tools; do not claim a project was created. '
-    'Legacy tools use one branded view or one Markdown fallback, not duplicate tables. '
+    'After a workspace failure, keep chat to a brief error and concise insights; do not automatically replace the workspace with lists. '
     'Do not promise raw protocols, patient documents, complete EU histories or unrestricted profiles. '
     'No backend model job, payment or outreach is needed for these actions.'
 )

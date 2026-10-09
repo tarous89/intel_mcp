@@ -13,6 +13,25 @@ from .control_plane import ControlPlaneError
 
 RESOURCE='ui://trialagents/workspace-v1'
 Kind=Literal['cros','sites','pis','trials']
+SHARED_EVIDENCE_FIELDS=('discovery_evidence','operational_findings')
+
+def compact_workspace_evidence(sections):
+    """Store trial-level narratives once, retaining every entity/trial association."""
+    shared={}
+    for section in sections:
+        for entity in section['result']['entities']:
+            for evidence in entity.get('evidence',[]):
+                common={key:evidence[key] for key in SHARED_EVIDENCE_FIELDS if key in evidence}
+                if not common:
+                    continue
+                tid=evidence['trial_id']
+                if tid in shared and shared[tid]!=common:
+                    raise SelectionError('INCONSISTENT_TRIAL_EVIDENCE')
+                shared[tid]=common
+                for key in common:
+                    del evidence[key]
+    return shared
+
 class Recommendation(Contract):
     entity_type: Literal['cros','sites','pis']
     entity_id: Annotated[str,Field(pattern=r'^[a-f0-9]{24}$')]
@@ -43,7 +62,9 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
     result={'entity_type':'trials','entities':trials,'total_entities':len(trials),'returned':len(trials),'cohort':cohort}
     if hasattr(dataset,'selection_origin'):result['selection_origin']=dataset.selection_origin
     sections.append({'entity_type':'trials','snapshot':dataset.snapshot,'trial_ids':sorted(dataset.records),'result':result})
-    return {'title':title,'sections':sections,'recommendations':[r.model_dump(mode='json') for r in recommendations]}
+    shared=compact_workspace_evidence(sections)
+    return {'title':title,'sections':sections,'shared_evidence':shared,
+            'recommendations':[r.model_dump(mode='json') for r in recommendations]}
 
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
@@ -54,6 +75,8 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         # The App distinguishes an omitted revision (latest) from JSON null (invalid).
         if revision is not None:body['revision']=revision
         out=await control_factory().research_workspace(body)
+        out['presentation']={'supporting_trials':'only_on_explicit_request',
+            'instruction':'The workspace holds the result tables. Keep chat to concise summary and insights. Supporting-trial lists require an explicit user request.'}
         # A bearer preview capability is necessary to resume an unclaimed project.
         # Once owned, OAuth ownership is required and the capability is omitted.
         if not out['owned']:
@@ -73,6 +96,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Call after broadening is complete, before the final chat answer. Use the single
         final selection_id; do not call once per intermediate cohort or subgroup.
         Creates one project preview with four table tabs and up to ten rows per table.
+        Keep supporting-trial lists out of chat unless explicitly requested by the user.
 
         This writes a project, not a paid analysis. Anonymous previews expire in one hour;
         connected users get a private owned project. Use after selecting trials for the user's
