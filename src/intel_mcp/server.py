@@ -1143,7 +1143,9 @@ def build_app():
                 'bearer_methods_supported': ['header'],
             }, headers={'Cache-Control': 'no-store'})
 
+        from intel_mcp.research_import import snapshot_endpoint
         app = Starlette(routes=[
+            Route('/internal/research-snapshot', snapshot_endpoint(research_store, settings.app_service_token), methods=['POST']),
             Route('/.well-known/oauth-protected-resource/research/mcp', research_metadata, methods=['GET']),
             Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
             Mount('/', app=app),

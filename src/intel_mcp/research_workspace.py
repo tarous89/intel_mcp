@@ -167,7 +167,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Saved projects alone use revise_research_workspace. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
-        Connect account in the UI explicitly starts saving the exact preview and opens login/signup.
+        Connect account opens website login immediately. The website imports the exact preview only after authentication.
         The preview expires with the search; never claim it has already been saved.
         """
         try:
@@ -251,7 +251,8 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Pass draft from prepare_research_workspace for an unsaved preview. This is the
         first persistent write: it stores the exact search snapshot without rerunning research.
 
-        Used by Connect account in the workspace. Does not initiate host OAuth or a
+        Legacy model-driven handoff; the embedded Connect button instead opens website login
+        immediately and imports after authentication. Does not initiate host OAuth or a
         purchase. The private short-lived URL authorizes saving this exact project;
         open it on the user's click. Never print its token in conversation text.
         Login completes saving and opens the ordinary Projects list. A different
