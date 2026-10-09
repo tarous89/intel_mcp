@@ -113,7 +113,8 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
-    ui={'ui':{'resourceUri':RESOURCE}}
+    app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
+    ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
     async def read(project_id,token,kind='cros',offset=0,revision=None):
         body={'operation':'read','projectId':project_id,'previewToken':token,'kind':kind,'offset':offset,'limit':10}
         # The App distinguishes an omitted revision (latest) from JSON null (invalid).
@@ -192,7 +193,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                     'instruction':'Show the interactive preview. It is not saved yet. Connect account starts saving; no account is needed to view.'}}
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta=mixed,annotations=read_annotations,structured_output=True)
+    @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def get_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,
@@ -239,7 +240,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return await read(project_id,preview_token)
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta=mixed,annotations=write,structured_output=True)
+    @server.tool(meta={**mixed,**app_callable},annotations=write,structured_output=True)
     async def create_research_account_handoff(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,

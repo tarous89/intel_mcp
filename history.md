@@ -44,3 +44,10 @@ Owner requested an MCP-specific implementation log, validation and deterministic
 
 ## 2026-10-09 coordinated account/project UX correction
 Owner approved direct website login/signup from Connect, free account choice, automatic exact-result saving and one normal /projects list. Handoff capabilities are short-lived, hashed, same-origin and independent per browser tab; repeat completion is idempotent. Anonymous claim preserves project identity. Only an authorized source-owner handoff can copy an owned snapshot into another chosen account. Current web and MCP sessions remain separate. The normal catalog includes existing research workspaces and legacy snapshots, with canonical /projects routes; /research redirects to /projects. No search rerun, paid job or entitlement change. App migration0058 and endpoint must be deployed before the MCP producer/UI. Actual host acceptance must be recorded separately from automated tests.
+
+## 2026-10-09 — Account connection button recovery
+- Advertise standard app/model visibility and ChatGPT widget-access compatibility for workspace tools, including the handoff and saved-page readers.
+- Show connection progress above every tab, bound stalled requests, honor open-link refusal, and retain the private handoff in memory for navigation-only retry.
+- Guard repeated Account clicks; distinguish expired previews without leaking backend errors or capabilities. Preview generation remains read-only; connection still saves through an annotated write tool.
+- Regression coverage: both buttons, Dataset visibility, duplicate clicks, timeout/late reply, host refusal, retry without a second save, and tool metadata.
+- Real ChatGPT host acceptance remains required after refreshing cached connection metadata.

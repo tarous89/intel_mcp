@@ -23,3 +23,19 @@ test('unsaved preview is passed only on the explicit Connect action',async()=>{
  await connectProject({callServerTool:async p=>{request=p;return {structuredContent:{url}};},openLink:async()=>{}},{project_id:data.project_id,draft});
  assert.deepEqual(request.arguments,{project_id:data.project_id,draft});
 });
+
+test('host navigation refusal is reported and private handoff retained for retry',async()=>{
+ let ready;
+ await assert.rejects(connectProject({callServerTool:async()=>({structuredContent:{url}}),openLink:async()=>({isError:true})},data,value=>ready=value),error=>error.code==='navigation');
+ assert.equal(ready,url);
+});
+test('stalled tool times out without opening or accepting a late handoff',async()=>{
+ let resolve;
+ const pending=new Promise(r=>resolve=r);
+ await assert.rejects(connectProject({callServerTool:()=>pending,openLink:()=>assert.fail('must not open')},data,()=>assert.fail('late URL'),5),error=>error.code==='timeout');
+ resolve({structuredContent:{url}});
+ await new Promise(r=>setTimeout(r,0));
+});
+test('expired source is distinguished from tool rejection',async()=>{
+ await assert.rejects(connectProject({callServerTool:async()=>({isError:true,content:[{type:'text',text:'SELECTION_EXPIRED'}]})},data),error=>error.code==='expired');
+});
