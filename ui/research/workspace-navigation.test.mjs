@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {build} from 'esbuild';
+import {JSDOM} from 'jsdom';
+import {act} from 'react';
+test('embedded tab navigation, context failure, pagination retry and saved project reads',async t=>{
+ const dir=await mkdtemp(resolve('ui/research/.navigation-'));
+ t.after(()=>rm(dir,{recursive:true,force:true}));
+ const dom=new JSDOM('<main></main>',{url:'https://synthetic.invalid'});
+ globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ let incoming,calls=[],contextThrows=false,response;
+ const host={connect:async()=>{},getHostContext:()=>({}),updateModelContext:()=>{if(contextThrows)throw Error('Unsupported');return Promise.resolve();},callServerTool:async args=>{calls.push(args);if(response instanceof Error)throw response;return response;},openLink:async()=>{}};
+ Object.defineProperty(host,'ontoolresult',{set(value){incoming=value;}});globalThis.__navigationHost=host;
+ t.after(()=>{dom.window.close();delete globalThis.window;delete globalThis.document;delete globalThis.__navigationHost;delete globalThis.IS_REACT_ACT_ENVIRONMENT;});
+ await build({entryPoints:['ui/research/workspace.tsx'],bundle:true,write:true,outfile:join(dir,'ui.mjs'),platform:'node',format:'esm',jsx:'automatic',external:['react','react-dom/client','react/jsx-runtime'],plugins:[{name:'host-boundary',setup(b){
+ b.onResolve({filter:/^(@modelcontextprotocol\/ext-apps|@openai\/mcp-extensions\/app|intel-shared-workspace)$/},args=>({path:args.path,namespace:'test-boundary'}));
+ b.onLoad({filter:/.*/,namespace:'test-boundary'},args=>({loader:'tsx',contents:args.path==='@modelcontextprotocol/ext-apps'?`export class App{constructor(){return globalThis.__navigationHost}};export function applyDocumentTheme(){};export function applyHostStyleVariables(){}`:args.path==='@openai/mcp-extensions/app'?`export class OpenAIExtensions{}`:`import React from 'react';export function WorkspaceTables({data,onPage,onDataset,dataset,error,busy}){return <section><p data-testid="rows">{dataset?'Dataset':data.result.entity_type+': '+data.result.entities[0].name}</p><nav>{['cros','sites','pis','trials'].map(kind=><button key={kind} disabled={busy} onClick={()=>onPage(kind,0)}>{kind}</button>)}<button onClick={onDataset}>Dataset</button><button disabled={busy} onClick={()=>onPage(data.result.entity_type,10)}>Next</button></nav>{error&&<p role="alert">{error}</p>}</section>}` }));
+ }}]});
+ await import(pathToFileURL(join(dir,'ui.mjs')));
+ const pages=Object.fromEntries(['cros','sites','pis','trials'].map(kind=>[kind,{entity_type:kind,entities:[{name:kind+' row'}],access_info:{offset:0}}]));
+ const data={project_id:'00000000-0000-0000-0000-000000000001',revision:1,saved:false,draft:{preview_id:'00000000-0000-0000-0000-000000000001',selection_id:'a'.repeat(43),title:'Same trials',snapshot_key:'b'.repeat(64)},preview_tables:pages,result:pages.cros};
+ await act(()=>incoming({structuredContent:data}));
+ const click=async label=>act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent===label).click();await new Promise(resolve=>setTimeout(resolve,0));});
+ const shown=()=>document.querySelector('[data-testid="rows"]').textContent;
+ for(const kind of ['sites','pis','trials','cros']){await click(kind);assert.equal(shown(),kind+': '+kind+' row');}
+ assert.equal(calls.length,0,'initial tabs use delivered rows');
+ await click('Dataset');assert.equal(shown(),'Dataset');
+ contextThrows=true;await click('sites');assert.equal(shown(),'sites: sites row');assert.equal(calls.length,0);
+ response=new Error('expired selection');await click('Next');assert.equal(shown(),'sites: sites row');
+ assert(document.querySelector('[role="alert"]').textContent.includes('current results are still shown'));
+ assert(!document.body.textContent.includes('Retry account connection'));
+ assert.equal(calls[0].name,'prepare_research_workspace');assert.equal(calls[0].arguments.offset,10);assert.equal(calls[0].arguments.preview_id,data.draft.preview_id);assert(!('snapshot_key' in calls[0].arguments));
+ response={structuredContent:{...data,result:{...pages.sites,entities:[{name:'page two'}],access_info:{offset:10}}}};
+ await click('Retry loading table');assert.equal(shown(),'sites: page two');assert(!document.querySelector('[role="alert"]'));
+ await click('trials');assert.equal(shown(),'trials: trials row');assert.equal(calls.length,2);
+ await act(()=>incoming({structuredContent:{project_id:data.project_id,owned:true,revision:3,result:pages.cros}}));
+ response={isError:true};await click('sites');assert.equal(calls.at(-1).name,'get_research_workspace');assert.equal(shown(),'cros: cros row');
+});

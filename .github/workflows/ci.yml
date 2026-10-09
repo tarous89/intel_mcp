@@ -31,6 +31,18 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: pytest -q
 
+  workspace-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/research/package-lock.json
+      - run: npm ci --ignore-scripts --prefix ui/research
+      - run: node --test ui/research/connect-project.test.mjs ui/research/workspace-navigation.test.mjs
+
   live-health:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: tests

@@ -2,7 +2,7 @@ from types import SimpleNamespace
 import pytest
 from mcp import Client
 from intel_mcp.research_server import create_research_server
-from intel_mcp.research_workspace import workspace_payload,compact_workspace_evidence
+from intel_mcp.research_workspace import workspace_payload,compact_workspace_evidence,RESOURCE,LEGACY_RESOURCE,WORKSPACE_HTML
 from intel_mcp.selection import SelectionDataset
 from test_selection import record,provider,criteria
 from test_selection_service import Engine
@@ -56,11 +56,15 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
         descriptors={t.name:t for t in (await client.list_tools()).tools}
         assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
-        assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']=='ui://trialagents/workspace-v1'
+        assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']==RESOURCE
         assert 'ui' not in descriptors['rank_research_entities'].meta
         assert 'ui' not in descriptors['get_research_entity_evidence'].meta
         assert 'explicitly requests' in descriptors['get_research_entity_evidence'].description
-        resource=await client.read_resource('ui://trialagents/workspace-v1')
+        resource=await client.read_resource(RESOURCE)
+        import hashlib
+        assert RESOURCE=='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
+        legacy=await client.read_resource(LEGACY_RESOURCE)
+        assert legacy.contents[0].text==resource.contents[0].text
         assert resource.contents[0].meta['openai/ui']['preferredDisplayMode']=='fullscreen'
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
         assert search.structured_content['presentation']['tool']=='prepare_research_workspace'
