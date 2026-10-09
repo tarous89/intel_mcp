@@ -63,7 +63,7 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         listed=(await client.list_tools()).tools
         names={t.name for t in listed}
         ranked_tool=next(t for t in listed if t.name=='rank_research_entities')
-        assert ranked_tool.meta['ui']['resourceUri']=='ui://trialagents/research-v015'
+        assert 'ui' not in ranked_tool.meta  # ranking is data-only; initial UI uses the workspace
         resource=await client.read_resource('ui://trialagents/research-v015')
         assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
         assert 'TrialAgents research' in resource.contents[0].text
