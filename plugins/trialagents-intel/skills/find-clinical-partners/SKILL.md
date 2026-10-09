@@ -17,9 +17,13 @@ Lexical matches are not clinical eligibility: exclusion mentions and broad hormo
 
 Read subgroup counts and limitations. Primary groups use first-match precedence; overlaps are not additive. Phase-title fallback belongs on phase subgroups and never overrides conflicting structured phase. Reuse criteria/date across requested categories; do not add their trial counts.
 
+## One final cohort, one initial list
+
+Finish broadening before presenting any entity list. Use ONLY the final broadest clinically relevant cohort that preserves explicit hard constraints. Earlier narrower searches are intermediate evidence. Never concatenate separate top-ten lists for direct, related, phase-specific or broader cohorts. Show one top-ten list per requested category across that final cohort; use subgroups only to explain experience. Do not narrow that initial cohort unless the user explicitly requires it.
+
 ## Open one project workspace
 
-Use inspect_research_trials to review candidate metadata and refine_research_cohort to choose trusted trial IDs with a stated rationale. Page through candidates before claiming complete review. Broader searches create new source selections; never invent trial IDs.
+Use inspect_research_trials to review candidate metadata. Use refine_research_cohort only for user-requested refinement or explicit mandatory exclusions, with a stated rationale. Page through candidates before claiming complete review. Broader searches create new source selections; never invent trial IDs.
 
 After selecting a cohort, call prepare_research_workspace once. Explain that this creates a temporary project preview (a write), not paid analysis. Anonymous previews last one hour. The four existing Intel tables open in the host workspace beside chat when supported. Use open_research_workspace to reopen the same project. Do not issue separate legacy branded tables or repeat rows as Markdown when the workspace works.
 

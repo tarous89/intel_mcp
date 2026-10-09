@@ -95,7 +95,10 @@ def create_research_server(settings, engine_factory, control_factory):
         Do not invent a minimum or broaden mandatory constraints. Over 500 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
-        Next call rank_research_entities. Show concise scope and cohort size,
+        Finish broadening first, then call prepare_research_workspace ONCE with the final
+        broadest relevant selection_id. Do not rank or display intermediate/narrow cohorts.
+        The workspace is the default presentation, not rank_research_entities or Markdown.
+        In chat show only concise insights, scope and cohort size,
         total/visible entities and access_info.message in the initial report.
         No sign-in needed. Full lists require active paid account access; no project matching is required.
         """
@@ -108,7 +111,9 @@ def create_research_server(settings, engine_factory, control_factory):
                     'access_info':access_info(rank.total_entities,rank.returned),
                     'capabilities':RESEARCH_CAPABILITIES,
                     'entity_type':criteria.entity_type,'total_entities':rank.total_entities,
-                    'visible_entities':rank.returned,'access':'top_ten','limit':10}
+                    'visible_entities':rank.returned,'access':'top_ten','limit':10,
+                    'presentation':{'tool':'prepare_research_workspace','selection_id':token,
+                        'instruction':'Complete relevant broadening first. Present ONLY the final broadest relevant cohort in one workspace; no separate subgroup lists or Markdown tables.'}}
         except (SelectionError,EngineError) as e:
             raise ToolError(str(e)) from e
 
@@ -135,6 +140,8 @@ def create_research_server(settings, engine_factory, control_factory):
     )->dict[str,Any]:
         """Select source trial IDs for the user's revised clinical question, without a backend model call.
 
+        Use only for a user-requested refinement or explicit mandatory exclusion.
+        Do not narrow the initial broad landscape merely to produce subgroup top-ten lists.
         Use IDs and snapshot from inspect_research_trials. Explain selection rationale.
         Returns an ephemeral derived selection; does not save or overwrite a project.
         To broaden beyond source IDs, search again. Do not partition cohorts to harvest
@@ -146,10 +153,10 @@ def create_research_server(settings, engine_factory, control_factory):
             return {"selection_id":token,"expires_in_seconds":store.remaining_seconds(token),
                     "cohort":public_cohort(dataset.summary().model_dump(mode='json'),getattr(dataset,'selection_origin',None)),
                     "selection_origin":dataset.selection_origin,
-                    "next_step":"Call rank_research_entities for access-controlled results. Recommendations are interpretation; experience counts are deterministic."}
+                    "next_step":"Call prepare_research_workspace for a new final cohort, or revise_research_workspace for the existing project. Do not output an additional cohort list."}
         except SelectionError as e: raise ToolError(str(e)) from e
 
-    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def rank_research_entities(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         show_followups:Annotated[bool,Field(description="True only for the final requested entity category; show supported next-action buttons once.")]=True,
@@ -159,7 +166,12 @@ def create_research_server(settings, engine_factory, control_factory):
         include_cro_contacts:Annotated[bool,Field(description="Set true only when the user explicitly requests CRO/provider contacts. Source contacts are not verified commercial contacts.")]=False,
         project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')]|None=None,
     )->dict[str, Any]:
-        """Return top ten across the whole cohort by distinct trials, with total counts.
+        """Read ranked data for analysis or an explicitly unavailable workspace fallback.
+
+        For initial results use prepare_research_workspace with ONE final broadest
+        relevant cohort. This data-only tool does not open the workspace. Never call
+        it once per direct/related/broader subgroup to create multiple top-ten lists.
+        Return top ten across the whole cohort by distinct trials, with total counts.
 
         Free access has no pagination past ten. Active paid account access grants
         full pagination across research selections, without choosing an existing project.
@@ -180,6 +192,8 @@ def create_research_server(settings, engine_factory, control_factory):
                     'access':'full' if full else 'top_ten',
                     'next_offset':offset+result.returned if full and offset+result.returned<result.total_entities else None}
             output['selection_id']=selection_id
+            output['presentation']={'tool':'prepare_research_workspace','selection_id':selection_id,
+                'instruction':'Use the final broadest relevant cohort only. Open its workspace; keep chat to summary and insights, without duplicate tables.'}
             if hasattr(dataset,'selection_origin'):
                 output['selection_origin']=dataset.selection_origin
             output['view']=result_view(output,selection_id)

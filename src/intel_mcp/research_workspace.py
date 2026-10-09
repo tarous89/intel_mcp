@@ -68,7 +68,11 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         include_cro_contacts:bool=False,
         recommendations:Annotated[list[Recommendation],Field(max_length=30)]=[],
     )->dict[str,Any]:
-        """Create an Intel Agent project preview from the selected cohort and open its four tables.
+        """DEFAULT initial results: open the Intel Agent workspace with one final broadest relevant cohort.
+
+        Call after broadening is complete, before the final chat answer. Use the single
+        final selection_id; do not call once per intermediate cohort or subgroup.
+        Creates one project preview with four table tabs and up to ten rows per table.
 
         This writes a project, not a paid analysis. Anonymous previews expire in one hour;
         connected users get a private owned project. Use after selecting trials for the user's
