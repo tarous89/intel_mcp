@@ -13,7 +13,7 @@ RESEARCH_WORKFLOW = (
     'Inspect candidate metadata through inspect_research_trials and follow next_offset before claiming full review. '
     'Use refine_research_cohort to select trusted source IDs and record rationale; search again to broaden beyond source IDs. '
     'After selecting the cohort, prepare_research_workspace creates one four-table project preview. It is a disclosed write, '
-    'not a paid analysis. Anonymous previews expire in one hour; connected projects are private and persistent. '
+    'not a paid analysis. Anonymous previews expire in one week; connected projects are private and persistent. '
     'Prefer the fullscreen host workspace, with no sidebar or Reports; Dataset and Account open the App. '
     'Give a concise summary, scope and insights in chat. The actual Intel Agent tables render in the preview; do not duplicate them in Markdown. '
     'Supporting-trial lists are out of scope unless the user explicitly requests them. '

@@ -98,7 +98,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Creates one project preview with four table tabs and up to ten rows per table.
         Keep supporting-trial lists out of chat unless explicitly requested by the user.
 
-        This writes a project, not a paid analysis. Anonymous previews expire in one hour;
+        This writes a project, not a paid analysis. Anonymous previews expire in one week;
         connected users get a private owned project. Use after selecting trials for the user's
         requested research. Keep chat to a concise summary, scope and evidence-based insights;
         do not duplicate rendered tables. CRO emails require an explicit user request.
