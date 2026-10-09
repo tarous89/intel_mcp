@@ -100,6 +100,7 @@ def create_research_server(settings, engine_factory, control_factory):
         The workspace is the default presentation, not rank_research_entities or Markdown.
         In chat show only concise insights, scope and cohort size,
         total/visible entities and access_info.message in the initial report.
+        Supporting-trial lists are out of scope unless explicitly requested by the user.
         No sign-in needed. Full lists require active paid account access; no project matching is required.
         """
         try:
@@ -171,6 +172,8 @@ def create_research_server(settings, engine_factory, control_factory):
         For initial results use prepare_research_workspace with ONE final broadest
         relevant cohort. This data-only tool does not open the workspace. Never call
         it once per direct/related/broader subgroup to create multiple top-ten lists.
+        Do not show supporting-trial lists unless the user explicitly requests them,
+        including after a workspace error. Use evidence internally for concise insights.
         Return top ten across the whole cohort by distinct trials, with total counts.
 
         Free access has no pagination past ten. Active paid account access grants
@@ -193,7 +196,7 @@ def create_research_server(settings, engine_factory, control_factory):
                     'next_offset':offset+result.returned if full and offset+result.returned<result.total_entities else None}
             output['selection_id']=selection_id
             output['presentation']={'tool':'prepare_research_workspace','selection_id':selection_id,
-                'instruction':'Use the final broadest relevant cohort only. Open its workspace; keep chat to summary and insights, without duplicate tables.'}
+                'instruction':'Use the final broadest relevant cohort only. Open its workspace; keep chat to summary and insights, without duplicate tables. Supporting-trial lists require an explicit user request, including after workspace failure.'}
             if hasattr(dataset,'selection_origin'):
                 output['selection_origin']=dataset.selection_origin
             output['view']=result_view(output,selection_id)
@@ -201,7 +204,7 @@ def create_research_server(settings, engine_factory, control_factory):
         except (SelectionError,ControlPlaneError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta={**MIXED, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def get_research_entity_evidence(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         entity_id:Annotated[str,Field(pattern=r'^[a-f0-9]{24}$')],
@@ -210,6 +213,8 @@ def create_research_server(settings, engine_factory, control_factory):
     )->dict[str, Any]:
         """Inspect supporting trial links/roles for an accessible entity; no raw profile sections.
 
+        Data-only: internal inspection must not automatically open a supporting-trials UI.
+        Display supporting-trial lists only when the user explicitly requests them.
         Free requests must name one of this selection's top ten entity IDs. Contact
         details appear in ranking results and are limited to accessible entities.
         """
@@ -219,6 +224,8 @@ def create_research_server(settings, engine_factory, control_factory):
             result=public_evidence(dataset,entity_id,offset=offset,full_access=full)
             if full: await full_access(dataset,project_id,require=True)
             output=result.model_dump(mode='json')
+            output['presentation']={'supporting_trials':'only_on_explicit_request',
+                'instruction':'Use evidence internally for concise insights. Do not output supporting-trial lists unless explicitly requested, even after workspace failure.'}
             output['view']=evidence_view(output,selection_id,entity_id)
             return output
         except (SelectionError,ControlPlaneError) as e:

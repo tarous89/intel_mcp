@@ -2,10 +2,29 @@ from types import SimpleNamespace
 import pytest
 from mcp import Client
 from intel_mcp.research_server import create_research_server
-from intel_mcp.research_workspace import workspace_payload
+from intel_mcp.research_workspace import workspace_payload,compact_workspace_evidence
 from intel_mcp.selection import SelectionDataset
 from test_selection import record,provider,criteria
 from test_selection_service import Engine
+
+def test_shared_narratives_preserve_every_entity_and_trial_above_old_size_limit():
+    from copy import deepcopy
+    import json
+    tid='2025-000001-00-00'
+    evidence={'trial_id':tid,'title':'Synthetic trial','roles':['Monitoring'],
+              'operational_findings':['Recorded trial finding '*1000],'discovery_evidence':['source']}
+    sections=[{'entity_type':kind,'result':{'entities':[{'id':str(i),'evidence':[deepcopy(evidence)]} for i in range(300)]}}
+              for kind in ('cros','sites','pis')]
+    original=deepcopy(sections)
+    assert len(json.dumps(original).encode())>12*1024*1024
+    shared=compact_workspace_evidence(sections)
+    assert len(shared)==1
+    assert len(json.dumps({'sections':sections,'shared_evidence':shared}).encode())<1024*1024
+    restored=deepcopy(sections)
+    for section in restored:
+        for entity in section['result']['entities']:
+            entity['evidence']=[{**shared[e['trial_id']],**e} for e in entity['evidence']]
+    assert restored==original
 
 
 def test_four_tables_share_one_cohort_and_no_implicit_contacts():
@@ -39,6 +58,8 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
         assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']=='ui://trialagents/workspace-v1'
         assert 'ui' not in descriptors['rank_research_entities'].meta
+        assert 'ui' not in descriptors['get_research_entity_evidence'].meta
+        assert 'explicitly requests' in descriptors['get_research_entity_evidence'].description
         resource=await client.read_resource('ui://trialagents/workspace-v1')
         assert resource.contents[0].meta['openai/ui']['preferredDisplayMode']=='fullscreen'
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
@@ -47,6 +68,7 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
         for _ in range(2):
             out=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Research'})
             assert not out.is_error and len(out.structured_content['preview_token'])==43
+            assert out.structured_content['presentation']['supporting_trials']=='only_on_explicit_request'
             assert out.structured_content['url'].endswith('#preview='+out.structured_content['preview_token'])
         assert control.calls[0]['previewToken']==control.calls[2]['previewToken']
         assert len(control.calls[0]['payload']['sections'])==4

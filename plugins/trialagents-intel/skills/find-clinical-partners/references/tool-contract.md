@@ -52,7 +52,7 @@ Both search and ranking return `access_info` with total_matching, returned, offs
 
 0.1.4: ranking accepts show_followups and show_access_notice (true by default). Set both false on earlier requested category charts and true on the last. Search returns capabilities with anonymous, existing_entitlement and not_exposed lists. Respect that inventory for next actions; private backend data is not automatically accessible from public tools.
 
-0.1.5: rank, evidence, account and saved-project tools return one shared branded view. Render it without a duplicate Markdown table; fall back to one plain table only if unavailable. Exactly three final data actions, no generic narrowing prompts. Saving is explicit and private; repeat saves reopen the same owner/snapshot/category/contact-mode project. Stored results are not auto-refreshed; current access is rechecked on reopen. No additional LLM job or purchase starts.
+0.1.5 historical behavior: the tools used a shared branded view. Current 0.2.2 behavior supersedes that: prepare/open workspace renders the four Intel tables; rank and evidence inspection are data-only. Supporting-trial lists require an explicit user request, even after a workspace error. Keep default chat to concise summary and insights; do not automatically fall back to trial or entity tables. Exactly three final data actions, no generic narrowing prompts. Saving is explicit and private; repeat saves reopen the same owner/snapshot/category/contact-mode project. Stored results are not auto-refreshed; current access is rechecked on reopen. No additional LLM job or purchase starts.
 
 
 ## Shared workspace tools (requires coordinated App/MCP rollout)
