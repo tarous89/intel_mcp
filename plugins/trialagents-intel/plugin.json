@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -68,7 +68,7 @@
               "description": "Account access and private saved research",
               "prompt": "Find prostate cancer CROs, connect my TrialAgents account, show the full list, and save it as a private Intel Agent project.",
               "tools_triggered": "search_research_trials, prepare_research_workspace, claim_research_workspace, get_research_workspace",
-              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Return to that project after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Once claimed, anonymous token-only access is denied."
+              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Website Connect opens login/signup directly and saves automatically into /projects; an editable email hint never restricts account choice. Return to the normal Projects list after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Once claimed, anonymous token-only access is denied."
             },
             {
               "description": "Hard constraints and sparse cohorts",

@@ -67,7 +67,7 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         resource=await client.read_resource('ui://trialagents/research-v015')
         assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
         assert 'TrialAgents research' in resource.contents[0].text
-        assert names=={'search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','open_research_workspace'}
+        assert names=={'search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','create_research_account_handoff','open_research_workspace'}
         linking=await client.call_tool('list_research_projects',{})
         assert linking.is_error and linking.meta['mcp/www_authenticate']
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
@@ -145,7 +145,7 @@ with TestClient(app) as client:
     else:
         payload=response.json()
     descriptors={tool['name']:tool for tool in payload['result']['tools']}
-    assert len(descriptors)==13
+    assert len(descriptors)==14
     schema=descriptors['search_research_trials']['inputSchema']
     assert '"$ref"' not in json.dumps(schema)
     assert '"$defs"' not in json.dumps(schema)
