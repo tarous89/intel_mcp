@@ -74,3 +74,28 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
         assert len(control.calls[0]['payload']['sections'])==4
         denied=await client.call_tool('claim_research_workspace',{'project_id':out.structured_content['project_id'],'preview_token':out.structured_content['preview_token']})
         assert denied.is_error and denied.meta['mcp/www_authenticate']
+
+@pytest.mark.anyio
+async def test_connect_saves_original_project_and_retries_without_recreating(monkeypatch):
+    from intel_mcp.auth_context import current_oauth_subject
+    project_id='00000000-0000-0000-0000-000000000001'
+    calls=[]
+    class Control:
+        async def research_workspace(self,body):
+            calls.append(body)
+            assert body['projectId']==project_id
+            assert body['operation'] in ('claim','read')
+            return {'project_id':project_id,'revision':3,'owned':True,'result':{'entity_type':'cros','entities':[]}}
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,*_=create_research_server(settings,lambda:Engine([record()]),lambda:Control())
+    # Emulate verified OAuth identity after the host finishes login or signup.
+    monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
+    async with Client(server) as client:
+        for _ in range(2):
+            out=await client.call_tool('claim_research_workspace',{'project_id':project_id,'preview_token':'a'*43})
+            assert not out.is_error
+            saved=out.structured_content
+            assert saved['saved'] and saved['owned'] and saved['revision']==3
+            assert saved['projects_url']=='https://intel.trialagents.com/research'
+            assert 'preview_token' not in saved
+    assert [c['operation'] for c in calls]==['claim','read','claim','read']
