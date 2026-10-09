@@ -1,6 +1,8 @@
 """One persisted cohort for the shared Intel Agent workspace; no model jobs."""
 from copy import deepcopy
 import secrets
+import gzip
+import logging
 import hashlib
 import json
 import base64
@@ -54,6 +56,7 @@ class PreviewSpec(Contract):
     include_cro_contacts: bool = False
     recommendations: Annotated[list[Recommendation], Field(max_length=30)] = []
     snapshot_key: Annotated[str, Field(pattern=r'^[a-f0-9]{64}$')]
+    cache_token: Annotated[str, Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None = None
 
 
 def payload_key(payload):
@@ -163,12 +166,13 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
         DEFAULT initial results: call after broadening is complete with the final selection_id.
         This is read-only computation over the existing short-lived search snapshot: no project,
-        account change, job or durable artifact is created, even for connected users.
+        account change or project job is created, even for connected users. Prepared query
+        results may be cached internally for 24 hours, separately from user projects.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Saved projects alone use revise_research_workspace. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
         Connect account opens website login immediately. The website imports the exact preview only after authentication.
-        The preview expires with the search; never claim it has already been saved.
+        The cached import expires after 24 hours; never claim a preview is already a saved project.
         """
         try:
             payload=workspace_payload(store.get(selection_id),title,include_cro_contacts,recommendations)
@@ -182,10 +186,19 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             visible={e['id'] for e in result['entities']}
             spec=PreviewSpec(preview_id=preview_id or str(uuid4()),selection_id=selection_id,title=title,include_cro_contacts=include_cro_contacts,
                              recommendations=recommendations,snapshot_key=payload_key(payload))
+            cache = getattr(control_factory(), 'cache_research_preview', None)
+            if cache:
+                token = secrets.token_urlsafe(32)
+                compressed = base64.b64encode(gzip.compress(json.dumps(payload, separators=(',', ':')).encode(), compresslevel=1)).decode()
+                try:
+                    await cache({'token': token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed})
+                    spec.cache_token = token
+                except (ControlPlaneError, OSError) as error:
+                    logging.getLogger(__name__).warning('preview_cache_unavailable: %s', type(error).__name__)
             return {'project_id':spec.preview_id,
                 'title':title,'revision':1,'current_revision':1,'owned':False,'saved':False,
                 'draft':spec.model_dump(mode='json'),'preview_tables':pages,
-                'expires_in_seconds':store.remaining_seconds(selection_id),'account':access,
+                'expires_in_seconds':86400 if spec.cache_token else store.remaining_seconds(selection_id),'account':access,
                 'result':result,'recommendations':[r.model_dump(mode='json') for r in recommendations
                     if r.entity_type==kind and r.entity_id in visible],
                 'tables':[{'kind':s['entity_type'],'total':s['result']['total_entities']} for s in payload['sections']],
@@ -200,7 +213,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         kind:Kind='cros',offset:Annotated[int,Field(ge=0)]=0,
         revision:Annotated[int,Field(ge=1)]|None=None,
     )->dict[str,Any]:
-        """Open/paginate one project table or read a previous revision under current access.
+        """Open/paginate a SAVED project table or read a previous revision under current access.
+
+        Unsaved previews (saved=false, with draft) use prepare_research_workspace, never this tool.
 
         Model and UI receive the same authorized rows. Free access is ten per table;
         active paid access permits subsequent pages. No arbitrary trial profiles are exposed.

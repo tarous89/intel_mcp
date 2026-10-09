@@ -1,6 +1,6 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "4060eeb550bd0a335f069a65744291afac1feb08",
+  "source_commit": "a48ae408b35c1028848186c596695d6e1a502ebe",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/WorkspaceTables.tsx": "61c64d98a0d8f6ade839543cdc2ba3f2d27c9e1d2b09ccf9d7d88daf1650eb73",
@@ -17,5 +17,5 @@
     "app/lib/combined-cro-functions.ts": "fe73accf18cd3c4856a235526a6b84547df56bce7a1f2c052ac974b5962ad03c",
     "app/app-icon.tsx": "40f4f231bf9ddd59a33780db8d6f8ec144b6a69c72b578cc2dfede7a7f4c7b44"
   },
-  "bundle_sha256": "0304c9bcfd7af5c404df2de7e3df46ede1c78a0421409aa325f5a681e9134349"
+  "bundle_sha256": "0cb29f609835e29f666bf3abdd9da2d2b7b685cc4f29bd1e8abec375a6a469e4"
 }

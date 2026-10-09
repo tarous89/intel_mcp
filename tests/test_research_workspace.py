@@ -171,3 +171,27 @@ async def test_preview_connect_preserves_snapshot_idempotency_and_expiry(monkeyp
         store.entries[selection]['expires']=0
         expired=await client.call_tool('create_research_account_handoff',{'project_id':data['project_id'],'draft':spec})
         assert expired.is_error and len(calls)==4
+
+@pytest.mark.anyio
+async def test_precomputed_preview_cache_retains_exact_four_tables_without_creating_project():
+    import gzip, base64, json
+    cached=[]
+    class Control:
+        async def cache_research_preview(self, body):
+            cached.append(body)
+            return {'expires_in_seconds':86400}
+        async def research_workspace(self, body):
+            raise AssertionError('a search cache must not create a project')
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,_,store,_,_=create_research_server(settings,lambda:Engine([record()]),lambda:Control())
+    token,_=await store.search(criteria())
+    async with Client(server) as client:
+        response=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Exact cohort'})
+        assert not response.is_error
+        out=response.structured_content
+        assert out['saved'] is False and out['expires_in_seconds']==86400
+        assert out['draft']['cache_token']==cached[0]['token']
+        from intel_mcp.research_workspace import payload_key
+        payload=json.loads(gzip.decompress(base64.b64decode(cached[0]['gzip'])))
+        assert payload_key(payload)==out['draft']['snapshot_key']
+        assert payload==workspace_payload(store.get(token),'Exact cohort')

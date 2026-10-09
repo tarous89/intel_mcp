@@ -20,7 +20,7 @@ function View({initial}:{initial:any}){
  async function page(kind:WorkspaceKind,offset:number){setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
   if(offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
-  const {snapshot_key,...previewArgs}=data.draft??{};
+  const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
   const out=await app.callServerTool(data.draft?{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset,revision:data.revision}});
   if(out.isError||!out.structuredContent?.result)throw Error();setData(out.structuredContent);modelContext(out.structuredContent);
  }catch{setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{setBusy(false);}}
