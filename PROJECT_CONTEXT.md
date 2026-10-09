@@ -25,6 +25,14 @@ This section supersedes earlier instructions that make ChatGPT research a separa
 10. [ ] Update this checklist and history with actual deployment/test evidence and any remaining host verification gaps.
 
 
+## Current implementation checkpoint
+- Canonical contracts inventoried: native datasets/reports require frozen full profile chains; the previous research snapshot stores table summaries only. MCP already holds full profiles during selection.
+- Added private prepared-selection serializer/validator, preserving exact criteria and overlapping memberships. These modules are isolated and not wired to production yet.
+- Verification: 23 Python selection/refinement tests and 1 App validator test pass.
+- Next: canonical service/durable compressed profile storage and dataset artifact publication, followed by shared reads/UI and explicit OAuth writes. See [implementation contract](docs/UNIFIED_PROJECT_IMPLEMENTATION.md).
+- No old projects were changed or deleted. No unified-project refactor was deployed. Do not mark steps 3–9 complete from the contract tests.
+
+
 ---
 
 
@@ -84,3 +92,4 @@ Plugin source is in `plugins/trialagents-intel/`; review `docs/CHATGPT_PLUGIN_RE
 
 ## 2026-10-09 coordinated account/project UX correction
 Owner approved direct website login/signup from Connect, free account choice, automatic exact-result saving and one normal /projects list. Handoff capabilities are short-lived, hashed, same-origin and independent per browser tab; repeat completion is idempotent. Anonymous claim preserves project identity. Only an authorized source-owner handoff can copy an owned snapshot into another chosen account. Current web and MCP sessions remain separate. The normal catalog includes existing research workspaces and legacy snapshots, with canonical /projects routes; /research redirects to /projects. No search rerun, paid job or entitlement change. App migration0058 and endpoint must be deployed before the MCP producer/UI. Actual host acceptance must be recorded separately from automated tests.
+
