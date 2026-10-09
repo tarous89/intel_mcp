@@ -167,11 +167,19 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     )->dict[str,Any]:
         """Save the user's anonymous preview to their connected account, preserving its project ID.
 
-        Call on explicit save/connect-and-keep requests. Connection alone does not activate paid access.
+        Use when the user connects their account from a research workspace: saving that
+        current research is part of connection, not a separate optional step. If authentication
+        is required, complete OAuth then retry this same claim with the same arguments.
+        Never recreate the project or rerun the search. Repeated claims by its owner are safe.
+        Connection alone does not activate paid access.
         The preview capability becomes unusable anonymously after claiming. Starts no payment.
         """
         if not current_oauth_subject():return connect_result()
         try:
             await control_factory().research_workspace({'operation':'claim','projectId':project_id,'previewToken':preview_token})
-            return await read(project_id,None)
+            out=await read(project_id,None)
+            out['saved']=True
+            out['projects_url']='https://intel.trialagents.com/research'
+            out['message']='This research is saved in your TrialAgents account and appears in Projects.'
+            return out
         except ControlPlaneError as e:raise ToolError(str(e)) from e
