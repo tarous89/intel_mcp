@@ -9,27 +9,28 @@ new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
 let setIncoming:(data:any)=>void=()=>{};
 function modelContext(data:any){
- void app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null}}).catch(()=>{});
+ // Context synchronization is optional host support, not a table-load dependency.
+ try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
 }
 function View({initial}:{initial:any}){
- const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
- setIncoming=value=>{setData(value);setError('');};
- async function page(kind:WorkspaceKind,offset:number){setDataset(false);
-  if(data.draft&&offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
+ const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
+ setIncoming=value=>{setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ async function page(kind:WorkspaceKind,offset:number){setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
+  if(offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,...previewArgs}=data.draft??{};
   const out=await app.callServerTool(data.draft?{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset,revision:data.revision}});
   if(out.isError||!out.structuredContent?.result)throw Error();setData(out.structuredContent);modelContext(out.structuredContent);
- }catch{setData(null);setError('Access changed or this preview expired. Reopen the project from the conversation.');}finally{setBusy(false);}}
+ }catch{setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{setBusy(false);}}
  async function connect(){
-  setBusy(true);setError('');
-  try{await connectProject(app,data);}catch{setError('Account connection could not start. Please retry Connect account.');}finally{setBusy(false);}
+  setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
+  try{await connectProject(app,data);}catch{setConnectionError(true);setError('Account connection could not start. Please retry Connect account.');}finally{setBusy(false);}
  }
 
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  if(!data)return <p role="alert">{error}</p>;
- return <><WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{error&&<p><button onClick={connect} disabled={busy}>Retry account connection</button></p>}</>;
+ return <><WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}{connectionError&&<p><button onClick={connect} disabled={busy}>Retry account connection</button></p>}</>;
 }
 let mounted=false;
 app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;

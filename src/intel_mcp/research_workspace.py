@@ -5,6 +5,7 @@ import hashlib
 import json
 import base64
 from uuid import uuid4
+from importlib.resources import files
 from typing import Annotated, Any, Literal
 from pydantic import Field
 from mcp.server.mcpserver.exceptions import ToolError
@@ -15,7 +16,10 @@ from .research_cohort import candidate_trials
 from .research_presentation import public_cohort
 from .control_plane import ControlPlaneError
 
-RESOURCE='ui://trialagents/workspace-v1'
+# A bundle change must change the resource identity: hosts can cache UI by URI.
+WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
+RESOURCE='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
+LEGACY_RESOURCE='ui://trialagents/workspace-v1'
 Kind=Literal['cros','sites','pis','trials']
 SHARED_EVIDENCE_FIELDS=('discovery_evidence','operational_findings')
 

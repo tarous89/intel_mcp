@@ -7,5 +7,10 @@
   "scripts": {
     "build": "node build.mjs"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  }
 }
