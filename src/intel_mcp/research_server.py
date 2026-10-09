@@ -154,7 +154,7 @@ def create_research_server(settings, engine_factory, control_factory):
             return {"selection_id":token,"expires_in_seconds":store.remaining_seconds(token),
                     "cohort":public_cohort(dataset.summary().model_dump(mode='json'),getattr(dataset,'selection_origin',None)),
                     "selection_origin":dataset.selection_origin,
-                    "next_step":"Call prepare_research_workspace for a new final cohort, or revise_research_workspace for the existing project. Do not output an additional cohort list."}
+                    "next_step":"Call prepare_research_workspace for a new final cohort, or revise_research_workspace only for an already saved project. Do not output an additional cohort list."}
         except SelectionError as e: raise ToolError(str(e)) from e
 
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)

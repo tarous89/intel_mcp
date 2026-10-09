@@ -39,7 +39,7 @@ def test_four_tables_share_one_cohort_and_no_implicit_contacts():
 
 
 @pytest.mark.anyio
-async def test_workspace_write_and_page_metadata_and_retry_token():
+async def test_workspace_preview_is_read_only_and_creates_nothing():
     class Control:
         calls=[]
         async def research_workspace(self,body):
@@ -54,7 +54,7 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
     token,_=await store.search(criteria())
     async with Client(server) as client:
         descriptors={t.name:t for t in (await client.list_tools()).tools}
-        assert descriptors['prepare_research_workspace'].annotations.read_only_hint is False
+        assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
         assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']=='ui://trialagents/workspace-v1'
         assert 'ui' not in descriptors['rank_research_entities'].meta
@@ -67,12 +67,14 @@ async def test_workspace_write_and_page_metadata_and_retry_token():
         assert search.structured_content['presentation']['selection_id']==search.structured_content['selection_id']
         for _ in range(2):
             out=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Research'})
-            assert not out.is_error and len(out.structured_content['preview_token'])==43
+            assert not out.is_error
+            assert out.structured_content['saved'] is False
+            assert out.structured_content['draft']['selection_id']==token
+            assert set(out.structured_content['preview_tables'])=={'cros','sites','pis','trials'}
             assert out.structured_content['presentation']['supporting_trials']=='only_on_explicit_request'
-            assert out.structured_content['url'].endswith('#preview='+out.structured_content['preview_token'])
-        assert control.calls[0]['previewToken']==control.calls[2]['previewToken']
-        assert len(control.calls[0]['payload']['sections'])==4
-        denied=await client.call_tool('claim_research_workspace',{'project_id':out.structured_content['project_id'],'preview_token':out.structured_content['preview_token']})
+            assert 'url' not in out.structured_content
+        assert control.calls==[]
+        denied=await client.call_tool('claim_research_workspace',{'project_id':out.structured_content['project_id'],'preview_token':'a'*43})
         assert denied.is_error and denied.meta['mcp/www_authenticate']
 
 @pytest.mark.anyio
@@ -117,3 +119,47 @@ async def test_direct_website_handoff_is_available_without_host_oauth():
         assert not out.is_error
         assert out.structured_content['url'].startswith('https://intel.trialagents.com/auth?')
     assert calls==[{'operation':'handoff','projectId':project_id,'previewToken':'a'*43}]
+
+@pytest.mark.anyio
+async def test_preview_connect_preserves_snapshot_idempotency_and_expiry(monkeypatch):
+    from copy import deepcopy
+    from intel_mcp.research_workspace import payload_key
+    calls=[]
+    class Control:
+        async def research_access(self,*args):return {'fullAccess':True}
+        async def research_workspace(self,body):
+            calls.append(deepcopy(body))
+            if body['operation']=='create':return {'project_id':'00000000-0000-0000-0000-000000000002','revision':1}
+            return {'url':'https://intel.trialagents.com/auth?mode=login&connect=1#handoff='+'b'*43}
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,_,store,_,_=create_research_server(settings,lambda:Engine([record(i,providers=[provider(name='CRO '+str(i))]) for i in range(1,15)]),lambda:Control())
+    selection,_=await store.search(criteria())
+    async with Client(server) as client:
+        out=await client.call_tool('prepare_research_workspace',{'selection_id':selection,'title':'Exact original'})
+        assert not out.is_error
+        data=out.structured_content
+        assert len(data['result']['entities'])==10
+        assert data['result']['next_offset'] is None
+        assert calls==[]
+        spec=data['draft']
+        bad=await client.call_tool('prepare_research_workspace',{'selection_id':selection,'title':'Exact original','offset':10})
+        assert bad.is_error
+        # Signed-in users still get an unsaved read-only preview; access is honored.
+        monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
+        paid=await client.call_tool('prepare_research_workspace',{'selection_id':selection,'title':'Exact original','offset':10})
+        assert not paid.is_error and paid.structured_content['result']['access']=='full'
+        assert paid.structured_content['saved'] is False and calls==[]
+        for _ in range(2):
+            saved=await client.call_tool('create_research_account_handoff',{'project_id':data['project_id'],'draft':spec})
+            assert not saved.is_error
+        assert [c['operation'] for c in calls]==['create','handoff','create','handoff']
+        assert calls[0]==calls[2]
+        assert payload_key(calls[0]['payload'])==spec['snapshot_key']
+        assert calls[0]['payload']['title']=='Exact original'
+        assert calls[1]['projectId']=='00000000-0000-0000-0000-000000000002'
+        changed={**spec,'title':'Different'}
+        denied=await client.call_tool('create_research_account_handoff',{'project_id':data['project_id'],'draft':changed})
+        assert denied.is_error and len(calls)==4
+        store.entries[selection]['expires']=0
+        expired=await client.call_tool('create_research_account_handoff',{'project_id':data['project_id'],'draft':spec})
+        assert expired.is_error and len(calls)==4
