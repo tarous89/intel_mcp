@@ -1,3 +1,32 @@
+# Active direction — unified Intel projects (approved 2026-10-09 23:44 Europe/Berlin)
+
+This section supersedes earlier instructions that make ChatGPT research a separate saved-project product or require connection-time copying/import. This is an approved implementation plan, not a claim that the refactor is deployed.
+
+## Non-negotiable behavior
+- One canonical project identity, owner/access policy, dataset and revision history for website and ChatGPT creation. Origin is metadata.
+- Preserve ChatGPT's iterative research: search, inspect counts/results, broaden or narrow criteria, filter and search again. Do not force it through the website's linear wizard or require a new project for each refinement.
+- Exploration and committed project revisions are separate: intermediate searches remain flexible; publishing a chosen result advances the same project's revision atomically. Preserve the previous ready revision while preparation runs; reject stale writes.
+- Both clients use the same workspace presentation and authorized results. Website retains its normal app shell; embedded ChatGPT adapts to host sizing and permitted connection/access controls. No separate imported-project page or sidebar.
+- Keep bounded compressed result storage and paged reads. Never restore giant JSONB snapshot writes, recompute results on tab switches, or invoke an LLM just to attach an existing dataset.
+- Connected users create/update through honestly annotated, authorized write tools. Website login is not automatically MCP OAuth authorization. Never bypass host permissions or disguise project creation as a read.
+- Guests retain a 24-hour preview/draft. Resolve the guest ownership/authorization lifecycle explicitly before implementing persistent draft creation; no dummy email accounts.
+- All existing projects are test data. Owner explicitly excludes ALL old projects/all users from migration, repair and synchronization; deletion is permitted if actually necessary. Do not spend work migrating them. Preserve accounts, billing, source clinical data and unrelated products.
+
+## Ordered next steps
+1. [x] Record this direction and sequence in both App and MCP context MDs before implementation.
+2. [ ] Inventory canonical project, selection, dataset, table, export/report and entitlement contracts; define a shared service boundary that accepts either UI's research selection.
+3. [ ] Implement canonical creation/revision from prepared MCP results, with stable IDs, provenance, idempotency, ownership and bounded preparation. No legacy-project migration.
+4. [ ] Connect both creation paths to that service; retain the full MCP search/inspect/refine loop independently of the website wizard.
+5. [ ] Replace research-only website routing/shell with the normal workspace and extract a shared presentation contract for both clients. Keep host-specific controls explicit.
+6. [ ] Expose canonical list/read/create/update tools with accurate annotations, OAuth challenges and account selection. Validate a real host write before claiming the historical denial is solved.
+7. [ ] Implement revision refresh in both views, stale-write conflict handling, and clear pending/error states without repeated snapshot processing.
+8. [ ] Verify exact rows/counts/evidence across both clients; iterative refinements keep one project ID; account isolation, free/paid access, paging, exports/report prerequisites, retries and CPU/memory bounds remain correct.
+9. [ ] Pass repository gates and desktop/mobile/embedded checks; deploy App schema/service before MCP/UI/package changes. Verify the real new-project journey from each entry point.
+10. [ ] Update this checklist and history with actual deployment/test evidence and any remaining host verification gaps.
+
+
+---
+
 
 ## 2026-10-09 — Website-first account connection
 Connect uses openLink immediately; no tool call, project write, or project preparation wait in the embedded workspace. It carries the existing draft in the website URL fragment. After login/signup, the website imports the exact validated snapshot through service-authenticated /internal/research-snapshot and creates the project in the authenticated account. Import progress/retry lives at /projects/sync. The endpoint reads existing source only and never searches or writes projects. Existing source-cache expiry/eviction still applies; a missing source fails explicitly. Legacy model-invoked handoff tools remain for compatibility. Deploy the website support before this new UI.
