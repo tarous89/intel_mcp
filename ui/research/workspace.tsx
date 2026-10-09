@@ -1,9 +1,9 @@
-import React,{useState} from 'react';
+import React,{useState,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextprotocol/ext-apps';
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
 import {WorkspaceTables,type WorkspaceKind} from 'intel-shared-workspace';
-import {connectProject} from './connect-project';
+import {connectProject,openConnection,ConnectionError} from './connect-project';
 const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
@@ -14,7 +14,9 @@ function modelContext(data:any){
 }
 function View({initial}:{initial:any}){
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
- setIncoming=value=>{setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ const [connectionStatus,setConnectionStatus]=useState('');
+ const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
+ setIncoming=value=>{setConnectionStatus('');handoff.current=null;setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number){setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
   if(offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
@@ -23,14 +25,25 @@ function View({initial}:{initial:any}){
   if(out.isError||!out.structuredContent?.result)throw Error();setData(out.structuredContent);modelContext(out.structuredContent);
  }catch{setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{setBusy(false);}}
  async function connect(){
-  setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
-  try{await connectProject(app,data);}catch{setConnectionError(true);setError('Account connection could not start. Please retry Connect account.');}finally{setBusy(false);}
+  if(connecting.current)return;
+  connecting.current=true;setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
+  const cached=handoff.current;
+  setConnectionStatus(cached?'Opening TrialAgents…':'Preparing your project and account connection…');
+  try{
+   if(cached&&cached.project===data.project_id&&cached.expires>Date.now())await openConnection(app,cached.url);
+   else await connectProject(app,data,url=>{handoff.current={url,expires:Date.now()+14*60*1000,project:data.project_id};setConnectionStatus('Opening TrialAgents…');});
+   setConnectionStatus('Connection link opened. Complete sign-in in TrialAgents to save this project. If no tab appeared, try opening it again.');
+  }catch(cause){
+   const code=cause instanceof ConnectionError?cause.code:'handoff';
+   setConnectionError(true);
+   setConnectionStatus(code==='navigation'?'ChatGPT did not open the connection link. Try Open account connection again.':code==='timeout'?'The connection request timed out. Your results are still here. Retry to continue.':code==='expired'?'This unsaved preview has expired. Ask ChatGPT to reopen the research before connecting.':'ChatGPT could not start the account connection. Check any permission request in the conversation, then retry.');
+  }finally{connecting.current=false;setBusy(false);}
  }
 
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  if(!data)return <p role="alert">{error}</p>;
- return <><WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}{connectionError&&<p><button onClick={connect} disabled={busy}>Retry account connection</button></p>}</>;
+ return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 let mounted=false;
 app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;

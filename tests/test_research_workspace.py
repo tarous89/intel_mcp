@@ -54,6 +54,10 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
     token,_=await store.search(criteria())
     async with Client(server) as client:
         descriptors={t.name:t for t in (await client.list_tools()).tools}
+        for name in ('prepare_research_workspace','get_research_workspace','create_research_account_handoff'):
+            assert descriptors[name].meta['ui']['visibility']==['model','app']
+            assert descriptors[name].meta['openai/widgetAccessible'] is True
+        assert descriptors['create_research_account_handoff'].annotations.read_only_hint is False
         assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
         assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']==RESOURCE
