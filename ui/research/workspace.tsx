@@ -28,15 +28,15 @@ function View({initial}:{initial:any}){
   if(connecting.current)return;
   connecting.current=true;setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
   const cached=handoff.current;
-  setConnectionStatus(cached?'Opening TrialAgents…':'Preparing your project and account connection…');
+  setConnectionStatus('Opening TrialAgents…');
   try{
    if(cached&&cached.project===data.project_id&&cached.expires>Date.now())await openConnection(app,cached.url);
    else await connectProject(app,data,url=>{handoff.current={url,expires:Date.now()+14*60*1000,project:data.project_id};setConnectionStatus('Opening TrialAgents…');});
-   setConnectionStatus('Connection link opened. Complete sign-in in TrialAgents to save this project. If no tab appeared, try opening it again.');
+   setConnectionStatus('');
   }catch(cause){
    const code=cause instanceof ConnectionError?cause.code:'handoff';
    setConnectionError(true);
-   setConnectionStatus(code==='navigation'?'ChatGPT did not open the connection link. Try Open account connection again.':code==='timeout'?'The connection request timed out. Your results are still here. Retry to continue.':code==='expired'?'This unsaved preview has expired. Ask ChatGPT to reopen the research before connecting.':'ChatGPT could not start the account connection. Check any permission request in the conversation, then retry.');
+   setConnectionStatus(code==='navigation'?'TrialAgents could not be opened. Try Open account connection again.':'This connection link could not be prepared. Reopen the preview and try again.');
   }finally{connecting.current=false;setBusy(false);}
  }
 

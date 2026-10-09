@@ -36,18 +36,13 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  response={structuredContent:{...data,result:{...pages.sites,entities:[{name:'page two'}],access_info:{offset:10}}}};
  await click('Retry loading table');assert.equal(shown(),'sites: page two');assert(!document.querySelector('[role="alert"]'));
  await click('trials');assert.equal(shown(),'trials: trials row');assert.equal(calls.length,2);
- // Account and Connect use the same flow, including on the Dataset tab.
- await click('Dataset');
- let resolveConnection;response=new Promise(resolve=>{resolveConnection=resolve;});
- await click('Account');assert(document.body.textContent.includes('Preparing your project'));
- const count=calls.length;await click('Account');assert.equal(calls.length,count,'duplicate clicks are ignored');
- const url='https://intel.trialagents.com/auth?mode=login&connect=1#handoff='+'c'.repeat(43);
- openResult={isError:true};await act(async()=>{resolveConnection({structuredContent:{url}});});
- assert(document.body.textContent.includes('ChatGPT did not open'));assert.equal(shown(),'Dataset');
- openResult={};await click('Open account connection');assert.equal(calls.length,count,'navigation retry reuses handoff');assert.equal(openCalls.length,2);
- assert(document.body.textContent.includes('Complete sign-in'));
- await act(()=>incoming({structuredContent:data}));response={isError:true};
- await click('Connect account');assert(document.body.textContent.includes('could not start the account connection'));
+ // Both buttons open the website, including on Dataset, without tools/writes.
+ await click('Dataset');const count=calls.length;
+ openResult={isError:true};await click('Account');
+ assert(document.body.textContent.includes('TrialAgents could not be opened'));assert.equal(shown(),'Dataset');
+ assert.equal(calls.length,count);assert(openCalls.at(-1).url.includes('#import='));
+ openResult={};await click('Open account connection');assert.equal(calls.length,count);assert.equal(openCalls.length,2);
+ await click('Connect account');assert.equal(calls.length,count);assert.equal(openCalls.length,3);
  await act(()=>incoming({structuredContent:{project_id:data.project_id,owned:true,revision:3,result:pages.cros}}));
  response={isError:true};await click('sites');assert.equal(calls.at(-1).name,'get_research_workspace');assert.equal(shown(),'cros: cros row');
 });
