@@ -16,3 +16,10 @@ test('failed or untrusted handoff never opens a URL',async()=>{
   await assert.rejects(connectProject({callServerTool:async()=>result,openLink:()=>assert.fail('must not open')},data));
  }
 });
+
+test('unsaved preview is passed only on the explicit Connect action',async()=>{
+ const draft={selection_id:'s'.repeat(43),title:'Same results',snapshot_key:'a'.repeat(64)};
+ let request;
+ await connectProject({callServerTool:async p=>{request=p;return {structuredContent:{url}};},openLink:async()=>{}},{project_id:data.project_id,draft});
+ assert.deepEqual(request.arguments,{project_id:data.project_id,draft});
+});

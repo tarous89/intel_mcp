@@ -1,3 +1,6 @@
+
+## 2026-10-09 — Read-only initial workspace; save on account connection
+Initial `prepare_research_workspace` now computes the embedded preview from the existing short-lived search snapshot without creating a database project, for both anonymous and signed-in users. It is truthfully read-only; host permissions remain authoritative. The UI retains the draft specification and snapshot hash. Explicit Connect account materializes those exact results idempotently, then uses the existing website handoff/login and normal Projects flow. Search expiry/eviction produces an error instead of silently recreating different results. Saved project tools remain compatible. Shared UI distinguishes unsaved search previews from legacy week-long anonymous projects; Dataset stays in the embedded workspace. This supersedes automatic project writes during initial viewing. Actual ChatGPT host acceptance requires a refreshed tool descriptor and host check.
 # Intel MCP current handover
 
 Updated: 2026-10-08. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
