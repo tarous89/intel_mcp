@@ -42,3 +42,7 @@ See [ChatGPT workspace direction](docs/CHATGPT_WORKSPACE_DIRECTION.md) for the o
 2026-10-08 correction: shared-preview shell, compact ChatGPT table tabs (no sidebar/Reports), /share/research/{id} fallback, authentication before save, informational /dataset-access; see workspace direction document. Draft only until App-first rollout and real-host acceptance.
 
 Plugin source is in `plugins/trialagents-intel/`; review `docs/CHATGPT_PLUGIN_RELEASE.md` before test handoff or release. Version 0.2.0 packages the approved workspace workflow. Public submission is separate from this owner-authorized private/server rollout; real-host acceptance remains unverified.
+
+
+## 2026-10-09 coordinated account/project UX correction
+Owner approved direct website login/signup from Connect, free account choice, automatic exact-result saving and one normal /projects list. Handoff capabilities are short-lived, hashed, same-origin and independent per browser tab; repeat completion is idempotent. Anonymous claim preserves project identity. Only an authorized source-owner handoff can copy an owned snapshot into another chosen account. Current web and MCP sessions remain separate. The normal catalog includes existing research workspaces and legacy snapshots, with canonical /projects routes; /research redirects to /projects. No search rerun, paid job or entitlement change. App migration0058 and endpoint must be deployed before the MCP producer/UI. Actual host acceptance must be recorded separately from automated tests.

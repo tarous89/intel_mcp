@@ -96,6 +96,24 @@ async def test_connect_saves_original_project_and_retries_without_recreating(mon
             assert not out.is_error
             saved=out.structured_content
             assert saved['saved'] and saved['owned'] and saved['revision']==3
-            assert saved['projects_url']=='https://intel.trialagents.com/research'
+            assert saved['projects_url']=='https://intel.trialagents.com/projects'
             assert 'preview_token' not in saved
     assert [c['operation'] for c in calls]==['claim','read','claim','read']
+
+@pytest.mark.anyio
+async def test_direct_website_handoff_is_available_without_host_oauth():
+    calls=[]
+    project_id='00000000-0000-0000-0000-000000000001'
+    class Control:
+        async def research_workspace(self,body):
+            calls.append(body)
+            return {'url':'https://intel.trialagents.com/auth?mode=login&connect=1#handoff='+'b'*43}
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,*_=create_research_server(settings,lambda:Engine([record()]),lambda:Control())
+    async with Client(server) as client:
+        descriptor=next(t for t in (await client.list_tools()).tools if t.name=='create_research_account_handoff')
+        assert descriptor.annotations.read_only_hint is False
+        out=await client.call_tool('create_research_account_handoff',{'project_id':project_id,'preview_token':'a'*43})
+        assert not out.is_error
+        assert out.structured_content['url'].startswith('https://intel.trialagents.com/auth?')
+    assert calls==[{'operation':'handoff','projectId':project_id,'previewToken':'a'*43}]

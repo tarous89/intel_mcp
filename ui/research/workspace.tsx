@@ -25,7 +25,6 @@ function View({initial}:{initial:any}){
  }catch{setData(null);setError('Access changed or this preview expired. Reopen the project from the conversation.');}finally{setBusy(false);}}
  async function external(view?:string){try{await app.openLink({url:externalUrl(data,view)});}catch{setError('Open the project using the link below.');}}
  async function connect(){
-  if(data.owned){await app.openLink({url:'https://intel.trialagents.com/research'});return;}
   setBusy(true);setError('');
   try{await connectProject(app,data);}catch{setError('Account connection could not start. Please retry Connect account.');}finally{setBusy(false);}
  }
@@ -33,7 +32,7 @@ function View({initial}:{initial:any}){
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  if(!data)return <p role="alert">{error}</p>;
- return <><WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>external('dataset')} onAccess={access} busy={busy} error={error}/>{error&&<p><a href={externalUrl(data,'save')} target="_blank" rel="noopener noreferrer">Sign in and save in Intel Agent</a></p>}</>;
+ return <><WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>external('dataset')} onAccess={access} busy={busy} error={error}/>{error&&<p><button onClick={connect} disabled={busy}>Retry account connection</button></p>}</>;
 }
 let mounted=false;
 app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;

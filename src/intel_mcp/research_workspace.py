@@ -160,6 +160,24 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return await read(project_id,preview_token)
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
+    @server.tool(meta=mixed,annotations=write,structured_output=True)
+    async def create_research_account_handoff(
+        project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
+        preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,
+    )->dict[str,Any]:
+        """Open website login/signup and save the existing project to the chosen account.
+
+        Used by Connect account in the workspace. Does not initiate host OAuth or a
+        purchase. The private short-lived URL authorizes saving this exact project;
+        open it on the user's click. Never print its token in conversation text.
+        Login completes saving and opens the ordinary Projects list. A different
+        account may receive an exact copy; the original owner's project stays private.
+        """
+        try:
+            return await control_factory().research_workspace({'operation':'handoff',
+                'projectId':project_id,'previewToken':preview_token})
+        except ControlPlaneError as e:raise ToolError(str(e)) from e
+
     @server.tool(meta={**oauth,**ui},annotations=write,structured_output=True)
     async def claim_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
@@ -179,7 +197,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             await control_factory().research_workspace({'operation':'claim','projectId':project_id,'previewToken':preview_token})
             out=await read(project_id,None)
             out['saved']=True
-            out['projects_url']='https://intel.trialagents.com/research'
+            out['projects_url']='https://intel.trialagents.com/projects'
             out['message']='This research is saved in your TrialAgents account and appears in Projects.'
             return out
         except ControlPlaneError as e:raise ToolError(str(e)) from e
