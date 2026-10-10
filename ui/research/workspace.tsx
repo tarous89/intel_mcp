@@ -59,9 +59,14 @@ function View({initial}:{initial:any}){
  if(!data)return <p role="alert">{error}</p>;
  return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables data={data} onPage={page} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
+class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
+ state={failed:false};
+ static getDerivedStateFromError(){return {failed:true};}
+ render(){return this.state.failed?<section role="alert" style={{padding:24,color:'#182628',background:'#fff',fontFamily:'system-ui'}}><h1>Workspace could not be displayed</h1><p>Please reopen the workspace from the conversation. Your research has not been changed.</p></section>:this.props.children;}
+}
 let mounted=false;
 app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;
- modelContext(data);if(mounted)setIncoming(data);else{root.render(<View initial={data}/>);mounted=true;}};
+ modelContext(data);if(mounted)setIncoming(data);else{root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>);mounted=true;}};
 function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);}
 app.onhostcontextchanged=theme;
 app.connect().then(async()=>{const context=app.getHostContext();theme(context);if(context?.displayMode!=='fullscreen'&&context?.availableDisplayModes?.includes('fullscreen')){try{await app.requestDisplayMode({mode:'fullscreen'});}catch{/* Host placement remains authoritative. */}}}).catch(()=>root.render(<p>Use the project link in the conversation to open Intel Agent.</p>));
