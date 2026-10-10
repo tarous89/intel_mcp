@@ -15,23 +15,29 @@ function modelContext(data:any){
 function View({initial}:{initial:any}){
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
  const [connectionStatus,setConnectionStatus]=useState('');
- const requestSerial=useRef(0);
+ const requestSerial=useRef(0),activeControls=useRef<any>({});
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
  setIncoming=value=>{requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
- async function page(kind:WorkspaceKind,offset:number,preserveView=false){const serial=++requestSerial.current;if(!preserveView)setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
-  if(offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
+ async function page(kind:WorkspaceKind,offset:number,controls:any={},preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView)setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
+  if(offset===0&&!Object.values(controls).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
-  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
+  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
   if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();setData(out.structuredContent);modelContext(out.structuredContent);
  }catch{if(serial!==requestSerial.current)return;setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{if(serial===requestSerial.current)setBusy(false);}}
  useEffect(()=>{
   if(!data?.canonical)return;
-  const refresh=()=>{if(!document.hidden&&!busy)void page(data.result.entity_type,data.result.access_info.offset??0,true);};
+  const refresh=()=>{if(!document.hidden&&!busy)void page(data.result.entity_type,data.result.access_info.offset??0,activeControls.current,true);};
   window.addEventListener('focus',refresh);const timer=setInterval(refresh,30000);
   return()=>{window.removeEventListener('focus',refresh);clearInterval(timer);};
  },[data?.project_id,data?.canonical,data?.result?.entity_type,data?.result?.access_info?.offset,busy]);
+ async function readPage(kind:WorkspaceKind,offset:number,controls:any={}){
+  const out=await app.callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}});
+  if(out.isError||!out.structuredContent?.result)throw Error();return out.structuredContent;
+ }
+ async function profile(id:string){const out=await app.callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
+ async function download(bytes:Uint8Array,name:string){let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const out=await app.downloadFile({contents:[{type:'resource',resource:{uri:'file:///'+name,mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',blob:btoa(binary)}}]});if(out.isError)throw Error();}
  async function connect(){
   if(connecting.current)return;
   connecting.current=true;setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
@@ -51,7 +57,7 @@ function View({initial}:{initial:any}){
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  if(!data)return <p role="alert">{error}</p>;
- return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables data={data} onPage={page} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables data={data} onPage={page} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 let mounted=false;
 app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;

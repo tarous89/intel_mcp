@@ -99,6 +99,9 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
         origin=getattr(dataset,'selection_origin',None)
         result['cohort']=public_cohort(result['cohort'],origin)
         result['entity_type']=kind
+        memberships=child._entities_for_selection(None,True)
+        for entity in result['entities']:
+            entity['subgroup_tags']=sorted({g.id for tid in memberships[entity['id']]['trials'] for g,match in zip(child.criteria.subgroups,child.records[tid].get('subgroup_matches',[])) if match})
         if origin:result['selection_origin']=origin
         if kind=='cros' and not include_cro_contacts:
             for e in result['entities']:e['contacts']=[c for c in e['contacts'] if 'email' not in c]
@@ -111,8 +114,10 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
     if hasattr(dataset,'selection_origin'):result['selection_origin']=dataset.selection_origin
     sections.append({'entity_type':'trials','snapshot':dataset.snapshot,'trial_ids':sorted(dataset.records),'result':result})
     shared=compact_workspace_evidence(sections)
-    return {'title':title,'sections':sections,'shared_evidence':shared,
-            'recommendations':[r.model_dump(mode='json') for r in recommendations]}
+    from .workspace_enrichment import enrich
+    return enrich({'title':title,'sections':sections,'shared_evidence':shared,
+            'recommendations':[r.model_dump(mode='json') for r in recommendations]},
+            [dict(trial_id=tid,**{k:v for k,v in r.items() if k!='trial_id'}) for tid,r in dataset.records.items()],dataset.criteria.model_dump(mode='json'))
 
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
@@ -120,9 +125,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
     ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
-    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0)->dict[str,Any]:
+    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None)->dict[str,Any]:
         """Page an existing 24-hour preview without repeating search or rebuilding the workspace."""
-        try:return await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset})
+        try:return await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'controls':controls or {}})
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
@@ -165,7 +170,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
     async def open_project(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
-        kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,
+        kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
     )->dict[str,Any]:
         """Read the latest canonical TrialAgents project and its saved tables.
 
@@ -174,9 +179,16 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """
         if not current_oauth_subject():return connect_result()
         try:
-            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10})
+            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10,'controls':controls or {}})
             if not result:raise ToolError('PROJECT_NOT_FOUND')
             return result
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**mixed,'ui':{'visibility':['app']},'openai/widgetAccessible':True},annotations=read_annotations,structured_output=True)
+    async def read_workspace_trial(trial_id:str,project_id:str|None=None,preview:PreviewSpec|None=None,revision:int|None=None)->dict[str,Any]:
+        """Read an authorized frozen trial profile for the workspace detail dialog."""
+        if not preview and not current_oauth_subject():return connect_result()
+        try:return await control_factory().research_workspace({'operation':'trial_profile','trialId':trial_id,'projectId':project_id,'preview':preview.model_dump(mode='json') if preview else None,'revision':revision})
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     async def read(project_id,token,kind='cros',offset=0,revision=None):

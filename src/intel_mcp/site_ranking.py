@@ -514,8 +514,8 @@ class ProfileRanker:
                         site_recency = person["site_email_recency"].setdefault(site_id, {})
                         site_recency[email] = max(site_recency.get(email, (date.min, 0)), recency)
 
-    def result(self, limit: int | None = PREVIEW_LIMIT) -> dict:
-        today = datetime.now(UTC).date()
+    def result(self, limit: int | None = PREVIEW_LIMIT, *, as_of: date | None = None) -> dict:
+        today = as_of or datetime.now(UTC).date()
         for person in self.people.values():
             name = min(person["names"], key=lambda value: (-person["names"][value], normalized(value), value))
             for site_id in person["sites"]:
