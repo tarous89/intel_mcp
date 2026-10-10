@@ -1,3 +1,4 @@
+import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {build} from 'esbuild';
@@ -7,7 +8,10 @@ import {writeFile,readFile} from 'node:fs/promises';
 const here=dirname(fileURLToPath(import.meta.url)),appSource=process.argv[2];
 if(!appSource)throw Error('Pass the Intel Agent App source checkout used for this release.');
 const source=resolve(appSource);
-const out=await build({entryPoints:[resolve(here,'workspace.tsx')],bundle:true,write:false,outdir:'out',minify:true,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},nodePaths:[resolve(source,'node_modules'),resolve(here,'node_modules')],plugins:[{name:'shared-intel-app',setup(b){b.onResolve({filter:/^intel-shared-workspace$/},()=>({path:resolve(source,'app/research/WorkspaceTables.tsx')}));b.onResolve({filter:/^@\//},args=>({path:resolve(source,args.path.slice(2))+(/\.[a-z]+$/i.test(args.path)?'':existsSync(resolve(source,args.path.slice(2))+'.ts')?'.ts':'.tsx')}));}}]});
+const runtimeRequire=createRequire(import.meta.url);
+const out=await build({entryPoints:[resolve(here,'workspace.tsx')],bundle:true,metafile:true,write:false,outdir:'out',minify:true,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},nodePaths:[resolve(source,'node_modules'),resolve(here,'node_modules')],plugins:[{name:'shared-intel-app',setup(b){b.onResolve({filter:/^(react|react-dom)(\/.*)?$/},args=>({path:runtimeRequire.resolve(args.path)}));b.onResolve({filter:/^intel-shared-workspace$/},()=>({path:resolve(source,'app/research/WorkspaceTables.tsx')}));b.onResolve({filter:/^@\//},args=>({path:resolve(source,args.path.slice(2))+(/\.[a-z]+$/i.test(args.path)?'':existsSync(resolve(source,args.path.slice(2))+'.ts')?'.ts':'.tsx')}));}}]});
+const reactRuntimes=Object.keys(out.metafile.inputs).filter(path=>/[/\\]react[/\\]cjs[/\\]react\.production\.js$/.test(path));
+if(reactRuntimes.length!==1)throw Error('Workspace must bundle exactly one React runtime: '+reactRuntimes.join(', '));
 const js=out.outputFiles.find(f=>f.path.endsWith('.js')).text.replaceAll('</script','<\\/script');
 const baseCss=(await readFile(resolve(source,'app/trialagents-theme.css'),'utf8'))+'\n'+(await readFile(resolve(source,'app/globals.css'),'utf8')).replace(/^@import[^;]+;/gm,'');
 const css=baseCss+'\n'+(out.outputFiles.find(f=>f.path.endsWith('.css'))?.text??'');

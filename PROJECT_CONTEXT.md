@@ -1,3 +1,10 @@
+## Blank extension hotfix — 2026-10-10
+- User screenshot showed an empty dark extension panel after successful workspace preparation.
+- Reproduced shipped HTML failing with `Cannot read properties of null (reading 'useState')`: embedded root and shared App components resolved separate React installations.
+- Bundle now resolves all React/ReactDOM imports to one installation and fails the build unless exactly one production React runtime is present. Shared App input hashes are unchanged.
+- Added shipped-artifact DOM regression: real SDK handshake, real shared components, all four tabs; old artifact failed, rebuilt artifact passes. CI now runs this test. Added visible render-failure fallback.
+- Next: pass CI, deploy MCP only, verify the live resource hash and render the downloaded production artifact. Signed-in ChatGPT host acceptance still requires user verification.
+
 # Incident correction — workspace opening (2026-10-10)
 
 User's post-release search failed to open the workspace. Live MCP logs at 20:31:48 and 20:32:11 UTC show prepare_research_workspace crashing with FROZEN_ENTITY_IDENTITY_MISMATCH, before any UI response. Root cause: restoration sanitized contact emails differently from SelectionDataset, changing PI record IDs. Reproduced with malformed/multiple-address/display-name and placeholder emails. Fix shares the established selection identity sanitizer; additional contact hiding runs only after identity aggregation so frozen IDs/membership stay intact. Never remove the invariant or silently drop PIs as a workaround.

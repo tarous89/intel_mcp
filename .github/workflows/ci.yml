@@ -41,7 +41,7 @@ jobs:
           cache: npm
           cache-dependency-path: ui/research/package-lock.json
       - run: npm ci --ignore-scripts --prefix ui/research
-      - run: node --test ui/research/connect-project.test.mjs ui/research/workspace-navigation.test.mjs
+      - run: node --test ui/research/connect-project.test.mjs ui/research/workspace-navigation.test.mjs ui/research/workspace-bundle.test.mjs
 
   live-health:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
