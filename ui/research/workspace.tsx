@@ -1,4 +1,4 @@
-import React,{useState,useRef} from 'react';
+import React,{useState,useRef,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
 import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextprotocol/ext-apps';
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
@@ -15,15 +15,23 @@ function modelContext(data:any){
 function View({initial}:{initial:any}){
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
  const [connectionStatus,setConnectionStatus]=useState('');
+ const requestSerial=useRef(0);
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
- setIncoming=value=>{setConnectionStatus('');handoff.current=null;setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
- async function page(kind:WorkspaceKind,offset:number){setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
+ setIncoming=value=>{requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ async function page(kind:WorkspaceKind,offset:number,preserveView=false){const serial=++requestSerial.current;if(!preserveView)setDataset(false);setError('');setRetryPage(null);setConnectionError(false);
   if(offset===0&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind]};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
-  const out=await app.callServerTool(data.draft?{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset,revision:data.revision}});
+  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
+  if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();setData(out.structuredContent);modelContext(out.structuredContent);
- }catch{setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{setBusy(false);}}
+ }catch{if(serial!==requestSerial.current)return;setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{if(serial===requestSerial.current)setBusy(false);}}
+ useEffect(()=>{
+  if(!data?.canonical)return;
+  const refresh=()=>{if(!document.hidden&&!busy)void page(data.result.entity_type,data.result.access_info.offset??0,true);};
+  window.addEventListener('focus',refresh);const timer=setInterval(refresh,30000);
+  return()=>{window.removeEventListener('focus',refresh);clearInterval(timer);};
+ },[data?.project_id,data?.canonical,data?.result?.entity_type,data?.result?.access_info?.offset,busy]);
  async function connect(){
   if(connecting.current)return;
   connecting.current=true;setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
