@@ -1,3 +1,11 @@
+## Current follow-up — 2026-10-10 shared workspace restoration
+
+Owner confirmed canonical sync works well in the actual ChatGPT session. App PR270 and MCP PR104 are merged and live. The next task is restoration of shared feature parity: Sites-first animated sync/readiness, recorded site contacts, six Site/PI metrics and percentile bands, full trial-profile overlay, filters/ranking/fields and genuine Excel export.
+
+Investigation and ordered implementation/acceptance scope: [Shared workspace restoration](docs/SHARED_WORKSPACE_RESTORATION_2026-10-10.md).
+
+Confirmed causes: sparse MCP site contacts/metric payload, reduced research-row adapter, and shared WorkspaceTables bypassing the richer table controller and profile modal. Preserve canonical IDs, exact frozen selection/order, flexible ChatGPT research and existing access rules. This checkpoint supersedes older “release pending” notes below. No runtime restoration is implemented by this documentation patch.
+
 ## Release verification — 2026-10-10
 - App PR #270 remains open at 53d6eb95. Local SQL fix uses the selection row alias in to_jsonb(s), resolving the failed dataset-claim test.
 - Local validation: 16 App foundation/canonical/cache tests, TypeScript noEmit, 447 MCP tests (4 skipped), 4 embedded navigation/connection tests, and 1 prepared dataset worker test passed.
