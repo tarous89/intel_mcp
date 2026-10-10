@@ -14,7 +14,7 @@ from .models import TrialFilters
 from .selection_discovery import TextQuery, DiscoveryGroup
 from .selection_identity import IDENTITY_VERSION, CRO_ALIASES, reviewed_cro_group
 from .site_ranking import (ProfileRanker, normalized, normalized_name, _canonical_sponsor,
-                           _authorization_dates, _shift_months)
+                           _authorization_dates, _shift_months, selection_identity_profile)
 
 VERSION = "entity-selection-2"
 MAX_COHORT = 500
@@ -295,12 +295,7 @@ class SelectionDataset:
             for tid, record in self.records.items():
                 if not self._included(tid, subgroup_ids, full_cohort):
                     continue
-                profile = deepcopy(record["profile"])
-                for site in profile.get("classification_variables", {}).get("sites") or []:
-                    for person in site.get("investigators") or []:
-                        email = str(person.get("email") or "").strip()
-                        if not re.fullmatch(r"[^\s@*<>]+@[^\s@*<>]+\.[^\s@*<>]+", email) or any(x in email.lower() for x in ("redacted", "masked")):
-                            person["email"] = ""
+                profile = selection_identity_profile(record["profile"])
                 ranker.add([{"eu_number": tid, "profile": profile}])
             values = ranker.sites if self.criteria.entity_type == "sites" else ranker.people
             for identity, item in values.items():
