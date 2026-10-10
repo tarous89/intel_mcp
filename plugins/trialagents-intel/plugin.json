@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -67,8 +67,8 @@
             {
               "description": "Account access and private saved research",
               "prompt": "Find prostate cancer CROs, connect my TrialAgents account, show the full list, and save it as a private Intel Agent project.",
-              "tools_triggered": "search_research_trials, prepare_research_workspace, claim_research_workspace, get_research_workspace",
-              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Website Connect opens login/signup directly and saves automatically into /projects; an editable email hint never restricts account choice. Return to the normal Projects list after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Once claimed, anonymous token-only access is denied."
+              "tools_triggered": "search_research_trials, prepare_research_workspace, save_project, open_project",
+              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Website Connect opens login/signup directly and saves automatically into /projects; an editable email hint never restricts account choice. Return to the normal Projects list after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Saved project reads require the owning OAuth account. Unsaved capability previews expire after 24 hours. Repeated saves attach the same canonical project; refinements use expected_revision."
             },
             {
               "description": "Hard constraints and sparse cohorts",
@@ -102,7 +102,7 @@
         "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
       },
       "publication": {
-        "release_notes": "Shared Intel project workspace with ChatGPT-led cohort refinement, compact four-table navigation, authenticated saving and informational dataset access."
+        "release_notes": "Canonical Intel projects shared by ChatGPT and the app, with exact cached results, flexible research refinements and explicit OAuth saving."
       }
     }
   }

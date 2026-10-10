@@ -15,7 +15,7 @@ MCP already holds the full captured trial profiles in SelectionDataset.records. 
 - original profile/schema and direct/related/overlapping subgroup membership;
 - byte-verified JSON records, with content hashes explicitly distinguished from Engine source revision IDs.
 
-The initial serializer and validator are implemented as isolated modules, not wired to production. They must never be returned as model/widget output. Table results/recommendations must accompany the prepared selection and retain their exact ordering and evidence associations; do not rerank on connection.
+The serializer and validator feed the private cache intake and canonical prepared-source service. They must never be returned as model/widget output. Table results/recommendations must accompany the prepared selection and retain their exact ordering and evidence associations; do not rerank on connection.
 
 Validate all four table cohorts against frozen membership before persisting anything. Retain existing 500-trial/16 MiB source bounds and 64 MiB total result bound. Store full profiles and result pages as bounded compressed objects, not giant JSONB parameters. Reserve the preview ID as a proposed project ID; resolving collisions/claims must remain owner-bound and transactional. A preview alone is not a saved project.
 
@@ -37,9 +37,10 @@ Required before deployment: same ID and exact rows/counts/evidence across both c
 Deploy App schema/service before dependent MCP/UI. Actual ChatGPT write acceptance must be checked separately from tool descriptors and unit tests. The previous historical host denial remains unproven; current permissions do not establish a blanket write prohibition.
 
 ## Current evidence
-- Both context MDs were updated and committed before implementation.
-- Isolated Python prepared-selection serializer and TypeScript validator implemented.
-- Python selection/refinement suite: 23 passed.
-- App validator suite: 1 passed, including complete membership, altered bytes, duplicate/missing rows, subgroup mismatch, schema mismatch and size limit.
-- No canonical service wiring, shared UI rollout or production deployment has been completed in this change.
-
+- Canonical prepared-source storage, owner-bound create/revise, idempotency and revision checks are implemented. New frozen previews attach directly to public.projects / combined_intel.projects; legacy projects are untouched.
+- Website and MCP read canonical project IDs. The website keeps its normal shell and uses the shared tables. Cached rows are immediately readable while the existing worker publishes frozen profile/report artifacts, without Engine search or model calls.
+- Explicit OAuth save_project, open_project, list_projects and durable read_project_preview are implemented. Legacy write tools are compatibility-only and hidden from model discovery.
+- Search/inspect/refine/prepare remain independent of the website wizard. Preview cache lasts 24 hours; saved source is retained independently. Previous ready datasets remain visible during refinement.
+- Local verification: 447 MCP tests passed (4 skipped); canonical database creation/refinement/isolation/expiry journey, shared table rendering and resumable prepared worker tests passed. The synthetic canonical connection took 28 ms; this is not a production latency guarantee.
+- Repository CI, deployment and real-host rendering/OAuth write verification remain pending at this checkpoint. Historical host denial is not proven resolved by tests.
+- No old projects were migrated, repaired or deleted. Deploy App schema/service before MCP/UI/package.

@@ -17,6 +17,7 @@ from .selection import Contract, SelectionCriteria, SelectionDataset, SelectionE
 from .research_cohort import candidate_trials
 from .research_presentation import public_cohort
 from .control_plane import ControlPlaneError
+from .prepared_selection import prepare_selection
 
 # A bundle change must change the resource identity: hosts can cache UI by URI.
 WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
@@ -118,6 +119,66 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
     ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
+    @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
+    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0)->dict[str,Any]:
+        """Page an existing 24-hour preview without repeating search or rebuilding the workspace."""
+        try:return await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset})
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
+    async def list_projects()->dict[str,Any]:
+        """List the connected account's canonical projects, created on the website or in ChatGPT."""
+        if not current_oauth_subject():return connect_result()
+        try:return await control_factory().research_workspace({'operation':'canonical_list'})
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**oauth,**ui},annotations=write,structured_output=True)
+    async def save_project(
+        preview:PreviewSpec,
+        project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')]|None=None,
+        expected_revision:Annotated[int,Field(ge=1)]|None=None,
+    )->dict[str,Any]:
+        """Save chosen research to the same canonical project shown on the TrialAgents website.
+
+        Explicit authenticated write. After preparing and inspecting a preview, use this
+        when the user asks to create/save a project. For a refinement, search and inspect
+        freely first, then pass the existing project_id and its latest expected_revision.
+        This attaches cached exact results; it does not rerun research or summarize data.
+        A project update requires both project_id and expected_revision. Never describe
+        a read-only preview as saved. Host write approval remains authoritative.
+        """
+        if not current_oauth_subject():
+            return connect_result()
+        if not preview.cache_token:
+            raise ToolError('PREVIEW_UNAVAILABLE: Prepare a new cached preview before saving.')
+        if (project_id is None) != (expected_revision is None):
+            raise ToolError('INVALID_REVISION: Supply both project_id and expected_revision for updates.')
+        command={'cacheToken':preview.cache_token,'snapshotKey':preview.snapshot_key,
+                 'idempotencyKey':hashlib.sha256(json.dumps([preview.preview_id,preview.snapshot_key,project_id,expected_revision]).encode()).hexdigest()}
+        if project_id is None:command['proposedProjectId']=preview.preview_id
+        else:command.update(projectId=project_id,expectedRevision=expected_revision)
+        try:
+            saved=await control_factory().research_workspace({'operation':'canonical_commit','input':command})
+            return await control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10})
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
+    async def open_project(
+        project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
+        kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,
+    )->dict[str,Any]:
+        """Read the latest canonical TrialAgents project and its saved tables.
+
+        The same project ID opens on the website. Reads do not create projects,
+        repeat searches, prepare reports or pin the view to an obsolete revision.
+        """
+        if not current_oauth_subject():return connect_result()
+        try:
+            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10})
+            if not result:raise ToolError('PROJECT_NOT_FOUND')
+            return result
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
     async def read(project_id,token,kind='cros',offset=0,revision=None):
         body={'operation':'read','projectId':project_id,'previewToken':token,'kind':kind,'offset':offset,'limit':10}
         # The App distinguishes an omitted revision (latest) from JSON null (invalid).
@@ -169,7 +230,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         account change or project job is created, even for connected users. Prepared query
         results may be cached internally for 24 hours, separately from user projects.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
-        Saved projects alone use revise_research_workspace. Keep chat to concise insights.
+        Commit saved-project refinements with save_project using project_id and expected_revision. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
         Connect account opens website login immediately. The website imports the exact preview only after authentication.
         The cached import expires after 24 hours; never claim a preview is already a saved project.
@@ -189,7 +250,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             cache = getattr(control_factory(), 'cache_research_preview', None)
             if cache:
                 token = secrets.token_urlsafe(32)
-                compressed = base64.b64encode(gzip.compress(json.dumps(payload, separators=(',', ':')).encode(), compresslevel=1)).decode()
+                # Private App-only input. Never include full profiles in tool/UI output.
+                frozen = {**payload, 'prepared_selection': prepare_selection(store.get(selection_id))}
+                compressed = base64.b64encode(gzip.compress(json.dumps(frozen, separators=(',', ':')).encode(), compresslevel=1)).decode()
                 try:
                     await cache({'token': token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed})
                     spec.cache_token = token
@@ -232,7 +295,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         try:return await read(project_id,preview_token)
         except ControlPlaneError as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
+    @server.tool(meta={**mixed,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=write,structured_output=True)
     async def revise_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         expected_revision:Annotated[int,Field(ge=1)],
@@ -255,7 +318,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return await read(project_id,preview_token)
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**mixed,**app_callable},annotations=write,structured_output=True)
+    @server.tool(meta={**mixed,**app_callable,'ui':{'visibility':['app']}},annotations=write,structured_output=True)
     async def create_research_account_handoff(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,
@@ -280,7 +343,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                 'projectId':project_id,'previewToken':preview_token})
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**oauth,**ui},annotations=write,structured_output=True)
+    @server.tool(meta={**oauth,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=write,structured_output=True)
     async def claim_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,

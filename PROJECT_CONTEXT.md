@@ -1,3 +1,11 @@
+## Release verification — 2026-10-10
+- App PR #270 remains open at 53d6eb95. Local SQL fix uses the selection row alias in to_jsonb(s), resolving the failed dataset-claim test.
+- Local validation: 16 App foundation/canonical/cache tests, TypeScript noEmit, 447 MCP tests (4 skipped), 4 embedded navigation/connection tests, and 1 prepared dataset worker test passed.
+- MCP source recovered from the prior session; shared UI rebuilt against App PR #270; plugin 0.3.0 package built successfully.
+- Owner explicitly approved publishing to both repositories and deploying the existing Render services on 2026-10-10. Release publication/CI/deployment are in progress.
+- Next: publish the App SQL/context update to tarous89/intel_agent_app PR #270 and 14-file MCP companion release to tarous89/intel_mcp; pass CI; deploy existing Render App srv-da655mrncjis73anvej0 then MCP srv-da7g4igae00c73bo6oe0 in the previously approved Tarek Roustom workspace. Verify live health, schema and actual authenticated host journey.
+- Real ChatGPT OAuth write acceptance and visual rendering remain unverified; do not claim these solved from automated tests.
+
 # Active direction — unified Intel projects (approved 2026-10-09 23:44 Europe/Berlin)
 
 This section supersedes earlier instructions that make ChatGPT research a separate saved-project product or require connection-time copying/import. This is an approved implementation plan, not a claim that the refactor is deployed.
@@ -14,23 +22,31 @@ This section supersedes earlier instructions that make ChatGPT research a separa
 
 ## Ordered next steps
 1. [x] Record this direction and sequence in both App and MCP context MDs before implementation.
-2. [ ] Inventory canonical project, selection, dataset, table, export/report and entitlement contracts; define a shared service boundary that accepts either UI's research selection.
-3. [ ] Implement canonical creation/revision from prepared MCP results, with stable IDs, provenance, idempotency, ownership and bounded preparation. No legacy-project migration.
-4. [ ] Connect both creation paths to that service; retain the full MCP search/inspect/refine loop independently of the website wizard.
-5. [ ] Replace research-only website routing/shell with the normal workspace and extract a shared presentation contract for both clients. Keep host-specific controls explicit.
+2. [x] Inventory canonical project, selection, dataset, table, export/report and entitlement contracts; define a shared service boundary that accepts either UI's research selection.
+3. [x] Implement canonical creation/revision from prepared MCP results, with stable IDs, provenance, idempotency, ownership and bounded preparation. No legacy-project migration.
+4. [x] Connect both creation paths to that service; retain the full MCP search/inspect/refine loop independently of the website wizard.
+5. [x] Replace research-only website routing/shell with the normal workspace and extract a shared presentation contract for both clients. Keep host-specific controls explicit.
 6. [ ] Expose canonical list/read/create/update tools with accurate annotations, OAuth challenges and account selection. Validate a real host write before claiming the historical denial is solved.
-7. [ ] Implement revision refresh in both views, stale-write conflict handling, and clear pending/error states without repeated snapshot processing.
+7. [x] Implement revision refresh in both views, stale-write conflict handling, and clear pending/error states without repeated snapshot processing.
 8. [ ] Verify exact rows/counts/evidence across both clients; iterative refinements keep one project ID; account isolation, free/paid access, paging, exports/report prerequisites, retries and CPU/memory bounds remain correct.
 9. [ ] Pass repository gates and desktop/mobile/embedded checks; deploy App schema/service before MCP/UI/package changes. Verify the real new-project journey from each entry point.
 10. [ ] Update this checklist and history with actual deployment/test evidence and any remaining host verification gaps.
 
 
+## Release continuation — 2026-10-10
+- Recovered the unpushed MCP implementation. Local suite: 447 passed, 4 skipped.
+- App PR #270 SQL claim regression fixed locally and 10 focused journey tests pass.
+- Publish companion MCP PR, pass CI, deploy App/schema before MCP and verify real-host writes/rendering.
+- Owner explicitly approved both publication destinations and existing Render deployments on 2026-10-10.
+
 ## Current implementation checkpoint
-- Canonical contracts inventoried: native datasets/reports require frozen full profile chains; the previous research snapshot stores table summaries only. MCP already holds full profiles during selection.
-- Added private prepared-selection serializer/validator, preserving exact criteria and overlapping memberships. These modules are isolated and not wired to production yet.
-- Verification: 23 Python selection/refinement tests and 1 App validator test pass.
-- Next: canonical service/durable compressed profile storage and dataset artifact publication, followed by shared reads/UI and explicit OAuth writes. See [implementation contract](docs/UNIFIED_PROJECT_IMPLEMENTATION.md).
-- No old projects were changed or deleted. No unified-project refactor was deployed. Do not mark steps 3–9 complete from the contract tests.
+- Canonical prepared-source storage, owner-bound create/revise, idempotency and revision checks are implemented. New frozen previews attach directly to public.projects / combined_intel.projects; legacy projects are untouched.
+- Website and MCP read canonical project IDs. The website keeps its normal shell and uses the shared tables. Cached rows are immediately readable while the existing worker publishes frozen profile/report artifacts, without Engine search or model calls.
+- Explicit OAuth save_project, open_project, list_projects and durable read_project_preview are implemented. Legacy write tools are compatibility-only and hidden from model discovery.
+- Search/inspect/refine/prepare remain independent of the website wizard. Preview cache lasts 24 hours; saved source is retained independently. Previous ready datasets remain visible during refinement.
+- Local verification: 447 MCP tests passed (4 skipped); canonical database creation/refinement/isolation/expiry journey, shared table rendering and resumable prepared worker tests passed. The synthetic canonical connection took 28 ms; this is not a production latency guarantee.
+- Repository CI, deployment and real-host rendering/OAuth write verification remain pending at this checkpoint. Historical host denial is not proven resolved by tests.
+- No old projects were migrated, repaired or deleted. Deploy App schema/service before MCP/UI/package.
 
 
 ---

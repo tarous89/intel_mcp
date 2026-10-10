@@ -155,7 +155,7 @@ def create_research_server(settings, engine_factory, control_factory):
             return {"selection_id":token,"expires_in_seconds":store.remaining_seconds(token),
                     "cohort":public_cohort(dataset.summary().model_dump(mode='json'),getattr(dataset,'selection_origin',None)),
                     "selection_origin":dataset.selection_origin,
-                    "next_step":"Call prepare_research_workspace for a new final cohort, or revise_research_workspace only for an already saved project. Do not output an additional cohort list."}
+                    "next_step":"Call prepare_research_workspace for a new final cohort, then save_project with project_id and expected_revision when committing a saved-project refinement. Do not output an additional cohort list."}
         except SelectionError as e: raise ToolError(str(e)) from e
 
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
@@ -246,7 +246,7 @@ def create_research_server(settings, engine_factory, control_factory):
             return CallToolResult(content=[TextContent(type="text",text=json.dumps(result))],structured_content=result)
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
-    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},
+    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015", "visibility": ["app"]}},
                  annotations=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False))
     async def save_research_project(
         selection_ids:Annotated[list[str],Field(min_length=1,max_length=3)],

@@ -55,7 +55,7 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
     async with Client(server) as client:
         descriptors={t.name:t for t in (await client.list_tools()).tools}
         for name in ('prepare_research_workspace','get_research_workspace','create_research_account_handoff'):
-            assert descriptors[name].meta['ui']['visibility']==['model','app']
+            assert descriptors[name].meta['ui']['visibility']==(['app'] if name=='create_research_account_handoff' else ['model','app'])
             assert descriptors[name].meta['openai/widgetAccessible'] is True
         assert descriptors['create_research_account_handoff'].annotations.read_only_hint is False
         assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
@@ -193,5 +193,9 @@ async def test_precomputed_preview_cache_retains_exact_four_tables_without_creat
         assert out['draft']['cache_token']==cached[0]['token']
         from intel_mcp.research_workspace import payload_key
         payload=json.loads(gzip.decompress(base64.b64decode(cached[0]['gzip'])))
+        frozen=payload.pop('prepared_selection')
+        assert frozen['selection_snapshot']==store.get(token).snapshot
+        assert frozen['records'] and 'profile' in frozen['records'][0]['json']
+        assert 'prepared_selection' not in out
         assert payload_key(payload)==out['draft']['snapshot_key']
         assert payload==workspace_payload(store.get(token),'Exact cohort')
