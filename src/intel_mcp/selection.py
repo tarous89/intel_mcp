@@ -307,7 +307,7 @@ class SelectionDataset:
                 names = {item["name"]} if self.criteria.entity_type == "sites" else set(item["names"])
                 countries = {item["country"]} if self.criteria.entity_type == "sites" else {s["country"] for s in item["sites"].values()}
                 entities[identity] = {"id": identity, "names": names, "countries": countries,
-                    "contacts": ([{"email": email, "kind": "recorded_pi_email"} for email in sorted(item["emails"])] if self.criteria.entity_type == "pis" else []),
+                    "contacts": ([{"email": email, "kind": "recorded_pi_email"} for email in sorted(item["emails"])] if self.criteria.entity_type == "pis" else [{"name":name,"email":email,"kind":"recorded_site_contact"} for name,email in item["contacts"]]),
                     "trials": set(item["trials"]), "roles": {}, "functions": {}, "types": set(),
                     "affiliations": ([] if self.criteria.entity_type == "sites" else sorted(
                         [{"name": site["name"], "country": site["country"], "relationship": "recorded_trial_affiliation"}
