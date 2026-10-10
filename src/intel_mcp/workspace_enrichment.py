@@ -1,7 +1,7 @@
 """Versioned presentation enrichment of frozen research; never changes membership/order."""
 from copy import deepcopy
 from datetime import date
-from .site_ranking import ProfileRanker
+from .site_ranking import selection_identity_profile, ProfileRanker
 
 def criteria_for(raw):
     def values(key):
@@ -16,16 +16,28 @@ def criteria_for(raw):
             'phases':values('phase'),'modalities':values('modalities'),
             'paediatric_relevant':any(((s.get('paediatric_trial') or {}).get('value') is True and (s.get('paediatric_trial') or {}).get('operator','is')=='is') for s in (raw.get('base') or {},raw.get('direct') or {}))}
 
+
+def visible_email(value):
+    return bool(value) and not any(x in str(value).lower() for x in ('redacted','masked','withheld','xxx','*'))
+
+def hide_contact_placeholders(ranker):
+    # Clean contact display after IDs and membership have been established.
+    for site in ranker.sites.values():
+        for contact in list(site['contacts']):
+            if not visible_email(contact[1]):del site['contacts'][contact]
+    for person in ranker.people.values():
+        mappings=[person['emails'],person['email_recency'],*person['site_emails'].values(),*person['site_email_recency'].values()]
+        for mapping in mappings:
+            for email in list(mapping):
+                if not visible_email(email):del mapping[email]
+
 def enrich(payload,records,raw):
     result=deepcopy(payload);criteria=criteria_for(raw)
     ranker=ProfileRanker(criteria)
     for record in records:
-        profile=deepcopy(record['profile'])
-        for site in (profile.get('classification_variables') or {}).get('sites') or []:
-            for p in site.get('investigators') or []:
-                email=str(p.get('email') or '')
-                if any(x in email.lower() for x in ('redacted','masked','withheld','xxx','*')):p['email']=''
+        profile=selection_identity_profile(record['profile'])
         ranker.add([{'eu_number':record['trial_id'],'profile':profile}])
+    hide_contact_placeholders(ranker)
     ranked=ranker.result(None,as_of=date.fromisoformat(raw['as_of']))
     profiles={r['trial_id']:r for r in records}
     for section in result['sections']:
@@ -39,6 +51,7 @@ def enrich(payload,records,raw):
                 if not native:raise ValueError('FROZEN_ENTITY_IDENTITY_MISMATCH')
                 native=deepcopy(native);native['rank']=entity['rank'];native['name']=entity['name']
                 entity['workspace_row']=native
+                entity['contacts']=[c for c in entity.get('contacts',[]) if visible_email(c.get('email'))]
                 if kind=='sites':entity['contacts']=[native['contact']] if native.get('contact') else []
                 entity['subgroup_tags']=sorted({g['id'] for tid in (ranker.sites if kind=='sites' else ranker.people)[entity['id']]['trials'] for g,match in zip(raw.get('subgroups',[]),profiles[tid].get('subgroup_matches',[])) if match})
             elif kind=='trials':

@@ -351,6 +351,22 @@ def _rank_key(record: dict) -> tuple:
     )
 
 
+
+def selection_identity_profile(profile: dict) -> dict:
+    """Replay the established search identity policy, including frozen snapshots.
+
+    Keep this policy stable: email contributes to PI record IDs. Presentation
+    may hide additional contact placeholders only after identity aggregation.
+    """
+    from copy import deepcopy
+    result = deepcopy(profile)
+    for site in (result.get('classification_variables') or {}).get('sites') or []:
+        for person in site.get('investigators') or []:
+            email = str(person.get('email') or '').strip()
+            if not re.fullmatch(r'[^\s@*<>]+@[^\s@*<>]+\.[^\s@*<>]+', email) or any(x in email.lower() for x in ('redacted', 'masked')):
+                person['email'] = ''
+    return result
+
 class ProfileRanker:
     """Incrementally aggregate profiles so the full cohort is never held in memory."""
 

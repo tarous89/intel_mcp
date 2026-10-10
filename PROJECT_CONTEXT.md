@@ -1,3 +1,9 @@
+# Incident correction — workspace opening (2026-10-10)
+
+User's post-release search failed to open the workspace. Live MCP logs at 20:31:48 and 20:32:11 UTC show prepare_research_workspace crashing with FROZEN_ENTITY_IDENTITY_MISMATCH, before any UI response. Root cause: restoration sanitized contact emails differently from SelectionDataset, changing PI record IDs. Reproduced with malformed/multiple-address/display-name and placeholder emails. Fix shares the established selection identity sanitizer; additional contact hiding runs only after identity aggregation so frozen IDs/membership stay intact. Never remove the invariant or silently drop PIs as a workaround.
+
+Local validation: 458 MCP tests passed/4 skipped, including new full search → prepare → four preview tables → cache → UI-resource test; 5 mirrored App frozen-identity cases passed. CI/deployment pending. No UI bundle or connection metadata change required. Actual signed-in ChatGPT display remains a host acceptance check. Next: pass CI, deploy both services, verify live search-to-prepare path and health, record release evidence in PRs.
+
 # Release checkpoint — shared workspace restoration (2026-10-10)
 
 Plugin 0.3.1 restores the shared toolbar, full trial-profile dialog, real Excel download, Site/PI metrics/bands/contacts and subgroup membership. Ranking uses the saved as-of date; no fresh search on save/connect. New app-only read_workspace_trial tool brings the tool inventory to 19. Shared bundle built from App commit caab25cda971936185ab624f5fb39bc8ba8eb467. MCP tests: 449 passed/4 skipped; embedded connection/navigation: 4 passed. CI and deployment pending. App PR273 must deploy first with migration0062. Real-host acceptance of restored UI still pending.
