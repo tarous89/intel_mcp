@@ -1,24 +1,24 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "3ca658650da59748c72baa445ab95e38ed51ffdb",
+  "source_commit": "43dc9d451b275426b9ee48b0aa213b4d4017e5fa",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "5bbe22c556fc1868caa7da56101875621b7e1d4827ef78f2867f7ba1513376fb",
-    "app/research/workspace.css": "b8abb368b95f030ee5f7c36d9639d9ce07e8a51288510a5a6d456c10233ab5ff",
+    "app/research/WorkspaceTables.tsx": "79023b4f2557b90b9b44cd8d91b69d9f520d47ac4b6a0ef3fcf6b1b0b487d366",
+    "app/research/workspace.css": "bb1b420c0052ac01d506a7cb7e87c1754f17a70dbd2df5a618bd22b2becb440a",
     "app/preview/combined/SharedProjectFrame.tsx": "9dada294134e76ab2c80552455b81489847582093b2f9f3fb9827e308dac178c",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
     "app/globals.css": "b7cadb43d253dfa93566b4c2f7b3d3f1f59db1a0791edfd9619b541a226a679e",
     "app/trialagents-theme.css": "f3410d5b8501ed22303f89e1b762652442e6f68f3285755ebea142ffd10c1c97",
-    "app/_site-agent/SiteResultsTable.tsx": "9ea152d00f103d8e156a53d4e0c9f44d529fe403c2cdd17c8240b13cf9b97970",
-    "app/_site-agent/SiteAgentWorkspace.module.css": "f45a24e962525052a5446bb2e13cbf982b5e09bb50a0cc35e060f93a3f0be3c2",
+    "app/_site-agent/SiteResultsTable.tsx": "b49907b2a9c7d84e04cb049e310f38d7e39e35a0b2e9d3e1d195af550a3871b1",
+    "app/_site-agent/SiteAgentWorkspace.module.css": "aacb16fe84ba010b332709fb390ec470726f8accbc5b66331c7c471d897bdc94",
     "app/preview/combined/CombinedEntityTable.tsx": "3ff9a654229aaac9f6c8352182e8da732adc46c9c903452f61e1c4a3eba36de4",
-    "app/preview/combined/combined-workspace.css": "7c86944e1620f74a449a0574e7d64a0c087f8611331a15a13af60adda8f6ee87",
+    "app/preview/combined/combined-workspace.css": "e25288583840a03867b3cd1192f6c0d39ec6e9c03f2086f4eba3f6d1578599cc",
     "app/components/TrialEvidence.tsx": "ee0e77740d0c073463da8f77165fcbb8ee31459ab1d76c04e35612ddb0a69c74",
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "fcaa6b08e04e7d582c5cd9396a314a7d66de46715eae08b93c171c204935c066"
+  "bundle_sha256": "bdee053657f079df2595baf0013c2cabe55d58632f6eca092e42b393b56afb66"
 }
