@@ -170,18 +170,40 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
     async def open_project(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
-        kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
+        kind:Kind|None=None,offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
     )->dict[str,Any]:
         """Read the latest canonical TrialAgents project and its saved tables.
 
+        Omit kind to open the most recently saved active table. Omit controls to use
+        the owner's latest saved filters/ranking from either client. Supply controls
+        (including {} for no filtering) for a temporary read-only override. Read
+        this tool again before analyzing the user's current view; UI context may be stale.
+        Responses include applied view controls/version and access-limited counts.
         The same project ID opens on the website. Reads do not create projects,
         repeat searches, prepare reports or pin the view to an obsolete revision.
         """
         if not current_oauth_subject():return connect_result()
         try:
-            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10,'controls':controls or {}})
+            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10,**({'controls':controls} if controls is not None else {})})
             if not result:raise ToolError('PROJECT_NOT_FOUND')
             return result
+        except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**oauth,**app_callable},annotations=write,structured_output=True)
+    async def save_project_view(
+        project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],kind:Kind,
+        controls:dict[str,str],expected_version:Annotated[int,Field(ge=0)],
+        expected_revision:Annotated[int,Field(ge=1)],
+    )->dict[str,Any]:
+        """Save applied table filters/ranking for the connected user's project.
+
+        Explicit preference write only; never changes the dataset or research cohort.
+        Use the view version and project revision returned by open_project. An empty
+        controls object resets the view. On conflict, reopen and reconcile; never
+        blindly overwrite. Call only for a user-requested view change.
+        """
+        if not current_oauth_subject():return connect_result()
+        try:return await control_factory().research_workspace({'operation':'view_save','projectId':project_id,'kind':kind,'controls':controls,'expectedVersion':expected_version,'expectedRevision':expected_revision})
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**mixed,'ui':{'visibility':['app']},'openai/widgetAccessible':True},annotations=read_annotations,structured_output=True)

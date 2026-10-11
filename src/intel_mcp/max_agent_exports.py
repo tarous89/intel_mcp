@@ -48,6 +48,10 @@ def workbook(payload, target):
                     cells.append(cell)
                 sheet.append(cells)
     book.save(target)
+    # openpyxl updates modified during save; normalize the emitted core metadata too.
+    from openpyxl.xml.functions import tostring
+    book.properties.modified = datetime(2000, 1, 1)
+    core_metadata = tostring(book.properties.to_tree())
     # ZIP metadata is normalized so identical version inputs yield identical bytes.
     import zipfile
     original = Path(target).read_bytes()
@@ -56,7 +60,7 @@ def workbook(payload, target):
         for name in sorted(source.namelist()):
             info = zipfile.ZipInfo(name, (2000, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
-            dest.writestr(info, source.read(name))
+            dest.writestr(info, core_metadata if name == "docProps/core.xml" else source.read(name))
 
 
 async def subprocess_export(payload_path, target):

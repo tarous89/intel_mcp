@@ -43,6 +43,11 @@ jobs:
       - run: npm ci --ignore-scripts --prefix ui/research
       - run: npx --prefix ui/research playwright install --with-deps chromium
       - run: node --test ui/research/workspace-browser.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workspace-design
+          path: /tmp/workspace-design/
       - run: node --test ui/research/connect-project.test.mjs ui/research/workspace-navigation.test.mjs ui/research/workspace-bundle.test.mjs
 
   live-health:
