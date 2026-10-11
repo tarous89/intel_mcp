@@ -308,6 +308,8 @@ def create_research_server(settings, engine_factory, control_factory):
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
     register_workspace_tools(server,store,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
+    from .project_reports import register_project_report_tools
+    register_project_report_tools(server,engine_factory,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
 
     @server.custom_route('/.well-known/oauth-protected-resource',methods=['GET'])
     async def metadata(request):

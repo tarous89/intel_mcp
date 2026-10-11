@@ -14,7 +14,7 @@ RESEARCH_WORKFLOW = (
     'Use refine_research_cohort to select trusted source IDs and record rationale; search again to broaden beyond source IDs. '
     'After selecting the cohort, prepare_research_workspace computes a read-only four-table preview. It creates no project, '
     'including for connected users. Previews expire with their source selection; Connect account explicitly starts saving. '
-    'Prefer the fullscreen host workspace, with no sidebar or Reports; Dataset stays in the workspace and Account opens website login/signup. '
+    'Prefer the fullscreen host workspace, with no sidebar; Reports appears only after a report is saved; Dataset stays in the workspace and Account opens website login/signup. '
     'Give a concise summary, scope and insights in chat. The actual Intel Agent tables render in the preview; do not duplicate them in Markdown. '
     'Supporting-trial lists are out of scope unless the user explicitly requests them. '
     'Inspect trial evidence internally for analysis, but do not render supporting-study tables or lists by default. '
@@ -34,6 +34,7 @@ RESEARCH_WORKFLOW = (
     'Connecting alone does not activate paid access. Explain restrictions neutrally, with no subscription promotion or checkout redirects. '
     'If the workspace feature is unavailable, retain the existing rank/evidence and explicit-save tools; do not claim a project was created. '
     'After a workspace failure, keep chat to a brief error and concise insights; do not automatically replace the workspace with lists. '
+    'For deeper analysis beyond the four entity tables, call prepare_project_report and follow its separate HTML report guidance. Free users can save reports using only disclosed preview evidence. Paid users may read full authorized profiles and existing extracted documents. Save with save_project_report to open Reports in the workspace; keep the access disclaimer. Saved reports and projects never auto-refresh. '
     'Do not promise raw protocols, patient documents, complete EU histories or unrestricted profiles. '
     'No backend model job, payment or outreach is needed for these actions.'
 )
@@ -138,6 +139,7 @@ RESEARCH_CAPABILITIES = {
     'existing_entitlement': ['Full entity lists across research selections with active paid account access',
                              'Recorded trial-level operational findings in evidence where present; not entity performance attribution'],
     'connected_account': ['Save private research projects and reopen them in ChatGPT or Intel Agent without new analysis'],
-    'not_exposed': ['Protocol document retrieval', 'Patient information documents or patient-level data',
+    'reports': ['HTML analysis saved to a project and visible in both interfaces', 'Free preview-evidence reports; paid authorized profiles and available extracted protocols/documents'],
+    'not_exposed': ['Unavailable or unextracted documents', 'Patient-level data',
                     'Complete EU regulatory history', 'Full clinical-results tables', 'Outreach or response tracking'],
 }

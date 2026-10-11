@@ -1,13 +1,14 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "fa80c9cd5dddc7edca5cf872d69eb4f1652a72a6",
+  "source_commit": "f813ee6d9ac04a07cfbe9b8082626bf88f1d254d",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
+    "app/research/ProjectReports.tsx": "d666b3b7ef32620dac5f08175f72f0c19518bd1c2d47954fc4e3472d32905acd",
     "public/trialagents-mark-white.png": "7b879c8cf3e472b6984291343e61fd988caf46676f1725dcd5d466bdbfc2f20c",
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "69910f8802acaeb18b19adc0053cca2a6cc92ef31271d8cd5006ce0effdd4610",
+    "app/research/WorkspaceTables.tsx": "7751f0f8735c1a942428b054de51dbc94ac240fb845a5660bff0bcfe55ce3608",
     "app/research/workspace.css": "bb1b420c0052ac01d506a7cb7e87c1754f17a70dbd2df5a618bd22b2becb440a",
     "app/preview/combined/SharedProjectFrame.tsx": "4de8ea6280c4f7efbe9ee1261559862b98fdf8b65f9a93d1d4e8ce36b6f4b1a0",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
@@ -16,10 +17,10 @@
     "app/_site-agent/SiteResultsTable.tsx": "b49907b2a9c7d84e04cb049e310f38d7e39e35a0b2e9d3e1d195af550a3871b1",
     "app/_site-agent/SiteAgentWorkspace.module.css": "aacb16fe84ba010b332709fb390ec470726f8accbc5b66331c7c471d897bdc94",
     "app/preview/combined/CombinedEntityTable.tsx": "3ff9a654229aaac9f6c8352182e8da732adc46c9c903452f61e1c4a3eba36de4",
-    "app/preview/combined/combined-workspace.css": "b06554467b5e24a28fd8292403e2e5be265bb6f55144440dfddf62a54550f884",
+    "app/preview/combined/combined-workspace.css": "e738dcc8d60be95b3ded9c5f83af9a9c66107aac5a5404c7d9aac5bcb13bef08",
     "app/components/TrialEvidence.tsx": "ee0e77740d0c073463da8f77165fcbb8ee31459ab1d76c04e35612ddb0a69c74",
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "6d44fa8542ffb0978bf232af2b25102cbf4c689ac5f08f057be3545d9549ea4f"
+  "bundle_sha256": "4b2efd34f28c704477ba0fc39f6ec70dcd47337a01595ae3f50d7d5e38d30a01"
 }

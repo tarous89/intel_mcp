@@ -13,6 +13,7 @@ FILES = (
     'skills/find-clinical-partners/SKILL.md',
     'skills/find-clinical-partners/agents/openai.yaml',
     'skills/find-clinical-partners/references/tool-contract.md',
+    'skills/find-clinical-partners/references/report-guidance.md',
     'skills/find-clinical-partners/references/prostate-landscape.json',
 )
 
