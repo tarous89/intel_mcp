@@ -28,7 +28,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    assert(dims.edge<=dims.viewport+2,`${width}/${label}: rightmost button clipped ${JSON.stringify(dims)}`);assert(dims.body<=dims.width+2,`${width}/${label}: page overflow`);
   }
   await page.locator('nav button').filter({hasText:'PIs'}).click();await page.getByRole('button',{name:'Insights',exact:true}).click();assert(await page.getByText('Department: Oncology department').isVisible());assert(await page.getByText('Recent activity',{exact:true}).isVisible());
-  await page.getByRole('button',{name:'Filters',exact:true}).click();assert(await page.getByText('Rank by',{exact:true}).isVisible());
+  await page.getByRole('button',{name:'Filters',exact:true}).click();assert(await page.getByLabel('Rank by').isVisible());
   if(width===1280)await page.screenshot({path:process.env.UX_SCREENSHOT??'/tmp/workspace-ux.png',fullPage:true});
   assert.deepEqual(errors,[]);await page.close();
  }

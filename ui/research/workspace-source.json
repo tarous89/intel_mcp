@@ -1,12 +1,12 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "b98f8682e68329e02b158a13cd46b2a4eb198398",
+  "source_commit": "43dc9d451b275426b9ee48b0aa213b4d4017e5fa",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "0e79805784fb4ecafd2c7a9827dc1b98073f37aa1eea99ab12cfd50ab43fadda",
+    "app/research/WorkspaceTables.tsx": "79023b4f2557b90b9b44cd8d91b69d9f520d47ac4b6a0ef3fcf6b1b0b487d366",
     "app/research/workspace.css": "bb1b420c0052ac01d506a7cb7e87c1754f17a70dbd2df5a618bd22b2becb440a",
     "app/preview/combined/SharedProjectFrame.tsx": "9dada294134e76ab2c80552455b81489847582093b2f9f3fb9827e308dac178c",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
@@ -20,5 +20,5 @@
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "ab86b654d07dd52a85e7f73307af4fd0867a72e1d876083654965906ad8b101c"
+  "bundle_sha256": "bdee053657f079df2595baf0013c2cabe55d58632f6eca092e42b393b56afb66"
 }
