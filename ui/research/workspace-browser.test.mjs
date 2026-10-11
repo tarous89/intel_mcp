@@ -8,7 +8,7 @@ const pages=Object.fromEntries(Object.entries(rows).map(([kind,row])=>[kind,{ent
 const data={project_id:'synthetic-project',title:'Research workspace',draft:{cache_token:'synthetic'},tables:Object.keys(pages).map(kind=>({kind,total:50})),preview_tables:pages,result:pages.pis,reports:[{id:'report-1',title:'Protocol comparison',summary:'Evidence comparison from the accessible preview.',access_scope:'preview',created_at:'2026-10-11T12:00:00Z'}]};
 test('shipped workspace has compact controls and reachable rightmost columns',async()=>{
  await mkdir('/tmp/workspace-design',{recursive:true});
- const browser=await chromium.launch({headless:true,channel:'chromium'});
+ const browser=await chromium.launch({headless:true});
  try{
  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
  for(const width of [1280,760,420]){
@@ -28,6 +28,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    await page.locator('[class*="tableViewport"]').evaluate(v=>v.scrollLeft=0);
    await page.screenshot({path:`/tmp/workspace-design/${width}-${label}.png`,fullPage:true});
    const headers=await page.locator('[class*="listHeader"]').innerText();assert(!headers.includes('Recent activity'));assert(!headers.includes('Department'));
+   const footer=await page.locator('.workspace-access').boundingBox();assert(footer.y>=0&&footer.y+footer.height<=900,`${width}/${label}: access banner outside viewport`);
    const dims=await page.locator('[class*="tableViewport"]').evaluate(v=>{v.scrollLeft=v.scrollWidth;const b=v.querySelector('article button:last-child');return {edge:b.getBoundingClientRect().right,viewport:v.getBoundingClientRect().right,body:document.documentElement.scrollWidth,width:innerWidth};});
    assert(dims.edge<=dims.viewport+2,`${width}/${label}: rightmost button clipped ${JSON.stringify(dims)}`);assert(dims.body<=dims.width+2,`${width}/${label}: page overflow`);
   }
@@ -40,6 +41,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   assert(await page.getByText('How do endpoints differ?',{exact:false}).isVisible());
   assert.equal(await page.locator('iframe').getAttribute('sandbox'),'');
   assert(await page.locator('.workspace-access').isVisible());
+  const footer=await page.locator('.workspace-access').boundingBox();assert(footer.y>=0&&footer.y+footer.height<=900,`${width}/Reports: banner outside viewport`);
   assert.equal(await page.locator('nav[aria-label="Project tables"] button').count(),5);
   await page.screenshot({path:`/tmp/workspace-design/${width}-reports.png`,fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));

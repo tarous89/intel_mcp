@@ -1,3 +1,12 @@
+# UX follow-up — 2026-10-11
+
+- Keep the access/count footer inside the viewport in App and extension across tables, Dataset and Reports, with content clearance.
+- App Reports: remove Copy project prompt.
+- App Dataset: export only server-authorized records, up to ten per category for free users and complete paginated lists for full access; explain the limit below the boxes and reuse the subscription offer.
+- Standalone /projects/subscription keeps the normal sidebar; Settings retains Billing. Existing subscription links redirect, preserving checkout confirmation.
+- Verification passed: TypeScript; 11 App tests including exact Excel row counts for preview/full access; 3 shipped-extension tests; 16 actual App component browser checks (desktop/mobile across tables, Dataset, Reports, Subscription and Billing).
+- User explicitly approved publication to tarous89/intel_agent_app and tarous89/intel_mcp and deployment of both services on 2026-10-11. Next: publish App first, then matching extension, pass CI and verify both Render deploys.
+
 # Shared workspace UX release — 2026-10-11
 User approved implementation and release of all items below on both App and embedded workspace unless noted.
 1. Fix horizontal clipping, including last action column and wide selected fields.
@@ -146,4 +155,5 @@ Plugin source is in `plugins/trialagents-intel/`; review `docs/CHATGPT_PLUGIN_RE
 
 ## 2026-10-09 coordinated account/project UX correction
 Owner approved direct website login/signup from Connect, free account choice, automatic exact-result saving and one normal /projects list. Handoff capabilities are short-lived, hashed, same-origin and independent per browser tab; repeat completion is idempotent. Anonymous claim preserves project identity. Only an authorized source-owner handoff can copy an owned snapshot into another chosen account. Current web and MCP sessions remain separate. The normal catalog includes existing research workspaces and legacy snapshots, with canonical /projects routes; /research redirects to /projects. No search rerun, paid job or entitlement change. App migration0058 and endpoint must be deployed before the MCP producer/UI. Actual host acceptance must be recorded separately from automated tests.
+
 
