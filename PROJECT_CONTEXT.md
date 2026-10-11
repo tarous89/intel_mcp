@@ -1,3 +1,16 @@
+# Shared workspace UX release — 2026-10-11
+User approved implementation and release of all items below on both App and embedded workspace unless noted.
+1. Fix horizontal clipping, including last action column and wide selected fields.
+2. Sites: recent activity in details only. PIs: department and recent activity in details only.
+3. Only entity names bold in table rows; unify action button colors.
+4. One changing table heading above a single row of tabs; Filters/Fields on right. Rank within Filters. Export only in App.
+5. Remove Dataset from horizontal table tabs; preserve App sidebar Dataset.
+6. Compact count/access footer; remove disabled preview pagination and extension source/policy sections. Keep full-access browsing functional.
+7. Extension: Connect account CTA with accurate existing-entitlement wording. App: Get Full Access leads to Subscription within Settings.
+8. Subscription sidebar entry above Settings; reuse existing project-scoped monthly/yearly plans and checkout/management, no billing policy change.
+9. Rename Reports to Analyze and provide ChatGPT analysis entry; final plugin URL not found in discovery, use configurable verified URL plus explicit ChatGPT fallback.
+10. Validate actual shipped extension rendering, interaction and overflow; publish App and rebuilt MCP together.
+
 ## Blank extension hotfix — 2026-10-10
 - User screenshot showed an empty dark extension panel after successful workspace preparation.
 - Reproduced shipped HTML failing with `Cannot read properties of null (reading 'useState')`: embedded root and shared App components resolved separate React installations.

@@ -57,7 +57,7 @@ function View({initial}:{initial:any}){
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  if(!data)return <p role="alert">{error}</p>;
- return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables data={data} onPage={page} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} onPage={page} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>setDataset(true)} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};
