@@ -119,6 +119,7 @@ def test_workbook_full_rankings_lossless_text_and_no_formulas(tmp_path):
     workbook(payload, first); workbook(payload, second)
     assert first.read_bytes() == second.read_bytes()
     book = load_workbook(first, read_only=True)
+    assert book.properties.created.year == book.properties.modified.year == 2000
     rows = list(book["Profiles"].iter_rows(min_row=2))
     cells = [r[3] for r in rows if r[0].value == "/" + TID + "/text"]
     assert len(cells) > 1 and all(c.data_type == "s" for c in cells)
