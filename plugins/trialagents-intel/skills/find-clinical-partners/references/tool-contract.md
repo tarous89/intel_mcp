@@ -57,7 +57,7 @@ Both search and ranking return `access_info` with total_matching, returned, offs
 
 ## Canonical workspace tools
 
-Use live schemas as authoritative. inspect_research_trials pages safe candidate metadata; refine_research_cohort validates source snapshot, selected trial IDs and rationale. These remain independent of the website wizard. prepare_research_workspace computes a read-only four-table preview without creating a user project. Its private cache retains frozen source profiles and exact result pages for 24 hours; no raw profiles are exposed to the model or widget.
+Use live schemas as authoritative. inspect_research_trials pages safe candidate metadata; refine_research_cohort validates source snapshot, selected trial IDs and rationale. These remain independent of the website wizard. prepare_research_workspace computes a read-only four-table preview without creating a user project. Its private cache retains frozen source profiles and exact result pages for 24 hours; ordinary preview tables expose no raw profiles; report evidence tools can return full profiles only with authorized paid access.
 
 | Tool | Purpose | Access |
 |---|---|---|
@@ -68,7 +68,7 @@ Use live schemas as authoritative. inspect_research_trials pages safe candidate 
 
 For a revision, supply both project_id and latest expected_revision. For a new project, omit both. A stale revision fails; reopen and reconcile. Intermediate searches never overwrite a saved project. Repeating an identical save for the same owner returns the same project. Saved datasets remain available after preview expiry. Existing ready results stay visible while a newer revision's report artifacts are prepared; respect pending_revision.
 
-The extension prefers supported fullscreen host placement with no embedded sidebar or Reports. Dataset stays embedded; Account and About dataset access open App destinations. Website projects open at /projects/{id}/{tab} within the normal app shell. Both clients use the shared tables. /share/research/{previewId} remains an unsaved-preview fallback; preserve its #preview capability.
+The extension prefers supported fullscreen host placement with no embedded sidebar. A Reports tab appears only when reports exist. Dataset stays embedded; Account and About dataset access open App destinations. Website projects open at /projects/{id}/{tab} within the normal app shell. Both clients use the shared tables. /share/research/{previewId} remains an unsaved-preview fallback; preserve its #preview capability.
 
 Connect opens website login/signup immediately. Any account can be selected; an email hint is editable. Authentication opens Projects immediately, attaches the cached selection and displays a normal project card. This creates canonical project/selection/dataset metadata, then prepares report artifacts in bounded background work using the captured profiles. It does not rerun clinical research or invoke a model. There is no legacy research-project copy step. Website authentication does not authorize MCP; private reads require OAuth for the owning account. A preview already saved to another account does not grant access to that account's data.
 
@@ -76,3 +76,7 @@ Free accounts retain ten rows per category; paid access follows existing entitle
 
 ## Shared workspace restoration (0.3.1)
 The app-only `read_workspace_trial` opens a full frozen trial profile in the workspace dialog. Table reads accept validated search, country, subgroup, CRO function, metric minimum and sort controls. Filters cover the accessible saved table; paid Excel exports include every filtered page. Site/PI metrics use the selection's frozen as-of date (five-year experience, six-month authorizations) and saved-cohort percentile bands. These presentation controls never rerun search or change saved membership, identities, or ordering. Missing contacts remain missing; do not infer them.
+
+## HTML reports (0.4.0)
+
+For deeper analysis call `prepare_project_report` and follow [report guidance](report-guidance.md). Read bounded evidence using `read_report_evidence` and, with paid access, exact available files through `read_report_document`. `save_project_report` persists the HTML, original question, title, snapshot and source IDs and opens Reports. `list_project_reports` and `open_project_report` read saved reports. Free users can generate reports using only disclosed preview evidence; anonymous reports attach when the preview is saved. Source data updates do not automatically refresh saved projects or reports.

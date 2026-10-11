@@ -22,6 +22,8 @@ def test_package_is_reproducible_and_excludes_unlisted_files(tmp_path, monkeypat
     with zipfile.ZipFile(first) as archive:
         assert set(archive.namelist()) == set(plugin_build.FILES)
         assert 'plugin.json' in archive.namelist()
+        assert 'skills/find-clinical-partners/references/report-guidance.md' in archive.namelist()
+        assert (source/'skills/find-clinical-partners/references/report-guidance.md').read_text() == (MODULE_PATH.parents[1]/'src/intel_mcp/report-guidance.md').read_text()
         assert all(b'DO_NOT_DISTRIBUTE' not in archive.read(n) for n in archive.namelist())
 
 
