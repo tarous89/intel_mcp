@@ -24,6 +24,7 @@ async def test_canonical_save_is_oauth_write_and_preview_paging_never_rebuilds(m
     async with Client(server) as client:
         tools={t.name:t for t in (await client.list_tools()).tools}
         assert tools['save_project'].annotations.read_only_hint is False
+        assert tools['save_project_view'].annotations.read_only_hint is False
         assert tools['save_project'].meta['securitySchemes']==[{'type':'oauth2','scopes':['mcp:tools']}]
         for name in ('open_project','list_projects','read_project_preview'):
             assert tools[name].annotations.read_only_hint is True
@@ -47,3 +48,27 @@ async def test_canonical_save_is_oauth_write_and_preview_paging_never_rebuilds(m
         assert calls[-2]['input']['projectId']==project and calls[-2]['input']['expectedRevision']==3
         listed=await client.call_tool('list_projects',{})
         assert listed.structured_content['projects'][0]['project_id']==project
+
+
+@pytest.mark.anyio
+async def test_view_reads_do_not_write_and_view_saves_are_authenticated(monkeypatch):
+    calls=[]
+    project='00000000-0000-0000-0000-000000000001'
+    class Control:
+        async def research_workspace(self,body):
+            calls.append(deepcopy(body))
+            return {'view':{'version':2,'controls':{'country':'DE'}},'project_id':project,'result':{}}
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,*_=create_research_server(settings,lambda:Engine([record()]),lambda:Control())
+    async with Client(server) as client:
+        args={'project_id':project,'kind':'sites','controls':{'country':'DE'},'expected_version':1,'expected_revision':3}
+        denied=await client.call_tool('save_project_view',args)
+        assert denied.is_error and not calls
+        monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
+        await client.call_tool('open_project',{'project_id':project})
+        assert calls[-1]['operation']=='canonical_read' and 'controls' not in calls[-1] and calls[-1]['kind'] is None
+        await client.call_tool('open_project',{'project_id':project,'kind':'sites','controls':{}})
+        assert calls[-1]['controls']=={}
+        saved=await client.call_tool('save_project_view',args)
+        assert not saved.is_error and calls[-1]['operation']=='view_save'
+        assert calls[-1]['expectedVersion']==1 and calls[-1]['expectedRevision']==3
