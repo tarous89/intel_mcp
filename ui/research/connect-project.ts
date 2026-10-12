@@ -2,7 +2,7 @@ export class ConnectionError extends Error {
  constructor(public code:'navigation'|'handoff'){super(code);}
 }
 export function connectionUrl(data:any){
- if(data.owned&&!data.draft)return 'https://intel.trialagents.com/projects';
+ if(data.account?.connected===true||data.owned)return 'https://intel.trialagents.com/projects/settings';
  const payload=data.draft?{draft:data.draft}:{project_id:data.project_id,preview_token:data.preview_token};
  if(!data.draft&&!data.preview_token)throw new ConnectionError('handoff');
  const encoded=btoa(Array.from(new TextEncoder().encode(JSON.stringify(payload)),byte=>String.fromCharCode(byte)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -10,7 +10,7 @@ export function connectionUrl(data:any){
  return 'https://intel.trialagents.com/auth?mode=login&connect=1#import='+encoded;
 }
 export async function openConnection(app:any,url:string,timeout=15000){
- if(!/^https:\/\/intel\.trialagents\.com\/(projects|auth\?mode=login&connect=1#import=[A-Za-z0-9_-]+)$/.test(url))throw new ConnectionError('handoff');
+ if(!/^https:\/\/intel\.trialagents\.com\/(projects(?:\/settings)?|auth\?mode=login&connect=1#import=[A-Za-z0-9_-]+)$/.test(url))throw new ConnectionError('handoff');
  let timer:ReturnType<typeof setTimeout>;
  try{
   const result:any=await Promise.race([app.openLink({url},{timeout}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('timeout')),timeout);})]);

@@ -1,15 +1,15 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "e870873fb4f9fc1f4d050209e059f36b6a75ec8c",
+  "source_commit": "6ddc63176fb1e1d178807238f51004bb0445d9e0",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
-    "app/research/ProjectReports.tsx": "3ddc0d2816195a1fb498cf3f197dea898d1c41c30f92a85c3e36df99cc317465",
+    "app/research/ProjectReports.tsx": "e8558fe30fd515d81facc3c500910f41149e34b6bc8374533d415859b99bace5",
     "public/trialagents-mark-white.png": "7b879c8cf3e472b6984291343e61fd988caf46676f1725dcd5d466bdbfc2f20c",
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "660009b744abd31aa0055976c85f85231836bca75d701e3cadb665ed3da9c632",
-    "app/research/workspace.css": "bb1b420c0052ac01d506a7cb7e87c1754f17a70dbd2df5a618bd22b2becb440a",
+    "app/research/WorkspaceTables.tsx": "bf5c6298e258352eafd79ea53f5db2c9f86353b28d0376fead48809006537351",
+    "app/research/workspace.css": "68075b02dd05b0b67ce353f7bb6da97eb5b06162c3a30de24112867fce6a1d98",
     "app/preview/combined/SharedProjectFrame.tsx": "4de8ea6280c4f7efbe9ee1261559862b98fdf8b65f9a93d1d4e8ce36b6f4b1a0",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
     "app/globals.css": "b7cadb43d253dfa93566b4c2f7b3d3f1f59db1a0791edfd9619b541a226a679e",
@@ -22,5 +22,5 @@
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "caab17217b87d3c29896570a20ecc775894b791af18aceac46bd07e22e5f46d0"
+  "bundle_sha256": "307d2d180457b8da67b9093467a04f450f80e939e3f6ad07c121fad85ddf32db"
 }

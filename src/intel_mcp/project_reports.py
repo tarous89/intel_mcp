@@ -160,18 +160,21 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
     async def save_project_report(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(min_length=1,max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
-        """Save the requested HTML analysis with its question, title, source IDs and exact snapshot; open Reports.
+        """Store every generated report as a new immutable version and open the saved Reports view.
 
         Use prepare_project_report guidance and HTML example: executive summary, one section
         per question, short answer above a visualization, nuances below. Keep source_ids
         in metadata; do not display sources, trial IDs or links unless requested.
         Free reports use only preview evidence.
+        Generating a report includes saving it; do not wait for a separate save request.
         Explicit write: honor host approval. Reuse request_key only for identical retries.
-        Anonymous previews retain reports temporarily; Connect account saves the preview
+        Connected-account reports are automatically attached to a durable canonical project.
+        Anonymous previews retain reports temporarily; Connect Account saves the preview
         and its reports. Saved projects require the owner account. Never claim saved on error.
         """
         result=await call('report_save',project_id,preview,title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key)
-        out=await workspace(project_id,preview,result['report']['id'])
+        saved_project=result.get('project_id')
+        out=await workspace(saved_project or project_id,None if saved_project else preview,result['report']['id'])
         return {**out,'report_saved':True,'temporary_report':result['temporary']}
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)

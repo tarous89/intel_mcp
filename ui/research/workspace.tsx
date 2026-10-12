@@ -20,7 +20,7 @@ function View({initial}:{initial:any}){
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
  setIncoming=value=>{requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number,controls:any=undefined,preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView){setDataset(false);setReportsView(false);}setError('');setRetryPage(null);setConnectionError(false);
-  if(!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setData(next);modelContext(next);return;}
+  if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setData(next);modelContext(next);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
   const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
@@ -30,11 +30,12 @@ function View({initial}:{initial:any}){
   setData(out.structuredContent);modelContext(out.structuredContent);
  }catch{if(serial!==requestSerial.current)return;setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{if(serial===requestSerial.current)setBusy(false);}}
  useEffect(()=>{
-  if(!data?.canonical)return;
+  if(!data?.canonical&&!data?.draft?.cache_token)return;
   const refresh=()=>{if(!document.hidden&&!busy)void page(data.result.entity_type,data.result.access_info.offset??0,data.canonical?undefined:activeControls.current,true);};
   window.addEventListener('focus',refresh);const timer=setInterval(refresh,30000);
   return()=>{window.removeEventListener('focus',refresh);clearInterval(timer);};
- },[data?.project_id,data?.canonical,data?.result?.entity_type,data?.result?.access_info?.offset,busy]);
+ },[data?.project_id,data?.canonical,data?.draft?.cache_token,data?.result?.entity_type,data?.result?.access_info?.offset,busy]);
+ useEffect(()=>{if(initial.draft?.cache_token)void page(initial.result.entity_type,0,initial.view?.controls??{},true);},[]);
  async function applyView(controls:any){
   if(!data.canonical){await page(data.result.entity_type,0,controls);return;}
   if(busy)return;setBusy(true);setError('');
