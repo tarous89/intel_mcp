@@ -34,8 +34,8 @@ RESEARCH_WORKFLOW = (
     'Connecting alone does not activate paid access. Explain restrictions neutrally, with no subscription promotion or checkout redirects. '
     'If the workspace feature is unavailable, retain the existing rank/evidence and explicit-save tools; do not claim a project was created. '
     'After a workspace failure, keep chat to a brief error and concise insights; do not automatically replace the workspace with lists. '
-    'For deeper analysis beyond the four entity tables, call prepare_project_report and follow its separate HTML report guidance. Free users can save reports using only disclosed preview evidence. Paid users may read full authorized profiles and existing extracted documents. Save with save_project_report to open Reports in the workspace; keep the access disclaimer. Saved reports and projects never auto-refresh. '
-    'Do not promise raw protocols, patient documents, complete EU histories or unrestricted profiles. '
+    'For deeper analysis beyond the four entity tables, call prepare_project_report and follow its separate HTML report guidance. Free users can read complete profiles and all available extracted document text for the fixed eligible ten trials, and use that evidence in reports. Paid users may read all authorized trials. Use describe_trial_profile_schema for section names, exact fields, types and meanings; read_trial_profiles for full or combined section reads; list_trial_documents and read_trial_document for extracted text. prepare_project_report returns eligible_trial_ids without creating a report. Save with save_project_report to open Reports in the workspace; keep the access disclaimer. Saved reports and projects never auto-refresh. '
+    'Protocols and patient information/consent document text are available when already extracted for eligible trials; never promise unavailable files, patient-level data or complete EU histories. '
     'No backend model job, payment or outreach is needed for these actions.'
 )
 
@@ -135,11 +135,13 @@ RESEARCH_CAPABILITIES = {
                   'Title/disease/profile-text discovery and structured country, phase, modality and therapeutic-area filters',
                   'Recorded supporting trial titles, IDs, source links and entity roles for displayed entities',
                   'Function-specific CRO experience, recorded sponsor co-occurrence and PI affiliations',
-                  'Explicit-request recorded CRO contacts; PI contacts where available'],
+                  'Explicit-request recorded CRO contacts; PI contacts where available',
+                  'Complete frozen profiles, one or combined sections, and all available extracted document text for the fixed eligible ten trials',
+                  'describe_trial_profile_schema exposes the exact section vocabulary, field types and nesting'],
     'existing_entitlement': ['Full entity lists across research selections with active paid account access',
                              'Recorded trial-level operational findings in evidence where present; not entity performance attribution'],
     'connected_account': ['Save private research projects and reopen them in ChatGPT or Intel Agent without new analysis'],
-    'reports': ['HTML analysis saved to a project and visible in both interfaces', 'Free preview-evidence reports; paid authorized profiles and available extracted protocols/documents'],
+    'reports': ['HTML analysis saved to a project and visible in both interfaces', 'Complete profiles/sections and extracted documents for eligible ten free trials; all authorized trials with paid access'],
     'not_exposed': ['Unavailable or unextracted documents', 'Patient-level data',
-                    'Complete EU regulatory history', 'Full clinical-results tables', 'Outreach or response tracking'],
+                    'Complete EU regulatory history', 'Unavailable clinical-study datasets', 'Outreach or response tracking'],
 }

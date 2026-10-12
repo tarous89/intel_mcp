@@ -36,4 +36,4 @@ target-version = "py311"
 
 
 [tool.setuptools.package-data]
-intel_mcp = ["ui/*.html", "report-guidance.md"]
+intel_mcp = ["ui/*.html", "report-guidance.md", "schemas/*.json"]

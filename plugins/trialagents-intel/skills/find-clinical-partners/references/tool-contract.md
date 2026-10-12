@@ -9,7 +9,7 @@ Endpoint: `https://mcp.trialagents.com/research/mcp`. Use only the exposed tools
 | get_research_entity_evidence(selection_id, entity_id, offset=0, project_id=null) | Supporting trials for one returned entity | Anonymous top-ten entities, bounded evidence; paid account for expanded access |
 | list_research_projects() | Connect account and show account capabilities | OAuth |
 
-Selections expire (normally 15 minutes). Search construction is concurrency-limited: make entity-category searches sequentially. Prepare an exact workspace preview before canonical saving; use the tools below. Legacy saved-project tools do not create new canonical projects. No arbitrary SQL, count-only catalogue, full-profile, outreach or checkout tool exists here.
+Selections expire (normally 15 minutes). Search construction is concurrency-limited: make entity-category searches sequentially. Prepare an exact workspace preview before canonical saving; use the tools below. Legacy saved-project tools do not create new canonical projects. No arbitrary SQL, count-only catalogue, outreach or checkout tool exists here. Trial profiles and extracted text are available only within the authorized trial set.
 
 ## Criteria
 
@@ -57,7 +57,7 @@ Both search and ranking return `access_info` with total_matching, returned, offs
 
 ## Canonical workspace tools
 
-Use live schemas as authoritative. inspect_research_trials pages safe candidate metadata; refine_research_cohort validates source snapshot, selected trial IDs and rationale. These remain independent of the website wizard. prepare_research_workspace computes a read-only four-table preview without creating a user project. Its private cache retains frozen source profiles and exact result pages for 24 hours; ordinary preview tables expose no raw profiles; report evidence tools can return full profiles only with authorized paid access.
+Use live schemas as authoritative. inspect_research_trials pages safe candidate metadata; refine_research_cohort validates source snapshot, selected trial IDs and rationale. These remain independent of the website wizard. prepare_research_workspace computes a read-only four-table preview without creating a user project. Its private cache retains frozen source profiles and exact result pages for 24 hours; ordinary preview tables expose no raw profiles; content tools return complete profiles and extracted documents for the fixed eligible ten trials without authentication; paid users can access all authorized trials. Call describe_trial_profile_schema for exact fields/types and all 14 section names. read_trial_profiles accepts omitted/empty sections for full content or an exact union of selected sections; follow next_part for large profiles. list_trial_documents lists exact extracted names; read_trial_document returns preserved text with next_part until null. prepare_project_report exposes eligible_trial_ids without generating or saving a report. Nested sites/investigators are complete and are not capped at ten.
 
 | Tool | Purpose | Access |
 |---|---|---|

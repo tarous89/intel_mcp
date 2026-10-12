@@ -1,3 +1,11 @@
+# Complete trial content implementation — 2026-10-12
+
+User approved implementation and deployment. Steps: (1) share trial-ID authorization across complete frozen profiles, documents and reports; (2) expose exact section reads and authoritative schema discovery to ChatGPT; (3) validate anonymous/free/paid boundaries, complete text and provenance; (4) release App before MCP and verify live anonymous reads. Free content access covers the stable ten preview trials, with no nested-record/section/document quota. Preserve metadata discovery, private-project ownership, expiry and immutable snapshots.
+
+# Trial-content access scope — 2026-10-12
+
+User requests complete profiles, section reads, document inventory and all available extracted text without authentication for the accessible trial count. Current free access returns empty profiles and denies documents; not yet changed. Implementation scope and ordered steps: [Anonymous trial content](docs/anonymous-trial-content-scope-2026-10-12.md). Preserve current runtime until implementation; expose schema/section vocabulary explicitly to ChatGPT.
+
 # UX follow-up — 2026-10-11
 
 - Keep the access/count footer inside the viewport in App and extension across tables, Dataset and Reports, with content clearance.
