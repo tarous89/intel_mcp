@@ -1,4 +1,8 @@
-# Active work — report persistence and account controls, 2026-10-12
+# Active work — integrated access footer, 2026-10-12
+
+Replace the floating access banner with a reserved bottom layout row in both app and extension. Keep content scrolling above it, balanced side/top spacing, a minimal bottom gap and a stronger green background. Cover tables, Dataset and Reports, preserving account/access actions. Previous report persistence release is deployed (App #283, MCP #114). Steps: update shared layout and all footer call sites; rebuild extension; verify desktop/mobile scrolling and navigation; publish the paired changes.
+
+# Completed work — report persistence and account controls, 2026-10-12
 
 Owner requests automatic versioned storage of generated ChatGPT reports in the connected account, app-side report deletion, and Connect Account / Manage Account buttons in both extension header and footer. Separate authenticated identity from paid access. Preserve anonymous temporary reports until connection, source provenance, immutable versions, idempotency and owner isolation. Implement and verify before release. Previous app/MCP changes are deployed.
 
