@@ -1,6 +1,6 @@
 """ChatGPT-authored reports: bounded evidence, explicit persistence, shared renderer."""
 from importlib.resources import files
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 import json
 from .profiles import ProfileSection, project_profile
 from .followups import RESOURCE as FOLLOWUP_RESOURCE, followup_payload
@@ -81,14 +81,16 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         """
         profiles=[]
         for trial_id in dict.fromkeys(trial_ids):
-            detail=await call('trial_profile',project_id,preview,trialId=trial_id,revision=revision)
+            evidence=await call('report_evidence',project_id,preview,trialIds=[trial_id],revision=revision)
+            source=evidence['sources'][0]
+            detail=source['data']
             profile=project_profile(detail['profile'],sections or [])
             raw=json.dumps(profile,ensure_ascii=False,separators=(',',':'))
             size=20000
             total=max(1,(len(raw)+size-1)//size)
             if part>total:raise ToolError('PROFILE_PART_UNAVAILABLE')
             item={k:v for k,v in detail.items() if k not in ('profile','trial')}
-            item.update(trial_id=trial_id,sections=sections or ['full'],part=part,total_parts=total,
+            item.update(source_id=source['source_id'],trial_id=trial_id,sections=sections or ['full'],part=part,total_parts=total,
                         next_part=part+1 if part<total else None,complete=total==1)
             if total==1:item['profile']=profile
             else:item['profile_json_part']=raw[(part-1)*size:part*size]
@@ -159,24 +161,61 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         return await read_report_document(trial_id,document_name,part,project_id,preview,revision)
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
-    async def save_project_report(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(min_length=1,max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
-        """Store every generated report as a new immutable version and open the saved Reports view.
+    async def save_project_report(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:PreviewSpec|None=None,
+        artifact_kind:Literal['report','dashboard','chart','cards','table','form','tracker','calculator','visualization']='report',
+        renderer:Literal['static','interactive']='static',evidence_basis:Literal['trial_evidence','project_tables','user_provided']='trial_evidence',
+        report_id:str|None=None,expected_version:int|None=None)->dict[str,Any]:
+        """Save and present ANY custom-coded data visualization in the shared Reports workspace.
 
-        Use prepare_project_report guidance and HTML example: title, a one-to-two-sentence executive summary, then question headings
-        and graphs only. Advice and interpretation belong in chat. Use one report
-        frame and one per graph, with no nested panels, unless explicitly requested otherwise. Keep source_ids
-        in metadata; do not display sources, trial IDs or links unless requested.
-        Free reports use only preview evidence.
-        Generating a report includes saving it; do not wait for a separate save request.
-        Explicit write: honor host approval. Reuse request_key only for identical retries.
-        Connected-account reports are automatically attached to a durable canonical project.
-        Anonymous previews retain reports temporarily; Connect Account saves the preview
-        and its reports. Saved projects require the owner account. Never claim saved on error.
+        Includes forms, trackers, tables, calculators, cards and other visual tools, regardless of name.
+        Always save as part of creating a requested visualization; no separate save prompt needed.
+        Guests receive temporary database storage; connecting attaches the same project and visualizations.
+        For revisions pass the existing report_id and expected_version: replace that item, not a new copy.
+        Use a fresh request_key for changes; identical retries reuse it. Copy only when explicitly requested.
+        Use prepare_project_report for current dataset/revision and design/renderer guidance.
+        trial_evidence requires registered source_ids from read_report_evidence or read_trial_profiles.
+        project_tables uses authorized project-table data; user_provided uses user-supplied data. These may
+        pass source_ids=[]; neither permits invented evidence or access expansion. Do not switch evidence_basis
+        just to bypass a source validation failure. Interactive HTML uses isolated inline JavaScript, no external
+        libraries/assets, network, account access or direct database writes. Honor host write approval.
+        Confirm saved only when report_saved=true; offer_visualization_save provides a button if intent is unclear.
         """
-        result=await call('report_save',project_id,preview,title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key)
-        saved_project=result.get('project_id')
-        out=await workspace(saved_project or project_id,None if saved_project else preview,result['report']['id'])
-        return {**out,'report':result['report'],'report_saved':True,'temporary_report':result['temporary']}
+        args=dict(title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key,
+                  artifactKind=artifact_kind,renderer=renderer,evidenceBasis=evidence_basis,reportId=report_id,expectedVersion=expected_version)
+        result=None
+        try:
+            result=await call('report_save',project_id,preview,**args)
+            saved_project=result.get('project_id')
+            target=saved_project or project_id
+            target_preview=None if saved_project else preview
+            verified=await call('report_read',target,target_preview,reportId=result['report']['id'])
+            if verified.get('report',{}).get('id')!=result['report']['id']:
+                raise ToolError('REPORT_SAVE_NOT_VERIFIED')
+            out=await workspace(target,target_preview,result['report']['id'])
+            return {**out,'report':verified['report'],'report_saved':True,'temporary_report':result['temporary'],
+                    'save_message':'Saved temporarily. Connect your account to keep this project and its visualizations.' if result['temporary'] else 'Saved to your TrialAgents account.'}
+        except ToolError as error:
+            # Do not lose the rendered conversation artifact or claim success on an uncertain write.
+            try:out=await workspace(project_id,preview)
+            except ToolError:out={}
+            return {**out,'report_saved':False,'save_error':str(error),'save_status':'unverified' if result else 'failed',
+                    'visualization_save_offer':{'title':title,'retry':True},
+                    'instructions':'Keep the visualization in chat. Show Retry save. Correct the reported error; retry identical content with the same request_key. Never claim saved without verification.'}
+
+    @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
+    async def offer_visualization_save(title:Annotated[str,Field(min_length=1,max_length=200)],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
+        """Offer a Save to TrialAgents button only when saving intent is genuinely unclear.
+
+        Does not save the visualization or send a message automatically. Normal requests for any
+        custom-coded data visualization use save_project_report directly. Guests see Connect Account to Save.
+        Keep the candidate visualization available in conversation so a clicked save request can persist it.
+        """
+        return {**await workspace(project_id,preview),'visualization_save_offer':{'title':title,'retry':False}}
+
+    @server.tool(meta={**callable_meta,'ui':{'visibility':['app']}},annotations=write,structured_output=True)
+    async def save_visualization_state(report_id:str,expected_version:int,state:dict[str,Any],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
+        """Persist form/tracker state only after the user clicks the workspace Save changes button."""
+        return await call('report_state_save',project_id,preview,reportId=report_id,expectedVersion=expected_version,state=state)
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
     async def list_project_reports(project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:

@@ -1,12 +1,16 @@
 ---
 name: create-trial-report
-description: Create and save a visual HTML report answering one or more questions about a TrialAgents trial selection, including protocol comparisons, operational patterns and subgroup analyses. Use for deeper analysis requiring charts or a saved report; ordinary partner lists stay in workspace tables.
+description: Create, save, revise and present any custom-coded data or analysis visualization in TrialAgents, including reports, dashboards, charts, cards, tables, forms, trackers, calculators and custom interactive views. Use regardless of whether the user calls the result a report. Also use when saving an existing visualization or editing one already saved.
 ---
 
-# Create a visual trial report
+# Create and save a project visualization
 
-Read [answer standard](../../references/presentation-standard.md), [access rules](../../references/access-and-evidence.md), and [report workflow](references/report-guidance.md). Use [the HTML example](assets/report-example.html) for layout only; replace every synthetic finding with authorized evidence.
+Read [answer standard](../../references/presentation-standard.md), [access rules](../../references/access-and-evidence.md), and [visualization workflow](references/report-guidance.md). Use [the HTML example](assets/report-example.html) for layout only; replace synthetic findings with authorized evidence.
 
-Prepare scope, inspect evidence, then default to: bold, larger h1 report title using the same sans-serif family as the project name → executive summary (one or two sentences total) → question headings and graphs only. Interpretation, advice and narrative belong in chat. Graph labels carry units, denominators, missingness and scope. Use one report frame and one frame per graph, no nested panels or boxed summary. Follow another format only if the user explicitly requests it. Never invent data.
+Any requested data/analysis visualization requiring custom code belongs in the shared Reports workspace. Create it, call save_project_report and present its returned workspace in the same turn. Do not stop at an inline chat artifact, save_project, or a promise to save. No additional save request is needed; honor the host's write approval. If saving intent is genuinely unclear, keep the candidate visible in chat and call offer_visualization_save for a real Save to TrialAgents button. Never invent a clickable button in prose.
 
-Every report-generation request includes versioned storage: always call save_project_report before presenting the finished report, without waiting for a separate save request. Preserve previous versions and use a new request key for changed content. Save with source IDs in internal metadata, preserving the snapshot and host write approval. Show it in the shared Reports tab. Keep chat concise and finish with three useful follow-up questions via show_research_followups and one access sentence. Do not repeat the report or display citations unless requested.
+For revisions, list/read the existing item and pass its report_id and expected_version to save_project_report. Replace that item in place. Create a separate copy only when explicitly requested. Use the same request_key for identical retries and a new one for edits. Confirm saved only when report_saved=true. On failure retain the chat visualization, explain the actual error, and show Retry save.
+
+Guests receive temporary database storage and see Connect Account to keep the same project and all its visualizations. Connected owners receive verified account-save confirmation and can access the item in both plugin and app. Never describe temporary storage as permanent account storage.
+
+Prefer useful visualizations with coordinated colors and dark backgrounds when contrast helps. Tables, lists and short summaries are welcome when useful. Use a bold larger title matching project-name typography; summaries/question headings are optional for simple charts, forms or trackers. Check consistent spacing and prevent overlap or clipping at desktop/mobile widths. Keep one report frame and one frame per chart. Source provenance and permissions remain authoritative.

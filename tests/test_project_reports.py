@@ -10,6 +10,7 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
     calls=[]
     allowed=False
     connected=False
+    blocked=False
     project='00000000-0000-0000-0000-000000000001'
     preview={'preview_id':project,'selection_id':'s'*43,'title':'Report research','snapshot_key':'a'*64,'cache_token':'b'*43}
     class Control:
@@ -18,6 +19,7 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
             op=body['operation']
             if op=='report_document_authorize' and not allowed:raise ControlPlaneError('DOCUMENT_NOT_IN_PREVIEW','Preview excludes documents',403)
             if op=='report_context':return {'dataset_id':'snapshot','revision':1,'access_scope':'preview'}
+            if op=='report_save' and blocked:raise ControlPlaneError('REPORT_SNAPSHOT_CHANGED','Snapshot changed',409)
             if op=='report_save':return {'report':{'id':'saved-report'},'temporary':not connected,'project_id':project if connected else None}
             if op=='report_read':return {'report':{'id':'saved-report','html':'<p>Saved evidence report</p>'}}
             if op=='report_list':return {'reports':[{'id':'saved-report','title':'Analysis'}]}
@@ -36,7 +38,7 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert descriptors['read_report_document'].annotations.read_only_hint is True
         prepared=await client.call_tool('prepare_project_report',{'preview':preview})
         assert not prepared.is_error
-        assert 'Question headings and graphs only' in prepared.structured_content['report_guidance']
+        assert 'Revisions pass report_id and expected_version' in prepared.structured_content['report_guidance']
         assert 'Do not display sources' in prepared.structured_content['report_guidance']
         assert '<svg' in prepared.structured_content['report_html_example']
         assert 'Nuances and implications' not in prepared.structured_content['report_html_example']
@@ -53,7 +55,8 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert saved.structured_content['active_report_id']=='saved-report'
         assert saved.structured_content['report_saved'] is True
         assert saved.structured_content['temporary_report'] is True
-        assert calls[-3]['operation']=='report_save'
+        assert calls[-4]['operation']=='report_save'
+        assert calls[-3]['operation']=='report_read'
         opened=await client.call_tool('open_project_report',{'preview':preview,'report_id':'saved-report'})
         assert not opened.is_error and '<p>' in opened.structured_content['report']['html']
         count=len(calls)
@@ -68,3 +71,12 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert saved.structured_content['temporary_report'] is False
         assert calls[-2]['operation']=='canonical_read'
         assert calls[-2]['projectId']==project and 'preview' not in calls[-2]
+        before=len(calls)
+        offered=await client.call_tool('offer_visualization_save',{'title':'Site tracker','project_id':project})
+        assert offered.structured_content['visualization_save_offer']['title']=='Site tracker'
+        assert not any(c['operation']=='report_save' for c in calls[before:])
+        blocked=True
+        failed=await client.call_tool('save_project_report',{'project_id':project,'title':'Tracker','query':'Track sites','summary':'','html':'<h1>Site tracker</h1>','source_ids':[],'evidence_basis':'project_tables','artifact_kind':'tracker','dataset_id':'snapshot','revision':1,'request_key':'retry-1'})
+        assert failed.structured_content['report_saved'] is False
+        assert failed.structured_content['visualization_save_offer']['retry'] is True
+        assert 'REPORT_SNAPSHOT_CHANGED' in failed.structured_content['save_error']

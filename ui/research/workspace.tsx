@@ -10,7 +10,7 @@ const root=createRoot(document.querySelector('main')!);
 let setIncoming:(data:any)=>void=()=>{};
 function modelContext(data:any){
  // Context synchronization is optional host support, not a table-load dependency.
- try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,applied_view:data.view??null,matching_count:data.result.total_entities,visible_count:data.result.returned,view_scope:data.account?.fullAccess?'full_dataset':'accessible_preview',visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null,reports:data.reports??[],active_report_id:data.active_report_id??null}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
+ try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,applied_view:data.view??null,matching_count:data.result.total_entities,visible_count:data.result.returned,view_scope:data.account?.fullAccess?'full_dataset':'accessible_preview',visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null,reports:data.reports??[],visualization_save_offer:data.visualization_save_offer??null,active_report_id:data.active_report_id??null}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
 }
 function View({initial}:{initial:any}){
  const [reportsView,setReportsView]=useState(!!initial.active_report_id),[activeReport,setActiveReport]=useState<string|undefined>(initial.active_report_id);
@@ -84,10 +84,20 @@ function View({initial}:{initial:any}){
 
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
- async function readReport(id:string){if(data.report?.id===id)return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
+ async function saveState(id:string,version:number,state:any){
+  const out=await app.callServerTool({name:'save_visualization_state',arguments:{report_id:id,expected_version:version,state,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});
+  if(out.isError||!out.structuredContent?.saved)throw Error();
+  const result=out.structuredContent;setData((current:any)=>({...current,report:result.report,reports:current.reports.map((r:any)=>r.id===id?{...r,version:result.report.version,updated_at:result.report.updated_at}:r)}));return result;
+ }
+ async function requestSave(){
+  try{await app.updateModelContext({structuredContent:{project_id:data.project_id,preview:data.draft??null,visualization_save_offer:data.visualization_save_offer}});
+   const result=await app.sendMessage({role:'user',content:[{type:'text',text:(data.visualization_save_offer?.retry?'Retry saving':'Save')+' the visualization “'+data.visualization_save_offer?.title+'” in this TrialAgents project. Use the existing content; verify the saved result.'}]});if(result.isError)throw Error();
+  }catch{setError('Could not send the save request. Ask ChatGPT to save this visualization again.');}
+ }
+ async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
- return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onReportRead={readReport} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};
