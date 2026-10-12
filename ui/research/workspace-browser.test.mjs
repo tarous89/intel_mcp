@@ -29,6 +29,8 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    await page.screenshot({path:`/tmp/workspace-design/${width}-${label}.png`,fullPage:true});
    const headers=await page.locator('[class*="listHeader"]').innerText();assert(!headers.includes('Recent activity'));assert(!headers.includes('Department'));
    const footer=await page.locator('.workspace-access').boundingBox();assert(footer.y>=0&&footer.y+footer.height<=900,`${width}/${label}: access banner outside viewport`);
+   const layout=await page.locator('.workspace-access').evaluate(f=>{const c=document.querySelector('.workspace-content'),m=document.querySelector('.app-workspace');return {position:getComputedStyle(f).position,contentBottom:c.getBoundingClientRect().bottom,top:f.getBoundingClientRect().top,left:f.getBoundingClientRect().left-m.getBoundingClientRect().left,right:m.getBoundingClientRect().right-f.getBoundingClientRect().right,bottom:innerHeight-f.getBoundingClientRect().bottom};});
+   assert.equal(layout.position,'static');assert(layout.contentBottom<=layout.top-8,'Content must end above the banner');assert(layout.left>=16&&layout.right>=16,'Banner requires side gutters');assert(layout.bottom<=8,'Bottom gap must remain minimal');
    const vertical=await page.locator('[class*="tableViewport"]').evaluate(v=>({scroll:v.scrollHeight,height:v.clientHeight}));
    assert(vertical.scroll<=vertical.height+2,`${width}/${label}: nested vertical table scroll`);
    const header=await page.locator('.workspace-header').boundingBox();
