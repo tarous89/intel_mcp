@@ -10,7 +10,7 @@ Use ordinary tables for lists/filtering/rankings. For deeper evidence-backed ana
 
 ## Default structure and visual design
 Unless the user explicitly requests another format, every report has exactly:
-1. A report title.
+1. A bold, larger h1 report title using the same Inter/system sans-serif family as the project name. Keep it visibly larger than section headings and body text, and allow long titles to wrap without clipping or overlap.
 2. An executive summary of one or two sentences total (not one per question).
 3. Question headings and graphs only.
 
