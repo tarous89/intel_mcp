@@ -1,167 +1,21 @@
-# Complete trial content implementation — 2026-10-12
+# Intel MCP current context — 12 October 2026
 
-User approved implementation and deployment. Steps: (1) share trial-ID authorization across complete frozen profiles, documents and reports; (2) expose exact section reads and authoritative schema discovery to ChatGPT; (3) validate anonymous/free/paid boundaries, complete text and provenance; (4) release App before MCP and verify live anonymous reads. Free content access covers the stable ten preview trials, with no nested-record/section/document quota. Preserve metadata discovery, private-project ownership, expiry and immutable snapshots.
+## Active product
+Public research MCP: https://mcp.trialagents.com/research/mcp. Intel Agent App owns accounts, canonical projects, authorization and report persistence. Engine supplies restricted read-only trial data. Keep existing hosting/authentication/identity. Private /mcp and archived Light/Max/Site tool contracts remain compatibility dependencies; MAX_AGENT_ENABLED and MCP_SELECTION_ENABLED are not enabled by this work.
 
-# Trial-content access scope — 2026-10-12
+## Current workflows
+The plugin has four goal-based skills: find-clinical-partners, analyze-trial-evidence, create-trial-report, manage-research-projects. Canonical common guidance is plugins/trialagents-intel/references/. Report guidance/example live in create-trial-report. scripts/sync_plugin_guidance.py generates MCP runtime mirrors; --check validates no drift. The standalone public server loads those mirrors so it works without imported skills.
 
-User requests complete profiles, section reads, document inventory and all available extracted text without authentication for the accessible trial count. Current free access returns empty profiles and denies documents; not yet changed. Implementation scope and ordered steps: [Anonymous trial content](docs/anonymous-trial-content-scope-2026-10-12.md). Preserve current runtime until implementation; expose schema/section vocabulary explicitly to ChatGPT.
+Free access: ten rows per entity table and complete content for a fixed eligible set of up to ten trials, including nested profiles and available extracted documents. Paid account access expands counts. Candidate metadata and supporting-trial metadata are distinct from complete content entitlement. Owner OAuth is required for private saved projects. Never partition searches to bypass access. No purchase or outreach tools.
 
-# UX follow-up — 2026-10-11
+Discovery uses the final broadest relevant cohort preserving hard constraints; no subgroup list concatenation. UI displays data; chat gives concise interpretation, three contextual investigation questions and one truthful access sentence. Sources/IDs/links are request-only in visible answers but preserved internally. Suggestions may include broader analyses, never promise data availability or override authorization. show_research_followups renders three inline buttons with text fallback; only clicks send a message.
 
-- Keep the access/count footer inside the viewport in App and extension across tables, Dataset and Reports, with content clearance.
-- App Reports: remove Copy project prompt.
-- App Dataset: export only server-authorized records, up to ten per category for free users and complete paginated lists for full access; explain the limit below the boxes and reuse the subscription offer.
-- Standalone /projects/subscription keeps the normal sidebar; Settings retains Billing. Existing subscription links redirect, preserving checkout confirmation.
-- Verification passed: TypeScript; 11 App tests including exact Excel row counts for preview/full access; 3 shipped-extension tests; 16 actual App component browser checks (desktop/mobile across tables, Dataset, Reports, Subscription and Billing).
-- User explicitly approved publication to tarous89/intel_agent_app and tarous89/intel_mcp and deployment of both services on 2026-10-11. Next: publish App first, then matching extension, pass CI and verify both Render deploys.
+Reports use an overall executive summary and one visual section per question, answer above/nuances below. Canonical projects and saved reports are immutable snapshots; no automatic source refresh. Search expiry, 24-hour cached previews and persistent saved projects are separate. Website Connect attaches exact previews; MCP save_project handles explicitly requested writes. Never use legacy handoff/claim/revise tools as new-project fallback.
 
-# Shared workspace UX release — 2026-10-11
-User approved implementation and release of all items below on both App and embedded workspace unless noted.
-1. Fix horizontal clipping, including last action column and wide selected fields.
-2. Sites: recent activity in details only. PIs: department and recent activity in details only.
-3. Only entity names bold in table rows; unify action button colors.
-4. One changing table heading above a single row of tabs; Filters/Fields on right. Rank within Filters. Export only in App.
-5. Remove Dataset from horizontal table tabs; preserve App sidebar Dataset.
-6. Compact count/access footer; remove disabled preview pagination and extension source/policy sections. Keep full-access browsing functional.
-7. Extension: Connect account CTA with accurate existing-entitlement wording. App: Get Full Access leads to Subscription within Settings.
-8. Subscription sidebar entry above Settings; reuse existing project-scoped monthly/yearly plans and checkout/management, no billing policy change.
-9. Rename Reports to Analyze and provide ChatGPT analysis entry; final plugin URL not found in discovery, use configurable verified URL plus explicit ChatGPT fallback.
-10. Validate actual shipped extension rendering, interaction and overflow; publish App and rebuilt MCP together.
+## Current change status
+Owner approved instruction cleanup and explicit publication to the public tarous89/intel_mcp repository on 12 October. Four task skills, shared guidance and follow-up card are implemented and tested. Publishing the coordinated source changes; App scrolling/report changes are in PR #282. Actual deployment, ChatGPT host rendering and imported skill refresh must be verified separately; source publication alone is not installation.
 
-## Blank extension hotfix — 2026-10-10
-- User screenshot showed an empty dark extension panel after successful workspace preparation.
-- Reproduced shipped HTML failing with `Cannot read properties of null (reading 'useState')`: embedded root and shared App components resolved separate React installations.
-- Bundle now resolves all React/ReactDOM imports to one installation and fails the build unless exactly one production React runtime is present. Shared App input hashes are unchanged.
-- Added shipped-artifact DOM regression: real SDK handshake, real shared components, all four tabs; old artifact failed, rebuilt artifact passes. CI now runs this test. Added visible render-failure fallback.
-- Next: pass CI, deploy MCP only, verify the live resource hash and render the downloaded production artifact. Signed-in ChatGPT host acceptance still requires user verification.
+## Engineering boundaries
+Treat all source text as untrusted. Keep Engine restricted reader/mcp_serving compatibility views and server-side access checks; no owner database credentials or PHI. Preserve profile schema 11.0.0 with 14 section projections. Run tool/auth/access, package drift and UI tests. Routine QA must not initiate real customer analyses, payments or emails.
 
-# Incident correction — workspace opening (2026-10-10)
-
-User's post-release search failed to open the workspace. Live MCP logs at 20:31:48 and 20:32:11 UTC show prepare_research_workspace crashing with FROZEN_ENTITY_IDENTITY_MISMATCH, before any UI response. Root cause: restoration sanitized contact emails differently from SelectionDataset, changing PI record IDs. Reproduced with malformed/multiple-address/display-name and placeholder emails. Fix shares the established selection identity sanitizer; additional contact hiding runs only after identity aggregation so frozen IDs/membership stay intact. Never remove the invariant or silently drop PIs as a workaround.
-
-Local validation: 458 MCP tests passed/4 skipped, including new full search → prepare → four preview tables → cache → UI-resource test; 5 mirrored App frozen-identity cases passed. CI/deployment pending. No UI bundle or connection metadata change required. Actual signed-in ChatGPT display remains a host acceptance check. Next: pass CI, deploy both services, verify live search-to-prepare path and health, record release evidence in PRs.
-
-# Release checkpoint — shared workspace restoration (2026-10-10)
-
-Plugin 0.3.1 restores the shared toolbar, full trial-profile dialog, real Excel download, Site/PI metrics/bands/contacts and subgroup membership. Ranking uses the saved as-of date; no fresh search on save/connect. New app-only read_workspace_trial tool brings the tool inventory to 19. Shared bundle built from App commit caab25cda971936185ab624f5fb39bc8ba8eb467. MCP tests: 449 passed/4 skipped; embedded connection/navigation: 4 passed. CI and deployment pending. App PR273 must deploy first with migration0062. Real-host acceptance of restored UI still pending.
-
-## Current follow-up — 2026-10-10 shared workspace restoration
-
-Owner confirmed canonical sync works well in the actual ChatGPT session. App PR270 and MCP PR104 are merged and live. The next task is restoration of shared feature parity: Sites-first animated sync/readiness, recorded site contacts, six Site/PI metrics and percentile bands, full trial-profile overlay, filters/ranking/fields and genuine Excel export.
-
-Investigation and ordered implementation/acceptance scope: [Shared workspace restoration](docs/SHARED_WORKSPACE_RESTORATION_2026-10-10.md).
-
-Confirmed causes: sparse MCP site contacts/metric payload, reduced research-row adapter, and shared WorkspaceTables bypassing the richer table controller and profile modal. Preserve canonical IDs, exact frozen selection/order, flexible ChatGPT research and existing access rules. This checkpoint supersedes older “release pending” notes below. No runtime restoration is implemented by this documentation patch.
-
-## Release verification — 2026-10-10
-- App PR #270 remains open at 53d6eb95. Local SQL fix uses the selection row alias in to_jsonb(s), resolving the failed dataset-claim test.
-- Local validation: 16 App foundation/canonical/cache tests, TypeScript noEmit, 447 MCP tests (4 skipped), 4 embedded navigation/connection tests, and 1 prepared dataset worker test passed.
-- MCP source recovered from the prior session; shared UI rebuilt against App PR #270; plugin 0.3.0 package built successfully.
-- Owner explicitly approved publishing to both repositories and deploying the existing Render services on 2026-10-10. Release publication/CI/deployment are in progress.
-- Next: publish the App SQL/context update to tarous89/intel_agent_app PR #270 and 14-file MCP companion release to tarous89/intel_mcp; pass CI; deploy existing Render App srv-da655mrncjis73anvej0 then MCP srv-da7g4igae00c73bo6oe0 in the previously approved Tarek Roustom workspace. Verify live health, schema and actual authenticated host journey.
-- Real ChatGPT OAuth write acceptance and visual rendering remain unverified; do not claim these solved from automated tests.
-
-# Active direction — unified Intel projects (approved 2026-10-09 23:44 Europe/Berlin)
-
-This section supersedes earlier instructions that make ChatGPT research a separate saved-project product or require connection-time copying/import. This is an approved implementation plan, not a claim that the refactor is deployed.
-
-## Non-negotiable behavior
-- One canonical project identity, owner/access policy, dataset and revision history for website and ChatGPT creation. Origin is metadata.
-- Preserve ChatGPT's iterative research: search, inspect counts/results, broaden or narrow criteria, filter and search again. Do not force it through the website's linear wizard or require a new project for each refinement.
-- Exploration and committed project revisions are separate: intermediate searches remain flexible; publishing a chosen result advances the same project's revision atomically. Preserve the previous ready revision while preparation runs; reject stale writes.
-- Both clients use the same workspace presentation and authorized results. Website retains its normal app shell; embedded ChatGPT adapts to host sizing and permitted connection/access controls. No separate imported-project page or sidebar.
-- Keep bounded compressed result storage and paged reads. Never restore giant JSONB snapshot writes, recompute results on tab switches, or invoke an LLM just to attach an existing dataset.
-- Connected users create/update through honestly annotated, authorized write tools. Website login is not automatically MCP OAuth authorization. Never bypass host permissions or disguise project creation as a read.
-- Guests retain a 24-hour preview/draft. Resolve the guest ownership/authorization lifecycle explicitly before implementing persistent draft creation; no dummy email accounts.
-- All existing projects are test data. Owner explicitly excludes ALL old projects/all users from migration, repair and synchronization; deletion is permitted if actually necessary. Do not spend work migrating them. Preserve accounts, billing, source clinical data and unrelated products.
-
-## Ordered next steps
-1. [x] Record this direction and sequence in both App and MCP context MDs before implementation.
-2. [x] Inventory canonical project, selection, dataset, table, export/report and entitlement contracts; define a shared service boundary that accepts either UI's research selection.
-3. [x] Implement canonical creation/revision from prepared MCP results, with stable IDs, provenance, idempotency, ownership and bounded preparation. No legacy-project migration.
-4. [x] Connect both creation paths to that service; retain the full MCP search/inspect/refine loop independently of the website wizard.
-5. [x] Replace research-only website routing/shell with the normal workspace and extract a shared presentation contract for both clients. Keep host-specific controls explicit.
-6. [ ] Expose canonical list/read/create/update tools with accurate annotations, OAuth challenges and account selection. Validate a real host write before claiming the historical denial is solved.
-7. [x] Implement revision refresh in both views, stale-write conflict handling, and clear pending/error states without repeated snapshot processing.
-8. [ ] Verify exact rows/counts/evidence across both clients; iterative refinements keep one project ID; account isolation, free/paid access, paging, exports/report prerequisites, retries and CPU/memory bounds remain correct.
-9. [ ] Pass repository gates and desktop/mobile/embedded checks; deploy App schema/service before MCP/UI/package changes. Verify the real new-project journey from each entry point.
-10. [ ] Update this checklist and history with actual deployment/test evidence and any remaining host verification gaps.
-
-
-## Release continuation — 2026-10-10
-- Recovered the unpushed MCP implementation. Local suite: 447 passed, 4 skipped.
-- App PR #270 SQL claim regression fixed locally and 10 focused journey tests pass.
-- Publish companion MCP PR, pass CI, deploy App/schema before MCP and verify real-host writes/rendering.
-- Owner explicitly approved both publication destinations and existing Render deployments on 2026-10-10.
-
-## Current implementation checkpoint
-- Canonical prepared-source storage, owner-bound create/revise, idempotency and revision checks are implemented. New frozen previews attach directly to public.projects / combined_intel.projects; legacy projects are untouched.
-- Website and MCP read canonical project IDs. The website keeps its normal shell and uses the shared tables. Cached rows are immediately readable while the existing worker publishes frozen profile/report artifacts, without Engine search or model calls.
-- Explicit OAuth save_project, open_project, list_projects and durable read_project_preview are implemented. Legacy write tools are compatibility-only and hidden from model discovery.
-- Search/inspect/refine/prepare remain independent of the website wizard. Preview cache lasts 24 hours; saved source is retained independently. Previous ready datasets remain visible during refinement.
-- Local verification: 447 MCP tests passed (4 skipped); canonical database creation/refinement/isolation/expiry journey, shared table rendering and resumable prepared worker tests passed. The synthetic canonical connection took 28 ms; this is not a production latency guarantee.
-- Repository CI, deployment and real-host rendering/OAuth write verification remain pending at this checkpoint. Historical host denial is not proven resolved by tests.
-- No old projects were migrated, repaired or deleted. Deploy App schema/service before MCP/UI/package.
-
-
----
-
-
-## 2026-10-09 — Website-first account connection
-Connect uses openLink immediately; no tool call, project write, or project preparation wait in the embedded workspace. It carries the existing draft in the website URL fragment. After login/signup, the website imports the exact validated snapshot through service-authenticated /internal/research-snapshot and creates the project in the authenticated account. Import progress/retry lives at /projects/sync. The endpoint reads existing source only and never searches or writes projects. Existing source-cache expiry/eviction still applies; a missing source fails explicitly. Legacy model-invoked handoff tools remain for compatibility. Deploy the website support before this new UI.
-## 2026-10-09 — Embedded tab recovery and UI resource versioning
-A tab click on an unsaved preview reached the persisted-project reader and returned 404. The old resource URI was reused across incompatible client changes, allowing stale host UI caching. Workspace resource IDs now include the actual bundled HTML hash; the legacy URI remains a compatibility alias. Loaded preview tabs switch locally. Optional host context failures cannot fail navigation, and failed remote pages preserve current rows with a table retry action. Browser regression tests run in MCP CI. Website/shared table source is unchanged; this is an embedded client and resource registration fix.
-
-
-## 2026-10-09 — Read-only initial workspace; save on account connection
-Initial `prepare_research_workspace` now computes the embedded preview from the existing short-lived search snapshot without creating a database project, for both anonymous and signed-in users. It is truthfully read-only; host permissions remain authoritative. The UI retains the draft specification and snapshot hash. Explicit Connect account materializes those exact results idempotently, then uses the existing website handoff/login and normal Projects flow. Search expiry/eviction produces an error instead of silently recreating different results. Saved project tools remain compatible. Shared UI distinguishes unsaved search previews from legacy week-long anonymous projects; Dataset stays in the embedded workspace. This supersedes automatic project writes during initial viewing. Actual ChatGPT host acceptance requires a refreshed tool descriptor and host check.
-# Intel MCP current handover
-
-Updated: 2026-10-08. This repository owns standalone MCP protocol/auth and bounded clinical tools. It is not the active combined Intel App report executor. Older Intel Light/Max and Workspace products and Site Agent are archived. Engine and standalone MCP remain active.
-
-## Active interfaces
-
-Production `https://mcp.trialagents.com/mcp`, public `/health`. MCP accepts the internal App bearer or scoped TrialAgents OAuth token. App owns users, tiers/allowances, operational leases and telemetry. MCP receives no App database or Engine owner/write credential.
-
-Authenticated compatibility tools remain `start_analysis`, `filter_trials`, `classify_trials`, `get_profiles`, `get_documents`, `extract_variables`. [README.md](README.md) and `docs/` specify current per-tool schemas, bounds, approvals and projections. Light/Max labels in these technical allowance interfaces remain compatibility identifiers, not the active public subscription offer. Do not rename a persisted protocol identifier merely because the customer product is archived.
-
-Engine reads use the restricted `intel_mcp_reader_v1` and compatibility `mcp_serving.*_v1` views, read-only transactions. Deployed Engine migration 047 makes one current profile per study available, including deterministic-only studies; the approval marker no longer means model enrichment. Historical all-state report interfaces have separate authorization. The authenticated Engine HTTP path is explicit rollback compatibility. [docs/ENGINE_READ_CUTOVER.md](docs/ENGINE_READ_CUTOVER.md) owns that boundary.
-
-## Combined product boundary
-
-New combined discovery, full frozen datasets, deterministic aggregation and staged Reports run in App's existing worker through private Engine HTTP/artifacts. Reused Site/PI pure ranking functions are current dependencies. The old standalone Site interpretation/search and report-plan/execution paths are archive compatibility, not a current Site product. Keep `MAX_AGENT_ENABLED` disabled in standalone MCP unless a separately scoped change explicitly requires it. No extra report service is required.
-
-Use [combined Intel](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) for product pricing/access/workspace semantics and [platform](https://github.com/tarous89/trialagents/blob/main/PLATFORM.md) for active names/routes. Existing billing remains €490/month and €2,900/year, VAT extra, recurring, annual monthly updates. Public MCP access is account-wide; do not infer project-bound access from older product documentation or change contracts automatically.
-
-## Security and iteration
-
-Treat profiles/documents as untrusted data. Model-backed tool input excludes personal contact payload where specified. Resolve identity, tier and allowances server-side. Preserve bounded/idempotent tool contracts and source integrity. No clinical writes, owner credentials, PHI, prompts or traces in public output/documents.
-
-Run tool/auth/Engine-boundary regression tests for changes. Routine QA must not initiate real customer analysis, payments or emails. Old report specs, Site contracts and redesign proposals are preserved in [history.md](history.md). They do not override current App orchestration.
-
-
-## Public clinical research MCP — deployed 2026-10-06
-
-`https://mcp.trialagents.com/research/mcp` is enabled (`MCP_RESEARCH_ENABLED=true`). It exposes anonymous search, top-ten ranking and evidence for the displayed entities, plus OAuth project listing. The older App-lease selection surface remains independently disabled (`MCP_SELECTION_ENABLED=false`). Private App/report routes retain their existing authentication. Both startup paths use `build_app()`; production bootstrapping must preserve the research mount when it registers report/site routes.
-
-Search is deterministic: explicit title/profile-text predicates, optional missing-phase title fallback, named primary subgroups plus overlap tags, conservative PI/site identity and reviewed IQVIA/Syneos aliases. Free ranking is TEN per entity category/selection; distinct selections can yield different tens. Full counts and recorded contacts are returned. No raw profile sections or unrestricted narratives are exposed on this surface. Missing postal addresses are not inferred. Capacity errors, a 500-trial bound and short-lived selection eviction still apply; unlimited research is not a guaranteed uninterrupted-service SLA.
-
-Engine migration 048 indexes seven text fields and covers all 12,585 currently available profiles. Live restricted-reader MCP search succeeded with 192 prostate lexical candidates and 272 provider entities; exactly ten rows with contacts were returned and further pagination denied. One external search request took 17.68s including transport/profile retrieval/ranking; a separate database-only title/disease index probe took 9.726ms. These are single observations, not equivalent workloads or a latency guarantee.
-
-App `MCP_RESEARCH_ACCESS_ENABLED=true` accepts the research OAuth audience. Issuer `https://intel.trialagents.com/oauth/intel` reuses existing login/consent/token endpoints; unrelated BD root discovery is preserved. Public research full lists now use active paid account access across cohorts. Saved projects remain owner-bound; source scope no longer needs to match a previously licensed project. No pricing, checkout, subscription or website layout changes. Account-connection challenge is verified; real signed-in paid-project completion still requires a user test.
-
-See `docs/SELECTION_IMPLEMENTATION_LOG.md` steps 14–17 for deployment evidence and remaining gates. ChatGPT workflow packaging and directory submission are NOT complete. First responses should use clinically relevant broad cohorts (roughly 200–500 where justified, never padded), explicit groups, top-ten tables, ranking evidence, totals and drill-down options. Operational narrative disclosure, broader identity curation and address mapping need further work.
-
-## Approved next direction — 2026-10-08
-
-See [ChatGPT workspace direction](docs/CHATGPT_WORKSPACE_DIRECTION.md) for the owner-approved architecture and ordered implementation/acceptance steps. ChatGPT drives cohort selection and recommendations; the backend validates, normalizes and persists evidence. One project feeds the actual Intel Agent CRO/PI/site/trial tables in a preview/extension with an external fallback. Same account access applies to the model and UI; no embedded or directed subscription funnel. This is staged work, not yet the live workflow. Existing explicit save and renderer remain until replacement is verified.
-
-2026-10-08 correction: shared-preview shell, compact ChatGPT table tabs (no sidebar/Reports), /share/research/{id} fallback, authentication before save, informational /dataset-access; see workspace direction document. Draft only until App-first rollout and real-host acceptance.
-
-Plugin source is in `plugins/trialagents-intel/`; review `docs/CHATGPT_PLUGIN_RELEASE.md` before test handoff or release. Version 0.2.0 packages the approved workspace workflow. Public submission is separate from this owner-authorized private/server rollout; real-host acceptance remains unverified.
-
-
-## 2026-10-09 coordinated account/project UX correction
-Owner approved direct website login/signup from Connect, free account choice, automatic exact-result saving and one normal /projects list. Handoff capabilities are short-lived, hashed, same-origin and independent per browser tab; repeat completion is idempotent. Anonymous claim preserves project identity. Only an authorized source-owner handoff can copy an owned snapshot into another chosen account. Current web and MCP sessions remain separate. The normal catalog includes existing research workspaces and legacy snapshots, with canonical /projects routes; /research redirects to /projects. No search rerun, paid job or entitlement change. App migration0058 and endpoint must be deployed before the MCP producer/UI. Actual host acceptance must be recorded separately from automated tests.
-
-
+See docs/CHATGPT_PLUGIN_RELEASE.md for current release checks. Historical context is docs/archive/PROJECT_CONTEXT-before-20261012.md; it does not override this file. Older specs and history.md remain reference only.

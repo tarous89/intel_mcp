@@ -1,0 +1,13 @@
+interface:
+  display_name: "Manage research projects"
+  short_description: "Open, filter and save TrialAgents projects"
+  default_prompt: "Use $manage-research-projects for my TrialAgents research."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "trialagents-research"
+      description: "Authorized TrialAgents research tools"
+      transport: "streamable_http"
+      url: "https://mcp.trialagents.com/research/mcp"
+policy:
+  allow_implicit_invocation: true

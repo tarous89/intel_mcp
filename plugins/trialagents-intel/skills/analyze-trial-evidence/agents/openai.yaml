@@ -1,0 +1,13 @@
+interface:
+  display_name: "Analyze trial evidence"
+  short_description: "Explore protocols, timelines and recorded findings"
+  default_prompt: "Use $analyze-trial-evidence for my TrialAgents research."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "trialagents-research"
+      description: "Authorized TrialAgents research tools"
+      transport: "streamable_http"
+      url: "https://mcp.trialagents.com/research/mcp"
+policy:
+  allow_implicit_invocation: true

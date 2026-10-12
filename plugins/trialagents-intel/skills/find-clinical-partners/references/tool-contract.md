@@ -9,7 +9,7 @@ Endpoint: `https://mcp.trialagents.com/research/mcp`. Use only the exposed tools
 | get_research_entity_evidence(selection_id, entity_id, offset=0, project_id=null) | Supporting trials for one returned entity | Anonymous top-ten entities, bounded evidence; paid account for expanded access |
 | list_research_projects() | Connect account and show account capabilities | OAuth |
 
-Selections expire (normally 15 minutes). Search construction is concurrency-limited: make entity-category searches sequentially. Prepare an exact workspace preview before canonical saving; use the tools below. Legacy saved-project tools do not create new canonical projects. No arbitrary SQL, count-only catalogue, outreach or checkout tool exists here. Trial profiles and extracted text are available only within the authorized trial set.
+Search selections expire at the returned expiry; prepared cached previews have a separate 24-hour lifetime. Search construction is concurrency-limited: make entity-category searches sequentially. Prepare an exact workspace preview before canonical saving; use the tools below. Legacy saved-project tools do not create new canonical projects. No arbitrary SQL, count-only catalogue, outreach or checkout tool exists here. Trial profiles and extracted text are available only within the authorized trial set.
 
 ## Criteria
 
@@ -29,7 +29,7 @@ Required: `base` (structured hard filters), `entity_type` (`cros`, `sites`, `pis
 
 Load `prostate-landscape.json` as an example, replace as_of with today's date and set entity_type to each requested category in turn. The base searches prostate disease/title mentions across phases. Its first group is explicitly *mHSPC terminology candidates*, not verified eligibility. A second phase-III prostate group offers related experience; the rest remain broader. Explain this choice first. If phase III is mandatory, add the base phase filter and disclose that missing structured phase will then be excluded before subgroup fallback.
 
-The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastatic as separate narrative predicates in one group. Acronym/specific-phrase candidates are not proof of complete clinical inclusion. Explain this limitation; do not silently label broad hormone-sensitive mentions “metastatic.” Review returned trial evidence for candidates; this public surface does not expose raw profile sections.
+The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastatic as separate narrative predicates in one group. Acronym/specific-phrase candidates are not proof of complete clinical inclusion. Explain this limitation; do not silently label broad hormone-sensitive mentions “metastatic.” Review returned trial evidence for candidates; read complete profiles/sections only for eligible trial IDs.
 
 ## Discovery and coverage responses
 
@@ -43,17 +43,14 @@ The HTTP input schema expands local references so criteria fields are visible to
 
 Anonymous rank offset must remain zero, limit <=10. Evidence is limited to visible entities and ten-study pages; further evidence pages for those entities are allowed anonymously (this is not pagination of the entity list); free evidence omits discovery excerpts and operational narratives. Respect actual error codes/results. Never use repeated partitions to enumerate a paid list. A genuine user-requested narrower clinical question is a new selection and may yield different ten entities.
 
-Ranked rows supply trial_counts, function_counts, countries/affiliations, contacts, identity_basis/legal_entities, sponsor co-occurrences, recency and evidence. Counts are distinct trials within this selection, not lifetime experience. Preserve source URLs/trial IDs and distinguish missing data from zero. Sponsor trial counts are descriptive, not a collaboration quality metric. There is no performance score.
+Ranked rows supply trial_counts, function_counts, countries/affiliations, contacts, identity_basis/legal_entities, sponsor co-occurrences, recency and evidence. Counts are distinct trials within this selection, not lifetime experience. Preserve source URLs/trial IDs internally and distinguish missing data from zero. Sponsor trial counts are descriptive, not a collaboration quality metric. There is no performance score.
 
 Full access requires OAuth plus active paid account access, without project or cohort-coverage matching. Rank pages can be up to 100 when authorized. Authentication is not itself a subscription or a grant of paid access. Do not prescribe new pricing; TrialAgents owns subscription terms outside the plugin.
 
-Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Include the message once in each initial report, plus displayed/total counts per category. It explains existing paid-account access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.
+Both search and ranking return `access_info` with total_matching, returned, offset, anonymous_limit, has_more, requirements and message. Let the workspace show displayed/total counts; end chat with the single-sentence notice from show_research_followups. It explains existing paid-account access without a subscription CTA; do not add checkout or upgrade links. A result with six available entities must say six of six, not imply a hidden ten.
 
 
-0.1.4: ranking accepts show_followups and show_access_notice (true by default). Set both false on earlier requested category charts and true on the last. Search returns capabilities with anonymous, existing_entitlement and not_exposed lists. Respect that inventory for next actions; private backend data is not automatically accessible from public tools.
-
-0.1.5 historical behavior: the tools used a shared branded view. Current 0.2.2 behavior supersedes that: prepare/open workspace renders the four Intel tables; rank and evidence inspection are data-only. Supporting-trial lists require an explicit user request, even after a workspace error. Keep default chat to concise summary and insights; do not automatically fall back to trial or entity tables. Exactly three final data actions, no generic narrowing prompts. Saving is explicit and private; repeat saves reopen the same owner/snapshot/category/contact-mode project. Stored results are not auto-refreshed; current access is rechecked on reopen. No additional LLM job or purchase starts.
-
+prepare/open workspace renders the shared tables; rank/evidence inspection is data-only. Supporting-trial lists require an explicit user request, even after a workspace error. End research answers with show_research_followups and follow the shared answer standard; do not duplicate workspace data in chat.
 
 ## Canonical workspace tools
 
@@ -74,9 +71,13 @@ Connect opens website login/signup immediately. Any account can be selected; an 
 
 Free accounts retain ten rows per category; paid access follows existing entitlements and is rechecked for reads. Registration alone is not paid access. Access information lives at /dataset-access and contains no purchase controls. Never direct plugin users to transactional subscription pages. Expired previews fail explicitly; do not silently substitute new research. Legacy saved-project handlers remain compatibility-only and must not be used as a fallback to create new projects.
 
-## Shared workspace restoration (0.3.1)
-The app-only `read_workspace_trial` opens a full frozen trial profile in the workspace dialog. Table reads accept validated search, country, subgroup, CRO function, metric minimum and sort controls. Filters cover the accessible saved table; paid Excel exports include every filtered page. Site/PI metrics use the selection's frozen as-of date (five-year experience, six-month authorizations) and saved-cohort percentile bands. These presentation controls never rerun search or change saved membership, identities, or ordering. Missing contacts remain missing; do not infer them.
+## Shared workspace tables
+The app-only `read_workspace_trial` opens a full frozen trial profile in the workspace dialog. Table reads accept validated search, country, subgroup, CRO function, metric minimum and sort controls. Filters cover the accessible saved table; Excel exports include every permitted row (preview subset for free access, every filtered page for full access). Site/PI metrics use the selection's frozen as-of date (five-year experience, six-month authorizations) and saved-cohort percentile bands. These presentation controls never rerun search or change saved membership, identities, or ordering. Missing contacts remain missing; do not infer them.
 
-## HTML reports (0.4.0)
+## HTML reports
 
-For deeper analysis call `prepare_project_report` and follow [report guidance](report-guidance.md). Read bounded evidence using `read_report_evidence` and, with paid access, exact available files through `read_report_document`. `save_project_report` persists the HTML, original question, title, snapshot and source IDs and opens Reports. `list_project_reports` and `open_project_report` read saved reports. Free users can generate reports using only disclosed preview evidence; anonymous reports attach when the preview is saved. Source data updates do not automatically refresh saved projects or reports.
+For deeper analysis call `prepare_project_report` and follow [report guidance](../../create-trial-report/references/report-guidance.md). Read bounded evidence using `read_report_evidence` and exact available files for eligible trials through `read_report_document`. `save_project_report` persists the HTML, original question, title, snapshot and source IDs and opens Reports. `list_project_reports` and `open_project_report` read saved reports. Free users can generate reports using only disclosed preview evidence; anonymous reports attach when the preview is saved. Source data updates do not automatically refresh saved projects or reports.
+
+
+## Follow-up presentation
+`show_research_followups(questions, project_id or preview)` validates the current scope and returns three inline question buttons plus one access sentence. It reads no extra evidence, performs no write and starts no analysis. Question selection is independent of account tier; execution remains subject to server access checks. Use the text fallback if the host cannot render or send messages.

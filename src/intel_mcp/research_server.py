@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 from .auth_context import current_oauth_subject, set_oauth_subject, reset_oauth_subject
 from .selection import SelectionCriteria, SelectionError
 from .research_views import result_view, evidence_view, account_view
+from .followups import RESOURCE as FOLLOWUP_RESOURCE, HTML as FOLLOWUP_HTML
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .research_cohort import CohortRefinement, candidate_trials
 from .research_workspace import register_workspace_tools, RESOURCE, LEGACY_RESOURCE, WORKSPACE_HTML
@@ -45,6 +46,9 @@ def create_research_server(settings, engine_factory, control_factory):
     issuer=settings.oauth_authorization_server_url.rstrip('/')+'/oauth/intel'
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
     apps = Apps()
+    apps.add_resource(TextResource(uri=FOLLOWUP_RESOURCE,name="Further investigations",mime_type=APP_MIME_TYPE,text=FOLLOWUP_HTML,
+        meta={"ui":{"csp":{"connectDomains":[],"resourceDomains":[]}},
+              "openai/ui":{"preferredDisplayMode":"inline","availableDisplayModes":["inline"]}}))
     apps.add_resource(TextResource(uri="ui://trialagents/research-v015", name="Trial experience",
         mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v015.html").read_text(),
         meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},

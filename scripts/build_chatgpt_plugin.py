@@ -8,14 +8,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / 'plugins/trialagents-intel'
-FILES = (
-    'plugin.json', 'mcp.json', 'assets/icon.svg',
-    'skills/find-clinical-partners/SKILL.md',
-    'skills/find-clinical-partners/agents/openai.yaml',
-    'skills/find-clinical-partners/references/tool-contract.md',
-    'skills/find-clinical-partners/references/report-guidance.md',
-    'skills/find-clinical-partners/references/prostate-landscape.json',
-)
+FILES = ('plugin.json', 'mcp.json', 'assets/icon.svg', 'references/presentation-standard.md', 'references/access-and-evidence.md', 'references/research-workflow.md', 'skills/find-clinical-partners/SKILL.md', 'skills/find-clinical-partners/agents/openai.yaml', 'skills/analyze-trial-evidence/SKILL.md', 'skills/analyze-trial-evidence/agents/openai.yaml', 'skills/create-trial-report/SKILL.md', 'skills/create-trial-report/agents/openai.yaml', 'skills/manage-research-projects/SKILL.md', 'skills/manage-research-projects/agents/openai.yaml', 'skills/find-clinical-partners/references/tool-contract.md', 'skills/find-clinical-partners/references/prostate-landscape.json', 'skills/create-trial-report/references/report-guidance.md', 'skills/create-trial-report/assets/report-example.html')
 
 def validate():
     for name in FILES:
@@ -52,7 +45,21 @@ def validate():
         raise ValueError('Icon must be square and at least 48 pixels')
     # Check the shipped example against the actual implementation, not a copied schema.
     from intel_mcp.selection import SelectionCriteria
-    SelectionCriteria.model_validate_json((PACKAGE/FILES[-1]).read_text())
+    SelectionCriteria.model_validate_json((PACKAGE/'skills/find-clinical-partners/references/prostate-landscape.json').read_text())
+    import re
+    for name in FILES:
+        if not name.endswith('SKILL.md'): continue
+        skill=PACKAGE/name; content=skill.read_text()
+        if f"name: {skill.parent.name}\n" not in content or 'description:' not in content:
+            raise ValueError(f'Invalid skill frontmatter: {name}')
+        if '[TODO' in content: raise ValueError(f'Unfinished skill: {name}')
+        for link in re.findall(r'\]\(([^)#]+)(?:#[^)]*)?\)',content):
+            if '://' in link: continue
+            target=(skill.parent/link).resolve()
+            if not target.is_relative_to(PACKAGE.resolve()) or not target.is_file():
+                raise ValueError(f'Broken or external skill reference: {name}: {link}')
+            if str(target.relative_to(PACKAGE.resolve())) not in FILES:
+                raise ValueError(f'Unpackaged skill reference: {link}')
     return manifest
 
 def build(destination):
