@@ -1,3 +1,7 @@
+# Active work — report persistence and account controls, 2026-10-12
+
+Owner requests automatic versioned storage of generated ChatGPT reports in the connected account, app-side report deletion, and Connect Account / Manage Account buttons in both extension header and footer. Separate authenticated identity from paid access. Preserve anonymous temporary reports until connection, source provenance, immutable versions, idempotency and owner isolation. Implement and verify before release. Previous app/MCP changes are deployed.
+
 # Intel MCP current context — 12 October 2026
 
 ## Active product

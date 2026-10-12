@@ -9,6 +9,7 @@ from intel_mcp.control_plane import ControlPlaneError
 async def test_report_tools_authorize_documents_before_fetch_and_open_saved_report(monkeypatch):
     calls=[]
     allowed=False
+    connected=False
     project='00000000-0000-0000-0000-000000000001'
     preview={'preview_id':project,'selection_id':'s'*43,'title':'Report research','snapshot_key':'a'*64,'cache_token':'b'*43}
     class Control:
@@ -17,7 +18,7 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
             op=body['operation']
             if op=='report_document_authorize' and not allowed:raise ControlPlaneError('DOCUMENT_NOT_IN_PREVIEW','Preview excludes documents',403)
             if op=='report_context':return {'dataset_id':'snapshot','revision':1,'access_scope':'preview'}
-            if op=='report_save':return {'report':{'id':'saved-report'},'temporary':True}
+            if op=='report_save':return {'report':{'id':'saved-report'},'temporary':not connected,'project_id':project if connected else None}
             if op=='report_read':return {'report':{'id':'saved-report','html':'<p>Saved evidence report</p>'}}
             if op=='report_list':return {'reports':[{'id':'saved-report','title':'Analysis'}]}
             if op in ('preview_read','canonical_read'):return {'project_id':project,'draft':preview,'result':{'entity_type':'trials','entities':[]}}
@@ -60,3 +61,10 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert denied.is_error and len(calls)==count
         monkeypatch.setattr('intel_mcp.project_reports.current_oauth_subject',lambda:'owner')
         assert not (await client.call_tool('prepare_project_report',{'project_id':project})).is_error
+
+        connected=True
+        saved=await client.call_tool('save_project_report',{'preview':preview,'title':'Analysis','query':'Compare the evidence','summary':'Stored version','html':'<h1>Evidence analysis</h1>','source_ids':['a'*64],'dataset_id':'snapshot','revision':1,'request_key':'report-2'})
+        assert not saved.is_error
+        assert saved.structured_content['temporary_report'] is False
+        assert calls[-2]['operation']=='canonical_read'
+        assert calls[-2]['projectId']==project and 'preview' not in calls[-2]

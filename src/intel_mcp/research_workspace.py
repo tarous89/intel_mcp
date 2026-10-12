@@ -229,8 +229,8 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
     async def preview_access():
         if not current_oauth_subject():
-            return {'fullAccess': False}
-        return await control_factory().research_access(None, [])
+            return {'connected': False, 'fullAccess': False}
+        return {**await control_factory().research_access(None, []), 'connected': True}
 
     def preview_payload(spec):
         payload = workspace_payload(store.get(spec.selection_id), spec.title,

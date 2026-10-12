@@ -14,10 +14,10 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  for(const width of [1280,760,420]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(data=>{
-   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='open_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
+   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='open_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
-  await page.getByRole('button',{name:'Connect account',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Connect Account',exact:true}).first().waitFor();
   assert(await page.locator('.workspace-brand img').evaluate(img=>img.complete&&img.naturalWidth>0),'Embedded brand mark must render without a network request');
   assert.equal(await page.getByRole('button',{name:'Export Excel',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:/Dataset/}).count(),0);
@@ -58,6 +58,14 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   assert.equal(await page.locator('nav[aria-label="Project tables"] button').count(),5);
   await page.screenshot({path:`/tmp/workspace-design/${width}-reports.png`,fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+  for(const fullAccess of [false,true]){
+   await page.evaluate(({data,fullAccess})=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...data,account:{connected:true,fullAccess}}}}})),{data,fullAccess});
+   await page.getByRole('button',{name:'Manage Account',exact:true}).first().waitFor();
+   assert.equal(await page.getByRole('button',{name:'Manage Account',exact:true}).count(),2);
+   assert.equal(await page.getByRole('button',{name:'Connect Account',exact:true}).count(),0);
+   assert.equal(await page.locator('.combined-preview-label').count(),0);
+   assert(!(await page.locator('.workspace-access').innerText()).includes('Connect your'));
+  }
   assert.deepEqual(errors,[]);await page.close();
  }
  }finally{await browser.close();}
