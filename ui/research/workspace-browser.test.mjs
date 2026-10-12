@@ -89,3 +89,43 @@ test('branded preparation animates before any host data arrives',async()=>{
  await page.screenshot({path:'/tmp/workspace-design/preparing.png'});
  }finally{await browser.close();}
 });
+
+test('interactive visualization is isolated, saves state only on click, and explains guest storage',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
+  const report={id:'tracker',title:'Site tracker',artifact_kind:'tracker',renderer:'interactive',version:1,created_at:'2026-10-12T12:00:00Z',access_scope:'preview',state:{form:{status:'Draft'}},html:`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; frame-src 'none'; form-action 'none'"><style>body{font:16px system-ui;padding:24px}label{display:block;margin:20px 0}</style></head><body><h1>Site tracker</h1><label>Status<input id="status"></label><p id="isolation"></p><script>try{parent.document.body;document.getElementById('isolation').textContent='unsafe';}catch{document.getElementById('isolation').textContent='isolated';}</script></body></html>`};
+  for(const connected of [false,true]){
+   const initial={...data,account:{connected,fullAccess:false},active_report_id:'tracker',reports:[report],report};
+   const page=await browser.newPage({viewport:{width:420,height:900}});
+   await page.addInitScript(data=>{
+    window.__writes=[];
+    window.postMessage=msg=>{
+     if(msg.channel==='trialagents-visualization')return; // Real iframe messages use native WindowProxy postMessage.
+     let result;
+     if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};
+     else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}
+     else if(msg.method==='tools/call'&&msg.params.name==='save_visualization_state'){
+      window.__writes.push(msg.params.arguments);result={structuredContent:{saved:true,report:{...data.report,version:2,state:msg.params.arguments.state}}};
+     }else if(msg.id!==undefined)result={};else return;
+     setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);
+    };
+   },initial);
+   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
+   const iframe=page.frameLocator('iframe[title="Site tracker"]');await iframe.getByText('isolated',{exact:true}).waitFor();
+   assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');
+   assert.equal(await iframe.locator('#status').inputValue(),'Draft');
+   const notice=await page.locator('.workspace-access').innerText();
+   assert.equal(notice.includes('keep this project and its visualizations'),!connected);
+   await iframe.locator('#status').fill('Contacted');
+   await page.getByRole('button',{name:'Save changes',exact:true}).waitFor();
+   assert.equal(await page.evaluate(()=>window.__writes.length),0);
+   await page.getByRole('button',{name:'Save changes',exact:true}).click();
+   await page.waitForFunction(()=>window.__writes.length===1);
+   assert.equal(await page.evaluate(()=>window.__writes[0].state.form.status),'Contacted');
+   assert.equal(await page.evaluate(()=>window.__writes[0].expected_version),1);
+   assert(await page.locator('.report-viewer').innerText().then(t=>t.includes(connected?'saved to your TrialAgents account':'saved temporarily')));
+   await page.close();
+  }
+ }finally{await browser.close();}
+});

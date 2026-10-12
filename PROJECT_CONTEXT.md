@@ -1,3 +1,7 @@
+# Approved visualization persistence rollout — 2026-10-12
+
+Implement and publish: save all custom-coded data/analysis visualizations, including forms, trackers and tables, to the shared Reports workspace. Revisions replace the same item with concurrency protection. Guests receive temporary database storage plus Connect Account messaging; connection attaches the same project and visualizations. Connected users receive verified account-save confirmation. Add explicit save-choice/retry controls, isolated interactive rendering and deliberate state saves. Preserve access, evidence provenance and account ownership. Steps: implement storage and renderer; wire shared UI and MCP guidance; test guest/owner/revision/isolation journeys; publish App then MCP and verify live releases.
+
 # Publication authorized — 2026-10-12
 
 Owner explicitly approved publishing the tested sync/UX/report fixes to tarous89/intel_agent_app and tarous89/intel_mcp and deploying both existing services. The preceding source-upload approval block is resolved. Publish App first, pass CI and deployment checks, then matching MCP.

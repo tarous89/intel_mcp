@@ -28,6 +28,9 @@ async def test_anonymous_model_tools_sections_inventory_and_complete_document_te
     fetched=[]
     class Control:
         async def research_workspace(self,b):
+            if b['operation']=='report_evidence':
+                if b.get('trialIds')!=[tid]:raise ControlPlaneError('TRIAL_NOT_IN_PREVIEW','Outside eligible set',403)
+                return {'sources':[{'source_id':'c'*64,'data':{'profile':profile,'datasetId':'frozen','revision':1,'complete':True}}]}
             if b.get('trialId')!=tid:raise ControlPlaneError('TRIAL_NOT_IN_PREVIEW','Outside eligible set',403)
             if b['operation']=='trial_profile':return {'profile':profile,'datasetId':'frozen','revision':1,'profile_schema_version':'11.0.0','complete':True}
             if b['operation']=='report_document_authorize':return {'authorized':True}
@@ -51,6 +54,7 @@ async def test_anonymous_model_tools_sections_inventory_and_complete_document_te
         partial=await client.call_tool('read_trial_profiles',{**args,'sections':['overview','sites']})
         assert not partial.is_error
         item=partial.structured_content['profiles'][0]
+        assert item['source_id']=='c'*64
         assert len(item['profile']['classification_variables']['sites'])==15
         assert 'filtering_variables' not in item['profile'] or 'inclusion_criteria' not in item['profile']['filtering_variables']
         chunks=[];part=1

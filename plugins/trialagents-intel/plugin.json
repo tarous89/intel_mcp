@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -21,7 +21,7 @@
       "interface": {
         "displayName": "TrialAgents Intel",
         "shortDescription": "Find clinical trial partners",
-        "longDescription": "Select clinical trial cohorts in conversation and inspect CROs, sites, PIs and trials in the Intel Agent project workspace. Refine the same project through ChatGPT, review supporting evidence and save after authentication. Preview and full matching totals follow existing account access. Recorded experience is not a performance rating. Generate HTML analysis reports from your authorized evidence and view them in ChatGPT and the app. Free users can create preview-evidence reports.",
+        "longDescription": "Select clinical trial cohorts in conversation and inspect CROs, sites, PIs and trials in the Intel Agent project workspace. Refine projects, review authorized evidence, and save reports, dashboards, charts, tables, forms, trackers and other custom data visualizations in the workspace and app. Revisions update the same item. Guests can connect their account to keep projects and visualizations for later access. Preview and full matching totals follow existing account access. Recorded experience is not a performance rating.",
         "developerName": "Atlas Consulting",
         "category": "Productivity",
         "capabilities": [
@@ -29,7 +29,7 @@
           "Compare trial partners",
           "Read supporting trial evidence",
           "Save private research projects",
-          "Save evidence-based HTML reports"
+          "Save data visualizations and interactive forms"
         ],
         "websiteURL": "https://trialagents.com/intel-agent",
         "supportURL": "https://intel.trialagents.com/support/intel",
