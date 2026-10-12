@@ -52,3 +52,17 @@ def test_changed_source_cannot_be_frozen_under_previous_identity():
     next(iter(data.records.values()))["profile"]["classification_variables"]["trial_title"] = "Changed"
     with pytest.raises(SelectionError, match="SELECTION_CHANGED"):
         prepare_selection(data)
+
+
+def test_refined_cohort_freezes_exact_origin_and_still_rejects_mutations():
+    from intel_mcp.research_cohort import CohortRefinement, refine_cohort
+    parent = SelectionDataset(criteria(), [record(1), record(2)])
+    refined = refine_cohort(parent, CohortRefinement(source_snapshot=parent.snapshot,
+        trial_ids=[next(iter(parent.records))], rationale='Exact selected population', entity_type='sites'))
+    frozen = prepare_selection(refined)
+    assert frozen['selection_snapshot'] == refined.snapshot
+    assert frozen['selection_origin'] == refined.selection_origin
+    assert len(frozen['records']) == 1
+    refined.selection_origin['rationale'] = 'Changed provenance'
+    with pytest.raises(SelectionError, match='SELECTION_CHANGED'):
+        prepare_selection(refined)

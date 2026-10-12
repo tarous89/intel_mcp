@@ -11,9 +11,9 @@ test('Connect opens sign-in immediately without invoking a write tool',async()=>
  const encoded=new URL(opened).hash.slice('#import='.length);
  assert.deepEqual(JSON.parse(Buffer.from(encoded,'base64url').toString()),{draft});
 });
-test('connected account opens account settings and legacy preview retains its capability',()=>{
- assert.equal(connectionUrl({owned:true}),'https://intel.trialagents.com/projects/settings');
- assert.equal(connectionUrl({draft,account:{connected:true,fullAccess:false}}),'https://intel.trialagents.com/projects/settings');
+test('saved account opens Projects; connected unsaved preview imports before opening Projects',()=>{
+ assert.equal(connectionUrl({owned:true}),'https://intel.trialagents.com/projects');
+ assert(connectionUrl({draft,account:{connected:true,fullAccess:false}}).includes('#import='));
  assert(connectionUrl({project_id:draft.preview_id,preview_token:'a'.repeat(43)}).includes('#import='));
 });
 test('navigation denial and timeout are visible; external URLs rejected',async()=>{

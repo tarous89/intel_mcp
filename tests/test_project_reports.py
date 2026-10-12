@@ -36,10 +36,10 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert descriptors['read_report_document'].annotations.read_only_hint is True
         prepared=await client.call_tool('prepare_project_report',{'preview':preview})
         assert not prepared.is_error
-        assert 'ABOVE the graph' in prepared.structured_content['report_guidance']
+        assert 'Question headings and graphs only' in prepared.structured_content['report_guidance']
         assert 'Do not display sources' in prepared.structured_content['report_guidance']
         assert '<svg' in prepared.structured_content['report_html_example']
-        assert 'Qualitative comparison matrix' in prepared.structured_content['report_html_example']
+        assert 'Nuances and implications' not in prepared.structured_content['report_html_example']
         args={'preview':preview,'trial_id':'2025-000001-00-00','document_name':'protocol.pdf'}
         denied=await client.call_tool('read_report_document',args)
         assert denied.is_error

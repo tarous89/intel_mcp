@@ -2,7 +2,7 @@ export class ConnectionError extends Error {
  constructor(public code:'navigation'|'handoff'){super(code);}
 }
 export function connectionUrl(data:any){
- if(data.account?.connected===true||data.owned)return 'https://intel.trialagents.com/projects/settings';
+ if(!data.draft&&(data.account?.connected===true||data.owned))return 'https://intel.trialagents.com/projects';
  const payload=data.draft?{draft:data.draft}:{project_id:data.project_id,preview_token:data.preview_token};
  if(!data.draft&&!data.preview_token)throw new ConnectionError('handoff');
  const encoded=btoa(Array.from(new TextEncoder().encode(JSON.stringify(payload)),byte=>String.fromCharCode(byte)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');

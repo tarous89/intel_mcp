@@ -7,7 +7,7 @@ from copy import deepcopy
 import hashlib
 import json
 
-from .selection import SelectionDataset, SelectionError
+from .selection import SelectionDataset, SelectionError, digest
 
 VERSION = "intel-prepared-selection-1"
 MAX_PROFILE_BYTES = 16 * 1024 * 1024
@@ -23,7 +23,11 @@ def prepare_selection(dataset: SelectionDataset) -> dict:
     # A mutable source record or criteria object must not be published under the
     # old selection identity. This recomputes only a bounded content digest.
     current = SelectionDataset(dataset.criteria, list(dataset.records.values()))
-    dataset.check_snapshot(current.snapshot)
+    expected = current.snapshot
+    origin = getattr(dataset, 'selection_origin', None)
+    if origin and origin.get('method') == 'chatgpt_selected_trial_ids':
+        expected = digest({'dataset': expected, 'selection_origin': origin})
+    dataset.check_snapshot(expected)
     records = []
     byte_count = 0
     for trial_id, record in sorted(dataset.records.items()):

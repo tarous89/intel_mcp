@@ -1,3 +1,21 @@
+# Publication authorized — 2026-10-12
+
+Owner explicitly approved publishing the tested sync/UX/report fixes to tarous89/intel_agent_app and tarous89/intel_mcp and deploying both existing services. The preceding source-upload approval block is resolved. Publish App first, pass CI and deployment checks, then matching MCP.
+
+# Release checkpoint — sync and visual report fixes, 2026-10-12
+
+Implemented: refined selection validation hashes the original refinement provenance; connected unsaved Manage Account imports the exact preview before opening Projects, saved accounts open Projects; owner report listing keeps attached reports reachable via the authorized preview; final connected workspace guidance calls the explicit save_project write, respecting host approval. Removed 30-second polling and initial duplicate extension read, added bounded 30-second page reuse invalidated on incoming data/focus/filter saves, kept tab controls responsive, added a report-only app read and reuse of newly saved HTML. Shared insight spacing and report/graph framing updated; boot and update states have branded animated progress. Default report guidance/example now title, max two-sentence executive summary, questions and graphs only; explicit alternate requests remain supported.
+
+Verified: MCP suite 466 passed, 4 integration tests skipped locally; five focused App tests including PostgreSQL-compatible canonical save/report/account isolation and exports; TypeScript noEmit; shipped-bundle/navigation/connection checks; browser desktop/tablet/mobile table/report scroll and spacing checks plus pre-handshake loading animation. No real customer analyses or emails were run. Authenticated ChatGPT end-to-end acceptance and CI/production checks remain pending release.
+
+BLOCKED: automatic approval reviewer rejected github_create_tree to tarous89/intel_agent_app as source-code egress without explicit trusted-transcript approval of payload/destination. Do not retry using another tool. Ask owner to approve publishing the tested fixes to tarous89/intel_agent_app and tarous89/intel_mcp and deploying both existing services. No remote tree/commit/PR/deploy was created by this attempt. After approval: publish branches/PRs, pass gates on exact candidate, deploy App before MCP, verify live health and record the matching App source commit in workspace-source.json. Preserve existing endpoint/plugin identity and owner permissions; refresh imported skill snapshot separately if needed.
+
+# Active work — sync, responsiveness and visual reports, 2026-10-12
+
+Owner requests investigation/fix of project/report sync and slow extension controls, consistent insight spacing, Manage Account opening Projects, immediate branded animated dataset preparation, and visual-only default reports (title, 1–2 sentence executive summary, then questions and graphs; one report frame and one per graph). Explicit alternate report formats remain supported.
+
+Sequence: reproduce refined snapshot rejection and unsaved connected navigation; preserve snapshot/owner/approval checks while fixing persistence paths; remove redundant refresh/read work; update shared spacing/loading/report instructions and renderer; test refined-save/report account journeys and actual bundled UI; publish App first and matching MCP, verify live deploys. No old-project migration or customer test analyses.
+
 # Active work — integrated access footer, 2026-10-12
 
 Replace the floating access banner with a reserved bottom layout row in both app and extension. Keep content scrolling above it, balanced side/top spacing, a minimal bottom gap and a stronger green background. Cover tables, Dataset and Reports, preserving account/access actions. Previous report persistence release is deployed (App #283, MCP #114). Steps: update shared layout and all footer call sites; rebuild extension; verify desktop/mobile scrolling and navigation; publish the paired changes.
@@ -18,7 +36,7 @@ Free access: ten rows per entity table and complete content for a fixed eligible
 
 Discovery uses the final broadest relevant cohort preserving hard constraints; no subgroup list concatenation. UI displays data; chat gives concise interpretation, three contextual investigation questions and one truthful access sentence. Sources/IDs/links are request-only in visible answers but preserved internally. Suggestions may include broader analyses, never promise data availability or override authorization. show_research_followups renders three inline buttons with text fallback; only clicks send a message.
 
-Reports use an overall executive summary and one visual section per question, answer above/nuances below. Canonical projects and saved reports are immutable snapshots; no automatic source refresh. Search expiry, 24-hour cached previews and persistent saved projects are separate. Website Connect attaches exact previews; MCP save_project handles explicitly requested writes. Never use legacy handoff/claim/revise tools as new-project fallback.
+Reports default to title, a maximum two-sentence executive summary, then question headings and graphs only. Advice stays in chat; explicit alternate formats are supported. Canonical projects and saved reports are immutable snapshots; no automatic source refresh. Search expiry, 24-hour cached previews and persistent saved projects are separate. Website Connect attaches exact previews; MCP save_project handles explicitly requested writes. Never use legacy handoff/claim/revise tools as new-project fallback.
 
 ## Current change status
 Owner approved instruction cleanup and explicit publication to the public tarous89/intel_mcp repository on 12 October. Four task skills, shared guidance and follow-up card are implemented and tested. Publishing the coordinated source changes; App scrolling/report changes are in PR #282. Actual deployment, ChatGPT host rendering and imported skill refresh must be verified separately; source publication alone is not installation.

@@ -15,3 +15,6 @@ Read [answer standard](../../references/presentation-standard.md) and [access ru
 6. Finish with three contextual investigations and the one-sentence access notice using show_research_followups. Follow [answer standard](../../references/presentation-standard.md) for the text fallback.
 
 For profile/protocol/operational follow-ups use [analyze-trial-evidence](../analyze-trial-evidence/SKILL.md). For a visual saved analysis use [create-trial-report](../create-trial-report/SKILL.md). For opening, paging, saving or revising projects use [manage-research-projects](../manage-research-projects/SKILL.md). Do not call legacy save/claim/revise tools to create new projects.
+
+## Connected project synchronization
+After preparing the final chosen workspace, if account.connected is true, call save_project with its exact draft to persist the project in the app. This is an explicit write: respect host approval and never claim sync if it fails. Do not save every intermediate exploratory search. For an existing project refinement pass its project_id and expected_revision; retain that identity. Use the canonical result for later reports. Anonymous users retain Connect Account.

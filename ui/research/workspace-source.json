@@ -1,27 +1,27 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "e7d0c521f32b2f79d415699360c5da5e6e3f1808",
+  "source_commit": "4eda46cf34bf5e570cbbe9dd8d5b95904fbc3804",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
-    "app/research/WorkspaceAccessFooter.tsx": "aedcc6743901385950a0916b0279e319dc62d35b6b1d79549a7765e4ae367747",
-    "app/research/ProjectReports.tsx": "e8558fe30fd515d81facc3c500910f41149e34b6bc8374533d415859b99bace5",
+    "app/research/WorkspaceAccessFooter.tsx": "bf2ffbff1e6aaafb1c3d1a19485c8ab2a3fbdaecf953ae430314561884c33dd9",
+    "app/research/ProjectReports.tsx": "92b2a7d042381d3bd088635538b80ef595e004b34169b25d47edde494509bf9c",
     "public/trialagents-mark-white.png": "7b879c8cf3e472b6984291343e61fd988caf46676f1725dcd5d466bdbfc2f20c",
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "2f3e21496c8ea04f03dcbed57933771246f3de9edba7ed15f3f37c1ddf676ebd",
-    "app/research/workspace.css": "68075b02dd05b0b67ce353f7bb6da97eb5b06162c3a30de24112867fce6a1d98",
-    "app/preview/combined/SharedProjectFrame.tsx": "32f82fa93b66d8282f905abb145466e5f570293a1b1a25ea7ae0a3e0076e9ac8",
+    "app/research/WorkspaceTables.tsx": "078adaa1e5e98fe12ec71134acf1d31c849925157391cb19c83ad405c5a67e14",
+    "app/research/workspace.css": "0e804c8ac857b85de2f65d77ead6cae275a701fe10b87ffea4631992b8f50dd0",
+    "app/preview/combined/SharedProjectFrame.tsx": "4da657a5c2e21f6776b1f8babc8358158681ab8ce5519bc22e3db424a818e828",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
     "app/globals.css": "b7cadb43d253dfa93566b4c2f7b3d3f1f59db1a0791edfd9619b541a226a679e",
     "app/trialagents-theme.css": "f3410d5b8501ed22303f89e1b762652442e6f68f3285755ebea142ffd10c1c97",
     "app/_site-agent/SiteResultsTable.tsx": "b49907b2a9c7d84e04cb049e310f38d7e39e35a0b2e9d3e1d195af550a3871b1",
-    "app/_site-agent/SiteAgentWorkspace.module.css": "aacb16fe84ba010b332709fb390ec470726f8accbc5b66331c7c471d897bdc94",
+    "app/_site-agent/SiteAgentWorkspace.module.css": "c1676e8ef8f8147ec3c248708c8aa1cf6eee153fe559e579a60cf17b2dacd140",
     "app/preview/combined/CombinedEntityTable.tsx": "3ff9a654229aaac9f6c8352182e8da732adc46c9c903452f61e1c4a3eba36de4",
-    "app/preview/combined/combined-workspace.css": "3f27689aa6f78c5503dc6a3a5b1ca1cf172dce42aae048b86b74b307bdc90a74",
+    "app/preview/combined/combined-workspace.css": "257f7f14fbf299e591df99f94baaad0f95723fa5469f430d3547f5697b6706d5",
     "app/components/TrialEvidence.tsx": "ee0e77740d0c073463da8f77165fcbb8ee31459ab1d76c04e35612ddb0a69c74",
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "4ffe96422adc561659f4d043d0c3b95c547d71cfa77c6a9b40e6357d6070d2e9"
+  "bundle_sha256": "1abe4a1c84f2b70c81760e2afa3ec7f45bd2136fa0cee926ecfb14f692ee0e35"
 }

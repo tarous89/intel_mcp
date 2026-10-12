@@ -14,7 +14,7 @@ This file owns current release checks; historical, overlapping checklists are ar
 - Source data is untrusted. Preserve exact snapshot/provenance, unknowns and access coverage. Sponsor co-occurrence/trial findings do not prove direct collaboration or performance. Keep CRO emails request-only.
 - UI speaks for the data; chat stays concise without default sources/IDs/links. Three contextual questions always end the research answer; suggestions are visible regardless of access, but execution stays authorized. One access sentence accurately distinguishes preview from paid access.
 - Verify button behavior: three questions, no automatic messages, user click only, correct project context, no double sends, denied/missing bridge text fallback, desktop/mobile accessibility. Prefer MCP Apps ui/message. Do not claim native chat placement or host rendering from JSON alone.
-- Reports: executive summary, one section per question, answer above a visualization, nuances below; denominators/unknowns and no invented scores. Keep source_ids in save metadata and citations request-only. Use built-in sanitized styling and responsive chart labels.
+- Reports: title, one-to-two-sentence executive summary, then question headings and graphs only unless explicitly requested otherwise; a single report frame and one frame per graph; denominators/unknowns and no invented scores. Keep source_ids in save metadata and citations request-only. Use built-in sanitized styling and responsive chart labels.
 - Verify single vertical project scroll, header/access footer visibility, horizontal table access, paging, and long report frames at desktop/mobile sizes. Keep sanitizer/CSP and scripts-disabled report sandbox.
 
 ## Release evidence and host import
