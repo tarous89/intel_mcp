@@ -1,4 +1,5 @@
 import React,{useState,useRef,useEffect} from 'react';
+import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextprotocol/ext-apps';
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
@@ -8,6 +9,24 @@ const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDispl
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
 let setIncoming:(data:any)=>void=()=>{};
+function reportPreview(d:any){return d?{preview_id:d.preview_id,snapshot_key:d.snapshot_key,cache_token:d.cache_token}:undefined;}
+function SaveNotice({data}:{data:any}){
+ const [busy,setBusy]=useState(false),[error,setError]=useState('');
+ const storage=data.storage_status==='unavailable',project=!!data.project_save_error;
+ if(!storage&&!project&&data.report_saved!==false)return null;
+ async function retry(){setBusy(true);setError('');try{
+  const call=storage?(data.account?.connected?{name:'save_project',arguments:{preview:data.draft}}:{name:'recover_research_preview',arguments:{preview:data.draft,kind:data.result?.entity_type??'cros'}}):
+   project?{name:'save_project',arguments:{preview:data.draft}}:{name:'retry_project_report',arguments:{retry_id:data.retry_id}};
+  const out=await app.callServerTool(call);
+  if(out.isError)throw Error('The retry could not complete. Your existing research and visualization have not been replaced.');
+  receive(out.structuredContent);
+ }catch(cause){setError(cause instanceof Error?cause.message:'The retry could not complete.');}finally{setBusy(false);}}
+ return <section role="alert" style={{padding:'12px 20px',background:'#fff5e9',color:'#573a16',borderBottom:'1px solid #e6d5be'}}>
+  <p style={{margin:'0 0 8px'}}>{storage?'Your results are visible, but preview storage was interrupted. Retry storage before saving or creating a report.':project?'Your preview is ready, but we could not confirm the project save. Retry to verify it without creating another copy.':data.save_status==='unverified'?'The report save could not be verified. Retry the same save to check it without creating another copy.':'The visualization could not be saved. Your existing results have not been replaced.'}</p>
+  {(storage||project||data.retry_id)&&<button disabled={busy} onClick={retry}>{busy?'Retrying…':storage?(data.account?.connected?'Retry storage and save':'Retry storage'):project?'Retry project save':'Retry report save'}</button>}
+  {error&&<p>{error}</p>}
+ </section>;
+}
 function modelContext(data:any){
  // Context synchronization is optional host support, not a table-load dependency.
  try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,applied_view:data.view??null,matching_count:data.result.total_entities,visible_count:data.result.returned,view_scope:data.account?.fullAccess?'full_dataset':'accessible_preview',visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null,reports:data.reports??[],visualization_save_offer:data.visualization_save_offer??null,active_report_id:data.active_report_id??null}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
@@ -19,7 +38,7 @@ function View({initial}:{initial:any}){
  const pageCache=useRef(new Map<string,{at:number;data:any}>());
  const requestSerial=useRef(0),activeControls=useRef<any>({});
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
- setIncoming=value=>{pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ setIncoming=value=>{if(!value?.result){setData((old:any)=>({...old,...value}));return;}pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number,controls:any=undefined,preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView){setDataset(false);setReportsView(false);}setError('');setRetryPage(null);setConnectionError(false);
   if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setBusy(false);setData(next);modelContext(next);return;}
   const cacheKey=JSON.stringify([data.project_id,data.revision,kind,offset,controls??null,data.account?.fullAccess]);
@@ -85,19 +104,20 @@ function View({initial}:{initial:any}){
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
  async function saveState(id:string,version:number,state:any){
-  const out=await app.callServerTool({name:'save_visualization_state',arguments:{report_id:id,expected_version:version,state,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});
+  const out=await app.callServerTool({name:'save_visualization_state',arguments:{report_id:id,expected_version:version,state,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});
   if(out.isError||!out.structuredContent?.saved)throw Error();
   const result=out.structuredContent;setData((current:any)=>({...current,report:result.report,reports:current.reports.map((r:any)=>r.id===id?{...r,version:result.report.version,updated_at:result.report.updated_at}:r)}));return result;
  }
  async function requestSave(){
+  if(data.retry_id){try{const out=await app.callServerTool({name:'retry_project_report',arguments:{retry_id:data.retry_id}});if(out.isError)throw Error();receive(out.structuredContent);}catch{setError('The retained report could not be saved. Your original visualization has not been replaced.');}return;}
   try{await app.updateModelContext({structuredContent:{project_id:data.project_id,preview:data.draft??null,visualization_save_offer:data.visualization_save_offer}});
    const result=await app.sendMessage({role:'user',content:[{type:'text',text:(data.visualization_save_offer?.retry?'Retry saving':'Save')+' the visualization “'+data.visualization_save_offer?.title+'” in this TrialAgents project. Use the existing content; verify the saved result.'}]});if(result.isError)throw Error();
   }catch{setError('Could not send the save request. Ask ChatGPT to save this visualization again.');}
  }
- async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
+ async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
- return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <><SaveNotice data={data}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};
@@ -105,8 +125,25 @@ class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{fail
  render(){return this.state.failed?<section role="alert" style={{padding:24,color:'#182628',background:'#fff',fontFamily:'system-ui'}}><h1>Workspace could not be displayed</h1><p>Please reopen the workspace from the conversation. Your research has not been changed.</p></section>:this.props.children;}
 }
 let mounted=false;
-app.ontoolresult=result=>{const data=result.structuredContent;if(!data?.project_id||!data.result)return;
- modelContext(data);if(mounted)setIncoming(data);else{root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>);mounted=true;}};
-function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);}
+function receive(data:any){
+ if(!data)return;
+ if(!data.project_id||!data.result){
+  if(data.report_saved===false||data.storage_status==='unavailable'||data.project_save_error){
+   if(mounted)setIncoming(data);else root.render(<SaveNotice data={data}/>);
+  }return;
+ }
+ modelContext(data);if(mounted)setIncoming(data);else{flushSync(()=>root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>));mounted=true;}
+}
+app.ontoolresult=result=>receive(result.structuredContent);
+let displayRequested=false,displayPending=false;
+async function requestWorkspace(ctx:any){
+ if(displayRequested||displayPending||ctx?.displayMode==='fullscreen'||!ctx?.availableDisplayModes?.includes('fullscreen'))return;
+ displayPending=true;try{await app.requestDisplayMode({mode:'fullscreen'});displayRequested=true;}catch{/* Retry on the next host capability notification. */}finally{displayPending=false;}
+}
+function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);void requestWorkspace(ctx);}
 app.onhostcontextchanged=theme;
-app.connect().then(async()=>{const context=app.getHostContext();theme(context);if(context?.displayMode!=='fullscreen'&&context?.availableDisplayModes?.includes('fullscreen')){try{await app.requestDisplayMode({mode:'fullscreen'});}catch{/* Host placement remains authoritative. */}}}).catch(()=>root.render(<p>Use the project link in the conversation to open Intel Agent.</p>));
+async function connectHost(){
+ try{await app.connect();theme(app.getHostContext());}
+ catch{if(!mounted)root.render(<section className="workspace-loading" role="alert"><strong>TrialAgents</strong><p>The workspace connection was interrupted.</p><button onClick={()=>void connectHost()}>Retry opening workspace</button></section>);}
+}
+void connectHost();

@@ -66,6 +66,26 @@ class ControlPlaneClient:
             )
         return body
 
+    async def stream_research_preview(self, token, snapshot_key, payload, prepared) -> dict:
+        from .preview_stream import snapshot_chunks
+        import asyncio
+        self._settings.validate_control_plane()
+        async def content():
+            for chunk in snapshot_chunks(token, snapshot_key, payload, prepared):
+                yield chunk
+                await asyncio.sleep(0)
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=10), transport=self._transport) as client:
+                response = await client.post(
+                    f"{self._settings.app_control_url}/api/internal/mcp/research-preview-cache",
+                    headers={"Authorization": f"Bearer {self._settings.app_service_token}", "Content-Type": "application/x-ndjson"},
+                    content=content())
+        except httpx.HTTPError as error:
+            raise ControlPlaneError("PREVIEW_STORAGE_UNAVAILABLE", "Preview storage was interrupted. Retry the same preview.", 503) from error
+        if response.status_code != 200:
+            raise self._response_error(response, "PREVIEW_STORAGE_UNAVAILABLE", "Preview storage is unavailable. Retry the same preview.")
+        return response.json()
+
     async def cache_research_preview(self, payload: dict) -> dict:
         self._settings.validate_control_plane()
         response = await self._post(f"{self._settings.app_control_url}/api/internal/mcp/research-preview-cache", payload, include_oauth_subject=False)

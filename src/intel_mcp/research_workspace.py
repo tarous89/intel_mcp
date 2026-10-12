@@ -1,5 +1,7 @@
 """One persisted cohort for the shared Intel Agent workspace; no model jobs."""
 from copy import deepcopy
+import asyncio
+import time
 import secrets
 import gzip
 import logging
@@ -68,8 +70,7 @@ def preview_page(payload, kind, offset, full):
     if not full and offset:
         raise SelectionError('PAID_ACCOUNT_REQUIRED')
     section = next(s for s in payload['sections'] if s['entity_type'] == kind)
-    result = deepcopy(section['result'])
-    result['entities'] = result['entities'][offset:offset+10]
+    result = {**section['result'], 'entities': deepcopy(section['result']['entities'][offset:offset+10])}
     for entity in result['entities']:
         for evidence in entity.get('evidence', []):
             if full:
@@ -124,6 +125,48 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
     ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
+    pending_previews = {}
+
+    async def persist_preview(spec, payload=None):
+        if payload is None:
+            payload = await asyncio.to_thread(preview_payload, spec)
+        dataset = store.get(spec.selection_id)
+        control = control_factory()
+        stream = getattr(control, 'stream_research_preview', None)
+        legacy = getattr(control, 'cache_research_preview', None)
+        if not stream and not legacy:
+            return False
+        spec.cache_token = spec.cache_token or secrets.token_urlsafe(32)
+        prepared = await asyncio.to_thread(prepare_selection, dataset)
+        if stream:
+            await stream(spec.cache_token, spec.snapshot_key, payload, prepared)
+        else:
+            frozen = {**payload, 'prepared_selection': prepared}
+            compressed = base64.b64encode(gzip.compress(json.dumps(frozen, separators=(',', ':')).encode(), compresslevel=1)).decode()
+            await legacy({'token': spec.cache_token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed})
+        pending_previews.pop(spec.preview_id, None)
+        return True
+
+    async def recover_preview(preview):
+        pending = pending_previews.get(preview.preview_id)
+        if not pending or pending['expires'] < time.monotonic():
+            raise ToolError('PREVIEW_RECOVERY_UNAVAILABLE: The original preview cannot be recovered in this session. Do not replace its research silently.')
+        spec = pending['spec']
+        if preview.cache_token != spec.cache_token or preview.snapshot_key != spec.snapshot_key or pending['owner'] != current_oauth_subject():
+            raise ToolError('PREVIEW_RECOVERY_UNAVAILABLE')
+        try:
+            await persist_preview(spec)
+            return spec
+        except (ControlPlaneError, SelectionError, OSError) as error:
+            raise ToolError('PREVIEW_STORAGE_UNAVAILABLE: Retry this same preview; its research has not been replaced.') from error
+
+    @server.tool(meta={**mixed,**ui},annotations=read_annotations,structured_output=True)
+    async def recover_research_preview(preview: PreviewSpec, kind: Kind='cros') -> dict[str, Any]:
+        """Retry storage of the exact failed preview, retaining its identity and selection. Does not save an account project or repeat research."""
+        spec = await recover_preview(preview)
+        out = await read_project_preview(spec, kind)
+        return {**out, 'storage_status': 'ready'}
+
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None)->dict[str,Any]:
         """Page an existing 24-hour preview without repeating search or rebuilding the workspace."""
@@ -154,8 +197,10 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """
         if not current_oauth_subject():
             return connect_result()
+        if preview.preview_id in pending_previews:
+            preview = await recover_preview(preview)
         if not preview.cache_token:
-            raise ToolError('PREVIEW_UNAVAILABLE: Prepare a new cached preview before saving.')
+            raise ToolError('PREVIEW_UNAVAILABLE: Retry storage of the original preview before saving.')
         if (project_id is None) != (expected_revision is None):
             raise ToolError('INVALID_REVISION: Supply both project_id and expected_revision for updates.')
         command={'cacheToken':preview.cache_token,'snapshotKey':preview.snapshot_key,
@@ -270,7 +315,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         The cached import expires after 24 hours; never claim a preview is already a saved project.
         """
         try:
-            payload=workspace_payload(store.get(selection_id),title,include_cro_contacts,recommendations)
+            payload=await asyncio.to_thread(workspace_payload,store.get(selection_id),title,include_cro_contacts,recommendations)
             access=await preview_access()
             full=access.get('fullAccess') is True
             pages={k:preview_page(payload,k,0,full) for k in ('cros','sites','pis','trials')}
@@ -281,27 +326,54 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             visible={e['id'] for e in result['entities']}
             spec=PreviewSpec(preview_id=preview_id or str(uuid4()),selection_id=selection_id,title=title,include_cro_contacts=include_cro_contacts,
                              recommendations=recommendations,snapshot_key=payload_key(payload))
-            cache = getattr(control_factory(), 'cache_research_preview', None)
-            if cache:
-                token = secrets.token_urlsafe(32)
-                # Private App-only input. Never include full profiles in tool/UI output.
-                frozen = {**payload, 'prepared_selection': prepare_selection(store.get(selection_id))}
-                compressed = base64.b64encode(gzip.compress(json.dumps(frozen, separators=(',', ':')).encode(), compresslevel=1)).decode()
-                try:
-                    await cache({'token': token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed})
-                    spec.cache_token = token
-                except (ControlPlaneError, OSError) as error:
-                    logging.getLogger(__name__).warning('preview_cache_unavailable: %s', type(error).__name__)
+            storage_ready=False
+            storage_error=None
+            try:
+                storage_ready=await persist_preview(spec,payload)
+            except (ControlPlaneError,OSError) as error:
+                storage_error=getattr(error,'code','PREVIEW_STORAGE_UNAVAILABLE')
+                # Keep the capability and identity for an exact retry, never advertise this as stored.
+                for key in list(pending_previews):
+                    if pending_previews[key]['expires'] < time.monotonic(): pending_previews.pop(key,None)
+                if len(pending_previews)>=128:pending_previews.pop(next(iter(pending_previews)))
+                pending_previews[spec.preview_id]={'spec':spec.model_copy(deep=True),'owner':current_oauth_subject(),'expires':time.monotonic()+store.remaining_seconds(selection_id)}
+                logging.getLogger(__name__).warning('preview_storage_failed code=%s',storage_error)
             return {'project_id':spec.preview_id,
                 'title':title,'revision':1,'current_revision':1,'owned':False,'saved':False,
                 'draft':spec.model_dump(mode='json'),'preview_tables':pages,
-                'expires_in_seconds':86400 if spec.cache_token else store.remaining_seconds(selection_id),'account':access,
+                'expires_in_seconds':86400 if storage_ready else store.remaining_seconds(selection_id),'account':access,
+                'storage_status':'ready' if storage_ready else 'unavailable','storage_error':storage_error,
+                'recovery_tool':'recover_research_preview' if storage_error else None,
                 'result':result,'recommendations':[r.model_dump(mode='json') for r in recommendations
                     if r.entity_type==kind and r.entity_id in visible],
                 'tables':[{'kind':s['entity_type'],'total':s['result']['total_entities']} for s in payload['sections']],
                 'presentation':{'supporting_trials':'only_on_explicit_request',
                     'instruction':('Call save_project with this exact draft to synchronize the final chosen workspace to the connected account. Honor host write approval and use the returned canonical project for reports. Do not claim saved before success.' if access.get('connected') else 'Show the interactive preview. It is not saved yet. Connect account starts saving; no account is needed to view.')}}
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
+
+    @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
+    async def publish_research_workspace(
+        selection_id: Annotated[str,Field(min_length=40,max_length=64)],
+        title: Annotated[str,Field(min_length=1,max_length=160)],
+        include_cro_contacts: bool=False,
+        recommendations: Annotated[list[Recommendation],Field(max_length=30)]=[],
+        kind: Kind='cros',
+    ) -> dict[str, Any]:
+        """Present the final research workspace and save it for the connected account in one operation.
+
+        DEFAULT after completing research/refinement. This is an honestly annotated write:
+        honor host approval. Guests receive a cached 24-hour preview; connected accounts
+        receive a canonical saved project. Never use for intermediate searches or to replace
+        an existing project's revision; use save_project with expected_revision for updates.
+        Custom comparison cards/charts still require save_project_report.
+        """
+        out=await prepare_research_workspace(selection_id,title,include_cro_contacts,recommendations,kind)
+        if not current_oauth_subject() or out.get('storage_status')!='ready':return out
+        try:
+            return await save_project(PreviewSpec.model_validate(out['draft']))
+        except ToolError as error:
+            return {**out,'project_save_error':str(error),'save_status':'failed',
+                    'instructions':'The preview is visible but the project save failed. Retry save_project with this exact draft; do not repeat the research.'}
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def get_research_workspace(
@@ -405,3 +477,5 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             out['message']='This research is saved in your TrialAgents account and appears in Projects.'
             return out
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
+
+    return recover_preview
