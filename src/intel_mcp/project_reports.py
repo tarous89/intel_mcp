@@ -30,7 +30,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
 
     async def workspace(project_id,preview,report_id=None):
         out=await call('preview_read' if preview else 'canonical_read',project_id,preview,kind='trials',offset=0,limit=10)
-        out.update(await call('report_list',project_id,preview))
+        if 'reports' not in out:out.update(await call('report_list',project_id,preview))
         if report_id:out['active_report_id']=report_id
         return out
 
@@ -162,8 +162,9 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
     async def save_project_report(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(min_length=1,max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
         """Store every generated report as a new immutable version and open the saved Reports view.
 
-        Use prepare_project_report guidance and HTML example: executive summary, one section
-        per question, short answer above a visualization, nuances below. Keep source_ids
+        Use prepare_project_report guidance and HTML example: title, a one-to-two-sentence executive summary, then question headings
+        and graphs only. Advice and interpretation belong in chat. Use one report
+        frame and one per graph, with no nested panels, unless explicitly requested otherwise. Keep source_ids
         in metadata; do not display sources, trial IDs or links unless requested.
         Free reports use only preview evidence.
         Generating a report includes saving it; do not wait for a separate save request.
@@ -175,12 +176,17 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         result=await call('report_save',project_id,preview,title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key)
         saved_project=result.get('project_id')
         out=await workspace(saved_project or project_id,None if saved_project else preview,result['report']['id'])
-        return {**out,'report_saved':True,'temporary_report':result['temporary']}
+        return {**out,'report':result['report'],'report_saved':True,'temporary_report':result['temporary']}
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
     async def list_project_reports(project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
         """List existing saved report snippets for this project without generating analysis."""
         return await call('report_list',project_id,preview)
+
+    @server.tool(meta={**callable_meta,'ui':{'visibility':['app']}},annotations=read_annotations,structured_output=True)
+    async def read_project_report(report_id:str,project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
+        """Read an authorized saved report for the existing viewer without rebuilding tables."""
+        return await call('report_read',project_id,preview,reportId=report_id)
 
     @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
     async def open_project_report(report_id:str,project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:

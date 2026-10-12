@@ -146,7 +146,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """Save chosen research to the same canonical project shown on the TrialAgents website.
 
         Explicit authenticated write. After preparing and inspecting a preview, use this
-        when the user asks to create/save a project. For a refinement, search and inspect
+        to synchronize the final chosen workspace for a connected user. Do not save intermediate searches. For a refinement, search and inspect
         freely first, then pass the existing project_id and its latest expected_revision.
         This attaches cached exact results; it does not rerun research or summarize data.
         A project update requires both project_id and expected_revision. Never describe
@@ -300,7 +300,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                     if r.entity_type==kind and r.entity_id in visible],
                 'tables':[{'kind':s['entity_type'],'total':s['result']['total_entities']} for s in payload['sections']],
                 'presentation':{'supporting_trials':'only_on_explicit_request',
-                    'instruction':'Show the interactive preview. It is not saved yet. Connect account starts saving; no account is needed to view.'}}
+                    'instruction':('Call save_project with this exact draft to synchronize the final chosen workspace to the connected account. Honor host write approval and use the returned canonical project for reports. Do not claim saved before success.' if access.get('connected') else 'Show the interactive preview. It is not saved yet. Connect account starts saving; no account is needed to view.')}}
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)

@@ -16,27 +16,41 @@ function View({initial}:{initial:any}){
  const [reportsView,setReportsView]=useState(!!initial.active_report_id),[activeReport,setActiveReport]=useState<string|undefined>(initial.active_report_id);
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
  const [connectionStatus,setConnectionStatus]=useState('');
+ const pageCache=useRef(new Map<string,{at:number;data:any}>());
  const requestSerial=useRef(0),activeControls=useRef<any>({});
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
- setIncoming=value=>{requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ setIncoming=value=>{pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number,controls:any=undefined,preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView){setDataset(false);setReportsView(false);}setError('');setRetryPage(null);setConnectionError(false);
-  if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setData(next);modelContext(next);return;}
+  if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setBusy(false);setData(next);modelContext(next);return;}
+  const cacheKey=JSON.stringify([data.project_id,data.revision,kind,offset,controls??null,data.account?.fullAccess]);
+  const cached=pageCache.current.get(cacheKey);
+  if(!preserveView&&cached&&Date.now()-cached.at<30000){setBusy(false);setData(cached.data);modelContext(cached.data);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
   const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
   if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();
   if(data.canonical&&offset&&data.view?.version!==undefined&&out.structuredContent.view?.version!==data.view.version){void page(kind,0,undefined,preserveView);return;}
+  if(pageCache.current.size>=12)pageCache.current.delete(pageCache.current.keys().next().value!);
+  pageCache.current.set(cacheKey,{at:Date.now(),data:out.structuredContent});
   setData(out.structuredContent);modelContext(out.structuredContent);
  }catch{if(serial!==requestSerial.current)return;setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{if(serial===requestSerial.current)setBusy(false);}}
+ // Recheck account/project state only on return to this workspace. Do not poll
+ // immutable datasets or block controls while the user is inspecting a table.
+ const current=useRef(data);current.current=data;
+ const refreshing=useRef(false);
  useEffect(()=>{
-  if(!data?.canonical&&!data?.draft?.cache_token)return;
-  const refresh=()=>{if(!document.hidden&&!busy)void page(data.result.entity_type,data.result.access_info.offset??0,data.canonical?undefined:activeControls.current,true);};
-  window.addEventListener('focus',refresh);const timer=setInterval(refresh,30000);
-  return()=>{window.removeEventListener('focus',refresh);clearInterval(timer);};
- },[data?.project_id,data?.canonical,data?.draft?.cache_token,data?.result?.entity_type,data?.result?.access_info?.offset,busy]);
- useEffect(()=>{if(initial.draft?.cache_token)void page(initial.result.entity_type,0,initial.view?.controls??{},true);},[]);
+  const refresh=async()=>{
+   const value=current.current;if(document.hidden||refreshing.current||(!value.canonical&&!value.draft?.cache_token))return;
+   pageCache.current.clear();refreshing.current=true;const serial=requestSerial.current;
+   try{const out=await app.callServerTool(value.draft?{name:'read_project_preview',arguments:{preview:value.draft,kind:value.result.entity_type,offset:value.result.access_info.offset??0,controls:activeControls.current}}:{name:'open_project',arguments:{project_id:value.project_id,kind:value.result.entity_type,offset:value.result.access_info.offset??0}});
+    if(serial===requestSerial.current&&!out.isError&&out.structuredContent?.result){setData(out.structuredContent);modelContext(out.structuredContent);}
+   }catch{/* Retain the visible snapshot; interactive reads surface retry errors. */}finally{refreshing.current=false;}
+  };
+  window.addEventListener('focus',refresh);return()=>window.removeEventListener('focus',refresh);
+ },[]);
  async function applyView(controls:any){
+  pageCache.current.clear();
   if(!data.canonical){await page(data.result.entity_type,0,controls);return;}
   if(busy)return;setBusy(true);setError('');
   try{
@@ -70,7 +84,7 @@ function View({initial}:{initial:any}){
 
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
 
- async function readReport(id:string){const out=await app.callServerTool({name:'open_project_report',arguments:{report_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
+ async function readReport(id:string){if(data.report?.id===id)return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
  return <>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onReportRead={readReport} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;

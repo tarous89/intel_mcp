@@ -14,7 +14,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  for(const width of [1280,760,420]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(data=>{
-   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='open_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
+   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.getByRole('button',{name:'Connect Account',exact:true}).first().waitFor();
@@ -44,12 +44,13 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    assert(dims.edge<=dims.viewport+2,`${width}/${label}: rightmost button clipped ${JSON.stringify(dims)}`);assert(dims.body<=dims.width+2,`${width}/${label}: page overflow`);
   }
   await page.locator('nav button').filter({hasText:'PIs'}).click();await page.getByRole('button',{name:'Insights',exact:true}).first().click();assert(await page.getByText('Department: Oncology department').isVisible());assert(await page.getByText('Recent activity',{exact:true}).isVisible());
+  assert.equal(await page.locator('[class*="insightsPanel"] > div').evaluate(el=>getComputedStyle(el).rowGap),'20px');
   await page.getByRole('button',{name:'Filters',exact:true}).click();assert(await page.getByLabel('Rank by').isVisible());
   if(width===1280)await page.screenshot({path:process.env.UX_SCREENSHOT??'/tmp/workspace-ux.png',fullPage:true});
   await page.locator('nav button').filter({hasText:'Reports'}).click();
   await page.getByRole('button',{name:/Protocol comparison/}).click();
   await page.frameLocator('iframe[title="Protocol comparison"]').getByRole('heading',{name:'Evidence comparison'}).waitFor();
-  assert(await page.getByText('How do endpoints differ?',{exact:false}).isVisible());
+  assert(await page.frameLocator('.report-viewer iframe').getByRole('heading',{name:'Evidence comparison'}).isVisible());
   assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-same-origin');
   await page.waitForFunction(()=>{const f=document.querySelector('iframe');return f&&f.offsetHeight>2000});
   const reportScroll=await page.locator('iframe').evaluate(f=>({scroll:f.contentDocument.documentElement.scrollHeight,height:f.clientHeight}));
@@ -70,5 +71,21 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   }
   assert.deepEqual(errors,[]);await page.close();
  }
+ }finally{await browser.close();}
+});
+
+test('branded preparation animates before any host data arrives',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{const page=await browser.newPage({viewport:{width:900,height:600}});
+ const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
+ await page.addInitScript(()=>{window.postMessage=()=>{};});
+ await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
+ assert(await page.getByRole('status').isVisible());
+ assert(await page.getByText('We’re preparing your TrialAgent dataset…').isVisible());
+ const bar=page.locator('.workspace-loading-track span');
+ assert.equal(await bar.evaluate(el=>getComputedStyle(el).animationName),'dataset-preparing');
+ const before=await bar.evaluate(el=>getComputedStyle(el).transform);await page.waitForTimeout(100);
+ assert.notEqual(await bar.evaluate(el=>getComputedStyle(el).transform),before);
+ await page.screenshot({path:'/tmp/workspace-design/preparing.png'});
  }finally{await browser.close();}
 });
