@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -51,19 +51,19 @@
               "description": "Anonymous landscape across three entity categories",
               "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
               "tools_triggered": "search_research_trials, inspect_research_trials, refine_research_cohort, prepare_research_workspace",
-              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar or Reports. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering."
+              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar; Reports appears for saved reports. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering. End with three relevant investigation questions and one accurate access sentence, without repeating workspace rows."
             },
             {
-              "description": "Function-specific provider research",
-              "prompt": "Which providers have performed laboratory analysis in prostate cancer trials?",
-              "tools_triggered": "search_research_trials, rank_research_entities",
-              "expected_behavior": "Use cros and function_code 4; rank recorded-function experience, label providers appropriately, show totals and at most ten. Do not infer full-service CRO capability."
+              "description": "Visual report and follow-up questions",
+              "prompt": "Find prostate cancer trials and compare protocol designs and eligibility in a report.",
+              "tools_triggered": "search_research_trials, prepare_research_workspace, prepare_project_report, read_report_evidence, read_report_document, save_project_report, show_research_followups",
+              "expected_behavior": "Use authorized records only, including complete content for eligible free trials. Each question gets a short answer above a visualization and nuances below. Store sources internally but omit visible IDs/links unless requested. Save only with host approval. Finish with three relevant questions and one scope-accurate access sentence; suggestions may require broader access but never bypass it."
             },
             {
               "description": "Evidence and contact follow-up",
               "prompt": "Find prostate cancer CROs, then show supporting trials and recorded contacts for the first ranked provider.",
-              "tools_triggered": "search_research_trials, rank_research_entities, get_research_entity_evidence",
-              "expected_behavior": "Start from a fresh chat. Search prostate trial experience and rank at most ten providers. Use the returned first entity and selection IDs for supporting evidence; if no entities exist, report that honestly. Show only recorded professional contacts and returned source links. No fixed IDs, raw profiles or invented contacts; refresh expired selections."
+              "tools_triggered": "search_research_trials, prepare_research_workspace, get_research_entity_evidence",
+              "expected_behavior": "Start from a fresh chat. Search prostate trial experience and rank at most ten providers. Use the returned first entity and selection IDs for supporting evidence; if no entities exist, report that honestly. Show only recorded professional contacts and returned source links. No invented IDs or contacts; full content is available within the fixed eligible trial set; refresh expired selections."
             },
             {
               "description": "Account access and private saved research",
@@ -74,7 +74,7 @@
             {
               "description": "Hard constraints and sparse cohorts",
               "prompt": "Find phase III prostate cancer investigator sites in Germany only. Keep these requirements even if there are fewer than 200 trials.",
-              "tools_triggered": "search_research_trials, rank_research_entities",
+              "tools_triggered": "search_research_trials, prepare_research_workspace",
               "expected_behavior": "Preserve phase III base constraint and distinguish German site affiliation from trial-country coverage. Return actual counts even below 200; no silent expansion, forced ten rows or claimed recruitment capacity."
             }
           ],

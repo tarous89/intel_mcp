@@ -22,8 +22,8 @@ def test_package_is_reproducible_and_excludes_unlisted_files(tmp_path, monkeypat
     with zipfile.ZipFile(first) as archive:
         assert set(archive.namelist()) == set(plugin_build.FILES)
         assert 'plugin.json' in archive.namelist()
-        assert 'skills/find-clinical-partners/references/report-guidance.md' in archive.namelist()
-        assert (source/'skills/find-clinical-partners/references/report-guidance.md').read_text() == (MODULE_PATH.parents[1]/'src/intel_mcp/report-guidance.md').read_text()
+        assert 'skills/create-trial-report/references/report-guidance.md' in archive.namelist()
+        assert (source/'skills/create-trial-report/references/report-guidance.md').read_text() == (MODULE_PATH.parents[1]/'src/intel_mcp/report-guidance.md').read_text()
         assert all(b'DO_NOT_DISTRIBUTE' not in archive.read(n) for n in archive.namelist())
 
 
@@ -39,3 +39,18 @@ def test_package_rejects_symlink_payload(tmp_path, monkeypatch):
     monkeypatch.setattr(plugin_build, 'PACKAGE', source)
     with pytest.raises(ValueError, match='symlinked'):
         plugin_build.validate()
+
+
+def test_presentation_assets_match_runtime_and_package():
+    runtime=MODULE_PATH.parents[1]/'src/intel_mcp'
+    refs={
+        'presentation-standard.md':'references/presentation-standard.md',
+        'access-and-evidence.md':'references/access-and-evidence.md',
+        'research-workflow.md':'references/research-workflow.md',
+        'report-guidance.md':'skills/create-trial-report/references/report-guidance.md',
+        'report-example.html':'skills/create-trial-report/assets/report-example.html',
+    }
+    for name,source in refs.items():
+        assert (plugin_build.PACKAGE/source).read_bytes() == (runtime/name).read_bytes()
+        assert source in plugin_build.FILES
+    assert len(list((plugin_build.PACKAGE/'skills').glob('*/SKILL.md')))==4

@@ -3,6 +3,7 @@ from importlib.resources import files
 from typing import Annotated, Any
 import json
 from .profiles import ProfileSection, project_profile
+from .followups import RESOURCE as FOLLOWUP_RESOURCE, followup_payload
 from .profile_catalog import profile_catalog
 from pydantic import Field
 from mcp.types import ToolAnnotations
@@ -12,7 +13,8 @@ from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_workspace import PreviewSpec, RESOURCE
 
-GUIDANCE=files('intel_mcp').joinpath('report-guidance.md').read_text()
+GUIDANCE=files('intel_mcp').joinpath('presentation-standard.md').read_text()+'\n\n'+files('intel_mcp').joinpath('report-guidance.md').read_text()
+REPORT_EXAMPLE=files('intel_mcp').joinpath('report-example.html').read_text()
 
 def register_project_report_tools(server,engine_factory,control_factory,mixed,oauth,read_annotations,connect_result):
     callable_meta={**mixed,'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
@@ -31,6 +33,23 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         out.update(await call('report_list',project_id,preview))
         if report_id:out['active_report_id']=report_id
         return out
+
+    @server.tool(meta={**callable_meta,'ui':{'visibility':['model','app'],'resourceUri':FOLLOWUP_RESOURCE}},annotations=read_annotations,structured_output=True)
+    async def show_research_followups(
+        questions:Annotated[list[str],Field(min_length=3,max_length=3,description="Three distinct concise questions tailored to the user's goal; broader analyses may need more authorized access. Suggest possibilities, not claimed findings.")],
+        project_id:str|None=None,preview:PreviewSpec|None=None,
+    )->dict[str,Any]:
+        """End a research answer with three clickable investigation questions and one access sentence.
+
+        Call after presenting the main workspace/report and concise interpretation. Suggest useful
+        protocols, timelines, operational findings, functions, countries or subgroup analyses even
+        if broader access would be needed. Checks the current scope; never reads extra evidence,
+        saves a project, starts an analysis or initiates a purchase. Buttons send a user message
+        only on click. Fall back to the returned questions/notice in text if no UI is supported.
+        """
+        scope=await call('report_context',project_id,preview)
+        context={'preview':preview.model_dump(mode='json')} if preview else {'project_id':project_id,'revision':scope.get('revision')}
+        return followup_payload(questions,scope,context,connected=bool(current_oauth_subject()))
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
     async def describe_trial_profile_schema(sections:list[ProfileSection]|None=None)->dict[str,Any]:
@@ -99,14 +118,16 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         available extracted documents. Paid users can inspect all authorized trials. This does not generate or save a report.
         """
         out=await call('report_context',project_id,preview)
-        return {**out,'report_guidance':GUIDANCE}
+        return {**out,'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE}
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
     async def read_report_evidence(trial_ids:Annotated[list[str],Field(min_length=1,max_length=5)],project_id:str|None=None,preview:PreviewSpec|None=None,revision:int|None=None)->dict[str,Any]:
-        """Read up to five complete authorized frozen trial profiles with report source IDs.
+        """Read up to five complete authorized frozen trial profiles with internal report source IDs.
+
+        Retain source IDs in save metadata; show sources, IDs and links only when requested.
 
         Use exact IDs from this project's Trials table. Free access includes complete profiles for the fixed eligible ten,
-        with no section or document quota; other trial IDs remain restricted. Cite returned source_id values in the HTML.
+        with no section or document quota; other trial IDs remain restricted. Preserve returned source_id values internally.
         """
         return await call('report_evidence',project_id,preview,trialIds=trial_ids,revision=revision)
 
@@ -141,7 +162,10 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
     async def save_project_report(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(min_length=1,max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:PreviewSpec|None=None)->dict[str,Any]:
         """Save the requested HTML analysis with its question, title, source IDs and exact snapshot; open Reports.
 
-        Use prepare_project_report guidance. Free reports use only preview evidence.
+        Use prepare_project_report guidance and HTML example: executive summary, one section
+        per question, short answer above a visualization, nuances below. Keep source_ids
+        in metadata; do not display sources, trial IDs or links unless requested.
+        Free reports use only preview evidence.
         Explicit write: honor host approval. Reuse request_key only for identical retries.
         Anonymous previews retain reports temporarily; Connect account saves the preview
         and its reports. Saved projects require the owner account. Never claim saved on error.

@@ -1,13 +1,12 @@
 interface:
-  display_name: "Find clinical trial partners"
-  short_description: "Compare CROs, sites and PIs using trial evidence"
-  default_prompt: "Use $find-clinical-partners to compare CROs, sites and PIs for my trial."
-
+  display_name: "Find clinical partners"
+  short_description: "Find CROs, sites, PIs and relevant trials"
+  default_prompt: "Use $find-clinical-partners for my TrialAgents research."
 dependencies:
   tools:
     - type: "mcp"
       value: "trialagents-research"
-      description: "Read trial cohorts, partner rankings and supporting evidence"
+      description: "Authorized TrialAgents research tools"
       transport: "streamable_http"
       url: "https://mcp.trialagents.com/research/mcp"
 policy:

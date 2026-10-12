@@ -11,6 +11,15 @@ def text(value):
 
 def action(label,prompt): return {'label':label,'prompt':prompt}
 
+
+def investigation_actions(kind):
+    questions={
+        'cros': ['Which services are most often recorded for these CROs?', 'How does their trial coverage differ by country and subgroup?', 'What operational findings are recorded in trials involving these CROs?'],
+        'sites': ['Which other relevant trials involve these sites?', 'How do their trial populations and protocols differ?', 'What recruitment timelines and operational findings are available for their trials?'],
+        'pis': ['Which sponsors co-occur in these investigators’ trial records?', 'Where is their phase and subgroup experience concentrated?', 'Which endpoints and protocol designs appear in their trials?'],
+    }.get(kind,['How do available protocols and eligibility criteria differ?', 'What timelines are recorded across the authorized cohort?', 'What results and operational findings are available for these trials?'])
+    return [action(question,question) for question in questions]
+
 def trial_display(trial):
     return {k:trial[k] for k in ('trial_id','title','url','roles','sponsor','operational_findings') if trial.get(k)}
 
@@ -31,21 +40,7 @@ def result_view(data,selection_id=None):
           'columns':['Partner','Trial experience','Functions / affiliations','Countries','Recorded contacts','Selection basis'],
           'rows':rows,'notice':data['access_info']['message'] if data.get('show_access_notice',True) else '', 'actions':[]}
     if data.get('show_followups',True):
-        if selection_id:
-            first=data['entities'][0] if data['entities'] else None
-            if first:
-                view['actions'].append(action('Supporting studies',f"Show supporting studies for entity {first['id']} in selection {selection_id} in one branded evidence table."))
-                view['actions'].append(action('Recorded contacts',f"Show recorded contacts for the displayed {label.lower()} in selection {selection_id}, including CRO emails if applicable. Use one branded table; explain source contact limitations."))
-            else:
-                view['actions'] += [action('Trial coverage','Show the available trial counts and search criteria for this research.'),action('Available evidence','Explain the recorded evidence available for this research without inventing results.')]
-            if data['access_info']['has_more']:
-                view['actions'].append(action('Access full list',f"Show more {label.lower()} from selection {selection_id}. Full lists require active paid TrialAgents account access. If needed, offer account connection to use existing access; do not initiate a subscription or purchase."))
-            else:
-                view['actions'].append(action('Open in Intel Agent',f"Save selection {selection_id} as my private research project and give me its Intel Agent link. Reuse the current snapshot without starting analysis or payment."))
-        else:
-            view['actions']=[action('More results','Show the next available page of this saved research project, subject to my current account access.'),
-                action('Recorded evidence','Show the supporting studies and roles recorded in this saved project.'),
-                action('Open in Intel Agent','Give me the link to this saved Intel Agent project.')]
+        view['actions']=investigation_actions(data.get('entity_type'))
     return view
 
 def evidence_view(data,selection_id,entity_id):
@@ -54,10 +49,7 @@ def evidence_view(data,selection_id,entity_id):
         rows.append({'cells':[t.get('trial_id',''),t.get('title','') or 'Title not recorded',text(t.get('roles',[])) or 'Not recorded',
              text(t.get('sponsor')) or 'Not recorded',text(t.get('operational_findings')) or 'Not included / not recorded'],
              'details':{'label':'Recorded source details','text':text(trial_display(t))}})
-    actions=[action('Recorded contacts',f"Show recorded contacts for entity {entity_id} in selection {selection_id}; CRO email contacts are explicitly requested."),
-             action('Partner experience',f"Show the partner experience table for selection {selection_id}, including functions and recorded collaborations."),
-             action('More supporting studies',f"Show the next supporting-study page for entity {entity_id}, selection {selection_id}, offset {data['next_offset']}.") if data.get('next_offset') is not None else
-             action('Open in Intel Agent',f"Save selection {selection_id} as my private Intel Agent research project; reuse the snapshot without analysis or payment.")]
+    actions=investigation_actions('trials')
     return {'title':'Supporting studies','summary':f"Showing {len(rows)} of {data['total_trials']} recorded supporting trials.",
             'columns':['Trial','Title','Recorded roles','Sponsor','Recorded trial findings'],'rows':rows,
             'notice':'Trial-level findings are not a provider performance rating or proof of responsibility.','actions':actions}
@@ -67,7 +59,7 @@ def account_view(data):
     return {'title':'Your TrialAgents account','summary':data['account_message'],
         'columns':['Capability','Included access'],'rows':[{'cells':[k,v]} for k,v in [
             ('Research','Full matching lists' if full else 'Top ten per category'),('Supporting studies','Included for accessible entities'),
-            ('Private saved projects','Included'),('Trial findings','Included where recorded' if full else 'Requires active paid access')]],
+            ('Private saved projects','Included'),('Trial findings','Included where recorded within authorized trials')]],
         'notice':'Up to 500 trials per selection. Connecting an account does not start a subscription.',
         'actions':[action('Continue research','Continue with the results available under my current account access.'),
                    action('Supporting studies','Show supporting studies for the displayed partners.'),

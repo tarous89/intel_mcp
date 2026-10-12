@@ -19,7 +19,8 @@ def test_rank_and_evidence_views_keep_details_in_one_table_and_three_data_action
     view=result_view(result,'selection')
     assert len(view['rows'])==10 and len(view['actions'])==3
     assert all(len(row['cells'])==len(view['columns']) for row in view['rows'])
-    assert view['actions'][-1]['label']=='Access full list'
+    assert len(view['actions'])==3
+    assert 'operational findings' in view['actions'][-1]['label']
     assert not any('narrow' in a['label'].lower() for a in view['actions'])
     assert 'contact1@' not in str(view)
     evidence=public_evidence(dataset,result['entities'][0]['id']).model_dump(mode='json')
