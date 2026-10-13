@@ -18,6 +18,10 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.getByRole('button',{name:'Open TrialAgents account',exact:true}).waitFor();
+  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{project_id:'synthetic-project'}}}})));
+  await page.getByText('Updating your workspace…').waitFor();
+  const loadingFooter=await page.locator('.workspace-access').boundingBox();assert(loadingFooter.y+loadingFooter.height<=900,'Activity must preserve visible footer');
+  await page.evaluate(data=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),data);
   assert(await page.locator('.workspace-brand img').evaluate(img=>img.complete&&img.naturalWidth>0),'Embedded brand mark must render without a network request');
   assert.equal(await page.getByRole('button',{name:'Export Excel',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:/Dataset/}).count(),0);
@@ -74,14 +78,16 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  }finally{await browser.close();}
 });
 
-test('branded preparation animates before any host data arrives',async()=>{
+test('branded preparation starts only after host tool input',async()=>{
  const browser=await chromium.launch({headless:true});
  try{const page=await browser.newPage({viewport:{width:900,height:600}});
  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
- await page.addInitScript(()=>{window.postMessage=()=>{};});
+ await page.addInitScript(()=>{window.postMessage=msg=>{if(msg.method==='ui/initialize')setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result:{protocolVersion:'2026-01-26',hostInfo:{name:'Loading fixture',version:'1'},hostCapabilities:{},hostContext:{displayMode:'fullscreen'}}}})),0);};});
  await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
- assert(await page.getByRole('status').isVisible());
- assert(await page.getByText('We’re preparing your TrialAgent dataset…').isVisible());
+ assert(await page.getByText('Opening TrialAgents workspace…').isVisible());
+ assert.equal(await page.locator('.workspace-loading-track').count(),0,'pending host approval is not active research');
+ await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{criteria:{}}}}})));
+ await page.getByText('Preparing your research…').waitFor();
  const bar=page.locator('.workspace-loading-track span');
  assert.equal(await bar.evaluate(el=>getComputedStyle(el).animationName),'dataset-preparing');
  const before=await bar.evaluate(el=>getComputedStyle(el).transform);await page.waitForTimeout(100);
@@ -155,6 +161,7 @@ test('report failures remain visible without tables and retry the retained paylo
    await page.getByRole('button',{name:'Retry save',exact:true}).click();
    await page.waitForFunction(()=>window.__calls.filter(c=>c.name==='retry_project_report').length===1);
    assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_report').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_report',arguments:{retry_id:failure.retry_id}}]);
+   await page.getByRole('button',{name:'Retry save',exact:true}).waitFor(); // Wait for the asynchronous retry response, not just request dispatch.
    assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
    assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
    assert.equal(await page.evaluate(()=>window.__unsafe),undefined);

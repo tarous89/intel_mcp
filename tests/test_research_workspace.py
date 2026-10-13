@@ -61,6 +61,8 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
         assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
         assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']==RESOURCE
+        assert descriptors['search_research_trials'].meta['ui']['resourceUri']==RESOURCE
+        assert descriptors['search_research_trials'].annotations.read_only_hint is True
         assert 'ui' not in descriptors['rank_research_entities'].meta
         assert 'ui' not in descriptors['get_research_entity_evidence'].meta
         assert 'explicitly requests' in descriptors['get_research_entity_evidence'].description
