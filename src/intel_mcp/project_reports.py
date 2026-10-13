@@ -14,7 +14,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from .auth_context import current_oauth_subject
 from .control_plane import ControlPlaneError
 from .engine import EngineError
-from .research_workspace import PreviewSpec, RESOURCE
+from .research_workspace import PreviewSpec, RESOURCE, with_workspace_destinations
 
 GUIDANCE=files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()
 REPORT_EXAMPLE=files('intel_mcp').joinpath('report-example.html').read_text()
@@ -53,7 +53,9 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         if 'reports' not in out:out.update(await call('report_list',project_id,preview))
         if report_id:out['active_report_id']=report_id
         out['active_tab']='custom'
-        return out
+        if project_id and out.get('saved'):
+            out['custom_url']=f'https://intel.trialagents.com/projects/{out["project_id"]}/custom'
+        return with_workspace_destinations(out)
 
     @server.tool(meta={**callable_meta,'ui':{'visibility':['model','app'],'resourceUri':FOLLOWUP_RESOURCE}},annotations=read_annotations,structured_output=True)
     async def show_research_followups(

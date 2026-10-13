@@ -124,6 +124,15 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
             [dict(trial_id=tid,**{k:v for k,v in r.items() if k!='trial_id'}) for tid,r in dataset.records.items()],dataset.criteria.model_dump(mode='json'), in_place=True)
 
 
+def with_workspace_destinations(result):
+    if not isinstance(result, dict) or not result.get('result'):
+        return result
+    return {**result, 'workspace_destinations': {
+        'tables': {'tabs': ['sites', 'pis', 'cros', 'trials'], 'uses': ['new searches', 'query revisions', 'ranking', 'sorting', 'filtering', 'paging', 'record details']},
+        'custom': {'label': 'Custom views', 'uses': ['visual analyses', 'alternative presentations', 'comparisons', 'charts', 'forms', 'trackers', 'reusable coded outputs'], 'save_tool': 'save_project_report', 'open_tool': 'open_project_report'},
+        'chat': {'uses': ['ordinary explanations']},
+    }}
+
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
@@ -174,7 +183,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None)->dict[str,Any]:
         """Page an existing 24-hour preview without repeating search or rebuilding the workspace."""
-        try:return await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'controls':controls or {}})
+        try:return with_workspace_destinations(await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'controls':controls or {}}))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
@@ -210,7 +219,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         else:command.update(projectId=project_id,expectedRevision=expected_revision)
         try:
             saved=await control_factory().research_workspace({'operation':'canonical_commit','input':command})
-            return await control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10})
+            return with_workspace_destinations(await control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10}))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
@@ -232,7 +241,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         try:
             result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10,**({'controls':controls} if controls is not None else {})})
             if not result:raise ToolError('PROJECT_NOT_FOUND')
-            return result
+            return with_workspace_destinations(result)
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=write,structured_output=True)

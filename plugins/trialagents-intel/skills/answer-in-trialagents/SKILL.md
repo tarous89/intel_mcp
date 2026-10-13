@@ -5,7 +5,9 @@ description: Start here for TrialAgents questions. Route discovery, table operat
 
 # Answer in TrialAgents
 
-Use this routing table for the current request and project state. Load the relevant specialist. Explicit user format preferences take precedence.
+New searches, query revisions, ranking, sorting, filtering, paging, and record details must use the standard Sites, PIs, CROs, and Trials tables. Visual analyses, alternative presentations, and reusable coded outputs—including comparisons, charts, forms, and trackers—must be saved and opened in Custom views. Ordinary explanations use concise chat. Explicit user format preferences take precedence.
+
+Use this routing table for the current request and project state. Load the relevant specialist.
 
 | Request | Destination and skill |
 | --- | --- |
