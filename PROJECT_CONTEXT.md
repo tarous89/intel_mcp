@@ -1,3 +1,7 @@
+# Owner restriction: proposed optimizations need explicit permission — 2026-10-13
+
+The later staged/background-category loading, progressive details, durable partial-stage recovery, additional cache offloading and result/fingerprint reuse are suggestions only. Do not introduce or deploy them in any future edit without explicit owner permission. See docs/OPTIMIZATION_PERMISSION_REQUIRED.md and AGENTS.md. This does not remove the already implemented fixes in App #288 and MCP #119/#120.
+
 # Approved visualization persistence rollout — 2026-10-12
 
 Implement and publish: save all custom-coded data/analysis visualizations, including forms, trackers and tables, to the shared Reports workspace. Revisions replace the same item with concurrency protection. Guests receive temporary database storage plus Connect Account messaging; connection attaches the same project and visualizations. Connected users receive verified account-save confirmation. Add explicit save-choice/retry controls, isolated interactive rendering and deliberate state saves. Preserve access, evidence provenance and account ownership. Steps: implement storage and renderer; wire shared UI and MCP guidance; test guest/owner/revision/isolation journeys; publish App then MCP and verify live releases.
