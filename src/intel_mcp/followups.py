@@ -7,8 +7,8 @@ RESOURCE='ui://trialagents/followups-'+sha256(HTML.encode()).hexdigest()[:12]
 
 def followup_payload(questions,scope,context,connected=False):
     cleaned=[q.strip() for q in questions]
-    if len(cleaned)!=3 or len(set(q.casefold() for q in cleaned))!=3 or any(len(q)<10 or len(q)>260 or not q.endswith('?') for q in cleaned):
-        raise ToolError('Provide exactly three distinct, concise investigation questions ending in a question mark.')
+    if not 1<=len(cleaned)<=3 or len(set(q.casefold() for q in cleaned))!=len(cleaned) or any(len(q)<10 or len(q)>260 or not q.endswith('?') for q in cleaned):
+        raise ToolError('Provide one to three distinct, useful dataset-supported questions ending in a question mark.')
     full=scope.get('access_scope')=='full'
     count=min(10,max(0,int(scope.get('available_trials',10))))
     if full:
@@ -22,4 +22,4 @@ def followup_payload(questions,scope,context,connected=False):
     else:
         notice=f'Preview: {count} available trial'+('s' if count!=1 else '')+'; connect your account to use existing full access.'
     return {'questions':cleaned,'access_notice':notice,'access_scope':'full' if full else 'preview',
-            'context':context,'presentation':'Show these three questions and this single access sentence at the end; if the card renders, do not duplicate them in prose. Suggestions do not grant access or imply the analysis was performed.'}
+            'context':context,'presentation':'Show these optional dataset-supported questions only when useful; if the card renders, do not duplicate them in prose. Suggestions do not grant access or imply the analysis was performed.'}

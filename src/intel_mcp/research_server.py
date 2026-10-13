@@ -165,7 +165,7 @@ def create_research_server(settings, engine_factory, control_factory):
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def rank_research_entities(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
-        show_followups:Annotated[bool,Field(description="True only for the final requested entity category; show supported next-action buttons once.")]=True,
+        show_followups:Annotated[bool,Field(description="True only for the final requested entity category; optionally show known dataset-supported next actions when useful.")]=False,
         show_access_notice:Annotated[bool,Field(description="Show access notice once, in the final requested category chart.")]=True,
         offset:Annotated[int,Field(ge=0)]=0,
         limit:Annotated[int,Field(ge=1,le=100)]=10,

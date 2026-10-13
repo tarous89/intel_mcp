@@ -1,17 +1,17 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "53e8e79c41169a985761be354eaaffef5c0f4843",
+  "source_commit": "f981eda55443344c5e25949d9c909659b276fb5d",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/InteractiveVisualization.tsx": "ecbf1f7ee938592e500c79c0d015234ed2348102d0b51a024e46f2e65495dfad",
     "app/research/WorkspaceAccessFooter.tsx": "aedcc6743901385950a0916b0279e319dc62d35b6b1d79549a7765e4ae367747",
-    "app/research/ProjectReports.tsx": "3cc8a8bcc3e080aaab72675d10b9049c5606399a7fe7517849a79cddfe375faa",
+    "app/research/ProjectReports.tsx": "002ad56b05539e2681332bf1b60404e86f415f6d32c0ebd0458659573e25afe1",
     "public/trialagents-mark-white.png": "7b879c8cf3e472b6984291343e61fd988caf46676f1725dcd5d466bdbfc2f20c",
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "45ad52d4fb4233f60d25873133c7e358d32f2832ea0cc6517ef293b3131917d2",
-    "app/research/workspace.css": "c1686dbc47e073a1efa59470f153050f3ab479fbc683061f138463fe40c1b793",
+    "app/research/WorkspaceTables.tsx": "22cb3ee83eeefe41dc17e206ed0637ec0b20ae73264461c66b04e7e58ab6a04d",
+    "app/research/workspace.css": "4f20557ea026a9d152fd1f0182a8cdd503a32c4e9154a3ef7c32e15da6cc7660",
     "app/preview/combined/SharedProjectFrame.tsx": "32f82fa93b66d8282f905abb145466e5f570293a1b1a25ea7ae0a3e0076e9ac8",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
     "app/globals.css": "b7cadb43d253dfa93566b4c2f7b3d3f1f59db1a0791edfd9619b541a226a679e",
@@ -24,5 +24,5 @@
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "89b685f5dcacc7f99ca997dfab05239bed7b58bd1b1b114f36c6c6ba57ab0c10"
+  "bundle_sha256": "520658af6c707e0df4acbb8e09c3e7c67479b8bc3c267d69edc1fd0da313ef8d"
 }

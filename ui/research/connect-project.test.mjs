@@ -9,10 +9,11 @@ test('Connect opens sign-in immediately without invoking a write tool',async()=>
  const pending=connectProject(host,{draft},url=>ready=url);
  assert.equal(opened,ready,'navigation happens before the first await');await pending;
  const encoded=new URL(opened).hash.slice('#import='.length);
- assert.deepEqual(JSON.parse(Buffer.from(encoded,'base64url').toString()),{draft});
+ assert.deepEqual(JSON.parse(Buffer.from(encoded,'base64url').toString()),{draft,account_email:null});
 });
 test('saved account opens Projects; connected unsaved preview imports before opening Projects',()=>{
- assert.equal(connectionUrl({owned:true}),'https://intel.trialagents.com/projects');
+ const url=connectionUrl({owned:true,project_id:draft.preview_id,account:{email:'owner@example.test'}});
+ assert.deepEqual(JSON.parse(Buffer.from(new URL(url).hash.slice(8),'base64url').toString()),{project_id:draft.preview_id,account_email:'owner@example.test',account_project:true});
  assert(connectionUrl({draft,account:{connected:true,fullAccess:false}}).includes('#import='));
  assert(connectionUrl({project_id:draft.preview_id,preview_token:'a'.repeat(43)}).includes('#import='));
 });

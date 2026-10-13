@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Compare clinical trial partners using TrialAgents trial evidence.",
   "author": {
     "name": "Atlas Consulting",
@@ -43,7 +43,7 @@
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg"
       },
-      "onboardingSkill": "./skills/find-clinical-partners/SKILL.md",
+      "onboardingSkill": "./skills/answer-in-trialagents/SKILL.md",
       "review": {
         "test_cases": {
           "positive": [
@@ -51,13 +51,13 @@
               "description": "Anonymous landscape across three entity categories",
               "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
               "tools_triggered": "search_research_trials, inspect_research_trials, refine_research_cohort, publish_research_workspace",
-              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar; Reports appears for saved reports. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering. End with three relevant investigation questions and one accurate access sentence, without repeating workspace rows."
+              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar; Custom is always visible, including its empty-state create action. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering. Suggest a next step only when useful and supported by known dataset capabilities."
             },
             {
               "description": "Visual report and follow-up questions",
               "prompt": "Find prostate cancer trials and compare protocol designs and eligibility in a report.",
               "tools_triggered": "search_research_trials, publish_research_workspace, prepare_project_report, read_report_evidence, read_report_document, save_project_report, show_research_followups",
-              "expected_behavior": "Use authorized records only, including complete content for eligible free trials. Each question gets a short answer above a visualization and nuances below. Store sources internally but omit visible IDs/links unless requested. Save only with host approval. Finish with three relevant questions and one scope-accurate access sentence; suggestions may require broader access but never bypass it."
+              "expected_behavior": "Use authorized records only, including complete content for eligible free trials. Use a title, at most two executive-summary sentences, then questions and visual findings; reusable tools use task-appropriate structure. Store sources internally but omit visible IDs/links unless requested. Save only with host approval. Follow-ups are optional, useful and supported by known dataset capabilities; never imply unverified availability."
             },
             {
               "description": "Evidence and contact follow-up",
@@ -103,7 +103,7 @@
         "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
       },
       "publication": {
-        "release_notes": "Account-wide access, evidence-based HTML reports, available extracted documents, and a shared Reports viewer. Free reports use disclosed preview evidence."
+        "release_notes": "Permanent Custom workspace for reusable outputs, progressive answer routing, shared styling, verified save status and contextual optional follow-ups."
       }
     }
   }

@@ -5,6 +5,7 @@ import argparse
 ROOT=Path(__file__).resolve().parents[1]
 PACKAGE=ROOT/'plugins/trialagents-intel'
 MIRRORS={
+ 'custom-style.md':'references/custom-style.md',
  'presentation-standard.md':'references/presentation-standard.md',
  'access-and-evidence.md':'references/access-and-evidence.md',
  'research-workflow.md':'references/research-workflow.md',

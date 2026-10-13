@@ -1,3 +1,25 @@
+# Validation checkpoint — Custom workspace, 2026-10-13
+
+App: 26 affected tests and TypeScript pass, including guest attachment, account mismatch/prefill, owned-project authorization, reusable outputs, versioned state saves and duplicate progress removal. Shipped extension: 13 browser/transport checks passed across desktop/tablet/mobile, including click-only Custom messages, fallback, isolated state, and save retries. Header contrast visually checked. MCP: 477 tests passed; 4 PostgreSQL integration tests deferred to CI. New routing skill independently exercised on seven representative requests. No customer analyses, account changes or outreach were performed. Publish App before the matching rebuilt MCP; verify browser and deployment gates before completion. Installed ChatGPT skill snapshot refresh remains separate if not editable through the current plugin connection.
+
+# Approved Custom workspace and answer routing — 2026-10-13
+
+Owner authorized implementation and publication of the consolidated eleven-point scope. Preserve existing identities, hosting, authorization and frozen datasets.
+
+1. Add concise answer routing: discovery to tables, table operations in place, visual analysis and reusable structured outputs to Custom, simple explanations in chat.
+2. Load specialized discovery/evidence/custom/account skills progressively; remove duplicate workflows.
+3. Permanent Custom tab, contextual click-to-ChatGPT empty-state action with fallback.
+4. Save, verify and open custom outputs automatically; update same item and preserve deliberate state saves.
+5. Visible save/retry actions for guests and owners with retained content.
+6. Shared concise styling instructions and enforced isolated rendering shell.
+7. Verified temporary/account/unsaved/failure status in header/footer.
+8. Account identity, verified email hint, explicit account mismatch/reconnection, exact project/report attachment.
+9. Remove duplicate in-table preparation block, keep existing table and startup indicators.
+10. Validate affected app/extension, persistence and account journeys; publish App before rebuilt MCP.
+11. Optional relevant follow-ups only when supported by known dataset capabilities; no fixed count or repetitive prompts.
+
+The staged/background-loading and additional memory proposals remain prohibited without separate permission. Current work does not authorize them.
+
 # Owner restriction: proposed optimizations need explicit permission — 2026-10-13
 
 The later staged/background-category loading, progressive details, durable partial-stage recovery, additional cache offloading and result/fingerprint reuse are suggestions only. Do not introduce or deploy them in any future edit without explicit owner permission. See docs/OPTIMIZATION_PERMISSION_REQUIRED.md and AGENTS.md. This does not remove the already implemented fixes in App #288 and MCP #119/#120.

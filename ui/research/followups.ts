@@ -3,7 +3,7 @@ const app=new App({name:'TrialAgents next questions',version:'0.5.0'},{available
 const root=document.querySelector('main')!;
 let serial=0;
 app.ontoolresult=result=>{
- const data=result.structuredContent;if(!data?.questions||data.questions.length!==3)return;
+ const data=result.structuredContent;if(!data?.questions||data.questions.length<1||data.questions.length>3)return;
  const current=++serial;root.replaceChildren();
  const title=document.createElement('h2');title.textContent='Explore further';root.append(title);
  const group=document.createElement('div');group.className='questions';group.setAttribute('role','group');group.setAttribute('aria-label','Further investigations');
@@ -31,4 +31,4 @@ app.ontoolresult=result=>{
 };
 function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);}
 app.onhostcontextchanged=theme;
-app.connect().then(()=>theme(app.getHostContext())).catch(()=>{root.textContent='Ask for three suggested investigations in the conversation.';});
+app.connect().then(()=>theme(app.getHostContext())).catch(()=>{root.textContent='Copy a suggested question into the conversation.';});
