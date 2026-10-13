@@ -5,7 +5,7 @@ import {chromium} from 'playwright';
 const metrics={therapeuticAreaTrials:12,recentActivityTrials:3,sponsors:[{name:'Example sponsor',trials:2}],evidence:[]};
 const rows={sites:{id:'site',rank:1,name:'Example hospital',country:'DE',contact:{name:'Example contact',email:'contact@example.test'},metrics},pis:{id:'pi',rank:1,name:'Example investigator',department:'Oncology department',email:'pi@example.test',sites:[{id:'site',name:'Example hospital',country:'DE',trials:12}],metrics},cros:{id:'cro',rank:1,name:'Example CRO',country:'DE',trialCount:12,functionCounts:{1:3},organisationTypes:[],sourceNames:[],unresolvedFunctions:[]},trials:{id:'2026-000001-00-00',title:'Example trial',phase:[3],status:'Recruiting',countries:['DE'],subgroups:[],listedSiteCount:4}};
 const pages=Object.fromEntries(Object.entries(rows).map(([kind,row])=>[kind,{entity_type:kind,entities:Array.from({length:10},(_,i)=>({...row,id:row.id+'-'+i,workspace_row:{...row,id:row.id+'-'+i}})),returned:10,total_entities:50,next_offset:null,access_info:{offset:0},cohort:{counts:{base:12}},ranking_criteria:{therapeutic_areas:[],disease_terms:[],countries:[]}}]));
-const data={project_id:'synthetic-project',title:'Research workspace',draft:{cache_token:'synthetic'},tables:Object.keys(pages).map(kind=>({kind,total:50})),preview_tables:pages,result:pages.pis,reports:[{id:'report-1',title:'Protocol comparison',summary:'Evidence comparison from the accessible preview.',access_scope:'preview',created_at:'2026-10-11T12:00:00Z'}]};
+const data={project_id:'synthetic-project',title:'Research workspace',draft:{cache_token:'synthetic'},tables:Object.keys(pages).map(kind=>({kind,total:50})),preview_tables:pages,result:pages.pis,reports:[{id:'report-1',title:'Protocol comparison',summary:'Evidence comparison from the accessible preview.',access_scope:'preview',storage_status:'temporary',created_at:'2026-10-11T12:00:00Z'}]};
 test('shipped workspace has compact controls and reachable rightmost columns',async()=>{
  await mkdir('/tmp/workspace-design',{recursive:true});
  const browser=await chromium.launch({headless:true});
@@ -14,7 +14,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  for(const width of [1280,760,420]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(data=>{
-   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
+   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',storage_status:'temporary',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.getByRole('button',{name:'Connect Account',exact:true}).first().waitFor();
@@ -47,7 +47,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   assert.equal(await page.locator('[class*="insightsPanel"] > div').evaluate(el=>getComputedStyle(el).rowGap),'20px');
   await page.getByRole('button',{name:'Filters',exact:true}).click();assert(await page.getByLabel('Rank by').isVisible());
   if(width===1280)await page.screenshot({path:process.env.UX_SCREENSHOT??'/tmp/workspace-ux.png',fullPage:true});
-  await page.locator('nav button').filter({hasText:'Reports'}).click();
+  await page.locator('nav button').filter({hasText:'Custom'}).click();
   await page.getByRole('button',{name:/Protocol comparison/}).click();
   await page.frameLocator('iframe[title="Protocol comparison"]').getByRole('heading',{name:'Evidence comparison'}).waitFor();
   assert(await page.frameLocator('.report-viewer iframe').getByRole('heading',{name:'Evidence comparison'}).isVisible());
@@ -96,7 +96,7 @@ test('interactive visualization is isolated, saves state only on click, and expl
   const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
   const report={id:'tracker',title:'Site tracker',artifact_kind:'tracker',renderer:'interactive',version:1,created_at:'2026-10-12T12:00:00Z',access_scope:'preview',state:{form:{status:'Draft'}},html:`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; frame-src 'none'; form-action 'none'"><style>body{font:16px system-ui;padding:24px}label{display:block;margin:20px 0}</style></head><body><h1>Site tracker</h1><label>Status<input id="status"></label><p id="isolation"></p><script>try{parent.document.body;document.getElementById('isolation').textContent='unsafe';}catch{document.getElementById('isolation').textContent='isolated';}</script></body></html>`};
   for(const connected of [false,true]){
-   const initial={...data,account:{connected,fullAccess:false},active_report_id:'tracker',reports:[report],report};
+   const storedReport={...report,storage_status:connected?'account':'temporary'};const initial={...data,account:{connected,fullAccess:false},active_report_id:'tracker',reports:[storedReport],report:storedReport};
    const page=await browser.newPage({viewport:{width:420,height:900}});
    await page.addInitScript(data=>{
     window.__writes=[];
@@ -116,7 +116,7 @@ test('interactive visualization is isolated, saves state only on click, and expl
    assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');
    assert.equal(await iframe.locator('#status').inputValue(),'Draft');
    const notice=await page.locator('.workspace-access').innerText();
-   assert.equal(notice.includes('keep this project and its visualizations'),!connected);
+   assert.equal(notice.includes('Connect your TrialAgents account'),!connected);
    await iframe.locator('#status').fill('Contacted');
    await page.getByRole('button',{name:'Save changes',exact:true}).waitFor();
    assert.equal(await page.evaluate(()=>window.__writes.length),0);
@@ -124,7 +124,7 @@ test('interactive visualization is isolated, saves state only on click, and expl
    await page.waitForFunction(()=>window.__writes.length===1);
    assert.equal(await page.evaluate(()=>window.__writes[0].state.form.status),'Contacted');
    assert.equal(await page.evaluate(()=>window.__writes[0].expected_version),1);
-   assert(await page.locator('.report-viewer').innerText().then(t=>t.includes(connected?'saved to your TrialAgents account':'saved temporarily')));
+   assert(await page.locator('.report-viewer').innerText().then(t=>t.includes(connected?'stored in your TrialAgents account':'saved temporarily')));
    await page.close();
   }
  }finally{await browser.close();}
@@ -157,5 +157,31 @@ test('report failures remain visible without tables and retry the retained paylo
    if(withTable)assert(await page.locator('nav[aria-label="Project tables"]').isVisible());
    await page.close();
   }
+ }finally{await browser.close();}
+});
+
+test('empty Custom tab sends one contextual request only on click and offers a fallback',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
+ for(const denied of [false,true]){
+  const page=await browser.newPage({viewport:{width:420,height:900}});
+  await page.addInitScript(({initial,denied})=>{
+   window.__sent=[];window.postMessage=msg=>{let result={};
+    if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};
+    else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...initial,reports:[]}}}})),0);return;}
+    else if(msg.method==='ui/message'){window.__sent.push(msg.params);result={isError:denied};}
+    else if(msg.id===undefined)return;
+    setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);
+   };
+  },{initial:data,denied});
+  await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
+  await page.locator('nav button').filter({hasText:'Custom'}).click();assert.equal(await page.evaluate(()=>window.__sent.length),0);
+  await page.getByRole('button',{name:'Create custom output',exact:true}).click();
+  await page.waitForFunction(()=>window.__sent.length===1);
+  assert.match(await page.evaluate(()=>window.__sent[0].content[0].text),/Research workspace \(synthetic-project\)/);
+  if(denied){await page.getByLabel('Custom output request').waitFor();assert.match(await page.getByLabel('Custom output request').inputValue(),/Save it and open it in Custom/);}
+  else{assert(await page.getByRole('button',{name:'Request sent',exact:true}).isDisabled());}
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await page.close();
+ }
  }finally{await browser.close();}
 });

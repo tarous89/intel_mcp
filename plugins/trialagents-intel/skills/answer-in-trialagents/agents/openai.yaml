@@ -1,0 +1,4 @@
+interface:
+  display_name: "Answer in TrialAgents"
+  short_description: "Route questions to tables, custom views or chat"
+  default_prompt: "Use $answer-in-trialagents to answer my next project question in the appropriate workspace view."

@@ -44,6 +44,7 @@ def test_package_rejects_symlink_payload(tmp_path, monkeypatch):
 def test_presentation_assets_match_runtime_and_package():
     runtime=MODULE_PATH.parents[1]/'src/intel_mcp'
     refs={
+        'custom-style.md':'references/custom-style.md',
         'presentation-standard.md':'references/presentation-standard.md',
         'access-and-evidence.md':'references/access-and-evidence.md',
         'research-workflow.md':'references/research-workflow.md',
@@ -53,4 +54,4 @@ def test_presentation_assets_match_runtime_and_package():
     for name,source in refs.items():
         assert (plugin_build.PACKAGE/source).read_bytes() == (runtime/name).read_bytes()
         assert source in plugin_build.FILES
-    assert len(list((plugin_build.PACKAGE/'skills').glob('*/SKILL.md')))==4
+    assert len(list((plugin_build.PACKAGE/'skills').glob('*/SKILL.md')))==5

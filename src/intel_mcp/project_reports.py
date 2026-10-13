@@ -16,7 +16,7 @@ from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_workspace import PreviewSpec, RESOURCE
 
-GUIDANCE=files('intel_mcp').joinpath('presentation-standard.md').read_text()+'\n\n'+files('intel_mcp').joinpath('report-guidance.md').read_text()
+GUIDANCE=files('intel_mcp').joinpath('presentation-standard.md').read_text()+'\n\n'+files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()
 REPORT_EXAMPLE=files('intel_mcp').joinpath('report-example.html').read_text()
 
 class ReportPreview(BaseModel):
@@ -56,16 +56,16 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
 
     @server.tool(meta={**callable_meta,'ui':{'visibility':['model','app'],'resourceUri':FOLLOWUP_RESOURCE}},annotations=read_annotations,structured_output=True)
     async def show_research_followups(
-        questions:Annotated[list[str],Field(min_length=3,max_length=3,description="Three distinct concise questions tailored to the user's goal; broader analyses may need more authorized access. Suggest possibilities, not claimed findings.")],
+        questions:Annotated[list[str],Field(min_length=1,max_length=3,description="One to three useful questions supported by known available dataset fields, confirmed documents or existing tools. Omit this tool when no useful next step exists.")],
         project_id:str|None=None,preview:ReportPreview|None=None,
     )->dict[str,Any]:
-        """End a research answer with three clickable investigation questions and one access sentence.
+        """Optionally suggest one to three useful, data-supported next steps.
 
-        Call after presenting the main workspace/report and concise interpretation. Suggest useful
-        protocols, timelines, operational findings, functions, countries or subgroup analyses even
-        if broader access would be needed. Checks the current scope; never reads extra evidence,
-        saves a project, starts an analysis or initiates a purchase. Buttons send a user message
-        only on click. Fall back to the returned questions/notice in text if no UI is supported.
+        Call only when a next step advances the current task and is explicitly supported
+        by known dataset fields, confirmed available documents or existing capabilities.
+        Do not append routine questions, repeat answered questions or speculate about data.
+        Brief chat suggestions are also valid. Buttons send only after a user click.
+        This read checks scope; it neither expands access nor performs the suggested work.
         """
         scope=await call('report_context',project_id,preview)
         context={'preview':preview.model_dump(mode='json')} if preview else {'project_id':project_id,'revision':scope.get('revision')}
@@ -185,9 +185,11 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         artifact_kind:Literal['report','dashboard','chart','cards','table','form','tracker','calculator','visualization']='report',
         renderer:Literal['static','interactive']='static',evidence_basis:Literal['trial_evidence','project_tables','user_provided']='trial_evidence',
         report_id:str|None=None,expected_version:int|None=None)->dict[str,Any]:
-        """Save and present ANY custom-coded data visualization in the shared Reports workspace.
+        """Save and present ANY custom-coded data visualization in the Custom tab.
 
-        Includes forms, trackers, tables, calculators, cards and other visual tools, regardless of name.
+        Includes reusable forms, trackers, checklists, tables, calculators, cards and visual tools.
+        Use for follow-up comparisons/scoring/patterns when visual presentation helps.
+        Custom is a permanent workspace tab; an inline chat artifact alone is incomplete.
         Always save as part of creating a requested visualization; no separate save prompt needed.
         Guests receive temporary database storage; connecting attaches the same project and visualizations.
         For revisions pass the existing report_id and expected_version: replace that item, not a new copy.
@@ -253,7 +255,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         """Offer a Save to TrialAgents button only when saving intent is genuinely unclear.
 
         Does not save the visualization or send a message automatically. Normal requests for any
-        custom-coded data visualization use save_project_report directly. Guests see Connect Account to Save.
+        custom-coded data visualization use save_project_report directly. Guests can save temporarily without connecting.
         Keep the candidate visualization available in conversation so a clicked save request can persist it.
         """
         return {**await workspace(project_id,preview),'visualization_save_offer':{'title':title,'retry':False}}
@@ -275,6 +277,6 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
 
     @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
     async def open_project_report(report_id:str,project_id:str|None=None,preview:ReportPreview|None=None)->dict[str,Any]:
-        """Open an existing HTML report and original question in the shared Reports tab."""
+        """Open an existing HTML report and original question in the Custom tab."""
         report=await call('report_read',project_id,preview,reportId=report_id)
         return {**await workspace(project_id,preview,report_id),**report}

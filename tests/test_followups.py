@@ -18,7 +18,8 @@ def test_suggestions_do_not_depend_on_entitlement_but_notice_does():
     assert 'No trials' in followup_payload(QUESTIONS,{'access_scope':'preview','available_trials':0},{})['access_notice']
     connected=followup_payload(QUESTIONS,{'access_scope':'preview','available_trials':10},{},connected=True)
     assert 'connect your account' not in connected['access_notice']
-    for questions in [QUESTIONS[:2],[QUESTIONS[0]]*3,['x',*QUESTIONS[1:]],['not a question.',*QUESTIONS[1:]]]:
+    for n in (1,2,3):assert len(followup_payload(QUESTIONS[:n],{}, {})['questions'])==n
+    for questions in [[],QUESTIONS+["Another useful question?"],[QUESTIONS[0]]*3,['x',*QUESTIONS[1:]],['not a question.',*QUESTIONS[1:]]]:
         with pytest.raises(ToolError): followup_payload(questions,{}, {})
 
 @pytest.mark.anyio
