@@ -13,7 +13,7 @@ function reportPreview(d:any){return d?{preview_id:d.preview_id,snapshot_key:d.s
 function SaveNotice({data}:{data:any}){
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const storage=data.storage_status==='unavailable',project=!!data.project_save_error;
- if(!storage&&!project)return null;
+ if(data.report_saved===false||(!storage&&!project))return null;
  async function retry(){setBusy(true);setError('');try{
   const call=storage?(data.account?.connected?{name:'save_project',arguments:{preview:data.draft}}:{name:'recover_research_preview',arguments:{preview:data.draft,kind:data.result?.entity_type??'cros'}}):
    project?{name:'save_project',arguments:{preview:data.draft}}:{name:'retry_project_report',arguments:{retry_id:data.retry_id}};

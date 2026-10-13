@@ -138,7 +138,7 @@ test('report failures remain visible without tables and retry the retained paylo
   const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
   for(const withTable of [false,true]){
    const page=await browser.newPage({viewport:{width:1200,height:900}});
-   const failure={active_tab:'custom',pending_custom_view:{title:'Lab cards',html:'<h1>Retained comparison</h1><script>parent.__unsafe=true</script>'},report_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
+   const failure={storage_status:'unavailable',active_tab:'custom',pending_custom_view:{title:'Lab cards',html:'<h1>Retained comparison</h1><script>parent.__unsafe=true</script>'},report_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
    await page.addInitScript(({initial,failure,withTable})=>{
     window.__calls=[];window.postMessage=msg=>{
      let result;
