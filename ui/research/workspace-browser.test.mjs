@@ -161,6 +161,7 @@ test('report failures remain visible without tables and retry the retained paylo
    await page.getByRole('button',{name:'Retry save',exact:true}).click();
    await page.waitForFunction(()=>window.__calls.filter(c=>c.name==='retry_project_report').length===1);
    assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_report').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_report',arguments:{retry_id:failure.retry_id}}]);
+   await page.getByRole('button',{name:'Retry save',exact:true}).waitFor(); // Wait for the asynchronous retry response, not just request dispatch.
    assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
    assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
    assert.equal(await page.evaluate(()=>window.__unsafe),undefined);
