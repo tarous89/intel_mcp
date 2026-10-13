@@ -1,6 +1,6 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "e6fa33eb2913d778375ef4fc53a9a5cbda1c93be",
+  "source_commit": "dbb043df968af4049c09a027986c2b933360e1f6",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/components/ConfirmDelete.tsx": "77fcfbbddfdca882e33afc9fb316ffdf03ce66c69308469356569355865016e3",
