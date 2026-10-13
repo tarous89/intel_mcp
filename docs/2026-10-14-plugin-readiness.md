@@ -70,6 +70,12 @@ If that separation would require a broad rewrite, stop and present the narrower 
 
 Likely technical owners: MCP research_workspace.py / project_reports.py / resource registration; App project-chat-reports.ts and combined-prepared-projects.ts only where necessary. Public tool contracts and existing saved evidence need compatibility checks if their implementation changes.
 
+### D. Complete structured-output metadata
+
+A fresh read-only tools/list check on 14 October confirmed three exposed legacy tools have no outputSchema: list_research_projects, save_research_project and get_saved_research_project. Their inspected implementations return structured_content. The current OpenAI reference directs tools returning structuredContent to declare outputSchema.
+
+Scope a schema declaration matching each existing response, including applicable success variants, without changing returned data, tool identity or UI behavior. Validate actual responses against it. This is an additional metadata correction, not a new feature or proven automatic rejection code. All 37 exposed tools already have explicit readOnlyHint, destructiveHint and openWorldHint booleans; their semantic accuracy remains the issue in C.
+
 ## Stage 3 — Validate the existing experience and prepare submission
 
 - Capture the current desktop/mobile screens and successful research-to-save journeys as the reference.
@@ -109,6 +115,41 @@ Acceptance: mandatory contract gaps are resolved, required review materials are 
 6. **Future rollout/testing:** can consume resources or restart services; keep isolated testing and the existing coordinated release process.
 
 No runtime, UX or workflow edit has been made. The only edit in this revision is this plan.
+
+## Policy and publisher-experience check — 2026-10-14
+
+**Assessment: the narrow plan is appropriate, but it is not evidence that the plugin is already ready or certain to be accepted.** No guaranteed review time or acceptance probability can be established. Use the current UX as the implementation baseline while verifying every submission requirement.
+
+Before submitting, record PASS plus supporting evidence for each applicable gate below; unknown is not a pass:
+
+| Gate | Evidence needed | Present status |
+| --- | --- | --- |
+| Publishing eligibility | Verified Atlas Consulting identity, correct submitting role, eligible OpenAI project and target countries. Current MCP review documentation excludes OpenAI projects with EU data residency; verify a global project. This does not require moving TrialAgents hosting. | Portal unverified |
+| Domain and actual reviewer authentication | Passed Portal domain challenge; complete account connection from a fresh browser/ChatGPT session; reviewer account with sample data/full required entitlement throughout review; no owner OTP/MFA/private-network dependency. Discovery/health checks alone are insufficient. | Discovery passed; Portal/reviewer journey unverified |
+| Entire exposed contract | Correct annotations, output schemas, auth/access behavior, resource origins/CSP and retries across all 37 exposed tools, including legacy/app-only operations. | Known annotation/origin/retry gaps; three missing schemas |
+| Reproducible cases and demo | Execute the five positive and three negative cases from fresh chats on the exact candidate, with precise expected outcomes and durable sample data; accessible video across supported surfaces. Include report/state writes and account attachment in authorized QA. | Package cases exist; end-to-end evidence incomplete |
+| Product/policy boundary | Published policies match actual data practices; authorized source/contact use; no PHI solicitation or patient-treatment workflow; permitted existing-account access without in-plugin subscription purchase/promotion. | Documentation gaps; attestations/journeys not fully verified |
+| Real UI and safety | Fullscreen workspace and Custom views work under host policies on supported desktop/mobile; contrast, text scaling, host typography/color guidance and account navigation assessed; no prompt-injection or unauthorized write path. | Synthetic CI evidence only |
+| Current Portal validation | Required metadata/skill/tool scans complete; blockers resolved; assess every warning; saved Portal package, tools and UI metadata match the candidate being tested. | Unverified |
+| Stable review handoff | Record package version, source SHAs, bundle hash, scanned tools and test evidence; keep endpoint/test account functioning. Avoid untracked contract changes during review and rescan changes before submission. Capture submission/version ID and status. | Not yet submitted |
+
+The fullscreen UI guidance explicitly supports rich multi-step workflows and existing editors. Inline-card rules against tabs/deep navigation do not automatically require replacing this fullscreen workspace. However, the same UI guide contains font, color, branding and accessibility guidance. Current styling must be assessed; there is no basis to certify pixel-identical approval in advance. A concrete conflict must come back to the owner with the smallest remedy, rather than silently triggering redesign.
+
+Official pages currently disagree on whether per-annotation written justifications are still required: plugin-guidelines says they are no longer required, while submission-errors and app-review still describe them. Prepare short factual explanations for the existing tools and follow the actual Portal requirements; do not change runtime behavior solely to resolve this documentation inconsistency.
+
+Firsthand publisher reports (self-reported cases, not a statistical sample):
+- 14 April: a publisher reported rejection for incorrect destructiveHint, then an unclear resubmission rejection: https://community.openai.com/t/app-rejected-no-reason-given/1378971
+- 3 June: a publisher reported repeated OAuth/sign-in rejection despite supplying credentials: https://community.openai.com/t/platform-openai-app-submission-glitch/1382472
+- 12–13 March: a developer replying to a test-failure thread found a genuine reviewer failure in telemetry after believing their tests passed: https://community.openai.com/t/chatgpt-apps-reject-with-same-feedback/1376488
+- 9 October: a publisher reported four update rejections amid contract/submission-flow changes and nonspecific failed-test feedback: https://community.openai.com/t/app-updates-repeatedly-rejected-without-actionable-review-feedback/1404622
+- 29 September: publishers reported approval in three days for one plugin and about a month for another; support said timing is variable and cannot be expedited: https://community.openai.com/t/app-submission-in-review-since-september-24-status-check/1401915
+
+Practical consequence: finish the evidence gates before joining the review queue. This adds validation and documentation, not the deferred UX changes. Preserve existing privacy-safe diagnostics so a reviewer failure can be investigated without logging raw prompts or personal data.
+
+Additional official references:
+- https://developers.openai.com/plugins/deploy/submission-errors
+- https://developers.openai.com/plugins/concepts/ui-guidelines
+- https://developers.openai.com/plugins/guides/security-privacy
 
 ## Audit baseline and references
 
