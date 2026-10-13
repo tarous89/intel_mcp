@@ -17,7 +17,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',storage_status:'temporary',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
-  await page.getByRole('button',{name:'Connect Account',exact:true}).first().waitFor();
+  await page.getByRole('button',{name:'Open TrialAgents account',exact:true}).waitFor();
   assert(await page.locator('.workspace-brand img').evaluate(img=>img.complete&&img.naturalWidth>0),'Embedded brand mark must render without a network request');
   assert.equal(await page.getByRole('button',{name:'Export Excel',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:/Dataset/}).count(),0);
@@ -64,7 +64,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   for(const fullAccess of [false,true]){
    await page.evaluate(({data,fullAccess})=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...data,account:{connected:true,fullAccess}}}}})),{data,fullAccess});
    await page.getByRole('button',{name:'Manage Account',exact:true}).first().waitFor();
-   assert.equal(await page.getByRole('button',{name:'Manage Account',exact:true}).count(),2);
+   assert.equal(await page.getByRole('button',{name:'Manage Account',exact:true}).count(),1);
    assert.equal(await page.getByRole('button',{name:'Connect Account',exact:true}).count(),0);
    assert.equal(await page.locator('.combined-preview-label').count(),0);
    assert(!(await page.locator('.workspace-access').innerText()).includes('Connect your'));
@@ -124,7 +124,9 @@ test('interactive visualization is isolated, saves state only on click, and expl
    await page.waitForFunction(()=>window.__writes.length===1);
    assert.equal(await page.evaluate(()=>window.__writes[0].state.form.status),'Contacted');
    assert.equal(await page.evaluate(()=>window.__writes[0].expected_version),1);
-   assert(await page.locator('.report-viewer').innerText().then(t=>t.includes(connected?'stored in your TrialAgents account':'saved temporarily')));
+   await page.waitForFunction(()=>!document.querySelector('.visualization-save-controls'));
+   assert((await page.locator('.workspace-access').innerText()).includes(connected?'This custom view is stored in your TrialAgents account':'Saved temporarily'));
+   assert.equal(await iframe.locator('#status').inputValue(),'Contacted');
    await page.close();
   }
  }finally{await browser.close();}
@@ -176,7 +178,7 @@ test('empty Custom tab sends one contextual request only on click and offers a f
   },{initial:data,denied});
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.locator('nav button').filter({hasText:'Custom'}).click();assert.equal(await page.evaluate(()=>window.__sent.length),0);
-  await page.getByRole('button',{name:'Create custom output',exact:true}).click();
+  await page.getByRole('button',{name:'Create custom view',exact:true}).click();
   await page.waitForFunction(()=>window.__sent.length===1);
   assert.match(await page.evaluate(()=>window.__sent[0].content[0].text),/Research workspace \(synthetic-project\)/);
   if(denied){await page.getByLabel('Custom output request').waitFor();assert.match(await page.getByLabel('Custom output request').inputValue(),/Save it and open it in Custom/);}

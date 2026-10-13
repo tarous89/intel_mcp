@@ -1,11 +1,12 @@
-# Mandatory custom-output style
+# Custom view rendering defaults
 
-Use the shared TrialAgents renderer shell: Inter/system sans-serif; body and controls 16px, title 28px/600, h2 20px/600, h3 18px/600, labels/captions at least 14px. Preserve these defaults; do not shrink the entire output. Long titles wrap.
+Use these defaults unless the user requests another visual style. Keep the HTML self-contained and readable in the app and extension.
 
-Use workspace ink #183b2b, white/off-white surfaces, green actions #2c7650, border #dce9df. Charts may use coordinated teal, blue, purple and amber; unknowns use neutral gray. Dark chart panels need legible light labels. Never convey meaning by color alone.
+- Typography: Inter/system sans; body, tables and controls 16px; h1 28px/600, h2 20px/600, h3 18px/600; chart labels, captions and helper text 14px. Chart labels stay below heading size. Do not scale an entire SVG up from a small viewBox: design its coordinates for its displayed width, keeping labels around 14–16 screen pixels. Canvas accounts for device pixel ratio.
+- Layout: 16–24px gaps; responsive grids; one view frame and at most one frame per chart/component. Keep functional labels visible, focus clear and touch targets usable.
+- Tables: use normal word wrapping and adequate column widths; no word-break:break-all or overflow-wrap:anywhere on ordinary text. Put wide tables in a horizontally scrolling container. Reserve emergency wrapping for URLs/IDs. Do not squeeze words into single-letter columns or shrink all text to fit.
+- Surfaces: white/off-white, ink #183b2b, muted text #526359, border #dce9df. Green actions #2c7650. Avoid filling every component with green.
+- Charts: choose ONE color family per graph and distinguish series through its shades. Different graphs/views may use different families. Green: #14532d / #25804b / #58a875 / #a4d4b4. Blue: #1e3a8a / #2563eb / #60a5fa / #bfdbfe. Orange: #9a3412 / #c65b13 / #ed9653 / #fbd5b5. Cyan: #155e75 / #0e849b / #46b6c9 / #b0e3ec. Use dark labels on light shades; neutral gray for unknowns. Add labels/patterns so meaning never depends on color alone. User-requested palettes or semantic color conventions can override the default.
+- Content: analytical views default to a title, at most two summary sentences, then question headings and visual findings. Advice stays in chat. Forms/trackers/calculators use task-appropriate structure. Show units, denominators, scope and unknowns; never invent findings for a template.
 
-Use consistent 16–24px gaps, responsive grids and scoped chart/table overflow. One host output frame and one frame per chart or functional component; no redundant nested cards. Inputs and buttons inherit typography, have visible labels/focus, and usable touch targets. SVG uses viewBox and readable text; canvas accounts for device pixel ratio. Prevent overlap/clipping at desktop and mobile widths.
-
-Analytical reports default to a title, at most two executive-summary sentences, then question headings and visual findings. Advice belongs in chat. Simple tools/forms/trackers use only the structure needed; no forced report sections. Show units, denominators, scope and unknowns for evidence-based charts. Do not invent findings to populate templates.
-
-Use self-contained HTML; choose static HTML/SVG or interactive inline CSS/JS. No external libraries/assets/network, parent access or direct database writes. Interactive controls use the documented TrialAgents state bridge and deliberate host Save changes. Inspect rendering when possible and state honestly when visual checks were unavailable.
+Use static HTML/SVG or isolated interactive inline CSS/JS, without external assets/network, parent access or direct database writes. Use the documented state bridge and deliberate Save changes for editable state. Check narrow and desktop rendering when possible; report visual-check limitations honestly.

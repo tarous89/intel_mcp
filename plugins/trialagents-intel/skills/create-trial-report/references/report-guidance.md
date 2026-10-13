@@ -9,7 +9,7 @@
 7. On failure keep the candidate visualization available in chat, explain the returned error and use the Retry save button. Do not claim saved. Only when intent is genuinely unclear call offer_visualization_save: it offers Save to TrialAgents for both connected users and guests, without an automatic message or save. Ordinary custom-code visualization requests default to saving.
 
 ## Visual design
-Apply the shared mandatory custom-style reference returned by prepare_project_report. Use the renderer typography and theme; do not override them with tiny fonts.
+Apply the shared custom-style rendering defaults returned by prepare_project_report; explicit user styling requests may override them. Preserve legibility and normal word wrapping.
 
 ## Static renderer
 Self-contained semantic HTML with inline SVG and viewBox; no JavaScript, external assets or custom styles. The server supplies typography and spacing. Use main/section, h1–h3, p, figure/figcaption, table and lists. SVG may use explicit fill colors and a background rect for contrast. Keep HTML below 800 KB.

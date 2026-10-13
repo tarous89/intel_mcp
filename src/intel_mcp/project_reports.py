@@ -146,10 +146,10 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
     async def read_report_evidence(trial_ids:Annotated[list[str],Field(min_length=1,max_length=5)],project_id:str|None=None,preview:ReportPreview|None=None,revision:int|None=None)->dict[str,Any]:
         """Read up to five complete authorized frozen trial profiles with internal report source IDs.
 
-        Retain source IDs in save metadata; show sources, IDs and links only when requested.
+        Returned source IDs identify the frozen evidence accepted by save_project_report.
 
         Use exact IDs from this project's Trials table. Free access includes complete profiles for the fixed eligible ten,
-        with no section or document quota; other trial IDs remain restricted. Preserve returned source_id values internally.
+        with no section or document quota; other trial IDs remain restricted. Source IDs retain the authorized evidence scope.
         """
         return await call('report_evidence',project_id,preview,trialIds=trial_ids,revision=revision)
 
@@ -185,22 +185,17 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         artifact_kind:Literal['report','dashboard','chart','cards','table','form','tracker','calculator','visualization']='report',
         renderer:Literal['static','interactive']='static',evidence_basis:Literal['trial_evidence','project_tables','user_provided']='trial_evidence',
         report_id:str|None=None,expected_version:int|None=None)->dict[str,Any]:
-        """Save and present ANY custom-coded data visualization in the Custom tab.
+        """Create or update a reusable Custom view and return its workspace.
 
-        Includes reusable forms, trackers, checklists, tables, calculators, cards and visual tools.
-        Use for follow-up comparisons/scoring/patterns when visual presentation helps.
-        Custom is a permanent workspace tab; an inline chat artifact alone is incomplete.
-        Always save as part of creating a requested visualization; no separate save prompt needed.
-        Guests receive temporary database storage; connecting attaches the same project and visualizations.
-        For revisions pass the existing report_id and expected_version: replace that item, not a new copy.
-        Use a fresh request_key for changes; identical retries reuse it. Copy only when explicitly requested.
-        Use prepare_project_report for current dataset/revision and design/renderer guidance.
-        trial_evidence requires registered source_ids from read_report_evidence or read_trial_profiles.
-        project_tables uses authorized project-table data; user_provided uses user-supplied data. These may
-        pass source_ids=[]; neither permits invented evidence or access expansion. Do not switch evidence_basis
-        just to bypass a source validation failure. Interactive HTML uses isolated inline JavaScript, no external
-        libraries/assets, network, account access or direct database writes. Honor host write approval.
-        Confirm saved only when report_saved=true; offer_visualization_save provides a button if intent is unclear.
+        Supports reports, charts, comparison cards, tables, forms, trackers and calculators.
+        Writes temporary preview storage for guests or account storage for connected owners.
+        Existing report_id and expected_version update that view with concurrency checks.
+        request_key identifies an idempotent write; changed content needs a distinct key.
+        dataset_id and revision come from prepare_project_report. trial_evidence requires
+        registered source_ids; project_tables and user_provided accept an empty source list.
+        Interactive HTML runs in an isolated renderer without external network or account access.
+        report_saved=true means storage was read back successfully; failures return save_status,
+        save_error and a retry_id for the retained payload.
         """
         args=dict(title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key,
                   artifactKind=artifact_kind,renderer=renderer,evidenceBasis=evidence_basis,reportId=report_id,expectedVersion=expected_version)
@@ -235,13 +230,13 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 pending_reports[retry_id]={'owner':current_oauth_subject(),'expires':now+1800,'args':retry_args}
             return {**out,'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
                     'visualization_save_offer':{'title':title,'retry':True},
-                    'instructions':'Keep the visualization in chat. Show Retry save. Use retry_project_report with retry_id to resend the retained exact payload, not a reconstructed report. Correct non-transient validation errors with save_project_report. Never claim saved without verification.'}
+                    'recovery':{'retry_tool':'retry_project_report','payload_retained':True,'correction_tool':'save_project_report','verification_complete':False}}
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
     async def retry_project_report(retry_id: Annotated[str,Field(pattern=r'^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$')]) -> dict[str,Any]:
         """Retry a failed save using its exact retained visualization and original idempotency key.
 
-        Honors host approval and current account/evidence access. Does not repeat research,
+        Rechecks current account/evidence access. Does not repeat research,
         regenerate HTML, change evidence basis, or create a new report copy. Retained for
         up to 30 minutes in this server session; expired retries require the original content.
         """
@@ -252,17 +247,17 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
 
     @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
     async def offer_visualization_save(title:Annotated[str,Field(min_length=1,max_length=200)],project_id:str|None=None,preview:ReportPreview|None=None)->dict[str,Any]:
-        """Offer a Save to TrialAgents button only when saving intent is genuinely unclear.
+        """Present a Save to TrialAgents choice for a candidate custom view.
 
-        Does not save the visualization or send a message automatically. Normal requests for any
-        custom-coded data visualization use save_project_report directly. Guests can save temporarily without connecting.
-        Keep the candidate visualization available in conversation so a clicked save request can persist it.
+        Used when the user is choosing whether to store an existing output. The button
+        sends a request only on click; this tool does not persist the view. Temporary
+        storage is available to guests through save_project_report.
         """
         return {**await workspace(project_id,preview),'visualization_save_offer':{'title':title,'retry':False}}
 
     @server.tool(meta={**callable_meta,'ui':{'visibility':['app']}},annotations=write,structured_output=True)
     async def save_visualization_state(report_id:str,expected_version:int,state:dict[str,Any],project_id:str|None=None,preview:ReportPreview|None=None)->dict[str,Any]:
-        """Persist form/tracker state only after the user clicks the workspace Save changes button."""
+        """Persist versioned form/tracker state submitted by the workspace Save changes control."""
         return await call('report_state_save',project_id,preview,reportId=report_id,expectedVersion=expected_version,state=state)
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)

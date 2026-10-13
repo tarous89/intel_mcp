@@ -13,4 +13,4 @@ For revisions, list/read the existing item and pass its report_id and expected_v
 
 Guests receive temporary database storage and see Connect Account to keep the same project and all its visualizations. Connected owners receive verified account-save confirmation and can access the item in both plugin and app. Never describe temporary storage as permanent account storage.
 
-Read the concise [mandatory style](../../references/custom-style.md) only when building the output. Trackers, forms, checklists and calculators are custom outputs even without charts. Completion requires verified storage and opening the returned Custom view. Preserve source provenance and permissions.
+Read the concise [rendering defaults](../../references/custom-style.md) only when building the output. Trackers, forms, checklists and calculators are custom outputs even without charts. Completion requires verified storage and opening the returned Custom view. Preserve source provenance and permissions.
