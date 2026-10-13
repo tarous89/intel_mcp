@@ -31,8 +31,9 @@ def hide_contact_placeholders(ranker):
             for email in list(mapping):
                 if not visible_email(email):del mapping[email]
 
-def enrich(payload,records,raw):
-    result=deepcopy(payload);criteria=criteria_for(raw)
+def enrich(payload,records,raw,*,in_place=False):
+    # Only fresh, privately owned workspace payloads opt into mutation.
+    result=payload if in_place else deepcopy(payload);criteria=criteria_for(raw)
     ranker=ProfileRanker(criteria)
     for record in records:
         profile=selection_identity_profile(record['profile'])
@@ -49,7 +50,8 @@ def enrich(payload,records,raw):
             if kind in ('sites','pis'):
                 native=lookup.get(entity['id'])
                 if not native:raise ValueError('FROZEN_ENTITY_IDENTITY_MISMATCH')
-                native=deepcopy(native);native['rank']=entity['rank'];native['name']=entity['name']
+                # ranker.result is private to this invocation; transfer its row.
+                native['rank']=entity['rank'];native['name']=entity['name']
                 entity['workspace_row']=native
                 entity['contacts']=[c for c in entity.get('contacts',[]) if visible_email(c.get('email'))]
                 if kind=='sites':entity['contacts']=[native['contact']] if native.get('contact') else []

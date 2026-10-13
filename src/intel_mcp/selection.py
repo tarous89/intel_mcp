@@ -10,6 +10,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from .memory_work import json_digest, json_size
 from .models import TrialFilters
 from .selection_discovery import TextQuery, DiscoveryGroup
 from .selection_identity import IDENTITY_VERSION, CRO_ALIASES, reviewed_cro_group
@@ -73,7 +74,7 @@ class SelectionCriteria(Contract):
 
 
 def digest(value) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+    return json_digest(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 class CohortSummary(Contract):
@@ -159,7 +160,7 @@ class SelectionDataset:
     def __init__(self, criteria: SelectionCriteria, records: list[dict]):
         if len(records) > MAX_COHORT:
             raise SelectionError("COHORT_TOO_LARGE: Narrow base criteria; no partial ranking was produced.")
-        if len(json.dumps(records, ensure_ascii=False).encode()) > 16 * 1024 * 1024:
+        if json_size(records, ensure_ascii=False) > 16 * 1024 * 1024:
             raise SelectionError("COHORT_BYTES_EXCEEDED: Narrow the cohort; no partial ranking was produced.")
         ids = [r["trial_id"] for r in records]
         if len(set(ids)) != len(ids):
