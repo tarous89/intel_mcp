@@ -31,6 +31,7 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: python scripts/sync_plugin_guidance.py --check
       - run: pytest -q
+      - run: python scripts/benchmark_workspace_memory.py
 
   workspace-ui:
     runs-on: ubuntu-latest

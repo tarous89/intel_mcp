@@ -20,6 +20,7 @@ from .research_cohort import candidate_trials
 from .research_presentation import public_cohort
 from .control_plane import ControlPlaneError
 from .prepared_selection import prepare_selection
+from .memory_work import json_digest, workspace_gate, run_cpu
 
 # A bundle change must change the resource identity: hosts can cache UI by URI.
 WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
@@ -63,7 +64,7 @@ class PreviewSpec(Contract):
 
 
 def payload_key(payload):
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return json_digest(payload, sort_keys=True, separators=(',', ':'))
 
 
 def preview_page(payload, kind, offset, full):
@@ -94,7 +95,7 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
         criteria=dataset.criteria.model_dump(mode='json')
         criteria['entity_type']=kind
         if kind!='cros':criteria['function_code']=None
-        child=SelectionDataset(SelectionCriteria.model_validate(criteria),deepcopy(list(dataset.records.values())))
+        child=SelectionDataset(SelectionCriteria.model_validate(criteria),list(dataset.records.values()))
         result=child.rank(limit=50000,full_cohort=True).model_dump(mode='json')
         if result['returned']!=result['total_entities']:raise SelectionError('SNAPSHOT_TOO_LARGE')
         origin=getattr(dataset,'selection_origin',None)
@@ -107,6 +108,8 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
         if kind=='cros' and not include_cro_contacts:
             for e in result['entities']:e['contacts']=[c for c in e['contacts'] if 'email' not in c]
         sections.append({'entity_type':kind,'snapshot':child.snapshot,'trial_ids':sorted(dataset.records),'result':result})
+    # Membership indexes are no longer needed during rich-row enrichment.
+    del child, memberships
     trials=[]
     for offset in range(0,len(dataset.records),100):
         trials.extend({'id':t['trial_id'],**t} for t in candidate_trials(dataset,offset=offset,limit=100)['trials'])
@@ -118,7 +121,7 @@ def workspace_payload(dataset,title,include_cro_contacts=False,recommendations=(
     from .workspace_enrichment import enrich
     return enrich({'title':title,'sections':sections,'shared_evidence':shared,
             'recommendations':[r.model_dump(mode='json') for r in recommendations]},
-            [dict(trial_id=tid,**{k:v for k,v in r.items() if k!='trial_id'}) for tid,r in dataset.records.items()],dataset.criteria.model_dump(mode='json'))
+            [dict(trial_id=tid,**{k:v for k,v in r.items() if k!='trial_id'}) for tid,r in dataset.records.items()],dataset.criteria.model_dump(mode='json'), in_place=True)
 
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
@@ -129,7 +132,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
     async def persist_preview(spec, payload=None):
         if payload is None:
-            payload = await asyncio.to_thread(preview_payload, spec)
+            payload = await run_cpu(preview_payload, spec)
         dataset = store.get(spec.selection_id)
         control = control_factory()
         stream = getattr(control, 'stream_research_preview', None)
@@ -137,7 +140,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         if not stream and not legacy:
             return False
         spec.cache_token = spec.cache_token or secrets.token_urlsafe(32)
-        prepared = await asyncio.to_thread(prepare_selection, dataset)
+        prepared = await run_cpu(prepare_selection, dataset)
         if stream:
             await stream(spec.cache_token, spec.snapshot_key, payload, prepared)
         else:
@@ -147,6 +150,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         pending_previews.pop(spec.preview_id, None)
         return True
 
+    @workspace_gate(store)
     async def recover_preview(preview):
         pending = pending_previews.get(preview.preview_id)
         if not pending or pending['expires'] < time.monotonic():
@@ -284,6 +288,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             raise SelectionError('PREVIEW_CHANGED: Reopen the current preview before connecting.')
         return payload
 
+    @workspace_gate(store)
     async def materialize(spec):
         # Only explicit connection/save tools call this writer. Preview rendering never does.
         payload = preview_payload(spec)
@@ -294,6 +299,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         return out['project_id'], token
 
     @server.tool(meta={**mixed,**ui},annotations=read_annotations,structured_output=True)
+    @workspace_gate(store)
     async def prepare_research_workspace(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         title:Annotated[str,Field(min_length=1,max_length=160)],
@@ -315,7 +321,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         The cached import expires after 24 hours; never claim a preview is already a saved project.
         """
         try:
-            payload=await asyncio.to_thread(workspace_payload,store.get(selection_id),title,include_cro_contacts,recommendations)
+            payload=await run_cpu(workspace_payload,store.get(selection_id),title,include_cro_contacts,recommendations)
             access=await preview_access()
             full=access.get('fullAccess') is True
             pages={k:preview_page(payload,k,0,full) for k in ('cros','sites','pis','trials')}
@@ -402,6 +408,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         except ControlPlaneError as e:raise ToolError(str(e)) from e
 
     @server.tool(meta={**mixed,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=write,structured_output=True)
+    @workspace_gate(store)
     async def revise_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         expected_revision:Annotated[int,Field(ge=1)],
