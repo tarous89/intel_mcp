@@ -1,16 +1,15 @@
 ---
 name: create-trial-report
-description: Create, save, revise and present any reusable structured output or data visualization in TrialAgents, including reports, dashboards, charts, cards, tables, forms, trackers, calculators and custom interactive views. Use regardless of whether the user calls the result a report. Also use when saving an existing visualization or editing one already saved.
+description: Create, save, open or revise Custom views in TrialAgents: charts, alternative visualizations, comparison cards, tables, dashboards, reusable forms, trackers, checklists and calculators. Use for requests such as show this differently or save this visualization, whether or not called a report.
 ---
 
-# Create and save a custom output
+# Create a custom view
 
-Read [answer standard](../../references/presentation-standard.md), [access rules](../../references/access-and-evidence.md), and [visualization workflow](references/report-guidance.md). Use [the HTML example](assets/report-example.html) for layout only; replace synthetic findings with authorized evidence.
+Follow [the save procedure and renderer contract](references/report-guidance.md). For generation, load [rendering defaults](../../references/custom-style.md) and reuse the relevant sections of [the HTML shell](assets/report-example.html). Its placeholders illustrate layout; populate them from the requested data. Read [access rules](../../references/access-and-evidence.md) when gathering evidence.
 
-Any requested reusable structured output or data/analysis visualization belongs in the Custom tab. Create it, call save_project_report and present its returned workspace in the same turn. Do not stop at an inline chat artifact, save_project, or a promise to save. No additional save request is needed; honor the host's write approval. If saving intent is genuinely unclear, keep the candidate visible in chat and call offer_visualization_save for a real Save to TrialAgents button. Never invent a clickable button in prose.
+1. Prepare the current project/preview context. Retrieve additional evidence only where needed for the request.
+2. Create the requested view, or revise the existing view using its ID and version.
+3. Save with save_project_report and open its returned Custom views workspace. Use report_saved to distinguish verified storage from a retained draft.
+4. On failure, use the returned recovery information and the single retry control in Custom views. Reconcile changed context or report versions before a corrected save.
 
-For revisions, list/read the existing item and pass its report_id and expected_version to save_project_report. Replace that item in place. Create a separate copy only when explicitly requested. Use the same request_key for identical retries and a new one for edits. Confirm saved only when report_saved=true. On failure retain the chat visualization, explain the actual error, and show Retry save. Use retry_project_report with the returned retry_id to resend the exact retained payload. Do not rerun research or regenerate the visualization as a save retry.
-
-Guests receive temporary database storage and see Connect Account to keep the same project and all its visualizations. Connected owners receive verified account-save confirmation and can access the item in both plugin and app. Never describe temporary storage as permanent account storage.
-
-Read the concise [rendering defaults](../../references/custom-style.md) only when building the output. Trackers, forms, checklists and calculators are custom outputs even without charts. Completion requires verified storage and opening the returned Custom view. Preserve source provenance and permissions.
+The HTML and generated content are stored. Existing interactive views may use the documented deliberate Save changes bridge; automatic input persistence is outside this workflow. ChatGPT can revise and save tracker content through the normal versioned save operation.

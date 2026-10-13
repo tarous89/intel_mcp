@@ -36,10 +36,13 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert descriptors['save_project_report'].annotations.read_only_hint is False
         assert descriptors['save_project_report'].annotations.idempotent_hint is True
         assert descriptors['read_report_document'].annotations.read_only_hint is True
-        prepared=await client.call_tool('prepare_project_report',{'preview':preview})
+        prepared=await client.call_tool('prepare_project_report',{'preview':preview,'include_template':True})
         assert not prepared.is_error
         assert 'Revisions pass report_id and expected_version' in prepared.structured_content['report_guidance']
-        assert 'Do not display sources' in prepared.structured_content['report_guidance']
+        assert 'report_saved=true' in prepared.structured_content['report_guidance']
+        evidence_context=await client.call_tool('prepare_project_report',{'preview':preview})
+        assert 'report_guidance' not in evidence_context.structured_content
+        assert 'report_html_example' not in evidence_context.structured_content
         assert '<svg' in prepared.structured_content['report_html_example']
         assert 'Nuances and implications' not in prepared.structured_content['report_html_example']
         args={'preview':preview,'trial_id':'2025-000001-00-00','document_name':'protocol.pdf'}
@@ -80,3 +83,37 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert failed.structured_content['report_saved'] is False
         assert failed.structured_content['visualization_save_offer']['retry'] is True
         assert 'REPORT_SNAPSHOT_CHANGED' in failed.structured_content['save_error']
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('case',['preview_revision','canonical_revision','changed_dataset','source_revision','view_version','transient'])
+async def test_retained_retry_reconciles_conflicts_without_blind_overwrite(monkeypatch,case):
+    monkeypatch.setattr('intel_mcp.project_reports.current_oauth_subject',lambda:'owner')
+    calls=[]
+    preview={'preview_id':'00000000-0000-0000-0000-000000000001','snapshot_key':'a'*64,'cache_token':'b'*43}
+    project=preview['preview_id']
+    class Control:
+        async def research_workspace(self,b):
+            calls.append(deepcopy(b))
+            if b['operation']=='report_context':return {'dataset_id':'changed' if case=='changed_dataset' else 'same','revision':1}
+            if b['operation']=='report_save':
+                count=sum(c['operation']=='report_save' for c in calls)
+                if count==1:raise ControlPlaneError('REPORT_VERSION_CHANGED' if case=='view_version' else 'TEMPORARY_FAILURE' if case=='transient' else 'REVISION_CHANGED','Conflict',409)
+                return {'report':{'id':'saved'},'temporary':False}
+            if b['operation']=='report_read':return {'report':{'id':'saved'}}
+            if b['operation']=='report_list':return {'reports':[]}
+            return {'project_id':project,'result':{'entity_type':'trials','entities':[]}}
+    server,*_=create_research_server(SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid'),lambda:None,lambda:Control())
+    args={'title':'Tracker','query':'Track items','summary':'','html':'<h1>Original content</h1>','source_ids':['a'*64] if case=='source_revision' else [],'evidence_basis':'trial_evidence' if case=='source_revision' else 'project_tables','dataset_id':'same','revision':9,'request_key':'original-key',**({'project_id':project} if case=='canonical_revision' else {'preview':preview})}
+    async with Client(server) as client:
+        failed=(await client.call_tool('save_project_report',args)).structured_content
+        assert failed['active_tab']=='custom'
+        assert failed['pending_custom_view']['html']==args['html']
+        retried=(await client.call_tool('retry_project_report',{'retry_id':failed['retry_id']})).structured_content
+        writes=[c for c in calls if c['operation']=='report_save']
+        if case in ('preview_revision','transient'):
+            assert retried['report_saved'] is True and len(writes)==2
+            assert writes[1]['revision']==(1 if case=='preview_revision' else 9)
+            assert writes[1]['requestKey']=='original-key' and writes[1]['html']==args['html']
+        else:
+            assert retried['recovery']['action']=='reconcile' and len(writes)==1
+            assert retried['current_context']['revision']==1

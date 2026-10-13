@@ -16,7 +16,7 @@ from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_workspace import PreviewSpec, RESOURCE
 
-GUIDANCE=files('intel_mcp').joinpath('presentation-standard.md').read_text()+'\n\n'+files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()
+GUIDANCE=files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()
 REPORT_EXAMPLE=files('intel_mcp').joinpath('report-example.html').read_text()
 
 class ReportPreview(BaseModel):
@@ -52,6 +52,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         if not isinstance(out,dict) or not out.get('result'):raise ToolError('WORKSPACE_UNAVAILABLE: Report state could not be presented. Retry the same save.')
         if 'reports' not in out:out.update(await call('report_list',project_id,preview))
         if report_id:out['active_report_id']=report_id
+        out['active_tab']='custom'
         return out
 
     @server.tool(meta={**callable_meta,'ui':{'visibility':['model','app'],'resourceUri':FOLLOWUP_RESOURCE}},annotations=read_annotations,structured_output=True)
@@ -59,13 +60,10 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         questions:Annotated[list[str],Field(min_length=1,max_length=3,description="One to three useful questions supported by known available dataset fields, confirmed documents or existing tools. Omit this tool when no useful next step exists.")],
         project_id:str|None=None,preview:ReportPreview|None=None,
     )->dict[str,Any]:
-        """Optionally suggest one to three useful, data-supported next steps.
+        """Display one to three data-supported next-analysis choices.
 
-        Call only when a next step advances the current task and is explicitly supported
-        by known dataset fields, confirmed available documents or existing capabilities.
-        Do not append routine questions, repeat answered questions or speculate about data.
-        Brief chat suggestions are also valid. Buttons send only after a user click.
-        This read checks scope; it neither expands access nor performs the suggested work.
+        Buttons send a message on user click. Reads current scope without performing
+        the suggested work or expanding access. Chat suggestions are also supported.
         """
         scope=await call('report_context',project_id,preview)
         context={'preview':preview.model_dump(mode='json')} if preview else {'project_id':project_id,'revision':scope.get('revision')}
@@ -132,15 +130,14 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 'inventory_scope':'available_extracted_documents','text_tool':'read_trial_document'}
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
-    async def prepare_project_report(project_id:str|None=None,preview:ReportPreview|None=None)->dict[str,Any]:
-        """Prepare deeper analysis beyond the four tables. Returns default HTML report guidance and authorized scope.
+    async def prepare_project_report(project_id:str|None=None,preview:ReportPreview|None=None,include_template:bool=False)->dict[str,Any]:
+        """Return the current dataset, revision and authorized evidence scope.
 
-        Ordinary entity lists belong in the tables. Free users can generate and save
-        reports using complete content from the fixed eligible ten trials, including
-        available extracted documents. Paid users can inspect all authorized trials. This does not generate or save a report.
+        include_template adds the Custom views rendering contract and placeholder HTML shell.
+        This read neither generates nor saves a custom view.
         """
         out=await call('report_context',project_id,preview)
-        return {**out,'report_preview':preview.model_dump(mode='json') if preview else None,'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE}
+        return {**out,'report_preview':preview.model_dump(mode='json') if preview else None,**({'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE} if include_template else {})}
 
     @server.tool(meta=callable_meta,annotations=read_annotations,structured_output=True)
     async def read_report_evidence(trial_ids:Annotated[list[str],Field(min_length=1,max_length=5)],project_id:str|None=None,preview:ReportPreview|None=None,revision:int|None=None)->dict[str,Any]:
@@ -215,6 +212,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 item=pending_reports[key]
                 if item['owner']==current_oauth_subject() and item['args']==retry_args:pending_reports.pop(key)
             return {**out,'report':verified['report'],'report_saved':True,'temporary_report':result['temporary'],
+                    'visualization_save_offer':None,'pending_custom_view':None,'retry_id':None,'recovery':None,
                     'save_message':'Saved temporarily. Connect your account to keep this project and its visualizations.' if result['temporary'] else 'Saved to your TrialAgents account.'}
         except ToolError as error:
             # Do not lose the rendered conversation artifact or claim success on an uncertain write.
@@ -228,22 +226,44 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 while pending_reports and (len(pending_reports)>=32 or sum(len(x['args']['html'].encode()) for x in pending_reports.values())+len(html.encode())>16*1024*1024):pending_reports.popitem(last=False)
                 retry_id=str(uuid4())
                 pending_reports[retry_id]={'owner':current_oauth_subject(),'expires':now+1800,'args':retry_args}
-            return {**out,'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
+            pending_reports[retry_id]['error']=str(error)
+            return {**out,'active_tab':'custom','pending_custom_view':{'title':title,'html':html,'renderer':renderer},'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
                     'visualization_save_offer':{'title':title,'retry':True},
-                    'recovery':{'retry_tool':'retry_project_report','payload_retained':True,'correction_tool':'save_project_report','verification_complete':False}}
+                    'recovery':{'action':'reconcile' if any(code in str(error) for code in ('REVISION_CHANGED','REPORT_SNAPSHOT_CHANGED','REPORT_VERSION_CHANGED','REPORT_SOURCE_NOT_AUTHORIZED')) else 'retry','retry_tool':'retry_project_report','payload_retained':True,'correction_tool':'save_project_report','verification_complete':False}}
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
     async def retry_project_report(retry_id: Annotated[str,Field(pattern=r'^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$')]) -> dict[str,Any]:
-        """Retry a failed save using its exact retained visualization and original idempotency key.
+        """Recover a failed save using its retained visualization and original idempotency key.
 
-        Rechecks current account/evidence access. Does not repeat research,
+        Rechecks account/evidence access. Conflicts return current context for reconciliation;
+        an incorrect fixed preview revision can be corrected when its dataset is unchanged
+        and the payload has no registered evidence sources. Does not repeat research,
         regenerate HTML, change evidence basis, or create a new report copy. Retained for
         up to 30 minutes in this server session; expired retries require the original content.
         """
         item=pending_reports.get(retry_id)
         if not item or item['expires']<=time.monotonic() or item['owner']!=current_oauth_subject():
             raise ToolError('REPORT_RETRY_UNAVAILABLE: Retry storage with the original visualization content; do not repeat research.')
-        return await save_project_report(**item['args'])
+        args=item['args']
+        if any(code in item.get('error','') for code in ('REVISION_CHANGED','REPORT_SNAPSHOT_CHANGED','REPORT_VERSION_CHANGED','REPORT_SOURCE_NOT_AUTHORIZED')):
+            context=await call('report_context',args['project_id'],args['preview'])
+            # Only a preview's fixed revision can be corrected without changing evidence.
+            # Canonical revisions and source IDs bind evidence and require reconciliation.
+            if (args['preview'] and not args['source_ids'] and args['evidence_basis'] in ('project_tables','user_provided')
+                and context.get('dataset_id')==args['dataset_id'] and context.get('revision')==1
+                and args['revision']!=1 and 'REPORT_VERSION_CHANGED' not in item['error']):
+                corrected={**args,'revision':1}
+                result=await save_project_report(**corrected)
+                if result.get('report_saved'):pending_reports.pop(retry_id,None)
+                return result
+            try:out=await workspace(args['project_id'],args['preview'])
+            except ToolError:out={}
+            return {**out,'active_tab':'custom','report_saved':False,'retry_id':retry_id,
+                    'pending_custom_view':{'title':args['title'],'html':args['html'],'renderer':args['renderer']},
+                    'visualization_save_offer':{'title':args['title'],'retry':True},
+                    'save_error':item['error'],'save_status':'needs_reconciliation','current_context':context,
+                    'recovery':{'action':'reconcile','correction_tool':'save_project_report','payload_retained':True}}
+        return await save_project_report(**args)
 
     @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
     async def offer_visualization_save(title:Annotated[str,Field(min_length=1,max_length=200)],project_id:str|None=None,preview:ReportPreview|None=None)->dict[str,Any]:
