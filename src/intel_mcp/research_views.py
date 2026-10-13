@@ -63,4 +63,4 @@ def account_view(data):
         'notice':'Up to 500 trials per selection. Connecting an account does not start a subscription.',
         'actions':[action('Continue research','Continue with the results available under my current account access.'),
                    action('Supporting studies','Show supporting studies for the displayed partners.'),
-                   action('Open in Intel Agent','Save my current research as a private Intel Agent project and give me its link.')]}
+                   action('Open in Intel Agent','Save my current research as a private TrialAgents project and open its workspace.')]}

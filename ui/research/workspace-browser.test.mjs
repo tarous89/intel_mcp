@@ -138,7 +138,7 @@ test('report failures remain visible without tables and retry the retained paylo
   const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
   for(const withTable of [false,true]){
    const page=await browser.newPage({viewport:{width:1200,height:900}});
-   const failure={report_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
+   const failure={storage_status:'unavailable',active_tab:'custom',pending_custom_view:{title:'Lab cards',html:'<h1>Retained comparison</h1><script>parent.__unsafe=true</script>'},report_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
    await page.addInitScript(({initial,failure,withTable})=>{
     window.__calls=[];window.postMessage=msg=>{
      let result;
@@ -152,10 +152,13 @@ test('report failures remain visible without tables and retry the retained paylo
    },{initial:data,failure,withTable});
    await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
    if(withTable){await page.locator('nav[aria-label="Project tables"]').waitFor();await page.evaluate(failure=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:failure}}})),failure);}
-   await page.getByRole('button',{name:'Retry report save',exact:true}).click();
-   await page.waitForFunction(()=>window.__calls.length===1);
-   assert.deepEqual(await page.evaluate(()=>window.__calls.map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_report',arguments:{retry_id:failure.retry_id}}]);
-   assert(await page.getByText('The visualization could not be saved.',{exact:false}).isVisible());
+   await page.getByRole('button',{name:'Retry save',exact:true}).click();
+   await page.waitForFunction(()=>window.__calls.filter(c=>c.name==='retry_project_report').length===1);
+   assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_report').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_report',arguments:{retry_id:failure.retry_id}}]);
+   assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
+   assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
+   assert.equal(await page.evaluate(()=>window.__unsafe),undefined);
+   if(withTable)assert.equal((await page.locator('nav button[aria-current=page]').innerText()).replace(/\s+/g,' '),'Custom views 1');
    if(withTable)assert(await page.locator('nav[aria-label="Project tables"]').isVisible());
    await page.close();
   }

@@ -1,6 +1,6 @@
 interface:
-  display_name: "Create a trial report"
-  short_description: "Answer research questions with visual reports"
+  display_name: "Create a custom view"
+  short_description: "Save charts, comparisons and reusable custom views"
   default_prompt: "Use $create-trial-report for my TrialAgents research."
 dependencies:
   tools:

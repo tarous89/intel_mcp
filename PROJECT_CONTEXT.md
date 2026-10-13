@@ -1,3 +1,7 @@
+# Approved Custom views refinement — 2026-10-13 19:27 Europe/Berlin
+
+Implement the owner-approved scope: one main routing skill, concise specialist procedures, placeholder HTML shell, neutral surfaces and stable chart/table typography, one Custom-tab retry with retained draft and revision-aware recovery, contextual chat actions, centered deletion dialogs and production-style visual checks. Preserve project/account/data/access/approval workflows and existing deliberate state-save functionality. New automatic or HTML-embedded input persistence is deferred. No distribution-specific rules. Deferred background-loading/memory proposals remain prohibited. Validate affected workflows before coordinated App-first publication and installed skill refresh. No customer records are used for tests.
+
 # Publication checkpoint — UI cleanup, 2026-10-13
 
 Implementation is locally complete for the approved UI, shared HTML defaults and MCP documentation changes, except project deletion (no existing backend operation) and installed App-owned name/description (requires App settings access). No new release was published this turn.
