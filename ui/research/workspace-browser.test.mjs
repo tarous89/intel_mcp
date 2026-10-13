@@ -74,14 +74,16 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  }finally{await browser.close();}
 });
 
-test('branded preparation animates before any host data arrives',async()=>{
+test('branded preparation starts only after host tool input',async()=>{
  const browser=await chromium.launch({headless:true});
  try{const page=await browser.newPage({viewport:{width:900,height:600}});
  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
- await page.addInitScript(()=>{window.postMessage=()=>{};});
+ await page.addInitScript(()=>{window.postMessage=msg=>{if(msg.method==='ui/initialize')setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result:{protocolVersion:'2026-01-26',hostInfo:{name:'Loading fixture',version:'1'},hostCapabilities:{},hostContext:{displayMode:'fullscreen'}}}})),0);};});
  await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
- assert(await page.getByRole('status').isVisible());
- assert(await page.getByText('We’re preparing your TrialAgent dataset…').isVisible());
+ assert(await page.getByText('Opening TrialAgents workspace…').isVisible());
+ assert.equal(await page.locator('.workspace-loading-track').count(),0,'pending host approval is not active research');
+ await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{criteria:{}}}}})));
+ await page.getByText('Preparing your research…').waitFor();
  const bar=page.locator('.workspace-loading-track span');
  assert.equal(await bar.evaluate(el=>getComputedStyle(el).animationName),'dataset-preparing');
  const before=await bar.evaluate(el=>getComputedStyle(el).transform);await page.waitForTimeout(100);

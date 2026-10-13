@@ -7,6 +7,12 @@ description: Start here for TrialAgents questions. Route discovery, table operat
 
 New searches, query revisions, ranking, sorting, filtering, paging, and record details must use the standard Sites, PIs, CROs, and Trials tables. Visual analyses, alternative presentations, and reusable coded outputs—including comparisons, charts, forms, and trackers—must be saved and opened in Custom views. Ordinary explanations use concise chat. Explicit user format preferences take precedence.
 
+For a supported database search, invoke search_research_trials once the criteria are clear; its workspace provides early loading feedback. Keep unsupported questions and clarification in chat. Distinguish an empty search from unavailable data or a failed operation. Continue the existing research and final-workspace publication procedure.
+
+## Pending approval
+
+While an operation is actually awaiting user approval in ChatGPT, keep the response focused on that approval. Do not add navigation links, unrelated action buttons, or alternative calls to action until the user approves, declines, or cancels. Explain the pending operation briefly if clarification is needed. Authentication or account-connection actions required to proceed remain available. Apply this rule to an existing approval request; it does not introduce an additional confirmation step.
+
 Use this routing table for the current request and project state. Load the relevant specialist.
 
 | Request | Destination and skill |

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.",
   "author": {
     "name": "Atlas Consulting",

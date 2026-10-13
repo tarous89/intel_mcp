@@ -77,7 +77,7 @@ def create_research_server(settings, engine_factory, control_factory):
         return CallToolResult(is_error=True,content=[TextContent(type='text',text='Connect your TrialAgents account to view existing access or save private research. Free top-ten research needs no account. Full lists require active paid access; connecting alone does not activate it.')],
             _meta={'mcp/www_authenticate':[challenge]})
 
-    @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
+    @server.tool(meta={**MIXED,"ui":{"resourceUri":RESOURCE},"openai/toolInvocation/invoking":"Searching recorded trials…","openai/toolInvocation/invoked":"Search complete"},annotations=ANNOTATIONS,structured_output=True)
     async def search_research_trials(criteria:Annotated[SelectionCriteria, Field(description=(
         "Required: base (hard structured filters), entity_type (cros/sites/pis), as_of (today YYYY-MM-DD). "
         "Also supply base_text or positive base.therapeutic_areas. For exploratory discovery use a broad "

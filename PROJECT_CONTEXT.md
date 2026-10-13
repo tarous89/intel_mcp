@@ -1,3 +1,7 @@
+# Approved loading feedback and pending approvals — 2026-10-13 23:34 Europe/Berlin
+
+Owner approved both edits: surface the existing workspace on supported search invocation with bounded, indeterminate loading feedback; preserve visible results during host tool activity and handle empty/error/cancelled states. Add the narrow pending-approval conversational rule to the main answering skill, referenced by Custom views. No extra approval, research writes, polling, staged computation, cache changes, or new persistence. Host controls invocation timing and approval display; verify simulated lifecycle and existing workflows, then publish through existing MCP/plugin releases.
+
 # Approved follow-up scope — 2026-10-13 21:29 Europe/Berlin
 
 Implement and publish: subtle centered Projects loading bar; counts from the exact saved workspace dataset; canonical /custom URLs with /reports compatibility redirects; concise mandatory follow-up routing in skills and model-visible workspace destinations; positive action guidance; original dataset totals in filtered footers in both surfaces; admin Access until date (inclusive Europe/Berlin) with audited/versioned updates and account-wide expiry. Preserve existing discounts/payment behavior. No discount repair or billing migration. No staged-loading/cache optimization or automatic form persistence. Validate synthetic expiry, ownership, routing, counts, filtering/export and existing workflows; deploy additive App migration before Admin/MCP and installed skills.

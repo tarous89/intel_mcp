@@ -8,6 +8,23 @@ import {connectProject,openConnection,ConnectionError} from './connect-project';
 const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
+// Keep host activity separate from the React workspace: pending calls never discard results.
+const activity=document.createElement('section');
+activity.className='workspace-activity';activity.hidden=true;
+activity.setAttribute('role','status');activity.setAttribute('aria-live','polite');
+document.querySelector('main')!.before(activity);
+let activityTimer:ReturnType<typeof setTimeout>|undefined;
+function showActivity(message:string,running=false){
+ clearTimeout(activityTimer);activity.replaceChildren();activity.hidden=!message;
+ if(!message)return;
+ const text=document.createElement('p');text.textContent=message;activity.append(text);
+ if(running){
+  const track=document.createElement('div');track.className='workspace-loading-track';track.setAttribute('aria-hidden','true');track.append(document.createElement('span'));activity.append(track);
+  activityTimer=setTimeout(()=>showActivity('Still waiting for a workspace update. Check the conversation for progress or a pending approval.'),90000);
+ }
+}
+function clearStartup(){if(!mounted)root.render(null);}
+
 let setIncoming:(data:any)=>void=()=>{};
 function reportPreview(d:any){return d?{preview_id:d.preview_id,snapshot_key:d.snapshot_key,cache_token:d.cache_token}:undefined;}
 function SaveNotice({data}:{data:any}){
@@ -155,7 +172,21 @@ function receive(data:any){
  }
  modelContext(data);if(mounted)setIncoming(data);else{flushSync(()=>root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>));mounted=true;}
 }
-app.ontoolresult=result=>receive(result.structuredContent);
+app.ontoolinput=()=>{
+ clearStartup();showActivity(mounted?'Updating your workspace…':'Preparing your research…',true);
+};
+app.ontoolcancelled=()=>{
+ clearStartup();showActivity('Operation cancelled. Existing research is unchanged.');
+};
+app.ontoolresult=result=>{
+ clearStartup();const data=result.structuredContent as any;
+ if(result.isError){showActivity('This operation could not complete. Check the conversation for details.');return;}
+ if(data?.selection_id&&data?.presentation?.tool==='publish_research_workspace'){
+  showActivity(data.total_entities===0?'No matching results for this search.':'Search complete. ChatGPT can now review the selection and prepare the tables.');
+  return;
+ }
+ showActivity('');receive(data);
+};
 let displayRequested=false,displayPending=false;
 async function requestWorkspace(ctx:any){
  if(displayRequested||displayPending||ctx?.displayMode==='fullscreen'||!ctx?.availableDisplayModes?.includes('fullscreen'))return;
