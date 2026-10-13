@@ -6,4 +6,4 @@ Preserve source provenance in save metadata. Display sources, IDs and document l
 
 When a useful next investigation follows from the answer, suggest it using available dataset fields, confirmed evidence or supported tools. State any material access requirement. Use a brief chat suggestion, or show_research_followups when clickable choices help. Buttons send a request only on a user click; text is the fallback when host messaging is unavailable.
 
-Useful chat actions are: open the embedded workspace when it is not open and a supported workspace action is available; save or retry a custom view when needed; suggest a relevant next analysis. Account navigation and storage details are presented by the workspace controls.
+When a link or button helps the user, offer an action to open the workspace, save or edit a custom view, retry a failed save, or explore a relevant question supported by the dataset. Use the supported workspace action or exact URL returned by TrialAgents.
