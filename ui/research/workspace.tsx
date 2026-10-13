@@ -13,15 +13,18 @@ const activity=document.createElement('section');
 activity.className='workspace-activity';activity.hidden=true;
 activity.setAttribute('role','status');activity.setAttribute('aria-live','polite');
 document.querySelector('main')!.before(activity);
+function sizeActivity(){document.documentElement.style.setProperty('--workspace-activity-height',activity.hidden?'0px':`${activity.getBoundingClientRect().height}px`);}
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(sizeActivity).observe(activity);
 let activityTimer:ReturnType<typeof setTimeout>|undefined;
 function showActivity(message:string,running=false){
  clearTimeout(activityTimer);activity.replaceChildren();activity.hidden=!message;
- if(!message)return;
+ if(!message){sizeActivity();return;}
  const text=document.createElement('p');text.textContent=message;activity.append(text);
  if(running){
   const track=document.createElement('div');track.className='workspace-loading-track';track.setAttribute('aria-hidden','true');track.append(document.createElement('span'));activity.append(track);
   activityTimer=setTimeout(()=>showActivity('Still waiting for a workspace update. Check the conversation for progress or a pending approval.'),90000);
  }
+ sizeActivity();
 }
 function clearStartup(){if(!mounted)root.render(null);}
 

@@ -18,6 +18,10 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.getByRole('button',{name:'Open TrialAgents account',exact:true}).waitFor();
+  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{project_id:'synthetic-project'}}}})));
+  await page.getByText('Updating your workspace…').waitFor();
+  const loadingFooter=await page.locator('.workspace-access').boundingBox();assert(loadingFooter.y+loadingFooter.height<=900,'Activity must preserve visible footer');
+  await page.evaluate(data=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),data);
   assert(await page.locator('.workspace-brand img').evaluate(img=>img.complete&&img.naturalWidth>0),'Embedded brand mark must render without a network request');
   assert.equal(await page.getByRole('button',{name:'Export Excel',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:/Dataset/}).count(),0);
