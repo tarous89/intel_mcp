@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.0",
-  "description": "Compare clinical trial partners using TrialAgents trial evidence.",
+  "version": "0.7.1",
+  "description": "Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.",
   "author": {
     "name": "Atlas Consulting",
     "email": "intel@trialagents.com",
@@ -19,9 +19,9 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "TrialAgents Intel",
-        "shortDescription": "Find clinical trial partners",
-        "longDescription": "Select clinical trial cohorts in conversation and inspect CROs, sites, PIs and trials in the Intel Agent project workspace. Refine projects, review authorized evidence, and save reports, dashboards, charts, tables, forms, trackers and other custom data visualizations in the workspace and app. Revisions update the same item. Guests can connect their account to keep projects and visualizations for later access. Preview and full matching totals follow existing account access. Recorded experience is not a performance rating.",
+        "displayName": "EU Trial Intelligence",
+        "shortDescription": "Deep European trial insights",
+        "longDescription": "Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.",
         "developerName": "Atlas Consulting",
         "category": "Productivity",
         "capabilities": [
@@ -103,7 +103,7 @@
         "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
       },
       "publication": {
-        "release_notes": "Permanent Custom workspace for reusable outputs, progressive answer routing, shared styling, verified save status and contextual optional follow-ups."
+        "release_notes": "Cleaner Custom views, shared typography and chart palettes, account footer and concise tool contracts."
       }
     }
   }

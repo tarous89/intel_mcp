@@ -190,14 +190,11 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')]|None=None,
         expected_revision:Annotated[int,Field(ge=1)]|None=None,
     )->dict[str,Any]:
-        """Save chosen research to the same canonical project shown on the TrialAgents website.
+        """Store a finalized research preview in an authenticated owner's canonical project.
 
-        Explicit authenticated write. After preparing and inspecting a preview, use this
-        to synchronize the final chosen workspace for a connected user. Do not save intermediate searches. For a refinement, search and inspect
-        freely first, then pass the existing project_id and its latest expected_revision.
-        This attaches cached exact results; it does not rerun research or summarize data.
-        A project update requires both project_id and expected_revision. Never describe
-        a read-only preview as saved. Host write approval remains authoritative.
+        Synchronizes the exact cached results with the TrialAgents website without rerunning
+        research. project_id and expected_revision together update an existing project;
+        omitting both creates or attaches the preview's project. Returns verified saved state.
         """
         if not current_oauth_subject():
             return connect_result()
@@ -354,7 +351,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                     if r.entity_type==kind and r.entity_id in visible],
                 'tables':[{'kind':s['entity_type'],'total':s['result']['total_entities']} for s in payload['sections']],
                 'presentation':{'supporting_trials':'only_on_explicit_request',
-                    'instruction':('Call save_project with this exact draft to synchronize the final chosen workspace to the connected account. Honor host write approval and use the returned canonical project for reports. Do not claim saved before success.' if access.get('connected') else 'Show the interactive preview. It is not saved yet. Connect account starts saving; no account is needed to view.')}}
+                    'save_tool':'save_project','account_connected':bool(access.get('connected')),'preview_saved_to_account':False}}
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
     @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
@@ -365,13 +362,11 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         recommendations: Annotated[list[Recommendation],Field(max_length=30)]=[],
         kind: Kind='cros',
     ) -> dict[str, Any]:
-        """Present the final research workspace and save it for the connected account in one operation.
+        """Present a finalized research workspace and persist it for a connected account.
 
-        DEFAULT after completing research/refinement. This is an honestly annotated write:
-        honor host approval. Guests receive a cached 24-hour preview; connected accounts
-        receive a canonical saved project. Never use for intermediate searches or to replace
-        an existing project's revision; use save_project with expected_revision for updates.
-        Custom comparison cards/charts still require save_project_report.
+        Guests receive a cached 24-hour preview; connected owners receive a canonical
+        saved project. Existing project revisions use save_project with expected_revision.
+        Custom view storage is a separate operation exposed by save_project_report.
         """
         out=await prepare_research_workspace(selection_id,title,include_cro_contacts,recommendations,kind)
         if not current_oauth_subject() or out.get('storage_status')!='ready':return out
@@ -379,7 +374,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return await save_project(PreviewSpec.model_validate(out['draft']))
         except ToolError as error:
             return {**out,'project_save_error':str(error),'save_status':'failed',
-                    'instructions':'The preview is visible but the project save failed. Retry save_project with this exact draft; do not repeat the research.'}
+                    'recovery':{'retry_tool':'save_project','preview_available':True,'draft_retained':True}}
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def get_research_workspace(

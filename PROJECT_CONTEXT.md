@@ -1,3 +1,29 @@
+# Publication checkpoint — UI cleanup, 2026-10-13
+
+Implementation is locally complete for the approved UI, shared HTML defaults and MCP documentation changes, except project deletion (no existing backend operation) and installed App-owned name/description (requires App settings access). No new release was published this turn.
+
+Validation: App targeted regression suite 22 passed; TypeScript passed; MCP Python suite 476 passed/4 skipped with one manifest-length failure subsequently fixed and its 3-test package suite passing; extension browser/transport suites 10 passed. Desktop/mobile synthetic visual checks verified compact cards, counts, empty states, account logo, footer, confirmation modal, table overflow and explicit typography overrides. No customer records changed.
+
+APPROVED: On 2026-10-13 at 14:57 Europe/Berlin, the owner confirmed the explicit request to upload the tested source-code and project-context changes to tarous89/intel_agent_app and tarous89/intel_mcp, deploy both existing services, and update the installed plugin skills. The previous automatic approval block is resolved by this new user confirmation. Publish App first, then pin the matching App commit in the MCP bundle; pass CI and deployment checks. Current App baseline: f981eda55443344c5e25949d9c909659b276fb5d; MCP baseline: 8a98d4fb422ad889d133824dfb534eb25f459724.
+
+# Approved UI and documentation cleanup — 2026-10-13
+
+Owner authorized implementation and publication at 14:33 Europe/Berlin. Preserve all research, routing, saving, syncing, ownership, evidence and approval workflows.
+
+1. Rename visible plugin to EU Trial Intelligence (compact EU Trial Intel); description: Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.
+2. Remove extension header account button/status; clickable brand reuses existing account action and email prefill.
+3. Dark green footer, white text/button, contextual wording uses custom view; no overlapping content.
+4. App Custom above Dataset with synchronized count.
+5. Compact equal-height custom selectors; title and minimal metadata; accessible hover/touch delete icons and named confirmation dialogs.
+6. Remove duplicate report storage header; report starts with title.
+7. Empty-only Create custom views and visualizations in ChatGPT; populated app footer continuation; Open in ChatGPT at project/list header.
+8. Project-list deletion requested, but inspection found no supported deletion operation. Deferred from this UI-only release: requires a separately approved owner-bound backend deletion design preserving shared datasets, billing and audit records. Custom view deletion uses its existing operation.
+9. Shared typography; normal word wrapping, table overflow, restrained chart labels; green/blue/orange/cyan shade families, one family per graph by default, explicit user style overrides supported.
+10. Concise declarative tool docs and structured status facts; workflows in skills; all validation/authorization remains enforced.
+11. Verify affected app and extension surfaces and persistence/account regressions; App-first release, matching MCP bundle, installed skills and eligible metadata update.
+
+Deferred loading/memory optimization proposals remain unapproved. No customer analyses, account changes or outreach for QA.
+
 # Validation checkpoint — Custom workspace, 2026-10-13
 
 App: 26 affected tests and TypeScript pass, including guest attachment, account mismatch/prefill, owned-project authorization, reusable outputs, versioned state saves and duplicate progress removal. Shipped extension: 13 browser/transport checks passed across desktop/tablet/mobile, including click-only Custom messages, fallback, isolated state, and save retries. Header contrast visually checked. MCP: 477 tests passed; 4 PostgreSQL integration tests deferred to CI. New routing skill independently exercised on seven representative requests. No customer analyses, account changes or outreach were performed. Publish App before the matching rebuilt MCP; verify browser and deployment gates before completion. Installed ChatGPT skill snapshot refresh remains separate if not editable through the current plugin connection.
