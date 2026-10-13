@@ -39,7 +39,8 @@ async def test_question_tool_checks_scope_without_reading_or_saving_evidence(mon
         assert tool.meta['ui']['resourceUri']==RESOURCE
         out=await client.call_tool('show_research_followups',{'questions':QUESTIONS,'preview':preview})
         assert not out.is_error and out.structured_content['questions']==QUESTIONS
-        assert all(out.structured_content['context']['preview'][k]==v for k,v in preview.items())
+        assert out.structured_content['context']['preview']=={k:preview[k] for k in ('preview_id','snapshot_key','cache_token')}
+        assert 'selection_id' not in str(calls)
         assert len(calls)==1
         denied=await client.call_tool('show_research_followups',{'questions':QUESTIONS,'project_id':'wrong-owner'})
         assert denied.is_error and len(calls)==1

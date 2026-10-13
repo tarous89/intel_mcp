@@ -100,7 +100,7 @@ def create_research_server(settings, engine_factory, control_factory):
         Do not invent a minimum or broaden mandatory constraints. Over 500 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
-        Finish broadening first, then call prepare_research_workspace ONCE with the final
+        Finish broadening first, then call publish_research_workspace ONCE with the final
         broadest relevant selection_id. Do not rank or display intermediate/narrow cohorts.
         The workspace is the default presentation, not rank_research_entities or Markdown.
         In chat show only concise insights, scope and cohort size,
@@ -118,7 +118,7 @@ def create_research_server(settings, engine_factory, control_factory):
                     'capabilities':RESEARCH_CAPABILITIES,
                     'entity_type':criteria.entity_type,'total_entities':rank.total_entities,
                     'visible_entities':rank.returned,'access':'top_ten','limit':10,
-                    'presentation':{'tool':'prepare_research_workspace','selection_id':token,
+                    'presentation':{'tool':'publish_research_workspace','selection_id':token,
                         'instruction':'Complete relevant broadening first. Present ONLY the final broadest relevant cohort in one workspace; no separate subgroup lists or Markdown tables.'}}
         except (SelectionError,EngineError) as e:
             raise ToolError(str(e)) from e
@@ -174,7 +174,7 @@ def create_research_server(settings, engine_factory, control_factory):
     )->dict[str, Any]:
         """Read ranked data for analysis or an explicitly unavailable workspace fallback.
 
-        For initial results use prepare_research_workspace with ONE final broadest
+        For initial results use publish_research_workspace with ONE final broadest
         relevant cohort. This data-only tool does not open the workspace. Never call
         it once per direct/related/broader subgroup to create multiple top-ten lists.
         Do not show supporting-trial lists unless the user explicitly requests them,
@@ -200,7 +200,7 @@ def create_research_server(settings, engine_factory, control_factory):
                     'access':'full' if full else 'top_ten',
                     'next_offset':offset+result.returned if full and offset+result.returned<result.total_entities else None}
             output['selection_id']=selection_id
-            output['presentation']={'tool':'prepare_research_workspace','selection_id':selection_id,
+            output['presentation']={'tool':'publish_research_workspace','selection_id':selection_id,
                 'instruction':'Use the final broadest relevant cohort only. Open its workspace; keep chat to summary and insights, without duplicate tables. Supporting-trial lists require an explicit user request, including after workspace failure.'}
             if hasattr(dataset,'selection_origin'):
                 output['selection_origin']=dataset.selection_origin
@@ -311,9 +311,9 @@ def create_research_server(settings, engine_factory, control_factory):
             return CallToolResult(content=[TextContent(type='text',text=json.dumps(output))],structured_content=output)
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
-    register_workspace_tools(server,store,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
+    recover_preview=register_workspace_tools(server,store,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
     from .project_reports import register_project_report_tools
-    register_project_report_tools(server,engine_factory,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
+    register_project_report_tools(server,engine_factory,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result,recover_preview)
 
     @server.custom_route('/.well-known/oauth-protected-resource',methods=['GET'])
     async def metadata(request):

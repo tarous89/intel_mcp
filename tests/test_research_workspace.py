@@ -71,7 +71,7 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
         assert legacy.contents[0].text==resource.contents[0].text
         assert resource.contents[0].meta['openai/ui']['preferredDisplayMode']=='fullscreen'
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
-        assert search.structured_content['presentation']['tool']=='prepare_research_workspace'
+        assert search.structured_content['presentation']['tool']=='publish_research_workspace'
         assert search.structured_content['presentation']['selection_id']==search.structured_content['selection_id']
         for _ in range(2):
             out=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Research'})

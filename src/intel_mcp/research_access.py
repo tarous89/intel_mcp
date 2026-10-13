@@ -6,6 +6,7 @@ import time
 from collections import OrderedDict
 from .selection import SelectionDataset, SelectionError, digest
 from .research_cohort import refine_cohort
+from .memory_work import json_size, retained_size
 
 class ResearchStore:
     """Bounded, short-lived public-data snapshots; restart/eviction requires a new search."""
@@ -36,7 +37,7 @@ class ResearchStore:
 
     def _put(self, dataset, key):
         import json
-        size=len(json.dumps(dataset.records, ensure_ascii=False).encode())
+        size=json_size(dataset.records, ensure_ascii=False)
         if size>self.max_bytes:
             raise SelectionError('SELECTION_TOO_LARGE: Narrow the selection.')
         while self.entries and (len(self.entries)>=8 or sum(e['bytes'] for e in self.entries.values())+size>self.max_bytes):
@@ -55,6 +56,10 @@ class ResearchStore:
                 if entry['key']==key and entry['expires']>time.monotonic():
                     return cached,entry['dataset']
             return self._put(dataset,key)
+
+    def retained_bytes(self):
+        """Actual reachable Python cache estimate; includes derived entity caches."""
+        return retained_size(self.entries)
 
     def remaining_seconds(self, token):
         self.get(token)

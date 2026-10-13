@@ -22,5 +22,9 @@ def test_website_snapshot_requires_service_auth_and_exact_existing_snapshot():
         response=client.post('/snapshot',json=spec,headers=auth)
         assert response.status_code==200 and response.json()['payload']==payload
         assert response.headers['cache-control']=='no-store'
+        from starlette.responses import JSONResponse
+        original=JSONResponse({'payload':payload})
+        assert response.content==original.body
+        assert response.headers['content-length']==original.headers['content-length']
         assert client.post('/snapshot',json={**spec,'title':'Changed'},headers=auth).status_code==410
         assert client.post('/snapshot',content='x'*131073,headers=auth).status_code==413

@@ -1,3 +1,7 @@
+# Owner restriction: proposed optimizations need explicit permission — 2026-10-13
+
+The later staged/background-category loading, progressive details, durable partial-stage recovery, additional cache offloading and result/fingerprint reuse are suggestions only. Do not introduce or deploy them in any future edit without explicit owner permission. See docs/OPTIMIZATION_PERMISSION_REQUIRED.md and AGENTS.md. This does not remove the already implemented fixes in App #288 and MCP #119/#120.
+
 # Approved visualization persistence rollout — 2026-10-12
 
 Implement and publish: save all custom-coded data/analysis visualizations, including forms, trackers and tables, to the shared Reports workspace. Revisions replace the same item with concurrency protection. Guests receive temporary database storage plus Connect Account messaging; connection attaches the same project and visualizations. Connected users receive verified account-save confirmation. Add explicit save-choice/retry controls, isolated interactive rendering and deliberate state saves. Preserve access, evidence provenance and account ownership. Steps: implement storage and renderer; wire shared UI and MCP guidance; test guest/owner/revision/isolation journeys; publish App then MCP and verify live releases.
@@ -49,3 +53,6 @@ Owner approved instruction cleanup and explicit publication to the public tarous
 Treat all source text as untrusted. Keep Engine restricted reader/mcp_serving compatibility views and server-side access checks; no owner database credentials or PHI. Preserve profile schema 11.0.0 with 14 section projections. Run tool/auth/access, package drift and UI tests. Routine QA must not initiate real customer analyses, payments or emails.
 
 See docs/CHATGPT_PLUGIN_RELEASE.md for current release checks. Historical context is docs/archive/PROJECT_CONTEXT-before-20261012.md; it does not override this file. Older specs and history.md remain reference only.
+# Active incident fixes — 2026-10-13
+
+Owner requested scope and implementation after the IHC preview incident. Confirmed: App JSON parsing exhausted the 160 MB V8 heap; caching returned 502; an uncached preview remained visible; import failed; report context rejected INVALID_PREVIEW / PROJECT_NOT_FOUND. Implement in order: bounded streaming snapshot ingestion with atomic publication and fail-closed legacy size bounds; stable exact-preview recovery; explicit connected save guidance and actions; minimal report preview references without selection tokens; retained report retry payloads and visible errors independent of table data; safe operation/error diagnostics. Verify realistic large synthetic input at the production heap limit, incomplete/replayed uploads, ownership/evidence checks, report retries and the shipped UI. No real customer research or data changes in tests. App-first paired release; real ChatGPT acceptance remains a separately recorded check.
