@@ -1,6 +1,6 @@
 # Answer standard
 
-Use answer-in-trialagents for destination routing. Let the workspace present detailed data and custom views. Chat provides concise interpretation, normally two to four sentences, with material uncertainty and analyzed scope. Describe storage using the returned status, for example “Saved in Custom views.”
+Use answer-in-trialagents for destination routing. Any chart, dashboard, visual comparison or other visualization created from TrialAgents research must be saved with save_project_report and opened in Custom views in the same turn, including visualizations you choose to add to an analysis. A chart rendered only in chat does not complete this workflow. Explicit user requests for chat-only output take precedence. Ordinary text explanations do not require a Custom view. Let the workspace present detailed data and custom views. Chat provides concise interpretation, normally two to four sentences, with material uncertainty and analyzed scope. Describe storage using the returned status, for example “Saved in Custom views.”
 
 Preserve source provenance in save metadata. Display sources, IDs and document links when requested or required by the host. Participation/co-occurrence alone does not prove performance, causation or collaboration.
 
