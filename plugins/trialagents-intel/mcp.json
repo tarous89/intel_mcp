@@ -3,7 +3,14 @@
   "mcpServers": {
     "trialagents-research": {
       "type": "streamable-http",
-      "url": "https://mcp.trialagents.com/research/mcp"
+      "url": "https://mcp.trialagents.com/research/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "mixed"
+          }
+        }
+      }
     }
   }
 }

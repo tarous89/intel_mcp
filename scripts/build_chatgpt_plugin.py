@@ -38,7 +38,7 @@ def validate():
             if not all(key in case for key in ('description','prompt','tools_triggered','expected_behavior')):
                 raise ValueError('Incomplete review case')
     server = json.loads((PACKAGE/'mcp.json').read_text())['mcpServers']
-    if server != {'trialagents-research': {'type':'streamable-http','url':'https://mcp.trialagents.com/research/mcp'}}:
+    if server != {'trialagents-research': {'type':'streamable-http','url':'https://mcp.trialagents.com/research/mcp','extensions':{'com.openai':{'auth':{'type':'mixed'}}}}}:
         raise ValueError('Unexpected server configuration; no static authorization headers allowed')
     icon = ET.parse(PACKAGE/'assets/icon.svg').getroot()
     if float(icon.attrib['width']) != float(icon.attrib['height']) or float(icon.attrib['width']) < 48:

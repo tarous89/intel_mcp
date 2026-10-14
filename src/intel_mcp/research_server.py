@@ -254,7 +254,7 @@ def create_research_server(settings, engine_factory, control_factory):
             return CallToolResult(content=[TextContent(type="text",text=json.dumps(result))],structured_content=result)
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
-    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015", "visibility": ["app"]}},
+    @server.tool(meta={**OAUTH, "ui": {"visibility": ["app"]}},
                  annotations=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False),structured_output=True)
     async def save_research_project(
         selection_ids:Annotated[list[str],Field(min_length=1,max_length=3)],
@@ -327,6 +327,52 @@ def create_research_server(settings, engine_factory, control_factory):
 
 
 class ResearchAuth:
+    # An invalid credential never supplies an identity. Only this bounded public
+    # protocol/search allowlist can continue as a guest. Account tools still 401.
+    GUEST_TOOLS = frozenset({
+        'search_research_trials', 'inspect_research_trials', 'refine_research_cohort',
+        'rank_research_entities', 'get_research_entity_evidence',
+        'prepare_research_workspace', 'publish_research_workspace',
+        'recover_research_preview', 'read_project_preview',
+        'describe_trial_profile_schema', 'list_trial_documents',
+        'read_trial_profiles', 'read_trial_document',
+        'prepare_project_report', 'read_report_evidence', 'read_report_document',
+        'save_project_report', 'retry_project_report', 'show_research_followups',
+        'list_project_reports', 'read_project_report', 'open_project_report',
+        'offer_visualization_save', 'save_visualization_state',
+    })
+
+    async def guest_request(self, scope, receive):
+        if scope.get('method') != 'POST':
+            return False, receive
+        messages, body = [], bytearray()
+        while True:
+            message = await receive()
+            messages.append(message)
+            if message['type'] != 'http.request':
+                return False, receive
+            body.extend(message.get('body', b''))
+            # Large reports must reconnect or be called without credentials;
+            # never buffer an unbounded request just to decide auth policy.
+            if len(body) > 2 * 1024 * 1024:
+                return False, receive
+            if not message.get('more_body', False):
+                break
+        try:
+            request = json.loads(body)
+            method = request.get('method') if isinstance(request, dict) else None
+            allowed = method in {'initialize', 'notifications/initialized', 'ping', 'tools/list', 'resources/list', 'resources/read', 'resources/templates/list'}
+            if method == 'tools/call':
+                params = request.get('params', {})
+                args = params.get('arguments', {})
+                allowed = (params.get('name') in self.GUEST_TOOLS and isinstance(args, dict)
+                           and not args.get('project_id') and not args.get('projectId'))
+        except (ValueError, AttributeError, TypeError):
+            allowed = False
+        async def replay():
+            return messages.pop(0) if messages else await receive()
+        return allowed, replay
+
     def __init__(self,app,control_factory,resource,challenge):
         self.app,self.control_factory,self.resource,self.challenge=app,control_factory,resource,challenge
     async def __call__(self,scope,receive,send):
@@ -344,6 +390,11 @@ class ResearchAuth:
             return await JSONResponse({'error':'AUTH_UNAVAILABLE'},status_code=503)(scope,receive,send)
         if not (info.get('active') is True and isinstance(info.get('sub'),str) and info['sub'] and
                 info.get('resource')==self.resource and 'mcp:tools' in str(info.get('scope','')).split()):
+            allowed, replay = await self.guest_request(scope, receive)
+            if allowed:
+                token = set_oauth_subject(None)
+                try: return await self.app(scope, replay, send)
+                finally: reset_oauth_subject(token)
             return await JSONResponse({'error':'INVALID_TOKEN'},status_code=401,
                 headers={'WWW-Authenticate':self.challenge})(scope,receive,send)
         token=set_oauth_subject(info['sub'])
