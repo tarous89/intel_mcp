@@ -23,6 +23,7 @@ from .research_presentation import RESEARCH_WORKFLOW, inline_schema, public_coho
 ANNOTATIONS=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 MIXED={"securitySchemes":[{"type":"noauth"},{"type":"oauth2","scopes":["mcp:tools"]}]}
 OAUTH={"securitySchemes":[{"type":"oauth2","scopes":["mcp:tools"]}]}
+UI_DOMAIN="https://mcp.trialagents.com"
 
 
 async def research_tool_security_schemes(ctx, call_next):
@@ -47,16 +48,19 @@ def create_research_server(settings, engine_factory, control_factory):
     challenge=f'Bearer resource_metadata="{metadata_url}", scope="mcp:tools"'
     apps = Apps()
     apps.add_resource(TextResource(uri=FOLLOWUP_RESOURCE,name="Further investigations",mime_type=APP_MIME_TYPE,text=FOLLOWUP_HTML,
-        meta={"ui":{"csp":{"connectDomains":[],"resourceDomains":[]}},
+        meta={"ui":{"domain":UI_DOMAIN,"csp":{"connectDomains":[],"resourceDomains":[]}},
+              "openai/widgetDomain":UI_DOMAIN,
               "openai/ui":{"preferredDisplayMode":"inline","availableDisplayModes":["inline"]}}))
     apps.add_resource(TextResource(uri="ui://trialagents/research-v015", name="Trial experience",
         mime_type=APP_MIME_TYPE, text=files("intel_mcp").joinpath("ui/research-v015.html").read_text(),
-        meta={"ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
+        meta={"ui": {"domain":UI_DOMAIN,"csp": {"connectDomains": [], "resourceDomains": []}},
+              "openai/widgetDomain":UI_DOMAIN,
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
     for uri in (RESOURCE, LEGACY_RESOURCE):
         apps.add_resource(TextResource(uri=uri, name="Intel Agent workspace",
             mime_type=APP_MIME_TYPE, text=WORKSPACE_HTML,
-            meta={"ui":{"csp":{"connectDomains":[],"resourceDomains":[]}},
+            meta={"ui":{"domain":UI_DOMAIN,"csp":{"connectDomains":[],"resourceDomains":[]}},
+                  "openai/widgetDomain":UI_DOMAIN,
                   "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
                   "openai/ui":{"preferredDisplayMode":"fullscreen","availableDisplayModes":["fullscreen"]}}))
     server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
@@ -236,8 +240,8 @@ def create_research_server(settings, engine_factory, control_factory):
         except (SelectionError,ControlPlaneError) as e:
             raise ToolError(str(e)) from e
 
-    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS)
-    async def list_research_projects() -> CallToolResult:
+    @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
+    async def list_research_projects() -> dict[str, Any]:
         """Show connected account capabilities and paid status. No project matching or purchases.
 
         The historic tool name is retained for installed clients. Call when the user
@@ -251,12 +255,12 @@ def create_research_server(settings, engine_factory, control_factory):
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
     @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015", "visibility": ["app"]}},
-                 annotations=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False))
+                 annotations=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False),structured_output=True)
     async def save_research_project(
         selection_ids:Annotated[list[str],Field(min_length=1,max_length=3)],
         title:Annotated[str,Field(min_length=1,max_length=160)],
         include_cro_contacts:Annotated[bool,Field(description="True only when CRO emails were explicitly requested for the saved project.")]=False,
-    )->CallToolResult:
+    )->dict[str, Any]:
         """Save requested selections as a private Intel Agent project and return its link.
 
         Call only when the user requests saving or opening research in Intel Agent.
@@ -294,7 +298,7 @@ def create_research_server(settings, engine_factory, control_factory):
     @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
     async def get_saved_research_project(project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')],
         section:Annotated[int,Field(ge=0,le=2)]=0,offset:Annotated[int,Field(ge=0)]=0,
-        limit:Annotated[int,Field(ge=1,le=100)]=10)->CallToolResult:
+        limit:Annotated[int,Field(ge=1,le=100)]=10)->dict[str, Any]:
         """Revisit a private saved research project with current account access, without new analysis.
 
         Free accounts can read its top ten; paid accounts can paginate the full list.

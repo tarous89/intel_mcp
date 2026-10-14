@@ -45,7 +45,7 @@ async def test_anonymous_model_tools_sections_inventory_and_complete_document_te
     async with Client(server) as client:
         tools={t.name:t for t in (await client.list_tools()).tools}
         for name in ['describe_trial_profile_schema','read_trial_profiles','list_trial_documents','read_trial_document']:
-            assert tools[name].annotations.read_only_hint
+            assert tools[name].annotations.read_only_hint is (name in {'describe_trial_profile_schema','list_trial_documents'})
             assert 'model' in tools[name].meta['ui']['visibility']
             assert {'type':'noauth'} in tools[name].meta['securitySchemes']
         schema=await client.call_tool('describe_trial_profile_schema',{})
