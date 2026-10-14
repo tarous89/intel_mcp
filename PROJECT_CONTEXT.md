@@ -1,3 +1,7 @@
+## Approved connection and research UX refinement — 2026-10-14 20:14 Europe/Berlin
+
+Owner approved implementation and publication: compact light OAuth consent card with the original logo and exact comprehensive-data wording; keep consent, account switch/prefill, cancellation, scopes and token validation. Existing tables remain during tool activity/failure; before results show the standard bounded loading indicator, stopping on failure/cancellation with chat handling the explanation. Consolidate guest-first discovery, one final publication/save, revision-aware recovery, permitted evidence IDs and exploratory 100–500 guidance with mandatory constraints preserved. No cache, staged/background preparation, data-access expansion, billing or authorization changes. Publish App, MCP and the installed skills after affected checks.
+
 ## Approved visual consistency release — 2026-10-14
 
 Owner approved implementation and publication: reuse the table loading bar during the bounded post-search holding state; set the host Open in App destination to intel.trialagents.com/projects through the optional host API; require actual visualizations in saved Custom views; provide sanitizer-compatible HTML/SVG examples and matching legends. Preserve research, access, saving, approval, security boundaries and performance. No background-loading optimization or chart-library dependency is authorized.

@@ -94,13 +94,13 @@ def create_research_server(settings, engine_factory, control_factory):
         {"base":{},"base_text":{"fields":["title","diseases"],"terms":["prostate"]},
          "entity_type":"cros","as_of":"2026-10-07","include_broader":true}
 
-        For first exploratory discovery target 200–500 relevant disease-family trials.
+        For first exploratory discovery target 100–500 relevant disease-family trials.
         Do not restrict the base to exact population/phase preferences: use ordered
         subgroups [{id,label,bucket,filters,text}] for direct/related candidates.
         A phase subgroup uses filters={"phase":{"values":[3]}} and optional
         phase_title_fallback=true. Text uses fields plus terms (operator any/all).
         Preserve explicit only/must constraints in base. Explain broadening.
-        If fewer than 200 trials, follow discovery_guidance before finalizing.
+        If fewer than 100 trials, follow discovery_guidance before finalizing.
         Do not invent a minimum or broaden mandatory constraints. Over 500 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
