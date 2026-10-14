@@ -35,7 +35,9 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         descriptors={t.name:t for t in (await client.list_tools()).tools}
         assert descriptors['save_project_report'].annotations.read_only_hint is False
         assert descriptors['save_project_report'].annotations.idempotent_hint is True
-        assert descriptors['read_report_document'].annotations.read_only_hint is True
+        assert descriptors['read_report_document'].annotations.read_only_hint is False
+        assert descriptors['read_report_document'].annotations.idempotent_hint is False
+        assert descriptors['save_project_report'].annotations.destructive_hint is True
         prepared=await client.call_tool('prepare_project_report',{'preview':preview,'include_template':True})
         assert not prepared.is_error
         assert 'Revisions pass report_id and expected_version' in prepared.structured_content['report_guidance']

@@ -1,3 +1,11 @@
+# Deployment authorization — 2026-10-14 10:26 Europe/Berlin
+
+Owner explicitly approved uploading the prepared fixes to the existing repositories and deploying the App/plugin. The prior automatic source-upload rejection is resolved by this confirmation. Remove the public phrase describing Atlas Consulting as publisher of a ChatGPT plugin; retain the company name and Terms-only postal address. Keep product branding and factual policy coverage. Pass existing CI gates, deploy App/MCP through their existing process and refresh the main-site snapshot. No Directory submission or legal attestation is implied.
+
+# Publication readiness corrections — authorized 2026-10-14
+
+Owner authorized implementation of the six confirmed readiness issues; publication requirements take priority while preserving existing UX/performance. Prepare minimal source corrections and tested repository changes. Accurate tool effects may alter ChatGPT approval prompts; record this host acceptance risk explicitly. Preserve the current UI bundle, evidence storage, research computation and deferred optimization restrictions. No automatic retention/deletion feature or public submission is part of these source fixes. Publisher is Atlas Consulting, with corrected owner-supplied postal details in Terms only. See docs/2026-10-14-plugin-readiness-implementation.md in intel_mcp and docs/CHATGPT_PLUGIN_LEGAL_DRAFT.md in the App for changes and release gates.
+
 # Approved loading feedback and pending approvals — 2026-10-13 23:34 Europe/Berlin
 
 Owner approved both edits: surface the existing workspace on supported search invocation with bounded, indeterminate loading feedback; preserve visible results during host tool activity and handle empty/error/cancelled states. Add the narrow pending-approval conversational rule to the main answering skill, referenced by Custom views. No extra approval, research writes, polling, staged computation, cache changes, or new persistence. Host controls invocation timing and approval display; verify simulated lifecycle and existing workflows, then publish through existing MCP/plugin releases.

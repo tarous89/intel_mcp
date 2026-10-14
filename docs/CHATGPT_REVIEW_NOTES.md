@@ -1,31 +1,49 @@
-# Reviewer preparation notes — 2026-10-06
+# Reviewer preparation notes — 2026-10-14
 
-Internal maintainer reference; not bundled into the public ZIP. No credentials here. Complete the release checklist before test handoff and every release.
+Internal maintainer reference, not a review approval or a completed test report. No credentials belong here. Keep the existing plugin/App identity, five skills and 37 tools.
 
-## Tool annotations: proposed explanations, not changed flags
+## Actual tool effects
 
-Current research tools advertise readOnlyHint=true, destructiveHint=false, openWorldHint=false and idempotentHint=true. These notes describe existing behavior; they are not OpenAI approval and do not override live flags. The guidelines currently say annotation justifications are no longer required while the submission error reference says they are required. Keep explanations ready, inspect portal requirements and resolve actual findings.
+All tools are confined to the TrialAgents catalogue and authorized account/preview scope (openWorldHint=false). Server-side ownership and access checks remain authoritative.
 
-| Tool | Read-only explanation | Non-destructive explanation | Bounded-world explanation |
-|---|---|---|---|
-| search_research_trials | Reads restricted trial profiles and computes a selection. Keeps an ephemeral process-local cache/token, normally usable for 15 minutes; does not write clinical/account records, persist reports or enqueue a paid/LLM job. Evaluate whether portal treats this cache as state requiring a different hint. | No deletion, overwrite, message, purchase or access revocation. Cache eviction only requires re-search. | Searches a bounded TrialAgents catalogue through restricted database views, not arbitrary web/URL destinations. |
-| rank_research_entities | Reads the cached selection; computes rankings and, when a project is supplied, reads ownership/entitlement/coverage checks. | No user-data mutation or irreversible action. | Only selected catalogue records and the authenticated user's eligible project scope. |
-| get_research_entity_evidence | Returns recorded evidence for an accessible entity and checks project access when supplied; no raw-profile endpoint. | No external sends or changes to source records. | Fixed selection/entities; user cannot supply arbitrary destinations. |
-| list_research_projects | Reads connected user's projects/access; unauthenticated call emits the supported OAuth challenge. The tool does not purchase or create a project. Authentication session handling belongs to the separate auth flow. | No changes to ownership, subscription or project access. | Confined to the authenticated account's projects, not public search. |
+| Operations | Read-only | Destructive | Reason |
+| --- | --- | --- | --- |
+| Discovery, ranking, schema/inventory, current account/project/report reads, follow-up choices | true | false | Retrieval/computation; no saved user artifact is changed. |
+| prepare_research_workspace / recover_research_preview | true | false | Internal bounded query-preview caching, separate from a saved project. The existing 24-hour preview capability is not a promise of backend erasure. |
+| read_trial_profiles / read_report_evidence | false | false | Register frozen evidence sources used for report provenance. Additive and content-addressed. |
+| read_report_document / read_trial_document | false | false | Persist dated extracted-document source records. Repeated retrieval can add a record, so idempotentHint=false. |
+| publish_research_workspace | false | false | Creates/attaches an owner's project; guests receive a cached preview. Stable operation identity makes retries reuse the original project. |
+| save_project / revise_research_workspace | false | true | Can replace the active project selection/title. Historical data or conflict checks do not justify a non-destructive declaration. |
+| save_project_view | false | true | Replaces stored table controls. |
+| save_project_report / retry_project_report | false | true | Create or overwrite a Custom view. An overwrite replaces its current HTML/content; a version counter is not an archive of old HTML. |
+| save_visualization_state | false | true | Replaces deliberately saved form/tracker state under a version check. |
+| Legacy save/claim/handoff | false | false | Explicit account attachment, additive project save or connection handoff. Existing server authorization remains in place. |
 
-Idempotence means retrying has no additional business side effects, not byte-identical output: cache tokens/expiry and live data/access can change. Do not modify flags merely to quiet a scan. If a change is needed, document behavior, ask the owner where it affects app/workflow, deploy and rescan.
+Preserving the evidence registration path avoids a new evidence cache, larger tool payloads or additional retrieval during save. Moving that persistence into the save operation would require a separate source-reference design and compatibility work. The current correction therefore describes the existing behavior honestly. ChatGPT controls approval presentation; actual prompts remain a host acceptance gate. Do not hide a pending approval behind another link or add a second custom confirmation dialog.
 
-## Output minimization review (open before Gate A)
+All 37 tools declare object output schemas, including the three legacy tools whose explicit CallToolResult responses are preserved. UI resources declare https://mcp.trialagents.com as the plugin's dedicated origin, using both standard and compatibility metadata. Confirm host acceptance/uniqueness in the actual submission; declaration is not Portal verification. Existing nested srcDoc report rendering is unchanged and needs real-host verification and an iframe justification.
 
-- Selection ID and entity ID enable follow-up calls. Project ID enables scoped authorization. Retain only where functionally required; these are not permission to return unrelated account identifiers.
-- Trial IDs, titles, source URLs, cohort counts and recorded roles/functions support research claims.
-- Professional contacts must be relevant to visible/authorized entities, recorded rather than guessed, and covered by the published privacy notice.
-- `profile_sha256`, `schema_version` and snapshot/version markers need an explicit necessity assessment. Source integrity may justify some data, but review can flag unexplained technical output. No field removal has been performed in this change.
-- Operational narratives and discovery excerpts are stripped from anonymous evidence. Do not claim absence of findings from absence of narrative output.
-- Confirm project-list output fields and infrastructure logs against the real deployed version; do not claim the 15-minute cache lifetime is a universal data-deletion timeline.
+## Retry semantics
 
-## Dedicated reviewer setup — secure dashboard only
+For connected accounts, the same owner, selection, title, contact mode, recommendations and optional operation_id identify a publication. Anonymous calls retain independent random preview capabilities: a shared cached public search must never share private guest reports. Replays keep the preview UUID and server-keyed secret cache capability stable, matching the App receipt's token hash. A table-tab change does not create another project. Use a distinct operation_id for an intentionally separate project from the same cached selection; retain that value on retries. No result cache, new background job or database lookup was added. A 32-byte server-only key prevents deriving a private preview capability from shared search inputs or an account ID. Expired selections still fail honestly; this is not durable search recovery.
 
-Prepare an isolated reviewer-owned project covering the entire cohort produced by the submitted prostate prompt, with full existing entitlement and sample data. Verify actual positive pagination and a negative uncovered/expired-entitlement case. Do not charge a card, grant real customer access, weaken global auth or add LLM calls for this task without separate authorization. The account must remain usable throughout a potentially long review, without owner-mediated email/MFA steps. Record setup procedure and credentials only through secure dashboard fields.
+## Reviewer setup and cases
 
-All five positive tests must start independently. Counts/ranks depend on source data; assert correct behavior and source evidence, not hardcoded counts or IDs. Test expired selection recovery and full-access denial separately. Include supported desktop/mobile surfaces in final evidence. Do not manufacture screenshots or video before testing.
+Use a dedicated reviewer account with durable sample data and account-wide full access throughout review. Connecting alone does not grant full access. Verify a fresh login without dependence on an owner's OTP/MFA, successful pagination, expired/revoked access and another owner's denial. Keep credentials in secure Portal fields only.
+
+Execute five positive and three negative cases independently against the exact candidate. Cohort sizes and ordering are data-dependent; do not hardcode live IDs/counts. For requested CRO contacts pass include_cro_contacts=true to publication/ranking and read contacts from CRO results; get_research_entity_evidence supplies supporting trials, not contacts. Read document parts only when an authorized inventory contains them. Reports, state changes and revisions must respect host approval and server access checks.
+
+## Publisher and public pages
+
+Publisher name: Atlas Consulting. Postal contact is displayed in Terms only, using the owner-confirmed address supplied on 14 October. Support: intel@trialagents.com. Product name remains EU Trial Intelligence (compact EU Trial Intel); TrialAgents remains the platform brand. Public text must not claim verified or approved status.
+
+- https://trialagents.com/intel-agent — product and publisher disclosure.
+- https://trialagents.com/privacy-policy — controller, plugin data practices and retention.
+- https://trialagents.com/terms-of-service — provider, exact postal address and current access terms.
+- https://intel.trialagents.com/support/intel — account-wide access and support.
+
+The first three pages are served by the public snapshot: App source deployment alone does not update them. Deploy App source, run the existing trialagents-public exact-head predeploy/snapshot process, then inspect all four live URLs. Owner confirmation of actual retention practices and source/contact rights remains necessary; factual copy is not a legal attestation.
+
+## Submission evidence still required
+
+Record exact source/package/bundle versions, passed tests, actual ChatGPT desktop/mobile results, accessible demo, reviewer login, publisher/domain verification and current Portal scans. The official guidelines and submission-error reference differ on written annotation justifications; follow the actual Portal fields and use the factual explanations above. Do not label an unrun case, inaccessible link or missing Portal check as passed.

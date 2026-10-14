@@ -6,9 +6,10 @@ import secrets
 import gzip
 import logging
 import hashlib
+import hmac
 import json
 import base64
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 from importlib.resources import files
 from typing import Annotated, Any, Literal
 from pydantic import Field
@@ -135,9 +136,13 @@ def with_workspace_destinations(result):
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
+    overwrite=ToolAnnotations(read_only_hint=False,destructive_hint=True,idempotent_hint=True,open_world_hint=False)
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
     ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
     pending_previews = {}
+    # Process-local, like the selection store. Publicly shared search tokens and
+    # account IDs alone must never let someone derive a private preview capability.
+    preview_token_key = secrets.token_bytes(32)
 
     async def persist_preview(spec, payload=None):
         if payload is None:
@@ -193,7 +198,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         try:return await control_factory().research_workspace({'operation':'canonical_list'})
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
-    @server.tool(meta={**oauth,**ui},annotations=write,structured_output=True)
+    @server.tool(meta={**oauth,**ui},annotations=overwrite,structured_output=True)
     async def save_project(
         preview:PreviewSpec,
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')]|None=None,
@@ -244,7 +249,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return with_workspace_destinations(result)
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
-    @server.tool(meta={**oauth,**app_callable},annotations=write,structured_output=True)
+    @server.tool(meta={**oauth,**app_callable},annotations=overwrite,structured_output=True)
     async def save_project_view(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],kind:Kind,
         controls:dict[str,str],expected_version:Annotated[int,Field(ge=0)],
@@ -338,6 +343,12 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             visible={e['id'] for e in result['entities']}
             spec=PreviewSpec(preview_id=preview_id or str(uuid4()),selection_id=selection_id,title=title,include_cro_contacts=include_cro_contacts,
                              recommendations=recommendations,snapshot_key=payload_key(payload))
+            if preview_id:
+                # Bind the token to the original operation, owner and content with
+                # a server-only key. Replays must also reuse the token:
+                # the App's idempotency receipt includes its hash, not just the UUID.
+                identity=json.dumps(['preview-cache-v1',selection_id,preview_id,current_oauth_subject(),spec.snapshot_key],separators=(',',':'))
+                spec.cache_token=base64.urlsafe_b64encode(hmac.new(preview_token_key,identity.encode(),hashlib.sha256).digest()).decode().rstrip('=')
             storage_ready=False
             storage_error=None
             try:
@@ -370,14 +381,24 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         include_cro_contacts: bool=False,
         recommendations: Annotated[list[Recommendation],Field(max_length=30)]=[],
         kind: Kind='cros',
+        operation_id: Annotated[str|None,Field(min_length=1,max_length=128,description='Optional identity for an intentionally separate project from the same selection. Reuse it unchanged on retries.')]=None,
     ) -> dict[str, Any]:
         """Present a finalized research workspace and persist it for a connected account.
 
         Guests receive a cached 24-hour preview; connected owners receive a canonical
         saved project. Existing project revisions use save_project with expected_revision.
         Custom view storage is a separate operation exposed by save_project_report.
+        For a connected account, repeating the same selection and publication inputs
+        reuses the project. Anonymous calls keep independent private preview capabilities.
+        Use a new operation_id only when intentionally creating a separate project
+        from that same selection; reuse it on retries. It is not an access token.
         """
-        out=await prepare_research_workspace(selection_id,title,include_cro_contacts,recommendations,kind)
+        preview_id=None
+        if current_oauth_subject():
+            identity=payload_key(['publish-v1',current_oauth_subject(),selection_id,title,include_cro_contacts,
+                                  [r.model_dump(mode='json') for r in recommendations],operation_id])
+            preview_id=str(uuid5(NAMESPACE_URL,'trialagents:publish:'+identity))
+        out=await prepare_research_workspace(selection_id,title,include_cro_contacts,recommendations,kind,preview_id=preview_id)
         if not current_oauth_subject() or out.get('storage_status')!='ready':return out
         try:
             return await save_project(PreviewSpec.model_validate(out['draft']))
@@ -411,7 +432,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         try:return await read(project_id,preview_token)
         except ControlPlaneError as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**mixed,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=write,structured_output=True)
+    @server.tool(meta={**mixed,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=overwrite,structured_output=True)
     @workspace_gate(store)
     async def revise_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
