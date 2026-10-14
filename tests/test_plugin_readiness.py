@@ -28,6 +28,8 @@ async def test_publication_contract_preserves_tools_and_declares_real_effects():
             assert descriptors[name].annotations.destructive_hint is True
         for name in ('search_research_trials','rank_research_entities','prepare_project_report','list_trial_documents','open_project','read_project_report'):
             assert descriptors[name].annotations.read_only_hint is True
+        for name in ('claim_research_workspace','revise_research_workspace','save_research_project'):
+            assert 'resourceUri' not in descriptors[name].meta['ui']
         for resource in (await client.list_resources()).resources:
             result=await client.read_resource(resource.uri)
             for content in result.contents:

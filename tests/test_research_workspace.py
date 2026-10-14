@@ -181,7 +181,7 @@ async def test_precomputed_preview_cache_retains_exact_four_tables_without_creat
     class Control:
         async def cache_research_preview(self, body):
             cached.append(body)
-            return {'expires_in_seconds':86400}
+            return {'expires_in_seconds':604800}
         async def research_workspace(self, body):
             raise AssertionError('a search cache must not create a project')
     settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
@@ -191,7 +191,7 @@ async def test_precomputed_preview_cache_retains_exact_four_tables_without_creat
         response=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Exact cohort'})
         assert not response.is_error
         out=response.structured_content
-        assert out['saved'] is False and out['expires_in_seconds']==86400
+        assert out['saved'] is False and out['expires_in_seconds']==604800
         assert out['draft']['cache_token']==cached[0]['token']
         from intel_mcp.research_workspace import payload_key
         payload=json.loads(gzip.decompress(base64.b64decode(cached[0]['gzip'])))

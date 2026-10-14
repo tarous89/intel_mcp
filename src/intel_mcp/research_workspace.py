@@ -187,7 +187,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
     async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None)->dict[str,Any]:
-        """Page an existing 24-hour preview without repeating search or rebuilding the workspace."""
+        """Page an existing seven-day preview without repeating search or rebuilding the workspace."""
         try:return with_workspace_destinations(await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'controls':controls or {}}))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
@@ -324,12 +324,12 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         DEFAULT initial results: call after broadening is complete with the final selection_id.
         This is read-only computation over the existing short-lived search snapshot: no project,
         account change or project job is created, even for connected users. Prepared query
-        results may be cached internally for 24 hours, separately from user projects.
+        results may be cached internally for 7 days, separately from user projects.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Commit saved-project refinements with save_project using project_id and expected_revision. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
         Connect account opens website login immediately. The website imports the exact preview only after authentication.
-        The cached import expires after 24 hours; never claim a preview is already a saved project.
+        The cached import expires after 7 days; never claim a preview is already a saved project.
         """
         try:
             payload=await run_cpu(workspace_payload,store.get(selection_id),title,include_cro_contacts,recommendations)
@@ -364,7 +364,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return {'project_id':spec.preview_id,
                 'title':title,'revision':1,'current_revision':1,'owned':False,'saved':False,
                 'draft':spec.model_dump(mode='json'),'preview_tables':pages,
-                'expires_in_seconds':86400 if storage_ready else store.remaining_seconds(selection_id),'account':access,
+                'expires_in_seconds':604800 if storage_ready else store.remaining_seconds(selection_id),'account':access,
                 'storage_status':'ready' if storage_ready else 'unavailable','storage_error':storage_error,
                 'recovery_tool':'recover_research_preview' if storage_error else None,
                 'result':result,'recommendations':[r.model_dump(mode='json') for r in recommendations
@@ -386,7 +386,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """Store and present finalized research; authentication is optional.
 
         The server chooses storage from verified credentials, with no account preflight.
-        Guests receive a cached 24-hour preview; connected owners receive a canonical
+        Guests receive a cached seven-day preview; connected owners receive a canonical
         saved project. Existing project revisions use save_project with expected_revision.
         Custom view storage is a separate operation exposed by save_project_report.
         For a connected account, repeating the same selection and publication inputs
@@ -433,7 +433,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         try:return await read(project_id,preview_token)
         except ControlPlaneError as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**mixed,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=overwrite,structured_output=True)
+    @server.tool(meta={**mixed,'ui':{'visibility':['app']},'openai/widgetAccessible':True},annotations=overwrite,structured_output=True)
     @workspace_gate(store)
     async def revise_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
@@ -482,7 +482,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                 'projectId':project_id,'previewToken':preview_token})
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**oauth,**ui,'ui':{**ui['ui'],'visibility':['app']}},annotations=write,structured_output=True)
+    @server.tool(meta={**oauth,'ui':{'visibility':['app']},'openai/widgetAccessible':True},annotations=write,structured_output=True)
     async def claim_research_workspace(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,

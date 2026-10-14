@@ -179,3 +179,29 @@ def test_public_whole_cohort_order_and_evidence_do_not_change_private_contract()
     assert public_evidence(d, public.entities[0].id).total_trials == 13
     assert public.ranking_order == ['total_trials_desc', 'name_asc', 'id_asc']
     assert d.rank().entities[0].name == 'Specialist'
+
+
+@pytest.mark.anyio
+async def test_expired_connection_can_only_continue_public_guest_operations():
+    seen=[]
+    async def downstream(scope,receive,send):
+        packet=await receive()
+        seen.append((current_oauth_subject(),packet['body']))
+        from starlette.responses import JSONResponse
+        await JSONResponse({'ok':True})(scope,receive,send)
+    class Control:
+        async def introspect_access_token(self,token):
+            return {'active':False}
+    app=ResearchAuth(downstream,Control,'research','Bearer')
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://example.test',headers={'Authorization':'Bearer expired'}) as client:
+        for method in ('initialize','tools/list','resources/list'):
+            assert (await client.post('/mcp',json={'jsonrpc':'2.0','id':1,'method':method})).status_code==200
+        for name in ('search_research_trials','publish_research_workspace','read_project_preview','save_project_report'):
+            assert (await client.post('/mcp',json={'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':name,'arguments':{}}})).status_code==200
+        for name,args in [('save_project',{}),('open_project',{}),('list_projects',{}),('publish_research_workspace',{'project_id':'private-project'}),('read_project_preview',{'projectId':'private-project'})]:
+            response=await client.post('/mcp',json={'jsonrpc':'2.0','id':3,'method':'tools/call','params':{'name':name,'arguments':args}})
+            assert response.status_code==401 and 'www-authenticate' in response.headers
+        for raw in ('[]','{bad json','x'*(2*1024*1024+1)):
+            assert (await client.post('/mcp',content=raw)).status_code==401
+    assert len(seen)==7 and all(subject is None and body for subject,body in seen)
+    assert current_oauth_subject() is None
