@@ -383,8 +383,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         kind: Kind='cros',
         operation_id: Annotated[str|None,Field(min_length=1,max_length=128,description='Optional identity for an intentionally separate project from the same selection. Reuse it unchanged on retries.')]=None,
     ) -> dict[str, Any]:
-        """Present a finalized research workspace and persist it for a connected account.
+        """Store and present finalized research; authentication is optional.
 
+        The server chooses storage from verified credentials, with no account preflight.
         Guests receive a cached 24-hour preview; connected owners receive a canonical
         saved project. Existing project revisions use save_project with expected_revision.
         Custom view storage is a separate operation exposed by save_project_report.

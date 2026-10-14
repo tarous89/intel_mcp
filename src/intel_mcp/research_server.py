@@ -79,7 +79,7 @@ def create_research_server(settings, engine_factory, control_factory):
 
     def connect_result():
         return CallToolResult(is_error=True,content=[TextContent(type='text',text='Connect your TrialAgents account to view existing access or save private research. Free top-ten research needs no account. Full lists require active paid access; connecting alone does not activate it.')],
-            _meta={'mcp/www_authenticate':[challenge]})
+            _meta={'mcp/www_authenticate':[challenge+', error="insufficient_scope", error_description="Connect your account to save or access private research"']})
 
     @server.tool(meta={**MIXED,"ui":{"resourceUri":RESOURCE},"openai/toolInvocation/invoking":"Searching recorded trials…","openai/toolInvocation/invoked":"Search complete"},annotations=ANNOTATIONS,structured_output=True)
     async def search_research_trials(criteria:Annotated[SelectionCriteria, Field(description=(

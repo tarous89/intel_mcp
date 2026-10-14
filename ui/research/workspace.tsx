@@ -5,7 +5,7 @@ import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextproto
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
 import {WorkspaceTables,CustomViewRecovery,type WorkspaceKind} from 'intel-shared-workspace';
 import tableStyles from '@/app/_site-agent/SiteAgentWorkspace.module.css';
-import {connectProject,openConnection,ConnectionError} from './connect-project';
+import {connectProject,openConnection,ConnectionError,connectPreviewAccount,continueAccountConnection} from './connect-project';
 const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
@@ -62,6 +62,7 @@ function View({initial}:{initial:any}){
  const [reportsView,setReportsView]=useState(initial.active_tab==='custom'||!!initial.active_report_id),[activeReport,setActiveReport]=useState<string|undefined>(initial.active_report_id);
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
  const [connectionStatus,setConnectionStatus]=useState('');
+ const [connectionPending,setConnectionPending]=useState(false);
  const pageCache=useRef(new Map<string,{at:number;data:any}>());
  const requestSerial=useRef(0),activeControls=useRef<any>({});
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
@@ -112,12 +113,24 @@ function View({initial}:{initial:any}){
  }
  async function profile(id:string){const out=await app.callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
  async function download(bytes:Uint8Array,name:string){let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const out=await app.downloadFile({contents:[{type:'resource',resource:{uri:'file:///'+name,mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',blob:btoa(binary)}}]});if(out.isError)throw Error();}
- async function connect(){
+ async function continueConnection(){
+  if(connecting.current)return;connecting.current=true;setBusy(true);
+  try{await continueAccountConnection(app,data);setConnectionStatus('Continue account connection in the conversation. Your preview remains available.');setConnectionPending(false);}
+  catch{setConnectionStatus('The connection request could not be sent. Retry or save through the website.');}
+  finally{connecting.current=false;setBusy(false);}
+ }
+ async function connect(websiteOnly=false){
   if(connecting.current)return;
   connecting.current=true;setBusy(true);setError('');setRetryPage(null);setConnectionError(false);
   const cached=handoff.current;
-  setConnectionStatus('Opening TrialAgents…');
+  setConnectionStatus(websiteOnly?'Opening TrialAgents…':'Connecting your account…');
+  setConnectionPending(false);
   try{
+   if(!websiteOnly){
+    const connection=await connectPreviewAccount(app,data);
+    if(connection.status==='saved'){pageCache.current.clear();requestSerial.current++;setData((old:any)=>preserveCustomRecovery(old,connection.data));modelContext(connection.data);setConnectionStatus('');return;}
+    if(connection.status==='pending'){setConnectionPending(true);setConnectionStatus('Complete authorization in ChatGPT. If no connection prompt appears, continue in the conversation. Your preview is preserved.');return;}
+   }
    if(cached&&cached.project===data.project_id&&cached.expires>Date.now())await openConnection(app,cached.url);
    else await connectProject(app,data,url=>{handoff.current={url,expires:Date.now()+14*60*1000,project:data.project_id};setConnectionStatus('Opening TrialAgents…');});
    setConnectionStatus('');
@@ -160,7 +173,7 @@ function View({initial}:{initial:any}){
  async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
- return <><SaveNotice data={data}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&<button onClick={connect}>{handoff.current?'Open account connection':'Retry account connection'}</button>}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onCreateCustom={createCustom} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={connect} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <><SaveNotice data={data}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&(connectionPending?<><button onClick={continueConnection}>Continue connection in ChatGPT</button> <button onClick={()=>connect(true)}>Save through website</button></>:<button onClick={()=>connect()}>{handoff.current?'Open account connection':'Retry account connection'}</button>)}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onCreateCustom={createCustom} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={()=>connect()} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};
