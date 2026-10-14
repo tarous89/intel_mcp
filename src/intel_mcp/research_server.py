@@ -15,7 +15,7 @@ from .research_views import result_view, evidence_view, account_view
 from .followups import RESOURCE as FOLLOWUP_RESOURCE, HTML as FOLLOWUP_HTML
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .research_cohort import CohortRefinement, candidate_trials
-from .research_workspace import register_workspace_tools, RESOURCE, LEGACY_RESOURCE, WORKSPACE_HTML
+from .research_workspace import register_workspace_tools, RESOURCE, LEGACY_RESOURCE, COMPATIBILITY_RESOURCES, WORKSPACE_HTML
 from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_presentation import RESEARCH_WORKFLOW, inline_schema, public_cohort, discovery_guidance, access_info, RESEARCH_CAPABILITIES
@@ -56,7 +56,7 @@ def create_research_server(settings, engine_factory, control_factory):
         meta={"ui": {"domain":UI_DOMAIN,"csp": {"connectDomains": [], "resourceDomains": []}},
               "openai/widgetDomain":UI_DOMAIN,
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
-    for uri in (RESOURCE, LEGACY_RESOURCE):
+    for uri in (RESOURCE, LEGACY_RESOURCE, *COMPATIBILITY_RESOURCES):
         apps.add_resource(TextResource(uri=uri, name="Intel Agent workspace",
             mime_type=APP_MIME_TYPE, text=WORKSPACE_HTML,
             meta={"ui":{"domain":UI_DOMAIN,"csp":{"connectDomains":[],"resourceDomains":[]}},

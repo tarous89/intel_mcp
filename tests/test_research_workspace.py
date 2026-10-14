@@ -2,7 +2,7 @@ from types import SimpleNamespace
 import pytest
 from mcp import Client
 from intel_mcp.research_server import create_research_server
-from intel_mcp.research_workspace import workspace_payload,compact_workspace_evidence,RESOURCE,LEGACY_RESOURCE,WORKSPACE_HTML
+from intel_mcp.research_workspace import workspace_payload,compact_workspace_evidence,RESOURCE,LEGACY_RESOURCE,COMPATIBILITY_RESOURCES,WORKSPACE_HTML
 from intel_mcp.selection import SelectionDataset
 from test_selection import record,provider,criteria
 from test_selection_service import Engine
@@ -71,6 +71,11 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
         assert RESOURCE=='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
         legacy=await client.read_resource(LEGACY_RESOURCE)
         assert legacy.contents[0].text==resource.contents[0].text
+        assert 'ui://trialagents/workspace-17ca07c3bf878f04' in COMPATIBILITY_RESOURCES
+        for uri in COMPATIBILITY_RESOURCES:
+            previous=await client.read_resource(uri)
+            assert previous.contents[0].text==resource.contents[0].text
+            assert previous.contents[0].meta==resource.contents[0].meta
         assert resource.contents[0].meta['openai/ui']['preferredDisplayMode']=='fullscreen'
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
         assert search.structured_content['presentation']['tool']=='publish_research_workspace'
