@@ -196,12 +196,21 @@ async function requestWorkspace(ctx:any){
  if(displayRequested||displayPending||ctx?.displayMode==='fullscreen'||!ctx?.availableDisplayModes?.includes('fullscreen'))return;
  displayPending=true;try{await app.requestDisplayMode({mode:'fullscreen'});displayRequested=true;}catch{/* Retry on the next host capability notification. */}finally{displayPending=false;}
 }
-function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);void requestWorkspace(ctx);}
+let navigationPending=false;
+async function configureAppNavigation(){
+ const bridge=(window as any).openai;
+ if(navigationPending||typeof bridge?.setOpenInAppUrl!=='function')return;
+ navigationPending=true;
+ try{await bridge.setOpenInAppUrl({href:'https://intel.trialagents.com/projects'});}
+ catch{/* Retry on the next host lifecycle event; navigation is optional. */}
+ finally{navigationPending=false;}
+}
+// Hosts can provide the optional bridge after the MCP handshake or reset it on display changes.
+window.addEventListener('openai:set_globals',()=>{void configureAppNavigation();});
+function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);void configureAppNavigation();void requestWorkspace(ctx);}
 app.onhostcontextchanged=theme;
 async function connectHost(){
  try{await app.connect();theme(app.getHostContext());
-  // Optional host navigation override; it does not alter widget origin or auth.
-  try{await (window as any).openai?.setOpenInAppUrl?.({href:'https://intel.trialagents.com/projects'});}catch{/* Older hosts keep their normal navigation. */}
  }
  catch{if(!mounted)root.render(<section className="workspace-loading" role="alert"><strong>TrialAgents</strong><p>The workspace connection was interrupted.</p><button onClick={()=>void connectHost()}>Retry opening workspace</button></section>);}
 }
