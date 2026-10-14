@@ -1,3 +1,7 @@
+## Approved visual consistency release — 2026-10-14
+
+Owner approved implementation and publication: reuse the table loading bar during the bounded post-search holding state; set the host Open in App destination to intel.trialagents.com/projects through the optional host API; require actual visualizations in saved Custom views; provide sanitizer-compatible HTML/SVG examples and matching legends. Preserve research, access, saving, approval, security boundaries and performance. No background-loading optimization or chart-library dependency is authorized.
+
 # Deployment authorization — 2026-10-14 10:26 Europe/Berlin
 
 Owner explicitly approved uploading the prepared fixes to the existing repositories and deploying the App/plugin. The prior automatic source-upload rejection is resolved by this confirmation. Remove the public phrase describing Atlas Consulting as publisher of a ChatGPT plugin; retain the company name and Terms-only postal address. Keep product branding and factual policy coverage. Pass existing CI gates, deploy App/MCP through their existing process and refresh the main-site snapshot. No Directory submission or legal attestation is implied.

@@ -8,7 +8,7 @@
 6. The save result opens Custom views. report_saved=true means read-back verified storage. Guest storage is temporary; account connection attaches the project and views. On failure, the retained draft and one recovery control appear in Custom views. Use retry_project_report with retry_id for the retained payload; retention lasts up to 30 minutes in this server session. If it expired, reuse the original content.
 
 ## Static renderer
-Use semantic HTML and the shell’s supported classes: main/section, h1–h3, p, figure/figcaption, .table-scroll, .bar-chart, .bar-row, .bar-label, .bar-track and .bar-value. Bar tracks use SVG rectangles with viewBox="0 0 100 12" and preserveAspectRatio="none"; labels stay in HTML at a stable size. Other SVG charts use a viewBox sized for their intended display width. The server provides CSS; custom CSS/scripts require the interactive renderer. Keep HTML below 800 KB.
+Use semantic HTML and the shell’s supported classes: main/section, h1–h3, p, figure/figcaption, .table-scroll, .bar-chart, .bar-row, .bar-label, .bar-track and .bar-value. Bar tracks use SVG rectangles with viewBox="0 0 100 12" and preserveAspectRatio="none"; labels stay in HTML at a stable size. Other SVG charts use a viewBox sized for their intended display width. Use SVG fill/stroke attributes for marks and matching legend swatches. Keep a legend inside the same SVG or use labeled HTML bar rows. The server provides CSS; custom CSS/scripts require the interactive renderer. Keep HTML below 800 KB.
 
 ## Interactive renderer
 Use self-contained inline CSS/JS and addEventListener. The opaque-origin sandbox blocks external assets/network, parent DOM/account access and direct database writes. Use task-appropriate non-patient data.

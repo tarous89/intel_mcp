@@ -5,7 +5,7 @@ description: Create, save, open or revise Custom views in TrialAgents: charts, a
 
 # Create a custom view
 
-Follow [the save procedure and renderer contract](references/report-guidance.md). For generation, load [rendering defaults](../../references/custom-style.md) and reuse the relevant sections of [the HTML shell](assets/report-example.html). Its placeholders illustrate layout; populate them from the requested data. Read [access rules](../../references/access-and-evidence.md) when gathering evidence.
+Follow [the save procedure and renderer contract](references/report-guidance.md). For generation, load [rendering defaults](../../references/custom-style.md) and reuse the relevant sections of [the HTML shell](assets/report-example.html). For other formats, reuse the relevant [SVG examples](assets/visual-examples.html). The templates illustrate layout; populate them from the requested data. Read [access rules](../../references/access-and-evidence.md) when gathering evidence.
 
 Apply the [main answering skill’s pending-approval rule](../answer-in-trialagents/SKILL.md#pending-approval) when a host approval is pending.
 

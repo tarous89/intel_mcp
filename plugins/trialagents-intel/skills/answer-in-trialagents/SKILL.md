@@ -5,7 +5,7 @@ description: Start here for TrialAgents questions. Route discovery, table operat
 
 # Answer in TrialAgents
 
-New searches, query revisions, ranking, sorting, filtering, paging, and record details must use the standard Sites, PIs, CROs, and Trials tables. Visual analyses, alternative presentations, and reusable coded outputs—including comparisons, charts, forms, and trackers—must be saved and opened in Custom views. Ordinary explanations use concise chat. Explicit user format preferences take precedence.
+New searches, query revisions, ranking, sorting, filtering, paging, and record details must use the standard Sites, PIs, CROs, and Trials tables. Visual analyses, alternative presentations, and reusable coded outputs—including comparisons, charts, forms, and trackers—must be saved and opened in Custom views. Visual analyses must include the actual visualizations in the saved Custom view; chat provides a concise summary. Choose a format suited to the question and data. Ordinary explanations use concise chat. Explicit user format preferences take precedence.
 
 For a supported database search, invoke search_research_trials once the criteria are clear; its workspace provides early loading feedback. Keep unsupported questions and clarification in chat. Distinguish an empty search from unavailable data or a failed operation. Continue the existing research and final-workspace publication procedure.
 
