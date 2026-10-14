@@ -12,15 +12,19 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  const dom=new JSDOM('<main></main>',{url:'https://synthetic.invalid'});
  globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
  let expireActivity;const originalTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>{if(ms===90000){expireActivity=fn;return originalTimeout(()=>{},0);}return originalTimeout(fn,ms,...args);};t.after(()=>{globalThis.setTimeout=originalTimeout;});
+ let appUrl;window.openai={setOpenInAppUrl:async value=>{appUrl=value.href;}};
  let incoming,calls=[],contextThrows=false,response,openCalls=[],openResult;
  const host={connect:async()=>{},getHostContext:()=>({}),updateModelContext:()=>{if(contextThrows)throw Error('Unsupported');return Promise.resolve();},callServerTool:async args=>{calls.push(args);if(response instanceof Error)throw response;return response;},openLink:async args=>{openCalls.push(args);return openResult;}};
  Object.defineProperty(host,'ontoolresult',{set(value){incoming=value;}});globalThis.__navigationHost=host;
  t.after(()=>{dom.window.close();delete globalThis.window;delete globalThis.document;delete globalThis.__navigationHost;delete globalThis.IS_REACT_ACT_ENVIRONMENT;});
  await build({entryPoints:['ui/research/workspace.tsx'],bundle:true,write:true,outfile:join(dir,'ui.mjs'),platform:'node',format:'esm',jsx:'automatic',external:['react','react-dom','react-dom/client','react/jsx-runtime'],plugins:[{name:'host-boundary',setup(b){
+ b.onResolve({filter:/\.module\.css$/},args=>({path:args.path,namespace:'test-css'}));
+ b.onLoad({filter:/.*/,namespace:'test-css'},()=>({loader:'js',contents:'export default {loadingBar:"standard-loading-bar"}'}));
  b.onResolve({filter:/^(@modelcontextprotocol\/ext-apps|@openai\/mcp-extensions\/app|intel-shared-workspace)$/},args=>({path:args.path,namespace:'test-boundary'}));
  b.onLoad({filter:/.*/,namespace:'test-boundary'},args=>({loader:'tsx',contents:args.path==='@modelcontextprotocol/ext-apps'?`export class App{constructor(){return globalThis.__navigationHost}};export function applyDocumentTheme(){};export function applyHostStyleVariables(){}`:args.path==='@openai/mcp-extensions/app'?`export class OpenAIExtensions{}`:`import React from 'react';export function CustomViewRecovery(){return null;} export function WorkspaceTables({data,onPage,onDataset,dataset,error,busy,onAccount}){return <section><p data-testid="rows">{dataset?'Dataset':data.result.entity_type+': '+data.result.entities[0].name}</p><nav><button onClick={onAccount}>Account</button><button disabled={busy} onClick={onAccount}>Connect account</button>{['cros','sites','pis','trials'].map(kind=><button key={kind} disabled={busy} onClick={()=>onPage(kind,0)}>{kind}</button>)}<button onClick={onDataset}>Dataset</button><button disabled={busy} onClick={()=>onPage(data.result.entity_type,10)}>Next</button></nav>{error&&<p role="alert">{error}</p>}</section>}` }));
  }}]});
  await import(pathToFileURL(join(dir,'ui.mjs')));
+ assert.equal(appUrl,'https://intel.trialagents.com/projects');
  const pages=Object.fromEntries(['cros','sites','pis','trials'].map(kind=>[kind,{entity_type:kind,entities:[{name:kind+' row'}],access_info:{offset:0}}]));
  const data={project_id:'00000000-0000-0000-0000-000000000001',revision:1,saved:false,draft:{preview_id:'00000000-0000-0000-0000-000000000001',selection_id:'a'.repeat(43),title:'Same trials',snapshot_key:'b'.repeat(64)},preview_tables:pages,result:pages.cros};
  await act(()=>host.ontoolinput({arguments:{criteria:{}}}));
@@ -33,6 +37,9 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  await act(()=>incoming({structuredContent:{selection_id:'x',total_entities:0,presentation:{tool:'publish_research_workspace'}}}));
  assert.match(document.body.textContent,/No matching results/);
  assert.equal(document.querySelector('.workspace-activity .workspace-loading-track'),null);
+ await act(()=>incoming({structuredContent:{selection_id:'x',total_entities:12,presentation:{tool:'publish_research_workspace'}}}));
+ assert(document.querySelector('.workspace-loading-track.standard-loading-bar'));
+ assert.match(document.body.textContent,/Search complete/);
  await act(()=>host.ontoolinput({arguments:{}}));
  await act(()=>incoming({isError:true}));
  assert.match(document.body.textContent,/could not complete/);

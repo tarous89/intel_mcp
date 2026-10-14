@@ -89,9 +89,13 @@ test('branded preparation starts only after host tool input',async()=>{
  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{criteria:{}}}}})));
  await page.getByText('Preparing your research…').waitFor();
  const bar=page.locator('.workspace-loading-track span');
- assert.equal(await bar.evaluate(el=>getComputedStyle(el).animationName),'dataset-preparing');
- const before=await bar.evaluate(el=>getComputedStyle(el).transform);await page.waitForTimeout(100);
- assert.notEqual(await bar.evaluate(el=>getComputedStyle(el).transform),before);
+ assert.match(await bar.evaluate(el=>getComputedStyle(el).animationName),/shortlist-progress/);
+ assert.equal(await bar.locator('..').evaluate(el=>getComputedStyle(el).height),'5px');
+ const before=await bar.evaluate(el=>getComputedStyle(el).left);await page.waitForTimeout(100);
+ assert.notEqual(await bar.evaluate(el=>getComputedStyle(el).left),before);
+ await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{selection_id:'synthetic',total_entities:12,presentation:{tool:'publish_research_workspace'}}}}})));
+ await page.getByText('Search complete. ChatGPT can now review the selection and prepare the tables.').waitFor();
+ assert(await bar.isVisible());
  await page.screenshot({path:'/tmp/workspace-design/preparing.png'});
  }finally{await browser.close();}
 });

@@ -4,6 +4,7 @@ import {createRoot} from 'react-dom/client';
 import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextprotocol/ext-apps';
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
 import {WorkspaceTables,CustomViewRecovery,type WorkspaceKind} from 'intel-shared-workspace';
+import tableStyles from '@/app/_site-agent/SiteAgentWorkspace.module.css';
 import {connectProject,openConnection,ConnectionError} from './connect-project';
 const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
@@ -21,7 +22,7 @@ function showActivity(message:string,running=false){
  if(!message){sizeActivity();return;}
  const text=document.createElement('p');text.textContent=message;activity.append(text);
  if(running){
-  const track=document.createElement('div');track.className='workspace-loading-track';track.setAttribute('aria-hidden','true');track.append(document.createElement('span'));activity.append(track);
+  const track=document.createElement('div');track.className=tableStyles.loadingBar+' workspace-loading-track';track.setAttribute('aria-hidden','true');track.append(document.createElement('span'));activity.append(track);
   activityTimer=setTimeout(()=>showActivity('Still waiting for a workspace update. Check the conversation for progress or a pending approval.'),90000);
  }
  sizeActivity();
@@ -185,7 +186,7 @@ app.ontoolresult=result=>{
  clearStartup();const data=result.structuredContent as any;
  if(result.isError){showActivity('This operation could not complete. Check the conversation for details.');return;}
  if(data?.selection_id&&data?.presentation?.tool==='publish_research_workspace'){
-  showActivity(data.total_entities===0?'No matching results for this search.':'Search complete. ChatGPT can now review the selection and prepare the tables.');
+  showActivity(data.total_entities===0?'No matching results for this search.':'Search complete. ChatGPT can now review the selection and prepare the tables.',data.total_entities!==0);
   return;
  }
  showActivity('');receive(data);
@@ -198,7 +199,10 @@ async function requestWorkspace(ctx:any){
 function theme(ctx:any){if(ctx?.theme)applyDocumentTheme(ctx.theme);if(ctx?.styles?.variables)applyHostStyleVariables(ctx.styles.variables);void requestWorkspace(ctx);}
 app.onhostcontextchanged=theme;
 async function connectHost(){
- try{await app.connect();theme(app.getHostContext());}
+ try{await app.connect();theme(app.getHostContext());
+  // Optional host navigation override; it does not alter widget origin or auth.
+  try{await (window as any).openai?.setOpenInAppUrl?.({href:'https://intel.trialagents.com/projects'});}catch{/* Older hosts keep their normal navigation. */}
+ }
  catch{if(!mounted)root.render(<section className="workspace-loading" role="alert"><strong>TrialAgents</strong><p>The workspace connection was interrupted.</p><button onClick={()=>void connectHost()}>Retry opening workspace</button></section>);}
 }
 void connectHost();
