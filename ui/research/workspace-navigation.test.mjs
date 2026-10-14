@@ -12,7 +12,7 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  const dom=new JSDOM('<main></main>',{url:'https://synthetic.invalid'});
  globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
  let expireActivity;const originalTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>{if(ms===90000){expireActivity=fn;return originalTimeout(()=>{},0);}return originalTimeout(fn,ms,...args);};t.after(()=>{globalThis.setTimeout=originalTimeout;});
- let appUrl;window.openai={setOpenInAppUrl:async value=>{appUrl=value.href;}};
+ let appUrl;window.openai=undefined;
  let incoming,calls=[],contextThrows=false,response,openCalls=[],openResult;
  const host={connect:async()=>{},getHostContext:()=>({}),updateModelContext:()=>{if(contextThrows)throw Error('Unsupported');return Promise.resolve();},callServerTool:async args=>{calls.push(args);if(response instanceof Error)throw response;return response;},openLink:async args=>{openCalls.push(args);return openResult;}};
  Object.defineProperty(host,'ontoolresult',{set(value){incoming=value;}});globalThis.__navigationHost=host;
@@ -24,6 +24,17 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  b.onLoad({filter:/.*/,namespace:'test-boundary'},args=>({loader:'tsx',contents:args.path==='@modelcontextprotocol/ext-apps'?`export class App{constructor(){return globalThis.__navigationHost}};export function applyDocumentTheme(){};export function applyHostStyleVariables(){}`:args.path==='@openai/mcp-extensions/app'?`export class OpenAIExtensions{}`:`import React from 'react';export function CustomViewRecovery(){return null;} export function WorkspaceTables({data,onPage,onDataset,dataset,error,busy,onAccount}){return <section><p data-testid="rows">{dataset?'Dataset':data.result.entity_type+': '+data.result.entities[0].name}</p><nav><button onClick={onAccount}>Account</button><button disabled={busy} onClick={onAccount}>Connect account</button>{['cros','sites','pis','trials'].map(kind=><button key={kind} disabled={busy} onClick={()=>onPage(kind,0)}>{kind}</button>)}<button onClick={onDataset}>Dataset</button><button disabled={busy} onClick={()=>onPage(data.result.entity_type,10)}>Next</button></nav>{error&&<p role="alert">{error}</p>}</section>}` }));
  }}]});
  await import(pathToFileURL(join(dir,'ui.mjs')));
+ assert.equal(appUrl,undefined);
+ window.openai={setOpenInAppUrl:async value=>{appUrl=value.href;}};
+ window.dispatchEvent(new window.Event('openai:set_globals'));
+ await Promise.resolve();
+ assert.equal(appUrl,'https://intel.trialagents.com/projects');
+ appUrl=undefined;host.onhostcontextchanged({displayMode:'fullscreen'});await Promise.resolve();
+ assert.equal(appUrl,'https://intel.trialagents.com/projects');
+ window.openai={setOpenInAppUrl:async()=>{throw Error('Host not ready');}};
+ window.dispatchEvent(new window.Event('openai:set_globals'));await Promise.resolve();
+ window.openai={setOpenInAppUrl:async value=>{appUrl=value.href;}};appUrl=undefined;
+ window.dispatchEvent(new window.Event('openai:set_globals'));await Promise.resolve();
  assert.equal(appUrl,'https://intel.trialagents.com/projects');
  const pages=Object.fromEntries(['cros','sites','pis','trials'].map(kind=>[kind,{entity_type:kind,entities:[{name:kind+' row'}],access_info:{offset:0}}]));
  const data={project_id:'00000000-0000-0000-0000-000000000001',revision:1,saved:false,draft:{preview_id:'00000000-0000-0000-0000-000000000001',selection_id:'a'.repeat(43),title:'Same trials',snapshot_key:'b'.repeat(64)},preview_tables:pages,result:pages.cros};
