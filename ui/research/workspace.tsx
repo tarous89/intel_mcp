@@ -17,13 +17,14 @@ document.querySelector('main')!.before(activity);
 function sizeActivity(){document.documentElement.style.setProperty('--workspace-activity-height',activity.hidden?'0px':`${activity.getBoundingClientRect().height}px`);}
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(sizeActivity).observe(activity);
 let activityTimer:ReturnType<typeof setTimeout>|undefined;
+function Holding(){return <section className="workspace-loading" role="status"><strong>TrialAgents</strong><div className={tableStyles.loadingBar+' workspace-loading-track'} aria-hidden="true"><span style={{animationPlayState:'paused'}}/></div></section>;}
 function showActivity(message:string,running=false){
  clearTimeout(activityTimer);activity.replaceChildren();activity.hidden=!message;
- if(!message){sizeActivity();return;}
+ if(!message){if(!mounted)root.render(<Holding/>);sizeActivity();return;}
  const text=document.createElement('p');text.textContent=message;activity.append(text);
  if(running){
   const track=document.createElement('div');track.className=tableStyles.loadingBar+' workspace-loading-track';track.setAttribute('aria-hidden','true');track.append(document.createElement('span'));activity.append(track);
-  activityTimer=setTimeout(()=>showActivity('Still waiting for a workspace update. Check the conversation for progress or a pending approval.'),90000);
+  activityTimer=setTimeout(()=>showActivity(''),90000);
  }
  sizeActivity();
 }
@@ -164,7 +165,7 @@ function View({initial}:{initial:any}){
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};
  static getDerivedStateFromError(){return {failed:true};}
- render(){return this.state.failed?<section role="alert" style={{padding:24,color:'#182628',background:'#fff',fontFamily:'system-ui'}}><h1>Workspace could not be displayed</h1><p>Please reopen the workspace from the conversation. Your research has not been changed.</p></section>:this.props.children;}
+ render(){return this.state.failed?<Holding/>:this.props.children;}
 }
 let mounted=false;
 function receive(data:any){
@@ -180,11 +181,12 @@ app.ontoolinput=()=>{
  clearStartup();showActivity(mounted?'Updating your workspace…':'Preparing your research…',true);
 };
 app.ontoolcancelled=()=>{
- clearStartup();showActivity('Operation cancelled. Existing research is unchanged.');
+ clearStartup();showActivity('');
 };
 app.ontoolresult=result=>{
  clearStartup();const data=result.structuredContent as any;
- if(result.isError){showActivity('This operation could not complete. Check the conversation for details.');return;}
+ // The full error remains available to ChatGPT. Keep the last successful tables here.
+ if(result.isError){showActivity('');return;}
  if(data?.selection_id&&data?.presentation?.tool==='publish_research_workspace'){
   showActivity(data.total_entities===0?'No matching results for this search.':'Search complete. ChatGPT can now review the selection and prepare the tables.',data.total_entities!==0);
   return;
@@ -212,6 +214,6 @@ app.onhostcontextchanged=theme;
 async function connectHost(){
  try{await app.connect();theme(app.getHostContext());
  }
- catch{if(!mounted)root.render(<section className="workspace-loading" role="alert"><strong>TrialAgents</strong><p>The workspace connection was interrupted.</p><button onClick={()=>void connectHost()}>Retry opening workspace</button></section>);}
+ catch{if(!mounted)root.render(<><Holding/><button onClick={()=>void connectHost()}>Reconnect workspace</button></>);}
 }
 void connectHost();

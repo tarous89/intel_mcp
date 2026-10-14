@@ -62,17 +62,17 @@ def public_cohort(summary, selection_origin=None):
 
 def discovery_guidance(trial_count):
     return {
-        'target_trials': {'minimum': 200, 'maximum': 500},
+        'target_trials': {'minimum': 100, 'maximum': 500},
         'actual_trials': trial_count,
-        'status': 'below_target' if trial_count < 200 else 'within_target',
+        'status': 'below_target' if trial_count < 100 else 'within_target',
         'next_step': (
             'For initial exploratory discovery, broaden through a relevant therapeutic area, phase or modality '
             'before finalizing; retain requested population/phase as named subgroups. Preserve explicit '
             'mandatory constraints. If no relevant broadening is possible, report the actual count and why.'
-            if trial_count < 200 else
-            'Discovery is ready. Call prepare_research_workspace once with this final broadest relevant selection_id. Return one top-ten list per requested category in the workspace, not separate cohort lists or chat tables.'
+            if trial_count < 100 else
+            'Discovery is ready. Call publish_research_workspace once with this final broadest relevant selection_id. Return one top-ten list per requested category in the workspace, not separate cohort lists or chat tables.'
         ),
-        'presentation': 'After broadening finishes, use only the final broadest relevant selection_id with prepare_research_workspace. Do not rank or display intermediate cohorts.',
+        'presentation': 'After broadening finishes, use only the final broadest relevant selection_id with publish_research_workspace. Do not rank or display intermediate cohorts.',
         'ranking_priority': 'Distinct trial count across the whole selected cohort, then name and ID for stable ties.',
     }
 
