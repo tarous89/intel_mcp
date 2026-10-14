@@ -93,4 +93,20 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  await click('Connect account');assert.equal(calls.length,count);assert.equal(openCalls.length,3);
  await act(()=>incoming({structuredContent:{project_id:data.project_id,owned:true,revision:3,result:pages.cros}}));
  response={isError:true};await click('sites');assert.equal(calls.at(-1).name,'get_research_workspace');assert.equal(shown(),'cros: cros row');
+ const guest={...data,draft:{...data.draft,cache_token:'private-cache-token'}};
+ await act(()=>incoming({structuredContent:guest}));
+ const beforeConnect=calls.length;
+ assert.equal(calls.length,beforeConnect,'render does not request auth');
+ response={isError:true,_meta:{'mcp/www_authenticate':['Bearer']}};
+ await click('Connect account');
+ assert.equal(calls.at(-1).name,'save_project');assert.equal(shown(),'cros: cros row');
+ assert(document.body.textContent.includes('Continue connection in ChatGPT'));
+ let sent;host.sendMessage=async m=>{sent=m;return {}};
+ await click('Continue connection in ChatGPT');
+ assert(JSON.stringify(sent).includes(data.draft.preview_id));assert(!JSON.stringify(sent).includes('private-cache-token'));
+ await act(()=>incoming({structuredContent:guest}));
+ response={structuredContent:{canonical:true,owned:true,project_id:data.project_id,result:pages.cros,account:{connected:true,fullAccess:true}}};
+ await click('Connect account');assert.equal(shown(),'cros: cros row');
+ await click('sites');assert.equal(calls.at(-1).name,'open_project','connected workspace no longer uses anonymous draft');
+
 });

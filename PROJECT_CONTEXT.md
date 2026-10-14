@@ -1,3 +1,7 @@
+## Approved extension-led account authorization — 2026-10-14 21:00 Europe/Berlin
+
+Connect clicks may invoke existing OAuth-protected save of the exact preview and refresh the workspace. Preserve anonymous publication, connected automatic saving, ownership, token validation, host consent and existing website import fallback. Offer explicit chat continuation if widget authorization is unavailable; never send preview capabilities in chat. No authentication on render or search, no polling or revoked-token downgrade. Verify affected tests before release.
+
 ## Approved connection and research UX refinement — 2026-10-14 20:14 Europe/Berlin
 
 Owner approved implementation and publication: compact light OAuth consent card with the original logo and exact comprehensive-data wording; keep consent, account switch/prefill, cancellation, scopes and token validation. Existing tables remain during tool activity/failure; before results show the standard bounded loading indicator, stopping on failure/cancellation with chat handling the explanation. Consolidate guest-first discovery, one final publication/save, revision-aware recovery, permitted evidence IDs and exploratory 100–500 guidance with mandatory constraints preserved. No cache, staged/background preparation, data-access expansion, billing or authorization changes. Publish App, MCP and the installed skills after affected checks.
