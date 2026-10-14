@@ -107,6 +107,7 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  await act(()=>incoming({structuredContent:guest}));
  response={structuredContent:{canonical:true,owned:true,project_id:data.project_id,result:pages.cros,account:{connected:true,fullAccess:true}}};
  await click('Connect account');assert.equal(shown(),'cros: cros row');
+ assert.equal(openCalls.at(-1).url,'https://intel.trialagents.com/projects','successful account save opens Projects');
  await click('sites');assert.equal(calls.at(-1).name,'open_project','connected workspace no longer uses anonymous draft');
 
 });
