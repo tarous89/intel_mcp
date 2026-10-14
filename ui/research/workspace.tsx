@@ -128,7 +128,7 @@ function View({initial}:{initial:any}){
   try{
    if(!websiteOnly){
     const connection=await connectPreviewAccount(app,data);
-    if(connection.status==='saved'){pageCache.current.clear();requestSerial.current++;setData((old:any)=>preserveCustomRecovery(old,connection.data));modelContext(connection.data);setConnectionStatus('');return;}
+    if(connection.status==='saved'){pageCache.current.clear();requestSerial.current++;setData((old:any)=>preserveCustomRecovery(old,connection.data));modelContext(connection.data);await openConnection(app,'https://intel.trialagents.com/projects');setConnectionStatus('');return;}
     if(connection.status==='pending'){setConnectionPending(true);setConnectionStatus('Complete authorization in ChatGPT. If no connection prompt appears, continue in the conversation. Your preview is preserved.');return;}
    }
    if(cached&&cached.project===data.project_id&&cached.expires>Date.now())await openConnection(app,cached.url);
