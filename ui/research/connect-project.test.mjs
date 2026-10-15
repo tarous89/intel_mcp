@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
 const bundle=await build({entryPoints:[new URL('./connect-project.ts',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node'});
-const {connectProject,connectionUrl,openConnection,connectPreviewAccount,continueAccountConnection}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const {projectsUrl,connectProject,connectionUrl,openConnection,connectPreviewAccount,continueAccountConnection}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const draft={preview_id:'00000000-0000-0000-0000-000000000001',title:'Sites — München',selection_id:'s'.repeat(43),snapshot_key:'a'.repeat(64)};
 test('Connect opens sign-in immediately without invoking a write tool',async()=>{
  let opened,ready;const host={callServerTool:()=>assert.fail('No tool before login'),openLink:args=>{opened=args.url;return Promise.resolve({});}};
@@ -40,4 +40,14 @@ test('chat continuation contains identity only and never preview capabilities',a
  await continueAccountConnection({sendMessage:async m=>{message=m;return {}}},data);
  const text=JSON.stringify(message);assert(text.includes(draft.preview_id));assert(!text.includes('SECRET'));assert(!text.includes(draft.selection_id));
  await assert.rejects(continueAccountConnection({sendMessage:async()=>({isError:true})},data));
+});
+
+test('saved connection carries only an editable email hint in the URL fragment',async()=>{
+ const email='linked+trial@example.test';
+ const url=projectsUrl({account:{connected:true,email}});
+ assert.equal(url,'https://intel.trialagents.com/projects#account_email=linked%2Btrial%40example.test');
+ assert.equal(new URL(url).search,'');
+ let opened;await openConnection({openLink:async value=>{opened=value.url;}},url);assert.equal(opened,url);
+ for(const data of [{},{account:{}},{account:{email:'not an email'}},{account:{email:'a'.repeat(255)+'@example.test'}}])assert.equal(projectsUrl(data),'https://intel.trialagents.com/projects');
+ for(const bad of [url+'&redirect=https://evil.invalid',url+'/anything','https://intel.trialagents.com.evil.invalid/projects'])await assert.rejects(openConnection({openLink:()=>assert.fail()},bad));
 });

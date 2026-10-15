@@ -28,7 +28,7 @@ WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
 RESOURCE='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
 LEGACY_RESOURCE='ui://trialagents/workspace-v1'
 # Retain published host snapshots when the current bundle identity changes.
-COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8')
+COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-c874f734c130ebdb','ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8')
 Kind=Literal['cros','sites','pis','trials']
 SHARED_EVIDENCE_FIELDS=('discovery_evidence','operational_findings')
 

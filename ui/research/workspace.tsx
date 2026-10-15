@@ -5,7 +5,7 @@ import {App,applyDocumentTheme,applyHostStyleVariables} from '@modelcontextproto
 import {OpenAIExtensions} from '@openai/mcp-extensions/app';
 import {WorkspaceTables,CustomViewRecovery,type WorkspaceKind} from 'intel-shared-workspace';
 import tableStyles from '@/app/_site-agent/SiteAgentWorkspace.module.css';
-import {connectProject,openConnection,ConnectionError,connectPreviewAccount,continueAccountConnection} from './connect-project';
+import {connectProject,openConnection,projectsUrl,ConnectionError,connectPreviewAccount,continueAccountConnection} from './connect-project';
 const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
@@ -128,7 +128,7 @@ function View({initial}:{initial:any}){
   try{
    if(!websiteOnly){
     const connection=await connectPreviewAccount(app,data);
-    if(connection.status==='saved'){pageCache.current.clear();requestSerial.current++;setData((old:any)=>preserveCustomRecovery(old,connection.data));modelContext(connection.data);await openConnection(app,'https://intel.trialagents.com/projects');setConnectionStatus('');return;}
+    if(connection.status==='saved'){pageCache.current.clear();requestSerial.current++;setData((old:any)=>preserveCustomRecovery(old,connection.data));modelContext(connection.data);await openConnection(app,projectsUrl(connection.data));setConnectionStatus('');return;}
     if(connection.status==='pending'){setConnectionPending(true);setConnectionStatus('Complete authorization in ChatGPT. If no connection prompt appears, continue in the conversation. Your preview is preserved.');return;}
    }
    if(cached&&cached.project===data.project_id&&cached.expires>Date.now())await openConnection(app,cached.url);

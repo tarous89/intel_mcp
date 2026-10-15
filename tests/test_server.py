@@ -754,12 +754,31 @@ async def test_documentation_page_is_public_and_contains_connection_guidance() -
     assert response.headers["content-type"].startswith("text/html")
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
-    assert "TrialAgents Intel MCP" in response.text
+    assert "TrialAgents MCP" in response.text
     assert "https://mcp.trialagents.com/mcp" in response.text
     assert "ChatGPT" in response.text
     assert "Claude" in response.text
     assert "Own software" in response.text
-    assert "TrialAgents OAuth live" in response.text
-    assert "Sign in with your existing Intel Agent account" in response.text
-    assert "available_extracted_documents" in response.text
+    assert "https://mcp.trialagents.com/research/mcp" in response.text
+    assert "since 2021" in response.text
+    assert "CTIS" not in response.text
+    assert 'rel="canonical" href="https://intel.trialagents.com/mcp"' in response.text
 
+
+
+@pytest.mark.anyio
+async def test_external_app_redirect_is_root_get_only() -> None:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
+        for query in ("app=skybridge", "app=future-name", "app=0", "app=&app=other", "app=%20", "app=x&locale=en-US&unsafeSkipTargetOriginCheck=true"):
+            response = await client.get("/?" + query)
+            assert response.status_code == 302
+            assert response.headers["location"] == "https://intel.trialagents.com/projects"
+            assert response.headers["cache-control"] == "no-store"
+        for query in ("", "?app=", "?app", "?locale=en-US", "?app=&app="):
+            assert (await client.get("/" + query)).status_code == 200
+        for path in ("/mcp", "/research/mcp", "/.well-known/oauth-protected-resource", "/.well-known/oauth-authorization-server"):
+            response = await client.get(path + "?app=skybridge")
+            assert response.status_code not in (301, 302, 303, 307, 308)
+            assert "location" not in response.headers
+        assert (await client.post("/?app=skybridge")).status_code != 302

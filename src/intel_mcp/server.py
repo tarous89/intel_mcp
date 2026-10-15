@@ -909,6 +909,12 @@ async def extract_variables(
 
 @mcp.custom_route("/", methods=["GET"])
 async def documentation(_request: Request) -> Response:
+    # ChatGPT external app navigation only. Never apply this to MCP/OAuth routes.
+    if any(_request.query_params.getlist("app")):
+        return Response(status_code=302, headers={
+            "Location": "https://intel.trialagents.com/projects",
+            "Cache-Control": "no-store",
+        })
     return HTMLResponse(
         DOCS_HTML,
         headers={
