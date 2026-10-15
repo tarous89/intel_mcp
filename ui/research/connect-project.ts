@@ -9,8 +9,12 @@ export function connectionUrl(data:any){
  if(encoded.length>180000)throw new ConnectionError('handoff');
  return 'https://intel.trialagents.com/auth?mode=login&connect=1#import='+encoded;
 }
+export function projectsUrl(data:any){
+ const email=data.account?.email;
+ return "https://intel.trialagents.com/projects"+(typeof email==="string"&&email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?"#account_email="+encodeURIComponent(email):"");
+}
 export async function openConnection(app:any,url:string,timeout=15000){
- if(!/^https:\/\/intel\.trialagents\.com\/(projects(?:\/settings)?|auth\?mode=login&connect=1#import=[A-Za-z0-9_-]+)$/.test(url))throw new ConnectionError('handoff');
+ if(!/^https:\/\/intel\.trialagents\.com\/(projects(?:\/settings)?(?:#account_email=[A-Za-z0-9_.!~*'()%+-]+)?|auth\?mode=login&connect=1#import=[A-Za-z0-9_-]+)$/.test(url))throw new ConnectionError('handoff');
  let timer:ReturnType<typeof setTimeout>;
  try{
   const result:any=await Promise.race([app.openLink({url},{timeout}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('timeout')),timeout);})]);
