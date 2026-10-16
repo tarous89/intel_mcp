@@ -17,7 +17,7 @@ async def test_publication_contract_preserves_tools_and_declares_real_effects():
     server,*_=create_research_server(SETTINGS,lambda:None,lambda:None)
     async with Client(server) as client:
         descriptors={t.name:t for t in (await client.list_tools()).tools}
-        assert len(descriptors)==37
+        assert len(descriptors)==38
         for tool in descriptors.values():
             assert tool.output_schema and tool.output_schema['type']=='object', tool.name
             assert all(isinstance(getattr(tool.annotations,key),bool) for key in ('read_only_hint','destructive_hint','open_world_hint'))

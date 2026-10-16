@@ -188,9 +188,14 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         return {**out, 'storage_status': 'ready'}
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
-    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None)->dict[str,Any]:
-        """Page an existing seven-day preview without repeating search or rebuilding the workspace."""
-        try:return with_workspace_destinations(await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'controls':controls or {}}))
+    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,limit:Annotated[int,Field(ge=1,le=100)]=10)->dict[str,Any]:
+        """Read an existing preview without opening or changing the workspace.
+
+        Paid accounts may choose limit 1–100; use 100 for broad analysis and fewer
+        for detailed evidence. Free accounts are limited to the first ten results.
+        Follow next_offset for additional paid pages; do not repeat the search.
+        """
+        try:return with_workspace_destinations(await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'limit':limit,'controls':controls or {}}))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
@@ -229,12 +234,18 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return with_workspace_destinations(await control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10}))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
-    @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
-    async def open_project(
+    @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
+    async def read_project(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         kind:Kind|None=None,offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
+        limit:Annotated[int,Field(ge=1,le=100)]=10,
     )->dict[str,Any]:
-        """Read the latest canonical TrialAgents project and its saved tables.
+        """Read the latest canonical project without opening or changing the workspace.
+
+        Paid accounts choose limit 1–100: use 100 for broad analysis, fewer for
+        detailed evidence. Free accounts get only the first ten results. Follow
+        next_offset for further paid pages. Use open_project only to present the
+        final table, or save_project_report to present the final Custom view.
 
         Omit kind to open the most recently saved active table. Omit controls to use
         the owner's latest saved filters/ranking from either client. Supply controls
@@ -246,10 +257,25 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """
         if not current_oauth_subject():return connect_result()
         try:
-            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':10,**({'controls':controls} if controls is not None else {})})
+            result=await control_factory().research_workspace({'operation':'canonical_read','projectId':project_id,'kind':kind,'offset':offset,'limit':limit,**({'controls':controls} if controls is not None else {})})
             if not result:raise ToolError('PROJECT_NOT_FOUND')
             return with_workspace_destinations(result)
         except ControlPlaneError as error:raise ToolError(str(error)) from error
+
+    @server.tool(meta={**oauth,**ui},annotations=read_annotations,structured_output=True)
+    async def open_project(
+        project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
+        kind:Kind|None=None,offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
+    )->dict[str,Any]:
+        """Present a canonical project's table in the workspace as the final display step.
+
+        For analysis and pagination use read_project, which leaves the current
+        workspace visible and supports paid reads up to 100 rows. Call this once
+        when ready to show the table; do not open tables before a final Custom view.
+        Omit kind/controls to use the latest saved view. Display pages contain ten rows.
+        """
+        out=await read_project(project_id,kind,offset,controls)
+        return {**out,'active_tab':'tables'} if isinstance(out,dict) else out
 
     @server.tool(meta={**oauth,**app_callable},annotations=overwrite,structured_output=True)
     async def save_project_view(
