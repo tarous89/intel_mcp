@@ -11,7 +11,7 @@ Apply the [main answering skill’s pending-approval rule](../answer-in-trialage
 
 1. Prepare the current project/preview context. Retrieve additional evidence only where needed for the request.
 2. Create the requested view, or revise the existing view using its ID and version.
-3. Save with save_project_report and open its returned Custom views workspace. Use report_saved to distinguish verified storage from a retained draft.
+3. Save with save_project_report when the view is ready; its result already opens Custom views. Do not follow a successful save with open_project_report or open_project. Use report_saved to distinguish verified storage from a retained draft.
 4. On failure, use the returned recovery information and the single retry control in Custom views. Reconcile changed context or report versions before a corrected save.
 
 The HTML and generated content are stored. Existing interactive views may use the documented deliberate Save changes bridge; automatic input persistence is outside this workflow. ChatGPT can revise and save tracker content through the normal versioned save operation.
