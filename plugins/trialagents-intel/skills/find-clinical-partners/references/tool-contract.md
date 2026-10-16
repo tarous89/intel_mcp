@@ -60,7 +60,8 @@ Use live schemas as authoritative. inspect_research_trials pages safe candidate 
 |---|---|---|
 | read_project_preview(preview, kind, offset) | Page the durable cached preview without rerunning research | Anonymous first ten; authorized paid pagination |
 | list_projects() | List the owning account's canonical projects from either client | OAuth, read-only |
-| open_project(project_id, kind, offset) | Read latest saved results in the shared workspace | OAuth, read-only; owner and access rechecked |
+| read_project(project_id, kind, offset, limit) | Read saved results for analysis without opening the workspace; paid limit 1–100, free first ten | OAuth, read-only; owner and access rechecked |
+| open_project(project_id, kind, offset) | Present final saved results in the shared workspace | OAuth, read-only; owner and access rechecked |
 | save_project(preview, project_id=null, expected_revision=null) | Create a canonical project or commit the chosen refinement to that same project | OAuth, explicit write, idempotent |
 
 For a revision, supply both project_id and latest expected_revision. For a new project, omit both. A stale revision fails; reopen and reconcile. Intermediate searches never overwrite a saved project. Repeating an identical save for the same owner returns the same project. Saved datasets remain available after preview expiry. Existing ready results stay visible while a newer revision's report artifacts are prepared; respect pending_revision.
@@ -76,7 +77,7 @@ The app-only `read_workspace_trial` opens a full frozen trial profile in the wor
 
 ## HTML reports
 
-For deeper analysis call `prepare_project_report` and follow [report guidance](../../create-trial-report/references/report-guidance.md). Read bounded evidence using `read_report_evidence` and exact available files for eligible trials through `read_report_document`. `save_project_report` persists the HTML, original question, title, snapshot and source IDs and opens Custom. `list_project_reports` and `open_project_report` read saved reports. Free users can generate reports using only disclosed preview evidence; anonymous reports attach when the preview is saved. Source data updates do not automatically refresh saved projects or reports.
+For deeper analysis call `prepare_project_report` and follow [report guidance](../../create-trial-report/references/report-guidance.md). Read bounded evidence using `read_report_evidence` and exact available files for eligible trials through `read_report_document`. `save_project_report` persists the HTML, original question, title, snapshot and source IDs and opens Custom. `list_project_reports` and `read_project_report` read saved reports without opening the workspace. Use `open_project_report` only to display an existing report on request; a successful save already opens Custom. Free users can generate reports using only disclosed preview evidence; anonymous reports attach when the preview is saved. Source data updates do not automatically refresh saved projects or reports.
 
 
 ## Follow-up presentation
