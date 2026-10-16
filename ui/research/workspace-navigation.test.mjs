@@ -13,8 +13,9 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
  let expireActivity;const originalTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>{if(ms===90000){expireActivity=fn;return originalTimeout(()=>{},0);}return originalTimeout(fn,ms,...args);};t.after(()=>{globalThis.setTimeout=originalTimeout;});
  let appUrl;window.openai=undefined;
+ let displayCalls=0;
  let incoming,calls=[],contextThrows=false,response,openCalls=[],openResult;
- const host={connect:async()=>{},getHostContext:()=>({}),updateModelContext:()=>{if(contextThrows)throw Error('Unsupported');return Promise.resolve();},callServerTool:async args=>{calls.push(args);if(response instanceof Error)throw response;return response;},openLink:async args=>{openCalls.push(args);return openResult;}};
+ const host={connect:async()=>{},getHostContext:()=>({displayMode:'inline',availableDisplayModes:['fullscreen']}),requestDisplayMode:async()=>{displayCalls++;return {mode:'fullscreen'};},updateModelContext:()=>{if(contextThrows)throw Error('Unsupported');return Promise.resolve();},callServerTool:async args=>{calls.push(args);if(response instanceof Error)throw response;return response;},openLink:async args=>{openCalls.push(args);return openResult;}};
  Object.defineProperty(host,'ontoolresult',{set(value){incoming=value;}});globalThis.__navigationHost=host;
  t.after(()=>{dom.window.close();delete globalThis.window;delete globalThis.document;delete globalThis.__navigationHost;delete globalThis.IS_REACT_ACT_ENVIRONMENT;});
  await build({entryPoints:['ui/research/workspace.tsx'],bundle:true,write:true,outfile:join(dir,'ui.mjs'),platform:'node',format:'esm',jsx:'automatic',external:['react','react-dom','react-dom/client','react/jsx-runtime'],plugins:[{name:'host-boundary',setup(b){
@@ -29,7 +30,8 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  window.dispatchEvent(new window.Event('openai:set_globals'));
  await Promise.resolve();
  assert.equal(appUrl,'https://intel.trialagents.com/projects');
- appUrl=undefined;host.onhostcontextchanged({displayMode:'fullscreen'});await Promise.resolve();
+ assert.equal(displayCalls,0,'no fullscreen switch before results');
+ appUrl=undefined;host.onhostcontextchanged({displayMode:'inline'});await Promise.resolve();
  assert.equal(appUrl,'https://intel.trialagents.com/projects');
  window.openai={setOpenInAppUrl:async()=>{throw Error('Host not ready');}};
  window.dispatchEvent(new window.Event('openai:set_globals'));await Promise.resolve();
@@ -61,6 +63,8 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  assert.equal(document.querySelector('.workspace-activity').hidden,true);
  assert.equal(document.querySelector('.workspace-loading-track span').style.animationPlayState,'paused');
  await act(()=>incoming({structuredContent:data}));
+ assert.equal(displayCalls,1);
+ host.onhostcontextchanged({displayMode:'inline',availableDisplayModes:['fullscreen']});await Promise.resolve();assert.equal(displayCalls,1,'do not reopen fullscreen after host/user returns to chat');
  await act(()=>host.ontoolinput({arguments:{project_id:data.project_id}}));
  assert.match(document.body.textContent,/Updating your workspace/);
  assert.match(document.querySelector('[data-testid="rows"]').textContent,/cros row/);
@@ -108,6 +112,6 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  response={structuredContent:{canonical:true,owned:true,project_id:data.project_id,result:pages.cros,account:{connected:true,fullAccess:true}}};
  await click('Connect account');assert.equal(shown(),'cros: cros row');
  assert.equal(openCalls.at(-1).url,'https://intel.trialagents.com/projects','successful account save opens Projects');
- await click('sites');assert.equal(calls.at(-1).name,'open_project','connected workspace no longer uses anonymous draft');
+ await click('sites');assert.equal(calls.at(-1).name,'read_project','connected workspace no longer uses anonymous draft');
 
 });

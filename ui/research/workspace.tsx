@@ -17,7 +17,7 @@ document.querySelector('main')!.before(activity);
 function sizeActivity(){document.documentElement.style.setProperty('--workspace-activity-height',activity.hidden?'0px':`${activity.getBoundingClientRect().height}px`);}
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(sizeActivity).observe(activity);
 let activityTimer:ReturnType<typeof setTimeout>|undefined;
-function Holding(){return <section className="workspace-loading" role="status"><strong>TrialAgents</strong><div className={tableStyles.loadingBar+' workspace-loading-track'} aria-hidden="true"><span style={{animationPlayState:'paused'}}/></div></section>;}
+function Holding({active=false}:{active?:boolean}={}){return <section className="workspace-loading" role="status"><strong>TrialAgents</strong>{!active&&<div className={tableStyles.loadingBar+' workspace-loading-track'} aria-hidden="true"><span style={{animationPlayState:'paused'}}/></div>}</section>;}
 function showActivity(message:string,running=false){
  clearTimeout(activityTimer);activity.replaceChildren();activity.hidden=!message;
  if(!message){if(!mounted)root.render(<Holding/>);sizeActivity();return;}
@@ -28,7 +28,7 @@ function showActivity(message:string,running=false){
  }
  sizeActivity();
 }
-function clearStartup(){if(!mounted)root.render(null);}
+function clearStartup(){if(!mounted)root.render(<Holding active/>);}
 
 let setIncoming:(data:any)=>void=()=>{};
 function reportPreview(d:any){return d?{preview_id:d.preview_id,snapshot_key:d.snapshot_key,cache_token:d.cache_token}:undefined;}
@@ -66,7 +66,7 @@ function View({initial}:{initial:any}){
  const pageCache=useRef(new Map<string,{at:number;data:any}>());
  const requestSerial=useRef(0),activeControls=useRef<any>({});
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
- setIncoming=value=>{if(!value?.result){setData((old:any)=>({...old,...value}));if(value?.active_tab==='custom'){setReportsView(true);setDataset(false);}return;}pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;setData(value);setReportsView(value.active_tab==='custom'||!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);setError('');setRetryPage(null);setConnectionError(false);};
+ setIncoming=value=>{if(!value?.result){setData((old:any)=>({...old,...value}));if(value?.active_tab==='custom'){setReportsView(true);setDataset(false);}return;}pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;const changedProject=value.project_id!==data.project_id;setData(value);if(changedProject||value.active_tab||value.active_report_id){setReportsView(value.active_tab==='custom'||!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);}setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number,controls:any=undefined,preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView){setDataset(false);setReportsView(false);}setError('');setRetryPage(null);setConnectionError(false);
   if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setBusy(false);setData(next);modelContext(next);return;}
   const cacheKey=JSON.stringify([data.project_id,data.revision,kind,offset,controls??null,data.account?.fullAccess]);
@@ -74,7 +74,7 @@ function View({initial}:{initial:any}){
   if(!preserveView&&cached&&Date.now()-cached.at<30000){setBusy(false);setData((old:any)=>preserveCustomRecovery(old,cached.data));modelContext(cached.data);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
-  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
+  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
   if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();
   if(data.canonical&&offset&&data.view?.version!==undefined&&out.structuredContent.view?.version!==data.view.version){void page(kind,0,undefined,preserveView);return;}
@@ -108,7 +108,7 @@ function View({initial}:{initial:any}){
   finally{setBusy(false);}
  }
  async function readPage(kind:WorkspaceKind,offset:number,controls:any=undefined){
-  const out=await app.callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'open_project',arguments:{project_id:data.project_id,kind,offset,controls}});
+  const out=await app.callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}});
   if(out.isError||!out.structuredContent?.result)throw Error();return out.structuredContent;
  }
  async function profile(id:string){const out=await app.callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
@@ -189,6 +189,7 @@ function receive(data:any){
   }return;
  }
  modelContext(data);if(mounted)setIncoming(data);else{flushSync(()=>root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>));mounted=true;}
+ void requestWorkspace(app.getHostContext());
 }
 app.ontoolinput=()=>{
  clearStartup();showActivity(mounted?'Updating your workspace…':'Preparing your research…',true);
@@ -208,8 +209,9 @@ app.ontoolresult=result=>{
 };
 let displayRequested=false,displayPending=false;
 async function requestWorkspace(ctx:any){
- if(displayRequested||displayPending||ctx?.displayMode==='fullscreen'||!ctx?.availableDisplayModes?.includes('fullscreen'))return;
- displayPending=true;try{await app.requestDisplayMode({mode:'fullscreen'});displayRequested=true;}catch{/* Retry on the next host capability notification. */}finally{displayPending=false;}
+ if(ctx?.displayMode==='fullscreen'){displayRequested=true;return;}
+ if(!mounted||displayRequested||displayPending||!ctx?.availableDisplayModes?.includes('fullscreen'))return;
+ displayRequested=true;displayPending=true;try{await app.requestDisplayMode({mode:'fullscreen'});}catch{/* Keep the ready view inline; do not repeatedly change host display mode. */}finally{displayPending=false;}
 }
 let navigationPending=false;
 async function configureAppNavigation(){

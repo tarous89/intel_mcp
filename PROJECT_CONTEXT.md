@@ -1,3 +1,7 @@
+## Approved workspace stability and paid analytical reads — 2026-10-16
+
+Owner authorized implementation and publication: separate analytical reads from presentation, preserve existing results/tab during activity, keep a branded startup state, request fullscreen only once when results are ready, and allow model-selected paid reads of 1–100 rows for saved projects and previews. Free access and visible pages remain ten. No aggregation, concise projection, larger limits, background preparation or caching changes.
+
 ## Approved extension-led account authorization — 2026-10-14 21:00 Europe/Berlin
 
 Connect clicks may invoke existing OAuth-protected save of the exact preview and refresh the workspace. Preserve anonymous publication, connected automatic saving, ownership, token validation, host consent and existing website import fallback. Offer explicit chat continuation if widget authorization is unavailable; never send preview capabilities in chat. No authentication on render or search, no polling or revoked-token downgrade. Verify affected tests before release.

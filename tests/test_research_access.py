@@ -67,7 +67,7 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         resource=await client.read_resource('ui://trialagents/research-v015')
         assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
         assert 'TrialAgents research' in resource.contents[0].text
-        assert names=={'recover_research_preview','publish_research_workspace','retry_project_report','offer_visualization_save','save_visualization_state','show_research_followups','describe_trial_profile_schema','read_trial_profiles','list_trial_documents','read_trial_document','prepare_project_report','read_report_evidence','read_report_document','save_project_report','list_project_reports','open_project_report','read_project_report','read_workspace_trial','save_project','save_project_view','open_project','list_projects','read_project_preview','search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','create_research_account_handoff','open_research_workspace'}
+        assert names=={'recover_research_preview','publish_research_workspace','retry_project_report','offer_visualization_save','save_visualization_state','show_research_followups','describe_trial_profile_schema','read_trial_profiles','list_trial_documents','read_trial_document','prepare_project_report','read_report_evidence','read_report_document','save_project_report','list_project_reports','open_project_report','read_project_report','read_workspace_trial','save_project','save_project_view','open_project','read_project','list_projects','read_project_preview','search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','create_research_account_handoff','open_research_workspace'}
         assert next(t for t in listed if t.name=='read_workspace_trial').meta['ui']['visibility']==['app']
         linking=await client.call_tool('list_research_projects',{})
         assert linking.is_error and linking.meta['mcp/www_authenticate']
@@ -146,7 +146,7 @@ with TestClient(app) as client:
     else:
         payload=response.json()
     descriptors={tool['name']:tool for tool in payload['result']['tools']}
-    assert len(descriptors)==37
+    assert len(descriptors)==38
     schema=descriptors['search_research_trials']['inputSchema']
     assert '"$ref"' not in json.dumps(schema)
     assert '"$defs"' not in json.dumps(schema)
@@ -158,7 +158,7 @@ with TestClient(app) as client:
     assert 'access_info.message' in descriptors['rank_research_entities']['description']
     for name, tool in descriptors.items():
         expected=[{'type':'oauth2','scopes':['mcp:tools']}]
-        if name not in {'list_research_projects','save_research_project','get_saved_research_project','claim_research_workspace','save_project','save_project_view','open_project','list_projects'}:
+        if name not in {'list_research_projects','save_research_project','get_saved_research_project','claim_research_workspace','save_project','save_project_view','open_project','read_project','list_projects'}:
             expected.insert(0,{'type':'noauth'})
         assert tool['securitySchemes']==expected,tool
         assert tool['_meta']['securitySchemes']==expected,tool

@@ -65,6 +65,12 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
   assert.equal(await page.locator('nav[aria-label="Project tables"] button').count(),5);
   await page.screenshot({path:`/tmp/workspace-design/${width}-reports.png`,fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+  await page.evaluate(data=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),data);
+  assert(await page.getByRole('heading',{name:'Custom views',exact:true}).isVisible(),'same-project updates preserve the selected Custom tab');
+  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-cancelled',params:{reason:'cancelled'}}})));
+  assert(await page.getByRole('heading',{name:'Custom views',exact:true}).isVisible(),'cancellation preserves the visible result');
+  // Explicit final presentation may intentionally select a table.
+  await page.evaluate(data=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...data,active_tab:'tables'}}}})),data);
   for(const fullAccess of [false,true]){
    await page.evaluate(({data,fullAccess})=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...data,account:{connected:true,fullAccess}}}}})),{data,fullAccess});
    await page.getByRole('button',{name:'Manage Account',exact:true}).first().waitFor();
@@ -86,6 +92,7 @@ test('branded preparation starts only after host tool input',async()=>{
  await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
  assert(await page.getByText('Opening TrialAgents workspace…').isVisible());
  assert.equal(await page.locator('.workspace-loading-track').count(),0,'pending host approval is not active research');
+ assert(await page.locator('.workspace-startup-track span').isVisible(),'branded shell is visible before tool input');
  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{criteria:{}}}}})));
  await page.getByText('Preparing your research…').waitFor();
  const bar=page.locator('.workspace-loading-track span');

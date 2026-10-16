@@ -72,3 +72,33 @@ async def test_view_reads_do_not_write_and_view_saves_are_authenticated(monkeypa
         saved=await client.call_tool('save_project_view',args)
         assert not saved.is_error and calls[-1]['operation']=='view_save'
         assert calls[-1]['expectedVersion']==1 and calls[-1]['expectedRevision']==3
+
+
+@pytest.mark.anyio
+async def test_analysis_reads_are_nonpresenting_and_forward_bounded_limits(monkeypatch):
+    calls=[]
+    class Control:
+        async def research_workspace(self,body):
+            calls.append(body)
+            return {'project_id':'00000000-0000-0000-0000-000000000001','result':{'entities':[]}}
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,*_=create_research_server(settings,lambda:Engine([record()]),lambda:Control())
+    preview={'preview_id':'00000000-0000-0000-0000-000000000001','selection_id':'s'*43,'title':'Research','snapshot_key':'a'*64,'cache_token':'b'*43}
+    async with Client(server) as client:
+        descriptors={t.name:t for t in (await client.list_tools()).tools}
+        for name in ('read_project','read_project_preview'):
+            assert 'resourceUri' not in descriptors[name].meta.get('ui',{})
+        assert descriptors['open_project'].meta['ui']['resourceUri']
+        denied=await client.call_tool('read_project',{'project_id':preview['preview_id'],'limit':100})
+        assert denied.is_error and not calls
+        monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
+        for name,args in [('read_project',{'project_id':preview['preview_id']}),('read_project_preview',{'preview':preview})]:
+            for size in (1,10,50,100):
+                out=await client.call_tool(name,{**args,'limit':size,'offset':100})
+                assert not out.is_error and calls[-1]['limit']==size and calls[-1]['offset']==100
+            for size in (0,101):
+                count=len(calls)
+                out=await client.call_tool(name,{**args,'limit':size})
+                assert out.is_error and len(calls)==count
+        await client.call_tool('open_project',{'project_id':preview['preview_id']})
+        assert calls[-1]['limit']==10
