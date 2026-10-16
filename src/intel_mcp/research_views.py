@@ -60,7 +60,7 @@ def account_view(data):
         'columns':['Capability','Included access'],'rows':[{'cells':[k,v]} for k,v in [
             ('Research','Full matching lists' if full else 'Top ten per category'),('Supporting studies','Included for accessible entities'),
             ('Private saved projects','Included'),('Trial findings','Included where recorded within authorized trials')]],
-        'notice':'Up to 500 trials per selection. Connecting an account does not start a subscription.',
+        'notice':'Up to 800 trials per selection. Connecting an account does not start a subscription.',
         'actions':[action('Continue research','Continue with the results available under my current account access.'),
                    action('Supporting studies','Show supporting studies for the displayed partners.'),
                    action('Open in Intel Agent','Save my current research as a private TrialAgents project and open its workspace.')]}

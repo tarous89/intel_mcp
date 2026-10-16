@@ -137,3 +137,12 @@ async def test_save_passes_selected_source_ids_and_attributed_rationale_to_app()
     assert section['result']['selection_origin']['source_snapshot']==parent.snapshot
     assert section['result']['cohort']['coverage']=='model_selected_source_subset'
     assert section['result']['entities'][0]['trial_counts']['total']==1
+
+
+def test_refinement_accepts_800_trials_and_rejects_801():
+    from pydantic import ValidationError
+    parent = SelectionDataset(criteria(), [record(i) for i in range(800)])
+    assert len(refine_cohort(parent, request(parent)).records) == 800
+    assert candidate_trials(parent, offset=799)['returned'] == 1
+    with pytest.raises(ValidationError):
+        request(parent, [record(i)['trial_id'] for i in range(801)])

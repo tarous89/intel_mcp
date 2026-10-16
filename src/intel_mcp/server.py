@@ -197,7 +197,7 @@ async def search_trial_cohort(
 
     Requires an existing App analysis lease with filter_trials and get_profiles permissions.
     Meters every base trial/profile, not only the displayed top five. Fails on incomplete
-    allowance or more than 500 base profiles; never samples. No LLM calls. Return the
+    allowance or more than 800 base profiles; never samples. No LLM calls. Return the
     snapshot and unchanged criteria to rank_entities or get_cohort_trials. base_text searches
     only explicitly named profile fields. Ordered subgroups override legacy buckets;
     phase title fallback is opt-in and never overrides nonempty structured phase.
@@ -212,7 +212,7 @@ async def get_cohort_trials(
     analysis_id: Annotated[str, Field(min_length=20, max_length=128)],
     criteria: SelectionCriteria,
     expected_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")],
-    offset: Annotated[int, Field(ge=0, le=500)] = 0,
+    offset: Annotated[int, Field(ge=0, le=800)] = 0,
     limit: Annotated[int, Field(ge=1, le=25)] = 25,
     subgroup_ids: Annotated[list[str], Field(max_length=12)] | None = None,
 ) -> CohortTrials:
@@ -260,7 +260,7 @@ async def get_entity_evidence(
     criteria: SelectionCriteria,
     expected_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")],
     entity_id: Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")],
-    offset: Annotated[int, Field(ge=0, le=500)] = 0,
+    offset: Annotated[int, Field(ge=0, le=800)] = 0,
     limit: Annotated[int, Field(ge=1, le=10)] = 10,
     sections: Annotated[list[ProfileSection], Field(max_length=14)] | None = None,
     subgroup_ids: Annotated[list[str], Field(max_length=12)] | None = None,

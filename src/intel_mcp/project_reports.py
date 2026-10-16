@@ -194,6 +194,13 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         report_id:str|None=None,expected_version:int|None=None)->dict[str,Any]:
         """Create or update a reusable Custom view and return its workspace.
 
+        The TrialAgents source database contains study-level clinical-trial information,
+        organizations, research sites and professional investigator details. It does not
+        contain individual patients' personal health information or medical records.
+        Disease names, eligibility criteria and endpoints describe studies and their
+        populations, not an identified person's health. User-provided content is a
+        separate input and is not covered by this description of the source database.
+
         Supports reports, charts, comparison cards, tables, forms, trackers and calculators.
         Writes temporary preview storage for guests or account storage for connected owners.
         Existing report_id and expected_version update that view with concurrency checks.

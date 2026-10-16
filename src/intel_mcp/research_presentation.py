@@ -62,7 +62,7 @@ def public_cohort(summary, selection_origin=None):
 
 def discovery_guidance(trial_count):
     return {
-        'target_trials': {'minimum': 100, 'maximum': 500},
+        'target_trials': {'minimum': 100, 'maximum': 800},
         'actual_trials': trial_count,
         'status': 'below_target' if trial_count < 100 else 'within_target',
         'next_step': (
