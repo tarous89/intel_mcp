@@ -33,7 +33,7 @@ The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastat
 
 ## Discovery and coverage responses
 
-Search returns `discovery_guidance`: target 100–500, actual trial count, below_target/within_target and the next step. A below-target initial exploratory selection requires a justified broader search or an explanation of why hard constraints/relevance prevent expansion. This guidance does not alter filters or authorize silent broadening.
+Search returns `discovery_guidance`: target 100–800, actual trial count, below_target/within_target and the next step. A below-target initial exploratory selection requires a justified broader search or an explanation of why hard constraints/relevance prevent expansion. This guidance does not alter filters or authorize silent broadening.
 
 The public cohort uses `coverage=complete_available_profile_selection` and `source_scope`. It covers the successful bounded selection of available profiles; it does not assert every CTIS study exists in the database. Over-limit/unsupported-profile reads fail rather than returning a sampled or partially ranked cohort. Individual missing fields and uncertain identities are separate limitations.
 

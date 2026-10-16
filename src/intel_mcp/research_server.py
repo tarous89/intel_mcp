@@ -94,14 +94,14 @@ def create_research_server(settings, engine_factory, control_factory):
         {"base":{},"base_text":{"fields":["title","diseases"],"terms":["prostate"]},
          "entity_type":"cros","as_of":"2026-10-07","include_broader":true}
 
-        For first exploratory discovery target 100–500 relevant disease-family trials.
+        For first exploratory discovery target 100–800 relevant disease-family trials.
         Do not restrict the base to exact population/phase preferences: use ordered
         subgroups [{id,label,bucket,filters,text}] for direct/related candidates.
         A phase subgroup uses filters={"phase":{"values":[3]}} and optional
         phase_title_fallback=true. Text uses fields plus terms (operator any/all).
         Preserve explicit only/must constraints in base. Explain broadening.
         If fewer than 100 trials, follow discovery_guidance before finalizing.
-        Do not invent a minimum or broaden mandatory constraints. Over 500 fails
+        Do not invent a minimum or broaden mandatory constraints. Over 800 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
         Finish broadening first, then call publish_research_workspace ONCE with the final
@@ -130,7 +130,7 @@ def create_research_server(settings, engine_factory, control_factory):
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def inspect_research_trials(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
-        offset:Annotated[int,Field(ge=0,le=500)]=0,
+        offset:Annotated[int,Field(ge=0,le=800)]=0,
         limit:Annotated[int,Field(ge=1,le=100)]=25,
     )->dict[str,Any]:
         """Inspect candidate trial IDs, titles, disease, phase and modality for cohort refinement.
@@ -217,7 +217,7 @@ def create_research_server(settings, engine_factory, control_factory):
     async def get_research_entity_evidence(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         entity_id:Annotated[str,Field(pattern=r'^[a-f0-9]{24}$')],
-        offset:Annotated[int,Field(ge=0,le=500)]=0,
+        offset:Annotated[int,Field(ge=0,le=800)]=0,
         project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')]|None=None,
     )->dict[str, Any]:
         """Inspect supporting trial links/roles for an accessible entity; no raw profile sections.

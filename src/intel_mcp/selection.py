@@ -18,7 +18,7 @@ from .site_ranking import (ProfileRanker, normalized, normalized_name, _canonica
                            _authorization_dates, _shift_months, selection_identity_profile)
 
 VERSION = "entity-selection-2"
-MAX_COHORT = 500
+MAX_COHORT = 800
 DUTIES = {
     1: "On site monitoring", 2: "Investigator recruitment",
     3: "Interactive response technologies (IRT)", 4: "Laboratory analysis",
