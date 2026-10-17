@@ -78,8 +78,8 @@ async def test_report_failure_retains_exact_payload_without_table_and_retries(mo
         async def research_workspace(self,b):
             calls.append(deepcopy(b))
             if failed:raise ControlPlaneError('WORKSPACE_UNAVAILABLE','Unavailable',503)
-            if b['operation']=='report_save':return {'report':{'id':'report'},'temporary':False,'project_id':'00000000-0000-0000-0000-000000000001'}
-            if b['operation']=='report_read':return {'report':{'id':'report','html':'<h1>Exact</h1>'}}
+            if b['operation']=='report_save':return {'report':{'id':'report','version':1,'html':'<h1>Exact</h1>'},'temporary':False,'project_id':'00000000-0000-0000-0000-000000000001'}
+            if b['operation']=='report_read':return {'report':{'id':'report','version':1,'html':'<h1>Exact</h1>'}}
             if b['operation']=='report_list':return {'reports':[]}
             return {'project_id':b['projectId'],'result':{'entity_type':'trials','entities':[]}}
     server,*_=create_research_server(SETTINGS,lambda:None,lambda:Control())
@@ -94,9 +94,9 @@ async def test_report_failure_retains_exact_payload_without_table_and_retries(mo
         original=calls[0]
         owner='other'
         assert (await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).is_error
-        assert len(calls)==2
+        assert len(calls)==1
         owner='owner';failed=False
         retried=(await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).structured_content
         assert retried['report_saved'] is True
-        assert calls[2]==original
+        assert calls[1]==original
         assert (await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).is_error

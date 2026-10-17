@@ -413,7 +413,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     ) -> dict[str, Any]:
         """Store and present finalized research; authentication is optional.
 
-        The server chooses storage from verified credentials, with no account preflight.
+        Storage depends on verified credentials.
         Guests receive a cached seven-day preview; connected owners receive a canonical
         saved project. Existing project revisions use save_project with expected_revision.
         Custom view storage is a separate operation exposed by save_project_report.
@@ -520,10 +520,8 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
         Legacy persisted previews retain their ID; unsaved previews receive a project ID on save.
 
-        Use when the user connects their account from a research workspace: saving that
-        current research is part of connection, not a separate optional step. If authentication
-        is required, complete OAuth then retry this same claim with the same arguments.
-        Never rerun the search. Materialize unsaved previews only on this explicit save request. Repeated claims by its owner are safe.
+        Requires the preview owner's authorization. Repeated claims by its owner
+        preserve the same research without rerunning its search.
         Connection alone does not activate paid access.
         The preview capability becomes unusable anonymously after claiming. Starts no payment.
         """

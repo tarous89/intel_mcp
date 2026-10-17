@@ -176,7 +176,8 @@ test('report failures remain visible without tables and retry the retained paylo
    assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
    assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
    assert.equal(await page.evaluate(()=>window.__unsafe),undefined);
-   if(withTable)assert.equal((await page.locator('nav button[aria-current=page]').innerText()).replace(/\s+/g,' '),'Custom views 1');
+   assert.equal(await page.locator('iframe[title^="Unsaved preview"]').count(),0);
+   if(withTable)assert.equal((await page.locator('nav button[aria-current=page]').innerText()).replace(/\s+/g,' '),'PIs 50');
    if(withTable)assert(await page.locator('nav[aria-label="Project tables"]').isVisible());
    await page.close();
   }

@@ -20,8 +20,8 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
             if op=='report_document_authorize' and not allowed:raise ControlPlaneError('DOCUMENT_NOT_IN_PREVIEW','Preview excludes documents',403)
             if op=='report_context':return {'dataset_id':'snapshot','revision':1,'access_scope':'preview'}
             if op=='report_save' and blocked:raise ControlPlaneError('REPORT_SNAPSHOT_CHANGED','Snapshot changed',409)
-            if op=='report_save':return {'report':{'id':'saved-report'},'temporary':not connected,'project_id':project if connected else None}
-            if op=='report_read':return {'report':{'id':'saved-report','html':'<p>Saved evidence report</p>'}}
+            if op=='report_save':return {'report':{'id':'saved-report','version':1,'html':'<p>Saved evidence report</p>'},'temporary':not connected,'project_id':project if connected else None}
+            if op=='report_read':return {'report':{'id':'saved-report','version':1,'html':'<p>Saved evidence report</p>'}}
             if op=='report_list':return {'reports':[{'id':'saved-report','title':'Analysis'}]}
             if op in ('preview_read','canonical_read'):return {'project_id':project,'draft':preview,'result':{'entity_type':'trials','entities':[]}}
             return {'authorized':True}
@@ -102,16 +102,16 @@ async def test_retained_retry_reconciles_conflicts_without_blind_overwrite(monke
             if b['operation']=='report_save':
                 count=sum(c['operation']=='report_save' for c in calls)
                 if count==1:raise ControlPlaneError('REPORT_VERSION_CHANGED' if case=='view_version' else 'TEMPORARY_FAILURE' if case=='transient' else 'REVISION_CHANGED','Conflict',409)
-                return {'report':{'id':'saved'},'temporary':False}
-            if b['operation']=='report_read':return {'report':{'id':'saved'}}
+                return {'report':{'id':'saved','version':1,'html':'<h1>Original content</h1>'},'temporary':False}
+            if b['operation']=='report_read':return {'report':{'id':'saved','version':1,'html':'<h1>Original content</h1>'}}
             if b['operation']=='report_list':return {'reports':[]}
             return {'project_id':project,'result':{'entity_type':'trials','entities':[]}}
     server,*_=create_research_server(SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid'),lambda:None,lambda:Control())
     args={'title':'Tracker','query':'Track items','summary':'','html':'<h1>Original content</h1>','source_ids':['a'*64] if case=='source_revision' else [],'evidence_basis':'trial_evidence' if case=='source_revision' else 'project_tables','dataset_id':'same','revision':9,'request_key':'original-key',**({'project_id':project} if case=='canonical_revision' else {'preview':preview})}
     async with Client(server) as client:
         failed=(await client.call_tool('save_project_report',args)).structured_content
-        assert failed['active_tab']=='custom'
-        assert failed['pending_custom_view']['html']==args['html']
+        assert 'active_tab' not in failed
+        assert 'html' not in failed['pending_custom_view']
         retried=(await client.call_tool('retry_project_report',{'retry_id':failed['retry_id']})).structured_content
         writes=[c for c in calls if c['operation']=='report_save']
         if case in ('preview_revision','transient'):
@@ -121,3 +121,26 @@ async def test_retained_retry_reconciles_conflicts_without_blind_overwrite(monke
         else:
             assert retried['recovery']['action']=='reconcile' and len(writes)==1
             assert retried['current_context']['revision']==1
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('failure',['version','content','display'])
+async def test_verified_save_is_distinct_from_presentation_failure(failure):
+    preview={'preview_id':'00000000-0000-0000-0000-000000000001','snapshot_key':'a'*64,'cache_token':'b'*43}
+    report={'id':'saved','version':1,'html':'<h1>Complete view</h1>'}
+    class Control:
+        async def research_workspace(self,b):
+            if b['operation']=='report_save':return {'report':report,'temporary':True}
+            if b['operation']=='report_read':return {'report':{**report,**({'version':2} if failure=='version' else {'html':'<h1>Changed view</h1>'} if failure=='content' else {})}}
+            raise ControlPlaneError('DISPLAY_UNAVAILABLE','Display unavailable',503)
+    server,*_=create_research_server(SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid'),lambda:None,lambda:Control())
+    async with Client(server) as client:
+        out=(await client.call_tool('save_project_report',{'preview':preview,'title':'View','query':'Compare','summary':'','html':report['html'],'source_ids':[],'evidence_basis':'project_tables','dataset_id':'snapshot','revision':1,'request_key':'same-write'})).structured_content
+        if failure=='display':
+            assert out['report_saved'] is True
+            assert out['presentation_status']=='unavailable'
+            assert out['presentation_recovery']['tool']=='open_project_report'
+            assert out['retry_id'] is None
+        else:
+            assert out['report_saved'] is False
+            assert out['save_error']=='REPORT_SAVE_NOT_VERIFIED'
+            assert 'active_tab' not in out and 'html' not in out['pending_custom_view']
