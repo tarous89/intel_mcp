@@ -16,7 +16,8 @@ from .control_plane import ControlPlaneError
 from .engine import EngineError
 from .research_workspace import PreviewSpec, RESOURCE, with_workspace_destinations
 
-GUIDANCE=files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()
+GUIDANCE=files('intel_mcp').joinpath('report-guidance.md').read_text()+'\n\n'+files('intel_mcp').joinpath('custom-style.md').read_text()+'\n\n'+files('intel_mcp').joinpath('design-patterns.md').read_text()
+CUSTOM_VIEW_EXAMPLE=files('intel_mcp').joinpath('custom-view-examples.html').read_text()
 REPORT_EXAMPLE=files('intel_mcp').joinpath('report-example.html').read_text()
 
 class ReportPreview(BaseModel):
@@ -139,11 +140,11 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
     async def prepare_project_report(project_id:str|None=None,preview:ReportPreview|None=None,include_template:bool=False)->dict[str,Any]:
         """Return the current dataset, revision and authorized evidence scope.
 
-        include_template adds the Custom views rendering contract and placeholder HTML shell.
+        include_template adds the rendering contract, static shell and branded interactive examples.
         This read neither generates nor saves a custom view.
         """
         out=await call('report_context',project_id,preview)
-        return {**out,'custom_view_workflow':{'when':'Any visualization based on this research, including a chart chosen by the assistant, unless the user explicitly requests chat-only output.','action':'Create the actual visualization, call save_project_report, and open the returned Custom views workspace in the same turn. A chart shown only in chat is incomplete.','complete_when':'report_saved=true; otherwise explain the failure and use the returned recovery action.','text_only':'Ordinary text explanations do not require a Custom view.'},'report_preview':preview.model_dump(mode='json') if preview else None,**({'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE} if include_template else {})}
+        return {**out,'custom_view_workflow':{'when':'Any visualization based on this research, including a chart chosen by the assistant, unless the user explicitly requests chat-only output.','action':'Create the actual visualization, call save_project_report, and open the returned Custom views workspace in the same turn. A chart shown only in chat is incomplete.','complete_when':'report_saved=true; otherwise explain the failure and use the returned recovery action.','text_only':'Ordinary text explanations do not require a Custom view.'},'report_preview':preview.model_dump(mode='json') if preview else None,**({'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE,'custom_view_design_example':CUSTOM_VIEW_EXAMPLE} if include_template else {})}
 
     @server.tool(meta=callable_meta,annotations=evidence_write,structured_output=True)
     async def read_report_evidence(trial_ids:Annotated[list[str],Field(min_length=1,max_length=5)],project_id:str|None=None,preview:ReportPreview|None=None,revision:int|None=None)->dict[str,Any]:
