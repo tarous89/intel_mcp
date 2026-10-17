@@ -194,12 +194,8 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
         report_id:str|None=None,expected_version:int|None=None)->dict[str,Any]:
         """Create or update a reusable Custom view and return its workspace.
 
-        The TrialAgents source database contains study-level clinical-trial information,
-        organizations, research sites and professional investigator details. It does not
-        contain individual patients' personal health information or medical records.
-        Disease names, eligibility criteria and endpoints describe studies and their
-        populations, not an identified person's health. User-provided content is a
-        separate input and is not covered by this description of the source database.
+        Source records describe clinical studies, organizations, sites and professional
+        investigators. User-provided content is a separate input.
 
         Supports reports, charts, comparison cards, tables, forms, trackers and calculators.
         Writes temporary preview storage for guests or account storage for connected owners.
@@ -222,9 +218,20 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
             target=saved_project or project_id
             target_preview=None if saved_project else preview
             verified=await call('report_read',target,target_preview,reportId=result['report']['id'])
-            if verified.get('report',{}).get('id')!=result['report']['id']:
+            committed=result['report']
+            stored=verified.get('report',{})
+            if (stored.get('id')!=committed['id'] or not isinstance(committed.get('version'),int)
+                or stored.get('version')!=committed['version']
+                or not isinstance(committed.get('html'),str) or stored.get('html')!=committed['html']):
                 raise ToolError('REPORT_SAVE_NOT_VERIFIED')
-            out=await workspace(target,target_preview,result['report']['id'])
+            try:
+                out=await workspace(target,target_preview,result['report']['id'])
+            except ToolError:
+                # Persistence was verified; presentation failure must not prompt another write.
+                out={'project_id':target,'presentation_status':'unavailable',
+                     'presentation_error':'Saved custom view could not be displayed.',
+                     'presentation_recovery':{'tool':'open_project_report','report_id':committed['id'],
+                         **({'project_id':target} if target else {'preview':target_preview.model_dump(mode='json')})}}
             for key in list(pending_reports):
                 item=pending_reports[key]
                 if item['owner']==current_oauth_subject() and item['args']==retry_args:pending_reports.pop(key)
@@ -233,8 +240,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                     'save_message':'Saved temporarily. Connect your account to keep this project and its visualizations.' if result['temporary'] else 'Saved to your TrialAgents account.'}
         except ToolError as error:
             # Do not lose the rendered conversation artifact or claim success on an uncertain write.
-            try:out=await workspace(project_id,preview)
-            except ToolError:out={}
+            out={}  # Retain the current workspace rather than reopening a failed draft.
             now=time.monotonic()
             for key in list(pending_reports):
                 if pending_reports[key]['expires']<=now:pending_reports.pop(key)
@@ -244,7 +250,7 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 retry_id=str(uuid4())
                 pending_reports[retry_id]={'owner':current_oauth_subject(),'expires':now+1800,'args':retry_args}
             pending_reports[retry_id]['error']=str(error)
-            return {**out,'active_tab':'custom','pending_custom_view':{'title':title,'html':html,'renderer':renderer},'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
+            return {**out,'pending_custom_view':{'title':title},'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
                     'visualization_save_offer':{'title':title,'retry':True},
                     'recovery':{'action':'reconcile' if any(code in str(error) for code in ('REVISION_CHANGED','REPORT_SNAPSHOT_CHANGED','REPORT_VERSION_CHANGED','REPORT_SOURCE_NOT_AUTHORIZED')) else 'retry','retry_tool':'retry_project_report','payload_retained':True,'correction_tool':'save_project_report','verification_complete':False}}
 
@@ -273,10 +279,9 @@ def register_project_report_tools(server,engine_factory,control_factory,mixed,oa
                 result=await save_project_report(**corrected)
                 if result.get('report_saved'):pending_reports.pop(retry_id,None)
                 return result
-            try:out=await workspace(args['project_id'],args['preview'])
-            except ToolError:out={}
-            return {**out,'active_tab':'custom','report_saved':False,'retry_id':retry_id,
-                    'pending_custom_view':{'title':args['title'],'html':args['html'],'renderer':args['renderer']},
+            out={}
+            return {**out,'report_saved':False,'retry_id':retry_id,
+                    'pending_custom_view':{'title':args['title']},
                     'visualization_save_offer':{'title':args['title'],'retry':True},
                     'save_error':item['error'],'save_status':'needs_reconciliation','current_context':context,
                     'recovery':{'action':'reconcile','correction_tool':'save_project_report','payload_retained':True}}
