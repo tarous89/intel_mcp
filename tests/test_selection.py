@@ -132,7 +132,7 @@ def test_pi_recency_uses_its_affiliation_in_each_trial():
     assert result.recent_authorization_trials == 1
 
 
-@pytest.mark.parametrize("count", [501, 800])
+@pytest.mark.parametrize("count", [501, 800, 801, 1000])
 def test_expanded_cohort_retains_all_trials(count):
     dataset = SelectionDataset(criteria(), [record(i) for i in range(count)])
     assert len(dataset.records) == count

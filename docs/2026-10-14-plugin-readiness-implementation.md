@@ -33,7 +33,7 @@ The new origin must be accepted for this plugin by the real host/Portal. Existin
 
 | Public URL | Source and correction |
 | --- | --- |
-| https://trialagents.com/intel-agent | Shared Intel landing footer uses the common Atlas Consulting publisher disclosure and EU Trial Intelligence name. |
+| https://trialagents.com/intel-agent | Shared Intel landing footer uses the common Atlas Consulting publisher disclosure and TrialAgents Intel name. |
 | https://trialagents.com/privacy-policy | Controller identity, plugin inputs/results/recipients, saved state, preview expiry and actual retained evidence. |
 | https://trialagents.com/terms-of-service | Exact owner-confirmed postal address; current service/account access; retired offer removed. |
 | https://intel.trialagents.com/support/intel | Same publisher; account-wide access and frozen-project/retry guidance. |

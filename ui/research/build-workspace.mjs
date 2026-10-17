@@ -6,7 +6,7 @@ import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {writeFile,readFile} from 'node:fs/promises';
 const here=dirname(fileURLToPath(import.meta.url)),appSource=process.argv[2];
-if(!appSource)throw Error('Pass the Intel Agent App source checkout used for this release.');
+if(!appSource)throw Error('Pass the TrialAgents Intel App source checkout used for this release.');
 const source=resolve(appSource);
 const runtimeRequire=createRequire(import.meta.url);
 const out=await build({entryPoints:[resolve(here,'workspace.tsx')],bundle:true,metafile:true,write:false,outdir:'out',minifyWhitespace:true,minifySyntax:true,minifyIdentifiers:false,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},nodePaths:[resolve(source,'node_modules'),resolve(here,'node_modules')],plugins:[{name:'shared-intel-app',setup(b){b.onResolve({filter:/^(react|react-dom)(\/.*)?$/},args=>({path:runtimeRequire.resolve(args.path)}));b.onResolve({filter:/^intel-shared-workspace$/},()=>({path:resolve(source,'app/research/WorkspaceTables.tsx')}));b.onResolve({filter:/^@\//},args=>({path:resolve(source,args.path.slice(2))+(/\.[a-z]+$/i.test(args.path)?'':existsSync(resolve(source,args.path.slice(2))+'.ts')?'.ts':'.tsx')}));}}]});
@@ -18,7 +18,7 @@ const baseCss=(await readFile(resolve(source,'app/trialagents-theme.css'),'utf8'
 const css=baseCss+'\n'+(out.outputFiles.find(f=>f.path.endsWith('.css'))?.text??'');
 const loadingCss='html,body{background:#f7faf8;color:#183b2b}.workspace-loading{min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;font:15px/1.6 Inter,system-ui,sans-serif}.combined-extension-surface .app-workspace{height:calc(100dvh - var(--workspace-activity-height,0px))}.workspace-activity{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 24px;font:14px/1.5 Inter,system-ui,sans-serif;text-align:center}.workspace-activity[hidden]{display:none}.workspace-activity p{margin:0}.workspace-loading strong{font-size:22px;font-weight:600}.workspace-loading p{margin:0}.workspace-activity{--site-green:var(--ta-primary,#2c7650)}';
 const startupCss='.workspace-startup-track{width:240px;height:5px;overflow:hidden;border-radius:99px;background:#dce9df;position:relative}.workspace-startup-track span{position:absolute;width:35%;height:100%;background:#2c7650;border-radius:99px;animation:workspace-startup 1.5s ease-in-out 60}@keyframes workspace-startup{from{left:-35%}to{left:100%}}@media(prefers-reduced-motion:reduce){.workspace-startup-track span{animation:none;left:32%}}';
-const loading='<section class="workspace-loading" role="status" aria-live="polite"><strong>TrialAgents</strong><div class="workspace-startup-track" aria-hidden="true"><span></span></div><p>Opening TrialAgents workspace…</p></section>';
+const loading='<section class="workspace-loading" role="status" aria-live="polite"><strong>TrialAgents Intel</strong><div class="workspace-startup-track" aria-hidden="true"><span></span></div><p>Opening TrialAgents Intel workspace…</p></section>';
 const html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}'+css+loadingCss+startupCss+'</style></head><body><main>'+loading+'</main><script>'+js+'</script></body></html>';
 await writeFile(resolve(here,'../../src/intel_mcp/ui/workspace-v1.html'),html);
 console.log('Built shared workspace:',html.length,'bytes');

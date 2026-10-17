@@ -1,3 +1,7 @@
+# Current naming and selection limit — 2026-10-17
+
+Owner approved TrialAgents Intel as the product name everywhere and a 1,000-trial maximum per selection, replacing 800. Keep the exploratory minimum 30, paid analytical pages up to 100 and free previews ten. Preserve account/brand identities, endpoint paths and unrelated byte/field limits. Earlier dated limits and names are historical. No deferred optimization is authorized.
+
 ## Approved workspace stability and paid analytical reads — 2026-10-16
 
 Owner authorized implementation and publication: separate analytical reads from presentation, preserve existing results/tab during activity, keep a branded startup state, request fullscreen only once when results are ready, and allow model-selected paid reads of 1–100 rows for saved projects and previews. Free access and visible pages remain ten. No aggregation, concise projection, larger limits, background preparation or caching changes.
@@ -46,7 +50,7 @@ APPROVED: On 2026-10-13 at 14:57 Europe/Berlin, the owner confirmed the explicit
 
 Owner authorized implementation and publication at 14:33 Europe/Berlin. Preserve all research, routing, saving, syncing, ownership, evidence and approval workflows.
 
-1. Rename visible plugin to EU Trial Intelligence (compact EU Trial Intel); description: Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.
+1. Rename visible plugin to TrialAgents Intel (compact TrialAgents Intel); description: Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.
 2. Remove extension header account button/status; clickable brand reuses existing account action and email prefill.
 3. Dark green footer, white text/button, contextual wording uses custom view; no overlapping content.
 4. App Custom above Dataset with synchronized count.
@@ -119,7 +123,7 @@ Owner requests automatic versioned storage of generated ChatGPT reports in the c
 # Intel MCP current context — 12 October 2026
 
 ## Active product
-Public research MCP: https://mcp.trialagents.com/research/mcp. Intel Agent App owns accounts, canonical projects, authorization and report persistence. Engine supplies restricted read-only trial data. Keep existing hosting/authentication/identity. Private /mcp and archived Light/Max/Site tool contracts remain compatibility dependencies; MAX_AGENT_ENABLED and MCP_SELECTION_ENABLED are not enabled by this work.
+Public research MCP: https://mcp.trialagents.com/research/mcp. TrialAgents Intel App owns accounts, canonical projects, authorization and report persistence. Engine supplies restricted read-only trial data. Keep existing hosting/authentication/identity. Private /mcp and archived Light/Max/Site tool contracts remain compatibility dependencies; MAX_AGENT_ENABLED and MCP_SELECTION_ENABLED are not enabled by this work.
 
 ## Current workflows
 The plugin has four goal-based skills: find-clinical-partners, analyze-trial-evidence, create-trial-report, manage-research-projects. Canonical common guidance is plugins/trialagents-intel/references/. Report guidance/example live in create-trial-report. scripts/sync_plugin_guidance.py generates MCP runtime mirrors; --check validates no drift. The standalone public server loads those mirrors so it works without imported skills.

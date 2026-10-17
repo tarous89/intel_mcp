@@ -154,7 +154,7 @@ with TestClient(app) as client:
     assert criteria['type']=='object'
     assert {'base','entity_type','as_of'} <= set(criteria['required'])
     assert criteria['properties']['base_text']['anyOf'][0]['properties']['fields']['items']['enum']
-    assert '30–800' in descriptors['search_research_trials']['description']
+    assert '30–1000' in descriptors['search_research_trials']['description']
     assert 'access_info.message' in descriptors['rank_research_entities']['description']
     for name, tool in descriptors.items():
         expected=[{'type':'oauth2','scopes':['mcp:tools']}]

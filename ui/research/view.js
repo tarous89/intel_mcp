@@ -7,7 +7,7 @@ const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefine
 function safeProjectLink(raw){try{const u=new URL(raw);return u.origin==='https://intel.trialagents.com'&&/^\/research\/projects\/[a-f0-9-]{36}$/i.test(u.pathname)&&!u.search&&!u.hash?u.href:null;}catch{return null;}}
 function render(data){
  const view=data?.view;if(!view||!Array.isArray(view.rows)||!Array.isArray(view.columns))return;
- root.replaceChildren();root.append(el('p','TrialAgents · Intel Agent','brand'),el('h2',view.title),el('p',view.summary));
+ root.replaceChildren();root.append(el('p','TrialAgents · TrialAgents Intel','brand'),el('h2',view.title),el('p',view.summary));
  const table=el('table');table.setAttribute('aria-label',view.title);
  const head=el('thead'),hr=el('tr');view.columns.forEach(label=>hr.append(el('th',label)));head.append(hr);table.append(head);
  const body=el('tbody');

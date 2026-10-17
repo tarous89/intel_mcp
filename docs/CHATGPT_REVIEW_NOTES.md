@@ -35,7 +35,7 @@ Execute five positive and three negative cases independently against the exact c
 
 ## Publisher and public pages
 
-Publisher name: Atlas Consulting. Postal contact is displayed in Terms only, using the owner-confirmed address supplied on 14 October. Support: intel@trialagents.com. Product name remains EU Trial Intelligence (compact EU Trial Intel); TrialAgents remains the platform brand. Public text must not claim verified or approved status.
+Publisher name: Atlas Consulting. Postal contact is displayed in Terms only, using the owner-confirmed address supplied on 14 October. Support: intel@trialagents.com. Product name remains TrialAgents Intel (compact TrialAgents Intel); TrialAgents remains the platform brand. Public text must not claim verified or approved status.
 
 - https://trialagents.com/intel-agent — product and publisher disclosure.
 - https://trialagents.com/privacy-policy — controller, plugin data practices and retention.

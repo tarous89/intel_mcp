@@ -90,7 +90,7 @@ test('branded preparation starts only after host tool input',async()=>{
  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
  await page.addInitScript(()=>{window.postMessage=msg=>{if(msg.method==='ui/initialize')setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result:{protocolVersion:'2026-01-26',hostInfo:{name:'Loading fixture',version:'1'},hostCapabilities:{},hostContext:{displayMode:'fullscreen'}}}})),0);};});
  await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
- assert(await page.getByText('Opening TrialAgents workspace…').isVisible());
+ assert(await page.getByText('Opening TrialAgents Intel workspace…').isVisible());
  assert.equal(await page.locator('.workspace-loading-track').count(),0,'pending host approval is not active research');
  assert(await page.locator('.workspace-startup-track span').isVisible(),'branded shell is visible before tool input');
  await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:{criteria:{}}}}})));

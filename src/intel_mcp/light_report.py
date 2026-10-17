@@ -47,7 +47,7 @@ LOGGER = logging.getLogger("intel_mcp")
 # no longer receives this HTML because it only writes title/intro/closing fields.
 LIGHT_REPORT_SHELL_HTML = """<article class="intel-light-report">
   <header class="report-hero">
-    <p class="eyebrow">Intel Agent · Light Report</p>
+    <p class="eyebrow">TrialAgents Intel · Light Report</p>
     <h1>{{report_title}}</h1>
     <p class="report-intro">{{executive_summary}}</p>
   </header>

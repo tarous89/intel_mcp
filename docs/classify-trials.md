@@ -144,7 +144,7 @@ Environment variables may tune these operational values without changing the pub
 
 ## Allowance and retries
 
-Classification allowance is owned by the Intel Agent app/control plane, not by MCP or Engine.
+Classification allowance is owned by the TrialAgents Intel app/control plane, not by MCP or Engine.
 
 Current per-analysis limits:
 

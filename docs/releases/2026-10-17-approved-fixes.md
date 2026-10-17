@@ -1,3 +1,5 @@
+> Superseded: the current upper limit is 1,000 trials (owner-approved October 17); the prior release details below are historical.
+
 # Approved fixes — 17 October 2026
 
 Scope and incident evidence: ../2026-10-17-surgical-review.md.

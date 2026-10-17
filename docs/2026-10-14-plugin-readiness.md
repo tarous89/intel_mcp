@@ -10,7 +10,7 @@ This revision supersedes the earlier broad five-stage scope. That version mixed 
 
 Preserve the current tables, navigation, controls, visual/report defaults, Custom views, connection and save journeys, loading feedback, ranking, account access rules and normal interaction speed.
 
-Retain the approved EU Trial Intelligence / EU Trial Intel names and TrialAgents brand. Keep current plugin/App IDs, hosting and endpoints. Preserve deliberate state saves, report revisions, exact-preview attachment and the pending-host-approval focus rule.
+Retain the approved TrialAgents Intel / TrialAgents Intel names and TrialAgents brand. Keep current plugin/App IDs, hosting and endpoints. Preserve deliberate state saves, report revisions, exact-preview attachment and the pending-host-approval focus rule.
 
 A change is eligible only when it addresses an explicit submission requirement or a reproducible defect that threatens the submitted journey. Prefer a metadata, documentation or internal correction that leaves the successful user journey intact. A hypothetical risk is a verification task, not permission to redesign.
 

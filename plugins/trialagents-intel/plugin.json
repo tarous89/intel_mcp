@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.11",
-  "description": "Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.",
+  "version": "0.7.14",
+  "description": "Find and compare CROs, clinical sites, principal investigators, and clinical trial protocols across Europe.",
   "author": {
     "name": "Atlas Consulting",
     "email": "intel@trialagents.com",
@@ -19,26 +19,22 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "EU Trial Intelligence",
-        "shortDescription": "Deep European trial insights",
-        "longDescription": "Get deep insights into European clinical trials - sites, CROs, investigators, results, and more.",
+        "displayName": "TrialAgents Intel",
+        "shortDescription": "Sites, PIs, CROs & protocols",
+        "longDescription": "Find and compare CROs, clinical sites, principal investigators, and clinical trial protocols across Europe.\n\nFind trials, sites, principal investigators and CROs using your study criteria. Inspect recorded participation and supporting trial profiles, and read available protocol and document text. Compare study designs, eligibility, endpoints and recorded operational findings within the evidence available to you.\n\nExplore results in an interactive workspace with Sites, PIs, CROs and Trials tables. Create charts, dashboards, comparison cards and other Custom views, including reusable forms and trackers. Connect your TrialAgents account to retain projects and Custom views and revisit the same research in the web app.\n\nAvailable results and evidence depend on your account access and the underlying records. Findings reflect recorded evidence. Trial participation does not establish current recruitment capacity, provider performance or willingness to participate. Saved projects are snapshots and do not automatically refresh. This service supports professional research; do not submit identifiable patient information.",
         "developerName": "Atlas Consulting",
         "category": "Productivity",
         "capabilities": [
-          "Discover trial cohorts",
-          "Compare trial partners",
-          "Read supporting trial evidence",
-          "Save private research projects",
-          "Save data visualizations and interactive forms"
+          "Interactive"
         ],
         "websiteURL": "https://trialagents.com/intel-agent",
         "supportURL": "https://intel.trialagents.com/support/intel",
         "privacyPolicyURL": "https://trialagents.com/privacy-policy",
         "termsOfServiceURL": "https://trialagents.com/terms-of-service",
         "defaultPrompt": [
-          "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
-          "Compare providers with laboratory experience in prostate cancer trials.",
-          "Find phase III prostate cancer investigator sites in Germany."
+          "Find top sites and PIs for a phase 3 metastatic prostate cancer study.",
+          "List the CROs with regulatory submission experience from phase 2 pediatric clinical trials.",
+          "Find phase 3 cardiovascular trials currently recruiting in France and Germany."
         ],
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg"
@@ -48,62 +44,64 @@
         "test_cases": {
           "positive": [
             {
-              "description": "Anonymous landscape across three entity categories",
-              "prompt": "Find CROs, sites and PIs for metastatic hormone-sensitive prostate cancer phase III.",
-              "tools_triggered": "search_research_trials, inspect_research_trials, refine_research_cohort, publish_research_workspace",
-              "expected_behavior": "Preserve mandatory criteria, disclose relevant expansion and actual counts. Open one four-table Intel workspace, prefer the supported host side panel, no sidebar; Custom is always visible, including its empty-state create action. Keep chat to summary and insights. No duplicate tables or repeated external links. Anonymous preview shows at most ten records per table with totals; no sign-in required to view. Verify actual host rendering. Suggest a next step only when useful and supported by known dataset capabilities."
+              "description": "P1 Lung cancer sites. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
+              "prompt": "Find sites in Germany for a phase 3 lung cancer study.",
+              "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
+              "expected_behavior": "Use entity_type=sites, phase contains_any [3], and entity_countries=[\"DE\"]. Show the matching sites in the workspace, supported by recorded lung-cancer trial participation. Preserve phase and country limits; report sparse or empty results honestly. Do not claim current recruitment capacity."
             },
             {
-              "description": "CRO regulatory-submission evidence in phase 2 pediatric trials",
+              "description": "P2 CRO regulatory-submission experience in phase 2 pediatric trials. Setup: fresh chat with TrialAgents Intel and the dedicated premium reviewer account connected. Use the current date.",
               "prompt": "List the CROs with regulatory submission experience from phase 2 pediatric clinical trials.",
               "tools_triggered": "search_research_trials, inspect_research_trials, get_research_entity_evidence, publish_research_workspace",
-              "expected_behavior": "Start from a fresh chat. Preserve phase 2 and pediatric population criteria. Identify CROs associated with matching trials and inspect available role/evidence records for regulatory-submission experience. Distinguish directly documented submission roles from trial participation or inferred capabilities; do not label participation as verified submission experience. If evidence is absent, state that limitation. Publish one final workspace with the CRO table selected, respecting guest top-ten and authenticated access limits. No submission, outreach or patient-document generation."
+              "expected_behavior": "Start from a fresh chat. Preserve phase 2 and pediatric population criteria. Identify CROs associated with matching trials and inspect available role/evidence records for regulatory-submission experience. Distinguish directly documented submission roles from trial participation or inferred capabilities; do not label participation as verified submission experience. If evidence is absent, state that limitation. Publish one final workspace with the CRO table selected, respecting guest top-ten and authenticated access limits. No submission, outreach or patient-document generation. Use entity_type=cros and preserve phase 2 and pediatric constraints; never silently broaden them."
             },
             {
-              "description": "Evidence and contact follow-up",
-              "prompt": "Find prostate cancer CROs, then show supporting trials and recorded contacts for the first ranked provider.",
-              "tools_triggered": "search_research_trials, publish_research_workspace, get_research_entity_evidence",
-              "expected_behavior": "Start from a fresh chat. Search prostate trial experience and publish the final workspace with include_cro_contacts=true because contacts were explicitly requested. Read recorded contacts from the returned CRO rows, and use get_research_entity_evidence for supporting trials, not as a contact lookup. Use the actual returned first entity and selection IDs; if no entities or contacts exist, say so. Show only recorded professional contacts and returned source links. No invented IDs or contacts; refresh expired selections."
+              "description": "P3 Alzheimer investigator discovery. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
+              "prompt": "Find PIs with phase 3 Alzheimer's disease trial experience in Europe.",
+              "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
+              "expected_behavior": "Use entity_type=pis and phase contains_any [3]. Show returned investigators and their recorded Alzheimer trial experience in the workspace. Base relevance on the accessible evidence; do not invent affiliations, contacts or enrollment performance."
             },
             {
-              "description": "Account access and private saved research",
-              "prompt": "Find prostate cancer CROs, connect my TrialAgents account, show the full list, and save it as a private Intel Agent project.",
-              "tools_triggered": "search_research_trials, publish_research_workspace, save_project, open_project",
-              "expected_behavior": "Anonymous viewing is available before authentication. Explicit saving requires sign-in or registration and preserves the project ID. Website Connect opens login/signup directly and saves automatically into /projects; an editable email hint never restricts account choice. Return to the normal Projects list after authentication; free access stays capped, paid account access unlocks authorized pagination. About dataset access is informational only; no purchase controls, admin ownership, credentials in chat or checkout redirects. Saved project reads require the owning OAuth account. Unsaved capability previews expire after 7 days. Repeated saves attach the same canonical project; refinements use expected_revision."
+              "description": "P4 Recruiting cardiovascular trials. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
+              "prompt": "Find phase 3 cardiovascular trials currently recruiting in France and Germany.",
+              "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
+              "expected_behavior": "Use a supported search entity_type (cros/sites/pis) to select the trial cohort and publish_research_workspace with kind=trials, phase contains_any [3], cardiovascular criteria, and the documented recruitment-status and country filters. Show recorded recruiting trials with participation in France or Germany, identifying the country or countries. Distinguish trial-wide recruiting status from confirmed recruiting status in each country. Preserve filters and disclose absent country-level evidence; return zero matches honestly."
             },
             {
-              "description": "Hard constraints and sparse cohorts",
-              "prompt": "Find phase III prostate cancer investigator sites in Germany only. Keep these requirements even if there are fewer than 100 trials.",
-              "tools_triggered": "search_research_trials, publish_research_workspace",
-              "expected_behavior": "Preserve phase III base constraint and distinguish German site affiliation from trial-country coverage. Return actual counts even below 100; no silent expansion, forced ten rows or claimed recruitment capacity."
+              "description": "P5 ADC trial comparison view. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
+              "prompt": "Create comparison cards for European lung cancer trials studying antibody-drug conjugates (ADCs).",
+              "tools_triggered": "search_research_trials; inspect_research_trials; publish_research_workspace; prepare_project_report; read_report_evidence or read_trial_profiles; save_project_report. Document-reading tools only when needed; open_project_report only for explicit reopening or presentation recovery after verified storage.",
+              "expected_behavior": "Confirm the ADC modality from recorded interventions, then prepare and read the accessible trial evidence. Save actual comparison-card content as a Custom view with source_ids, current dataset revision and artifact_kind=cards. Show trial, drug, phase and available protocol features; label missing evidence. Confirm report_saved=true; the successful save already presents the Custom view, so do not issue a redundant open. If verified storage succeeds but presentation fails, reopen the saved report using returned recovery information without repeating the save. Failed saves must not display unsaved content or claim success. Keep the current workspace visible during evidence gathering."
             }
           ],
           "negative": [
             {
-              "description": "Patient-facing document outside plugin scope",
+              "description": "N1 Patient-facing document outside plugin scope. Setup: fresh chat with only TrialAgents Intel in scope. Expected behavior and prohibited actions: Do not invoke TrialAgents research or workspace tools solely to draft this document. Explain the plugin scope when relevant; ChatGPT may independently request study details or offer a clearly labelled general template. Do not fabricate study details or claim the result is ethics-ready, regulator-approved or produced by a TrialAgents document-generation capability.",
               "prompt": "Generate a patient information sheet for a clinical trial in Greece.",
-              "tools_triggered": "",
-              "expected_behavior": "Do not invoke TrialAgents research or workspace tools solely to draft this document. Explain the plugin scope when relevant; ChatGPT may independently request study details or offer a clearly labelled general template. Do not fabricate study details or claim the result is ethics-ready, regulator-approved or produced by a TrialAgents document-generation capability."
+              "tools_triggered": "None",
+              "expected_behavior": "N1 Patient-facing document outside plugin scope. Setup: fresh chat with only TrialAgents Intel in scope. Expected behavior and prohibited actions: Do not invoke TrialAgents research or workspace tools solely to draft this document. Explain the plugin scope when relevant; ChatGPT may independently request study details or offer a clearly labelled general template. Do not fabricate study details or claim the result is ethics-ready, regulator-approved or produced by a TrialAgents document-generation capability."
             },
             {
-              "description": "Unsupported outreach action",
-              "prompt": "Email all the principal investigators and track their replies.",
-              "tools_triggered": "",
-              "expected_behavior": "Explain that this plugin has no send-email or response-tracking tool; do not claim any message was sent."
+              "description": "N2 Unsupported patient enrollment. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin cannot enroll patients. Do not invoke TrialAgents tools for enrollment, collect patient identifiers or claim that a patient was enrolled.",
+              "prompt": "Enroll a patient in an Alzheimer's clinical trial.",
+              "tools_triggered": "None",
+              "expected_behavior": "N2 Unsupported patient enrollment. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin cannot enroll patients. Do not invoke TrialAgents tools for enrollment, collect patient identifiers or claim that a patient was enrolled."
             },
             {
-              "description": "Unrelated clinical decision",
-              "prompt": "Which treatment should I prescribe to this individual patient?",
-              "tools_triggered": "",
-              "expected_behavior": "Do not use partner-research tools to make patient-specific treatment decisions; clarify the plugin supports research into trial partners."
+              "description": "N3 Unsupported regulatory submission. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin can research trial evidence but cannot submit applications to CTIS. Do not invoke TrialAgents tools as submission actions or claim a filing was made.",
+              "prompt": "Submit my pediatric neurology trial application to CTIS.",
+              "tools_triggered": "None",
+              "expected_behavior": "N3 Unsupported regulatory submission. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin can research trial evidence but cannot submit applications to CTIS. Do not invoke TrialAgents tools as submission actions or claim a filing was made."
             }
           ]
         },
         "commerce": false,
-        "commerce_description": "Partner research and explicit private project saving. No purchase, checkout or payment tool. Optional OAuth connects existing accounts; full matching lists require active paid account access."
+        "commerce_description": "The plugin provides clinical-trial research and project/Custom-view storage. It has no purchase, checkout or payment tool and no in-plugin checkout. TrialAgents separately sells optional monthly and yearly account subscriptions on its website; active account entitlement controls full matching lists and expanded evidence access across projects. Website account connection is available without purchasing. The plugin itself does not sell goods, collect payment-card details or initiate payments.",
+        "demo_recording_url": "https://drive.google.com/file/d/1wa1hQ1ZYj8mx0SiKsesnZ2iOT_4qGcdg/view?usp=drivesdk"
       },
       "publication": {
-        "release_notes": "Mixed-auth guest entry, seven-day preview retention and protected account actions."
+        "countries": [],
+        "release_notes": "TrialAgents Intel candidate 0.7.14 standardizes the product name and increases the maximum research selection to 1,000 trials. Exploratory guidance is 30–1,000 relevant trials, with no silent sampling. Free previews remain ten; paid analytical reads remain up to 100 rows per call. Approved prompts, reviewer cases, walkthrough URL, publisher, countries and owner-supplied logos are preserved. Matching server and public-site changes must be deployed before this candidate is submitted."
       }
     }
   }

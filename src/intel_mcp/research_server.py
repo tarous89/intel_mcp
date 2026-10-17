@@ -57,13 +57,13 @@ def create_research_server(settings, engine_factory, control_factory):
               "openai/widgetDomain":UI_DOMAIN,
               "openai/ui": {"preferredDisplayMode": "inline", "availableDisplayModes": ["inline"]}}))
     for uri in (RESOURCE, LEGACY_RESOURCE, *COMPATIBILITY_RESOURCES):
-        apps.add_resource(TextResource(uri=uri, name="Intel Agent workspace",
+        apps.add_resource(TextResource(uri=uri, name="TrialAgents Intel workspace",
             mime_type=APP_MIME_TYPE, text=WORKSPACE_HTML,
             meta={"ui":{"domain":UI_DOMAIN,"csp":{"connectDomains":[],"resourceDomains":[]}},
                   "openai/widgetDomain":UI_DOMAIN,
                   "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
                   "openai/ui":{"preferredDisplayMode":"fullscreen","availableDisplayModes":["fullscreen"]}}))
-    server=MCPServer('TrialAgents clinical research', extensions=[apps], middleware=[research_tool_security_schemes],
+    server=MCPServer('TrialAgents Intel', extensions=[apps], middleware=[research_tool_security_schemes],
                      instructions=RESEARCH_WORKFLOW)
 
     async def full_access(dataset=None, project_id=None, *, require=False):
@@ -94,14 +94,14 @@ def create_research_server(settings, engine_factory, control_factory):
         {"base":{},"base_text":{"fields":["title","diseases"],"terms":["prostate"]},
          "entity_type":"cros","as_of":"2026-10-07","include_broader":true}
 
-        For first exploratory discovery target 30–800 relevant disease-family trials.
+        For first exploratory discovery target 30–1000 relevant disease-family trials.
         Do not restrict the base to exact population/phase preferences: use ordered
         subgroups [{id,label,bucket,filters,text}] for direct/related candidates.
         A phase subgroup uses filters={"phase":{"values":[3]}} and optional
         phase_title_fallback=true. Text uses fields plus terms (operator any/all).
         Preserve explicit only/must constraints in base. Explain broadening.
         If fewer than 30 trials, follow discovery_guidance before finalizing.
-        Do not invent a minimum or broaden mandatory constraints. Over 800 fails
+        Do not invent a minimum or broaden mandatory constraints. Over 1000 fails
         without sampling: narrow explicitly. Run entity categories sequentially.
 
         Finish broadening first, then call publish_research_workspace ONCE with the final
@@ -130,7 +130,7 @@ def create_research_server(settings, engine_factory, control_factory):
     @server.tool(meta=MIXED,annotations=ANNOTATIONS,structured_output=True)
     async def inspect_research_trials(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
-        offset:Annotated[int,Field(ge=0,le=800)]=0,
+        offset:Annotated[int,Field(ge=0,le=1000)]=0,
         limit:Annotated[int,Field(ge=1,le=100)]=25,
     )->dict[str,Any]:
         """Inspect candidate trial IDs, titles, disease, phase and modality for cohort refinement.
@@ -217,7 +217,7 @@ def create_research_server(settings, engine_factory, control_factory):
     async def get_research_entity_evidence(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         entity_id:Annotated[str,Field(pattern=r'^[a-f0-9]{24}$')],
-        offset:Annotated[int,Field(ge=0,le=800)]=0,
+        offset:Annotated[int,Field(ge=0,le=1000)]=0,
         project_id:Annotated[str,Field(pattern=r'^[a-fA-F0-9-]{36}$')]|None=None,
     )->dict[str, Any]:
         """Inspect supporting trial links/roles for an accessible entity; no raw profile sections.
@@ -261,9 +261,9 @@ def create_research_server(settings, engine_factory, control_factory):
         title:Annotated[str,Field(min_length=1,max_length=160)],
         include_cro_contacts:Annotated[bool,Field(description="True only when CRO emails were explicitly requested for the saved project.")]=False,
     )->dict[str, Any]:
-        """Save requested selections as a private Intel Agent project and return its link.
+        """Save requested selections as a private TrialAgents Intel project and return its link.
 
-        Call only when the user requests saving or opening research in Intel Agent.
+        Call only when the user requests saving or opening research in TrialAgents Intel.
         Reuses computed snapshots; starts no analysis, payment, email or public sharing.
         Repeat saves of the same snapshots reopen the same account-owned project.
         A connected free account can save and preview ten; active paid access opens full lists.
@@ -289,7 +289,7 @@ def create_research_server(settings, engine_factory, control_factory):
             output['view']={'title':'Private research saved','summary':output['message'],
                 'columns':['Project','Included selections'],'rows':[{'cells':[output['title'],', '.join(s['entity_type'] for s in sections)]}],
                 'notice':'Your account access applies when the project opens.',
-                'actions':[{'label':'Open in Intel Agent','url':output['url']},
+                'actions':[{'label':'Open in TrialAgents Intel','url':output['url']},
                            {'label':'Saved project data','prompt':f"Show saved research project {output['project_id']} in one branded table."},
                            {'label':'Account capabilities','prompt':'Show what my connected TrialAgents account includes.'}]}
             return CallToolResult(content=[TextContent(type='text',text=json.dumps(output))],structured_content=output)
@@ -308,7 +308,7 @@ def create_research_server(settings, engine_factory, control_factory):
         try:
             output=await control_factory().research_project({'operation':'read','projectId':project_id,'section':section,'offset':offset,'limit':limit})
             output['view']=result_view(output['result'])
-            output['view']['actions']=[{'label':'Open in Intel Agent','url':f'https://intel.trialagents.com/research/projects/{project_id}'},
+            output['view']['actions']=[{'label':'Open in TrialAgents Intel','url':f'https://intel.trialagents.com/research/projects/{project_id}'},
               {'label':'Other saved selections','prompt':f"Show the saved category inventory for project {project_id}."},
               {'label':'More results','prompt':f"Show the next results for saved project {project_id}, section {section}, offset {offset+limit}, subject to account access."} if output['result']['access_info']['has_more'] else
               {'label':'Account capabilities','prompt':'Show what my TrialAgents account includes.'}]
