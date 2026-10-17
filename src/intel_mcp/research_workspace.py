@@ -1,4 +1,4 @@
-"""One persisted cohort for the shared Intel Agent workspace; no model jobs."""
+"""One persisted cohort for the shared TrialAgents Intel workspace; no model jobs."""
 from copy import deepcopy
 import asyncio
 import time
@@ -457,7 +457,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,
     )->dict[str,Any]:
-        """Reopen the shared Intel Agent workspace preview without changing saved data."""
+        """Reopen the shared TrialAgents Intel workspace preview without changing saved data."""
         try:return await read(project_id,preview_token)
         except ControlPlaneError as e:raise ToolError(str(e)) from e
 

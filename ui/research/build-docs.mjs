@@ -5,7 +5,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 const here=dirname(fileURLToPath(import.meta.url));
-if(!process.argv[2])throw Error('Pass the Intel Agent App source checkout.');
+if(!process.argv[2])throw Error('Pass the TrialAgents Intel App source checkout.');
 const dir=await mkdtemp(resolve(tmpdir(),'trialagents-docs-'));
 try{
  const out=resolve(dir,'docs.mjs');

@@ -1,3 +1,5 @@
+> Superseded: the current upper limit is 1,000 trials (owner-approved October 17); the prior release details below are historical.
+
 # October 17 approved scope
 
 The owner approved items 1–7, with item 4 limited to lowering the discovery threshold from 100 to 30 trials, and approved release.

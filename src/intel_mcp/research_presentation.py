@@ -62,7 +62,7 @@ def public_cohort(summary, selection_origin=None):
 
 def discovery_guidance(trial_count):
     return {
-        'target_trials': {'minimum': 30, 'maximum': 800},
+        'target_trials': {'minimum': 30, 'maximum': 1000},
         'actual_trials': trial_count,
         'status': 'below_target' if trial_count < 30 else 'within_target',
         'next_step': (
@@ -109,7 +109,7 @@ RESEARCH_CAPABILITIES = {
                   'Recorded operational findings within eligible trial profiles, without attributing entity performance'],
     'existing_entitlement': ['Full entity lists across research selections with active paid account access',
                              'Expanded complete trial content beyond the eligible free trial set'],
-    'connected_account': ['Save private research projects and reopen them in ChatGPT or Intel Agent without new analysis'],
+    'connected_account': ['Save private research projects and reopen them in ChatGPT or TrialAgents Intel without new analysis'],
     'reports': ['HTML analysis saved to a project and visible in both interfaces', 'Complete profiles/sections and extracted documents for eligible ten free trials; all authorized trials with paid access'],
     'not_exposed': ['Unavailable or unextracted documents', 'Patient-level data',
                     'Complete EU regulatory history', 'Unavailable clinical-study datasets', 'Outreach or response tracking'],

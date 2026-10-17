@@ -9,7 +9,7 @@ from .selection import Contract, SelectionCriteria, SelectionDataset, SelectionE
 
 class CohortRefinement(Contract):
     source_snapshot: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
-    trial_ids: Annotated[list[Annotated[str, Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")]], Field(min_length=1, max_length=800)]
+    trial_ids: Annotated[list[Annotated[str, Field(pattern=r"^\d{4}-\d{6}-\d{2}-\d{2}$")]], Field(min_length=1, max_length=1000)]
     rationale: Annotated[str, Field(min_length=1, max_length=2000)]
     entity_type: Literal["cros", "sites", "pis"]
 

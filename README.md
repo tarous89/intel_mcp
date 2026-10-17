@@ -4,18 +4,18 @@ Backend pilot in progress: [deterministic selection tools](docs/deterministic-se
 
 Reviewed 2026-10-03. Standalone MCP tools and Engine read contracts below remain active. Older Intel Light/Max/Workspace and Site Agent products are archived. Their allowance names and compatibility modules are not current pricing. New combined Intel reports are App-owned. Read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [current combined contract](https://github.com/tarous89/intel_agent_app/blob/main/docs/COMBINED_INTEL_WORKSPACE_SCOPE.md) before product changes. Previous offers/design decisions are in [history.md](history.md).
 
-Remote Model Context Protocol service for TrialAgents Intel Agent.
+Remote Model Context Protocol service for TrialAgents Intel.
 
 The service root serves the public Intel MCP documentation page. It explains
 the report-run lifecycle, platform-specific ChatGPT and Claude connector setup,
 an official Python MCP SDK example, copyable tool arguments and the complete
 six-tool workflow. Hosted ChatGPT and Claude clients sign in through TrialAgents
-OAuth linked to the existing Intel Agent account; the page never exposes or asks a
+OAuth linked to the existing TrialAgents Intel account; the page never exposes or asks a
 customer to reuse the internal service credential.
 
 Implemented tools:
 
-- `start_analysis` receives only an app-created `report_run_id`, calls the Intel Agent app's service-authenticated control plane, and returns the existing or newly reserved tier-bounded analysis lease.
+- `start_analysis` receives only an app-created `report_run_id`, calls the TrialAgents Intel app's service-authenticated control plane, and returns the existing or newly reserved tier-bounded analysis lease.
 - `filter_trials` deterministically queries approved structured Trial Profiles through the Engine-owned `mcp_serving` v1 read contract. It then asks the app control plane to validate the `analysis_id` and atomically meter the unique trial IDs that may be returned.
 - `classify_trials` classifies approved contact-redacted Trial Profiles against bounded user criteria and returns deterministic eligible/ineligible/uncertain trial ID buckets with counts.
 - `get_profiles` returns current approved Trial Profile 11.0.0 data for 1–10 explicit EU trial numbers per call. Optional `sections` returns exact deterministic profile projections; omitting `sections` returns the complete profile. Light may retrieve 100 unique profiles across an analysis.
@@ -201,7 +201,7 @@ and the unauthenticated liveness endpoint is `/health`.
 
 Required production settings:
 
-- `INTEL_APP_CONTROL_URL`: service-authenticated Intel Agent app base URL.
+- `INTEL_APP_CONTROL_URL`: service-authenticated TrialAgents Intel app base URL.
 - `INTEL_APP_SERVICE_TOKEN`: shared service credential stored only in Render secrets.
 - `MCP_ENGINE_SOURCE`: `database` in production; `http` is retained only as a reversible cutover fallback.
 - `MCP_ENGINE_DATABASE_HOST`, `MCP_ENGINE_DATABASE_PORT`, `MCP_ENGINE_DATABASE_NAME`: Engine PostgreSQL endpoint coordinates.
@@ -209,14 +209,14 @@ Required production settings:
 - `MCP_ENGINE_DATABASE_PASSWORD`: separate long reader password provisioned by the Engine migration tooling.
 - `MCP_ENGINE_DATABASE_SSLMODE`: defaults to `require`.
 - `INTEL_ENGINE_API_URL` and `INTEL_ENGINE_SERVICE_TOKEN`: authenticated HTTP rollback path; do not reuse the extraction run token.
-- `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the Intel Agent backend.
+- `MCP_INBOUND_SERVICE_TOKEN`: private server-to-server bearer retained for the TrialAgents Intel backend.
 - `REPORT_PLAN_SERVICE_TOKEN`: separate private bearer used only by the App's Report-plan endpoint.
 - `MCP_PUBLIC_RESOURCE_URL`: canonical OAuth protected-resource audience for `/mcp`.
-- `MCP_OAUTH_AUTHORIZATION_SERVER_URL`: Intel Agent account authorization-server issuer.
+- `MCP_OAUTH_AUTHORIZATION_SERVER_URL`: TrialAgents Intel account authorization-server issuer.
 - `MCP_ALLOWED_HOSTS`: comma-separated exact public/private Host allowlist entries.
 - `PORT`: HTTP port assigned by the platform.
 
-`/mcp` accepts either the private internal service bearer or a scoped public OAuth access token issued by Intel Agent. Public clients discover OAuth through RFC 9728 protected-resource metadata; internal service credentials are never used as end-user tokens.
+`/mcp` accepts either the private internal service bearer or a scoped public OAuth access token issued by TrialAgents Intel. Public clients discover OAuth through RFC 9728 protected-resource metadata; internal service credentials are never used as end-user tokens.
 
 The private `POST /internal/report-plan` route accepts only
 `REPORT_PLAN_SERVICE_TOKEN`. It sends the user's brief, requested insights and the

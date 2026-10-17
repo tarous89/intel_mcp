@@ -6,7 +6,7 @@ import {OpenAIExtensions} from '@openai/mcp-extensions/app';
 import {WorkspaceTables,CustomViewRecovery,type WorkspaceKind} from 'intel-shared-workspace';
 import tableStyles from '@/app/_site-agent/SiteAgentWorkspace.module.css';
 import {connectProject,openConnection,projectsUrl,ConnectionError,connectPreviewAccount,continueAccountConnection} from './connect-project';
-const app=new App({name:'Intel Agent workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
+const app=new App({name:'TrialAgents Intel workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
 const root=createRoot(document.querySelector('main')!);
 // Keep host activity separate from the React workspace: pending calls never discard results.
@@ -17,7 +17,7 @@ document.querySelector('main')!.before(activity);
 function sizeActivity(){document.documentElement.style.setProperty('--workspace-activity-height',activity.hidden?'0px':`${activity.getBoundingClientRect().height}px`);}
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(sizeActivity).observe(activity);
 let activityTimer:ReturnType<typeof setTimeout>|undefined;
-function Holding({active=false}:{active?:boolean}={}){return <section className="workspace-loading" role="status"><strong>TrialAgents</strong>{!active&&<div className={tableStyles.loadingBar+' workspace-loading-track'} aria-hidden="true"><span style={{animationPlayState:'paused'}}/></div>}</section>;}
+function Holding({active=false}:{active?:boolean}={}){return <section className="workspace-loading" role="status"><strong>TrialAgents Intel</strong>{!active&&<div className={tableStyles.loadingBar+' workspace-loading-track'} aria-hidden="true"><span style={{animationPlayState:'paused'}}/></div>}</section>;}
 function showActivity(message:string,running=false){
  clearTimeout(activityTimer);activity.replaceChildren();activity.hidden=!message;
  if(!message){if(!mounted)root.render(<Holding/>);sizeActivity();return;}
@@ -141,7 +141,7 @@ function View({initial}:{initial:any}){
   }finally{connecting.current=false;setBusy(false);}
  }
 
- async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the Intel Agent website.');}}
+ async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the TrialAgents Intel website.');}}
 
  async function saveState(id:string,version:number,state:any){
   const out=await app.callServerTool({name:'save_visualization_state',arguments:{report_id:id,expected_version:version,state,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});
