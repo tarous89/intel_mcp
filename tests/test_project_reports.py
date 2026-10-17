@@ -42,11 +42,15 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert not prepared.is_error
         assert 'Revisions pass report_id and expected_version' in prepared.structured_content['report_guidance']
         assert 'report_saved=true' in prepared.structured_content['report_guidance']
+        assert 'Branded Custom views' in prepared.structured_content['report_guidance']
+        assert 'renderer=interactive' in prepared.structured_content['report_guidance']
+        assert 'Site shortlist attrition' in prepared.structured_content['custom_view_design_example']
         evidence_context=await client.call_tool('prepare_project_report',{'preview':preview})
         assert evidence_context.structured_content['custom_view_workflow']['complete_when'].startswith('report_saved=true')
         assert 'save_project_report' in evidence_context.structured_content['custom_view_workflow']['action']
         assert 'report_guidance' not in evidence_context.structured_content
         assert 'report_html_example' not in evidence_context.structured_content
+        assert 'custom_view_design_example' not in evidence_context.structured_content
         assert '<svg' in prepared.structured_content['report_html_example']
         assert 'Nuances and implications' not in prepared.structured_content['report_html_example']
         args={'preview':preview,'trial_id':'2025-000001-00-00','document_name':'protocol.pdf'}

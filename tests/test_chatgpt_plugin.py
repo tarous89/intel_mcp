@@ -44,6 +44,8 @@ def test_package_rejects_symlink_payload(tmp_path, monkeypatch):
 def test_presentation_assets_match_runtime_and_package():
     runtime=MODULE_PATH.parents[1]/'src/intel_mcp'
     refs={
+        'design-patterns.md':'skills/create-trial-report/references/design-patterns.md',
+        'custom-view-examples.html':'skills/create-trial-report/assets/custom-view-examples.html',
         'custom-style.md':'references/custom-style.md',
         'presentation-standard.md':'references/presentation-standard.md',
         'access-and-evidence.md':'references/access-and-evidence.md',
