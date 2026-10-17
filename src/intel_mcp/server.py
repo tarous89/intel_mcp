@@ -1044,6 +1044,16 @@ async def oauth_protected_resource_path(_request: Request) -> Response:
     return protected_resource_metadata()
 
 
+@mcp.custom_route("/.well-known/openai-apps-challenge", methods=["GET"])
+async def openai_apps_challenge(_request: Request) -> Response:
+    """Public proof of domain ownership for the approved OpenAI submission."""
+    return Response(
+        "ycOJ9masPJPAqJh-5BOVAbbTvuEuFhmcvE4sWEnKE-c",
+        media_type="text/plain",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 transport_security = TransportSecuritySettings(allowed_hosts=list(settings.allowed_hosts))
 
 
