@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.19",
+  "version": "0.7.20",
   "description": "Find and compare CROs, clinical sites, principal investigators, and clinical trial protocols across Europe.",
   "author": {
     "name": "Atlas Consulting",
@@ -97,7 +97,7 @@
       },
       "publication": {
         "countries": [],
-        "release_notes": "Version 0.7.19 carries forward 0.7.18, including current tool names, five skills, final-result routing, publication retry metadata, recovery guidance and light-background contrast rules. Saved Custom views return the same complete /custom link in url and custom_url; tool and skill guidance requires copying returned links unchanged and avoids account-project links for temporary previews. The companion website update redirects bare project links to the default Sites tab while preserving sign-in and ownership checks. Retains the original listing, three starter prompts, PNG branding, demo URL, commerce declaration, worldwide targeting and corrected review expectations. Runtime definitions are served by the configured MCP endpoint."
+        "release_notes": "Version 0.7.20 carries forward 0.7.19, including current tool names, five skills, final-result routing, publication retry metadata, recovery guidance, light-background contrast rules and complete saved Custom view links. Removes the private GitHub schema-source URL from schema discovery while retaining the complete bundled schema and version. Removes the legacy share-link recipe from model guidance; use only exact returned links, preserve query parameters and fragments, and use the embedded workspace when no URL is returned. Existing legacy routes and preview behavior are unchanged. Retains the original listing, three starter prompts, PNG branding, demo URL, commerce declaration, worldwide targeting and review expectations. Runtime definitions are served by the configured MCP endpoint."
       }
     }
   }

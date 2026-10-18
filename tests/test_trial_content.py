@@ -50,6 +50,13 @@ async def test_anonymous_model_tools_sections_inventory_and_complete_document_te
             assert {'type':'noauth'} in tools[name].meta['securitySchemes']
         schema=await client.call_tool('describe_trial_profile_schema',{})
         assert not schema.is_error and len(schema.structured_content['sections'])==14
+        assert schema.structured_content['profile_schema_version']=='11.0.0'
+        assert schema.structured_content['schema']['properties'].keys()==SCHEMA['properties'].keys()
+        for root, expected in SCHEMA['properties'].items():
+            actual=schema.structured_content['schema']['properties'][root]
+            assert {**actual, 'required': sorted(actual.get('required', []))}=={**expected, 'required': sorted(expected.get('required', []))}
+        assert 'schema_source' not in schema.structured_content
+        assert 'github.com/' not in json.dumps(schema.model_dump(mode='json'))
         args={'preview':preview,'trial_ids':[tid]}
         partial=await client.call_tool('read_trial_profiles',{**args,'sections':['overview','sites']})
         assert not partial.is_error

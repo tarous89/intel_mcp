@@ -6,4 +6,4 @@ Preserve source provenance in save metadata. Display sources, IDs and document l
 
 When a useful next investigation follows from the answer, suggest it using available dataset fields, confirmed evidence or supported tools. State any material access requirement. Use a brief chat suggestion, or show_research_followups when clickable choices help. Buttons send a request only on a user click; text is the fallback when host messaging is unavailable.
 
-When a link or button helps the user, offer an action to open the workspace, save or edit a custom view, retry a failed save, or explore a relevant question supported by the dataset. Use the supported workspace action or exact URL returned by TrialAgents.
+When a link or button helps the user, offer an action to open the workspace, save or edit a custom view, retry a failed save, or explore a relevant question supported by the dataset. Use the supported workspace action or exact URL returned by TrialAgents, preserving any query parameters and fragments. Never construct or shorten links from project or preview IDs. When no URL is returned, use the embedded workspace.
