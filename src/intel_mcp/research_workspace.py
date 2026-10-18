@@ -138,6 +138,7 @@ def with_workspace_destinations(result):
 
 def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annotations,connect_result):
     write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=True,open_world_hint=False)
+    publish_write=ToolAnnotations(read_only_hint=False,destructive_hint=False,idempotent_hint=False,open_world_hint=False)
     overwrite=ToolAnnotations(read_only_hint=False,destructive_hint=True,idempotent_hint=True,open_world_hint=False)
     app_callable={'ui':{'visibility':['model','app']},'openai/widgetAccessible':True}
     ui={**app_callable,'ui':{**app_callable['ui'],'resourceUri':RESOURCE}}
@@ -349,14 +350,16 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     )->dict[str,Any]:
         """Display the interactive Intel workspace from an existing search, without saving a project.
 
-        DEFAULT initial results: call after broadening is complete with the final selection_id.
-        This is read-only computation over the existing short-lived search snapshot: no project,
-        account change or project job is created, even for connected users. Prepared query
+        Use only for deliberately unsaved exploration. For final new results use
+        publish_research_workspace, which also saves for a connected account.
+        No account project or project job is created here, even for connected users. Prepared query
         results may be cached internally for 7 days, separately from user projects.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Commit saved-project refinements with save_project using project_id and expected_revision. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
-        Connect account opens website login immediately. The website imports the exact preview only after authentication.
+        For cached previews, Connect first attempts save_project through host account authorization.
+        If needed, the user can continue in ChatGPT or choose website import. Website login
+        does not establish MCP OAuth. Older previews retain their website connection path.
         The cached import expires after 7 days; never claim a preview is already a saved project.
         """
         try:
@@ -402,7 +405,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                     'save_tool':'save_project','account_connected':bool(access.get('connected')),'preview_saved_to_account':False}}
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
-    @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
+    @server.tool(meta={**mixed,**ui},annotations=publish_write,structured_output=True)
     async def publish_research_workspace(
         selection_id: Annotated[str,Field(min_length=40,max_length=64)],
         title: Annotated[str,Field(min_length=1,max_length=160)],
@@ -419,6 +422,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Custom view storage is a separate operation exposed by save_project_custom_view.
         For a connected account, repeating the same selection and publication inputs
         reuses the project. Anonymous calls keep independent private preview capabilities.
+        Do not blindly repeat anonymous publication as a retry. When a draft was returned,
+        follow its recovery action: recover_research_preview for failed preview storage,
+        or save_project for a failed connected-account save. Keep the exact retained draft.
         Use a new operation_id only when intentionally creating a separate project
         from that same selection; reuse it on retries. It is not an access token.
         """
@@ -493,11 +499,12 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     )->dict[str,Any]:
         """On explicit Connect account, save a preview and open login/signup for the chosen account.
 
-        Pass draft from prepare_research_workspace for an unsaved preview. This is the
-        first persistent write: it stores the exact search snapshot without rerunning research.
+        Pass draft from prepare_research_workspace for an unsaved account preview. This
+        materializes a legacy persisted workspace from the exact snapshot without rerunning research.
 
-        Legacy model-driven handoff; the embedded Connect button instead opens website login
-        immediately and imports after authentication. Does not initiate host OAuth or a
+        Compatibility-only handoff. The embedded Connect button first attempts host-authorized
+        save_project for cached previews; chat continuation and website import remain fallbacks.
+        Older previews retain their website connection path. This handoff does not initiate host OAuth or a
         purchase. The private short-lived URL authorizes saving this exact project;
         open it on the user's click. Never print its token in conversation text.
         Login completes saving and opens the ordinary Projects list. A different

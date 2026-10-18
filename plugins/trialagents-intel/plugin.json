@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.15",
+  "version": "0.7.18",
   "description": "Find and compare CROs, clinical sites, principal investigators, and clinical trial protocols across Europe.",
   "author": {
     "name": "Atlas Consulting",
@@ -36,8 +36,10 @@
           "List the CROs with regulatory submission experience from phase 2 pediatric clinical trials.",
           "Find phase 3 cardiovascular trials currently recruiting in France and Germany."
         ],
-        "composerIcon": "./assets/icon.svg",
-        "logo": "./assets/icon.svg"
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/composer-icon-dark.png"
       },
       "onboardingSkill": "./skills/answer-in-trialagents/SKILL.md",
       "review": {
@@ -47,7 +49,7 @@
               "description": "P1 Lung cancer sites. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
               "prompt": "Find sites in Germany for a phase 3 lung cancer study.",
               "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
-              "expected_behavior": "Use entity_type=sites, phase contains_any [3], and entity_countries=[\"DE\"]. Show the matching sites in the workspace, supported by recorded lung-cancer trial participation. Preserve phase and country limits; report sparse or empty results honestly. Do not claim current recruitment capacity."
+              "expected_behavior": "Search with entity_type=sites, criteria.base.phase={\"operator\":\"contains_any\",\"values\":[3]}, criteria.entity_countries=[\"DE\"], and lung-cancer disease/title criteria. Use today for criteria.as_of. Show matching sites in the workspace, supported by recorded lung-cancer trial participation. Preserve phase and country limits; report sparse or empty results honestly. Do not claim current recruitment capacity."
             },
             {
               "description": "P2 CRO regulatory-submission experience in phase 2 pediatric trials. Setup: fresh chat with TrialAgents Intel and the dedicated premium reviewer account connected. Use the current date.",
@@ -59,39 +61,33 @@
               "description": "P3 Alzheimer investigator discovery. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
               "prompt": "Find PIs with phase 3 Alzheimer's disease trial experience in Europe.",
               "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
-              "expected_behavior": "Use entity_type=pis and phase contains_any [3]. Show returned investigators and their recorded Alzheimer trial experience in the workspace. Base relevance on the accessible evidence; do not invent affiliations, contacts or enrollment performance."
+              "expected_behavior": "Search with entity_type=pis, criteria.base.phase={\"operator\":\"contains_any\",\"values\":[3]}, Alzheimer disease/title criteria and today for criteria.as_of. Show returned investigators and their recorded Alzheimer trial experience in the workspace. Base relevance on accessible evidence; do not invent affiliations, contacts or enrollment performance."
             },
             {
               "description": "P4 Recruiting cardiovascular trials. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
               "prompt": "Find phase 3 cardiovascular trials currently recruiting in France and Germany.",
-              "tools_triggered": "search_research_trials; inspect_research_trials as needed; publish_research_workspace.",
-              "expected_behavior": "Use a supported search entity_type (cros/sites/pis) to select the trial cohort and publish_research_workspace with kind=trials, phase contains_any [3], cardiovascular criteria, and the documented recruitment-status and country filters. Show recorded recruiting trials with participation in France or Germany, identifying the country or countries. Distinguish trial-wide recruiting status from confirmed recruiting status in each country. Preserve filters and disclose absent country-level evidence; return zero matches honestly."
+              "tools_triggered": "search_research_trials; inspect_research_trials; prepare_research_workspace and prepare_project_custom_view when an unsaved evidence context is needed; read_trial_profiles for accessible country/lifecycle evidence; refine_research_cohort only when supported by inspected trial IDs and snapshot; publish_research_workspace.",
+              "expected_behavior": "Search using a supported entity_type (cros/sites/pis), criteria.base.phase={\"operator\":\"contains_any\",\"values\":[3]}, cardiovascular disease criteria, and criteria.base.countries=[{\"country_codes\":{\"operator\":\"contains_any\",\"values\":[\"FR\",\"DE\"]}}]. Use today for criteria.as_of. This country group selects participation in either France or Germany; disclose that interpretation. The live country recruitment_statuses field exposes CTIS authorization/status values, not a Recruiting enum. Never invent a Recruiting filter or equate Authorised with active recruitment. Inspect accessible country/lifecycle evidence before asserting recruitment, identify its date and country, and disclose when current recruitment cannot be verified. If presenting candidate trials, explicitly label recruitment as unverified and preserve the user's phase/disease/country constraints. Use publish_research_workspace with kind=trials and an accurate title/scope; phase, disease and country filters belong in the search criteria, not publication arguments. Do not claim confirmed recruiting matches without evidence. Return zero verified matches honestly."
             },
             {
               "description": "P5 ADC trial comparison view. Setup: Start a fresh chat with TrialAgents enabled. Use the dedicated premium reviewer account, already connected. Use the current date for time-sensitive criteria.",
               "prompt": "Create comparison cards for European lung cancer trials studying antibody-drug conjugates (ADCs).",
-              "tools_triggered": "search_research_trials; inspect_research_trials; publish_research_workspace; prepare_project_custom_view; read_custom_view_evidence or read_trial_profiles; save_project_custom_view. Document-reading tools only when needed; open_project_custom_view only for explicit reopening or presentation recovery after verified storage.",
-              "expected_behavior": "Confirm the ADC modality from recorded interventions, then prepare and read the accessible trial evidence. Save actual comparison-card content as a Custom view with source_ids, current dataset revision and artifact_kind=cards. Show trial, drug, phase and available protocol features; label missing evidence. Confirm custom_view_saved=true; the successful save already presents the Custom view, so do not issue a redundant open. If verified storage succeeds but presentation fails, reopen the saved report using returned recovery information without repeating the save. Failed saves must not display unsaved content or claim success. Keep the current workspace visible during evidence gathering."
+              "tools_triggered": "search_research_trials; inspect_research_trials; publish_research_workspace; prepare_project_custom_view; read_custom_view_evidence or read_trial_profiles; save_project_custom_view. Document-reading tools only when needed. retry_project_custom_view only for a returned retryable save. read_project/read_project_preview may restore tables after a failed save. open_project_custom_view only for explicit reopening or presentation recovery after verified storage.",
+              "expected_behavior": "Confirm the ADC modality from recorded interventions, then prepare and read accessible trial evidence. Save actual comparison-card HTML as a Custom view with source_ids, returned dataset_id/revision, request_key, and artifact_kind=cards. Use renderer=interactive for custom CSS even without JavaScript. Show trial, drug, phase and available protocol features; label missing evidence. Default to light surfaces and explicit foreground/background pairs, with at least 4.5:1 contrast for all text and 3:1 for essential chart marks/control boundaries. Apply this to headings, metrics, labels, tables, controls and SVG/canvas text; use dark backgrounds only when requested. Check the authored output before saving; do not claim measured contrast or visual inspection without performing it. The explicit creation request authorizes preparation and saving without an extra conversational confirmation; honor all host approval and OAuth requirements. Confirm custom_view_saved=true; successful save already presents the Custom view, so do not issue a redundant open. If verified storage succeeds but presentation fails, reopen the saved Custom view using returned recovery information without repeating the save. For failed saves, retain or restore existing tables, follow correction/retry guidance, and do not display unsaved content as saved or claim success. Keep the current workspace visible during evidence gathering."
             }
           ],
           "negative": [
             {
               "description": "N1 Patient-facing document outside plugin scope. Setup: fresh chat with only TrialAgents Intel in scope. Expected behavior and prohibited actions: Do not invoke TrialAgents research or workspace tools solely to draft this document. Explain the plugin scope when relevant; ChatGPT may independently request study details or offer a clearly labelled general template. Do not fabricate study details or claim the result is ethics-ready, regulator-approved or produced by a TrialAgents document-generation capability.",
-              "prompt": "Generate a patient information sheet for a clinical trial in Greece.",
-              "tools_triggered": "None",
-              "expected_behavior": "N1 Patient-facing document outside plugin scope. Setup: fresh chat with only TrialAgents Intel in scope. Expected behavior and prohibited actions: Do not invoke TrialAgents research or workspace tools solely to draft this document. Explain the plugin scope when relevant; ChatGPT may independently request study details or offer a clearly labelled general template. Do not fabricate study details or claim the result is ethics-ready, regulator-approved or produced by a TrialAgents document-generation capability."
+              "prompt": "Generate a patient information sheet for a clinical trial in Greece."
             },
             {
               "description": "N2 Unsupported patient enrollment. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin cannot enroll patients. Do not invoke TrialAgents tools for enrollment, collect patient identifiers or claim that a patient was enrolled.",
-              "prompt": "Enroll a patient in an Alzheimer's clinical trial.",
-              "tools_triggered": "None",
-              "expected_behavior": "N2 Unsupported patient enrollment. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin cannot enroll patients. Do not invoke TrialAgents tools for enrollment, collect patient identifiers or claim that a patient was enrolled."
+              "prompt": "Enroll a patient in an Alzheimer's clinical trial."
             },
             {
               "description": "N3 Unsupported regulatory submission. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin can research trial evidence but cannot submit applications to CTIS. Do not invoke TrialAgents tools as submission actions or claim a filing was made.",
-              "prompt": "Submit my pediatric neurology trial application to CTIS.",
-              "tools_triggered": "None",
-              "expected_behavior": "N3 Unsupported regulatory submission. Setup: Start a fresh chat. No other integration is in scope. Expected behavior and prohibited actions: Explain that this plugin can research trial evidence but cannot submit applications to CTIS. Do not invoke TrialAgents tools as submission actions or claim a filing was made."
+              "prompt": "Submit my pediatric neurology trial application to CTIS."
             }
           ]
         },
@@ -101,7 +97,7 @@
       },
       "publication": {
         "countries": [],
-        "release_notes": "Version 0.7.15 adds branded Custom view design guidance and an adaptable HTML gallery: endpoint bars, site attrition, planning timeline and editable tracker. Includes spacing, typography, color, evidence and draft-state persistence rules. Skill name, description, MCP tools and save/recovery contracts are unchanged. Approved listing, prompts, review cases, owner logos, video, worldwide availability and 1,000-trial guidance are retained. Existing public-site and final reviewer verification steps remain outstanding."
+        "release_notes": "Version 0.7.18 carries forward 0.7.17, including current Custom view tool names, five skills, recovery guidance, custom-CSS rendering and light-background contrast rules. Aligns final-result routing with publish_research_workspace, documents host account authorization and retained website fallback, and sets publication idempotentHint=false to reflect anonymous calls while preserving connected-account deduplication and independent guest previews. Retains the corrected recruitment-status review expectations, original listing, three starter prompts, PNG branding, demo URL, commerce declaration and worldwide targeting. Repository packaging now reproduces the public submission directly. Runtime definitions are served by the configured MCP endpoint."
       }
     }
   }
