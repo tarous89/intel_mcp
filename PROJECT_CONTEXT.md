@@ -1,3 +1,7 @@
+# Approved Custom view recovery and confirmation clarification — 2026-10-18
+
+Owner authorized implementation and repository publication of the narrow fixes: restore authorized existing tables when a failed Custom view save opens a fresh widget; retain the current table/tab in an already mounted widget; clarify that an explicit create/revise request needs no additional conversational confirmation. Preserve real host approvals, current tool names/annotations, storage, ownership and revision checks. Restoration uses existing read-only tools once per incoming recovery result, never re-searches or automatically retries a write, and ignores late responses after newer results arrive. A failed restoration keeps the recovery controls available. Tool splitting and blind conflict retries remain outside this scope.
+
 # Current naming and selection limit — 2026-10-17
 
 Owner approved TrialAgents Intel as the product name everywhere and a 1,000-trial maximum per selection, replacing 800. Keep the exploratory minimum 30, paid analytical pages up to 100 and free previews ten. Preserve account/brand identities, endpoint paths and unrelated byte/field limits. Earlier dated limits and names are historical. No deferred optimization is authorized.

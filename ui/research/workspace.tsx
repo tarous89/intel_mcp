@@ -195,12 +195,41 @@ class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{fail
  render(){return this.state.failed?<Holding/>:this.props.children;}
 }
 let mounted=false;
+let incomingVersion=0;
+function recoveryFallback(data:any,restore?:()=>void){
+ root.render(<section className="workspace-loading"><strong>TrialAgents Intel</strong>
+  {restore&&<><p>The existing workspace could not be restored. ChatGPT can continue checking the save.</p><button onClick={restore}>Restore workspace</button></>}
+  {data.retry_id?<CustomViewRecovery data={data} onSave={async()=>{const out=await callServerTool({name:'retry_project_custom_view',arguments:{retry_id:data.retry_id}});if(out.isError)throw Error();receive(out.structuredContent);if(out.structuredContent?.recovery?.action==='reconcile'){const sent=await app.sendMessage({role:'user',content:[{type:'text',text:'Reconcile and save the retained custom view using the current project and latest version.'}]});if(sent.isError)throw Error();}}}/>:<p>{data.recovery?.message??'The Custom view could not be saved. ChatGPT can use the returned correction guidance.'}</p>}
+ </section>);
+}
+async function restoreWorkspace(data:any,version:number){
+ const target=data.workspace_recovery;
+ // Only restore through existing read-only tools. Never retry storage on render.
+ if(!target||!['read_project','read_project_preview'].includes(target.tool)){recoveryFallback(data);return;}
+ root.render(<Holding active/>);showActivity('Restoring your workspace…',true);
+ try{
+  const out=await callServerTool({name:target.tool,arguments:target.arguments});
+  if(version!==incomingVersion||mounted)return;
+  if(out.isError||!out.structuredContent?.project_id||!out.structuredContent?.result)throw Error();
+  showActivity('');
+  // Mount the authorized saved tables first, then merge only the recovery notice.
+  // A failure must not select Custom views or display an unverified draft.
+  receive({...out.structuredContent,active_tab:'tables',active_report_id:undefined});
+  setIncoming(data);
+ }catch{
+  if(version!==incomingVersion||mounted)return;
+  showActivity('');recoveryFallback(data,()=>{void restoreWorkspace(data,version);});
+ }
+}
 function receive(data:any){
  data=legacyWorkspaceEnvelope(data);
  if(!data)return;
+ const version=++incomingVersion;
  if(!data.project_id||!data.result){
   if(data.report_saved===false||data.storage_status==='unavailable'||data.project_save_error){
-   if(mounted)setIncoming(data);else if(data.report_saved===false)root.render(<section style={{padding:24}}><h2>Custom views</h2><CustomViewRecovery data={data} onSave={async()=>{const out=await callServerTool({name:'retry_project_custom_view',arguments:{retry_id:data.retry_id}});if(out.isError)throw Error();receive(out.structuredContent);if(out.structuredContent?.recovery?.action==='reconcile'){const sent=await app.sendMessage({role:'user',content:[{type:'text',text:'Reconcile and save the retained custom view using the current project and latest version.'}]});if(sent.isError)throw Error();}}}/></section>);else root.render(<SaveNotice data={data}/>);
+   if(mounted)setIncoming(data);
+   else if(data.report_saved===false)void restoreWorkspace(data,version);
+   else root.render(<SaveNotice data={data}/>);
   }return;
  }
  modelContext(data);if(mounted)setIncoming(data);else{flushSync(()=>root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>));mounted=true;}

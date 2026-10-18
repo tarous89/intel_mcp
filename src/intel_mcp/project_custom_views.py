@@ -50,6 +50,13 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
                 except ControlPlaneError as retry_error:raise ToolError(str(retry_error)) from retry_error
             raise ToolError(str(error)) from error
 
+    def workspace_recovery(project_id,preview):
+        # A fresh widget has no mounted tables. Give it a read-only restoration
+        # target; do not read again for already mounted workspaces or retry a write.
+        if preview:
+            return {'tool':'read_project_preview','arguments':{'preview':preview.model_dump(mode='json')}}
+        return {'tool':'read_project','arguments':{'project_id':project_id}}
+
     async def workspace(project_id,preview,custom_view_id=None):
         out=await call('preview_read' if preview else 'canonical_read',project_id,preview,kind='trials',offset=0,limit=10)
         if not isinstance(out,dict) or not out.get('result'):raise ToolError('WORKSPACE_UNAVAILABLE: Report state could not be presented. Retry the same save.')
@@ -144,7 +151,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         This read neither generates nor saves a custom view.
         """
         out=await call('report_context',project_id,preview)
-        return {**out,'custom_view_workflow':{'when':'Creating a Custom view from TrialAgents research, including a requested report, chart, dashboard or tracker. Respect explicit chat-only requests.','action':'Prepare the requested visualization and save it with save_project_custom_view, respecting host approval. A successful save already presents Custom views; do not open again. A chat-only chart is not a saved Custom view.','complete_when':'custom_view_saved=true; otherwise explain the failure and use the returned recovery action.','text_only':'Ordinary text explanations do not require a Custom view.'},'report_preview':preview.model_dump(mode='json') if preview else None,**({'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE,'custom_view_design_example':CUSTOM_VIEW_EXAMPLE} if include_template else {})}
+        return {**out,'custom_view_workflow':{'when':'Creating a Custom view from TrialAgents research, including a requested report, chart, dashboard or tracker. Respect explicit chat-only requests.','action':'Prepare the requested visualization and save it with save_project_custom_view. An explicit creation or revision request needs no additional conversational confirmation; respect actual host approval. A successful save already presents Custom views; do not open again. A chat-only chart is not a saved Custom view.','complete_when':'custom_view_saved=true; otherwise explain the failure and use the returned recovery action.','text_only':'Ordinary text explanations do not require a Custom view.'},'report_preview':preview.model_dump(mode='json') if preview else None,**({'report_guidance':GUIDANCE,'report_html_example':REPORT_EXAMPLE,'custom_view_design_example':CUSTOM_VIEW_EXAMPLE} if include_template else {})}
 
     @server.tool(meta=callable_meta,annotations=evidence_write,structured_output=True)
     async def read_custom_view_evidence(trial_ids:Annotated[list[str],Field(min_length=1,max_length=5)],project_id:str|None=None,preview:CustomViewPreview|None=None,revision:int|None=None)->dict[str,Any]:
@@ -244,13 +251,14 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
                     'save_message':'Saved temporarily. Connect your account to keep this project and its visualizations.' if result['temporary'] else 'Saved to your TrialAgents account.'}
         except ToolError as error:
             if 'STATIC_RENDERER_CUSTOM_CSS' in str(error):
-                return {'report_saved':False,'save_status':'failed','save_error':'STATIC_RENDERER_CUSTOM_CSS',
+                return {'workspace_recovery':workspace_recovery(project_id,preview),
+                        'report_saved':False,'save_status':'failed','save_error':'STATIC_RENDERER_CUSTOM_CSS',
                         'retry_id':None,'visualization_save_offer':None,
                         'recovery':{'action':'reconcile','correction_tool':'save_project_custom_view',
                             'payload_retained':False,'verification_complete':False,
                             'message':'Static mode would discard custom CSS. Resubmit the complete self-contained HTML with renderer=interactive and a fresh request_key, or rebuild using the supported static HTML/SVG shell. Preserve the existing view ID/version. Inline external stylesheets; network assets are unavailable. Do not retry the unchanged payload.'}}
             # Do not lose the rendered conversation artifact or claim success on an uncertain write.
-            out={}  # Retain the current workspace rather than reopening a failed draft.
+            out={'workspace_recovery':workspace_recovery(project_id,preview)}
             now=time.monotonic()
             for key in list(pending_reports):
                 if pending_reports[key]['expires']<=now:pending_reports.pop(key)
@@ -289,7 +297,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
                 result=await save_project_custom_view(**corrected)
                 if result.get('report_saved'):pending_reports.pop(retry_id,None)
                 return result
-            out={}
+            out={'workspace_recovery':workspace_recovery(args['project_id'],args['preview'])}
             return {**out,'report_saved':False,'retry_id':retry_id,
                     'pending_custom_view':{'title':args['title']},
                     'visualization_save_offer':{'title':args['title'],'retry':True},
