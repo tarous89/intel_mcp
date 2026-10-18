@@ -39,7 +39,7 @@ def test_four_tables_share_one_cohort_and_no_implicit_contacts():
 
 
 @pytest.mark.anyio
-async def test_workspace_preview_is_read_only_and_creates_nothing():
+async def test_workspace_preview_without_cache_backend_does_not_create_account_project():
     class Control:
         calls=[]
         async def research_workspace(self,body):
@@ -58,7 +58,7 @@ async def test_workspace_preview_is_read_only_and_creates_nothing():
             assert descriptors[name].meta['ui']['visibility']==(['app'] if name=='create_research_account_handoff' else ['model','app'])
             assert descriptors[name].meta['openai/widgetAccessible'] is True
         assert descriptors['create_research_account_handoff'].annotations.read_only_hint is False
-        assert descriptors['prepare_research_workspace'].annotations.read_only_hint is True
+        assert descriptors['prepare_research_workspace'].annotations.read_only_hint is False
         assert descriptors['get_research_workspace'].annotations.read_only_hint is True
         assert descriptors['prepare_research_workspace'].meta['ui']['resourceUri']==RESOURCE
         assert 'resourceUri' not in descriptors['search_research_trials'].meta.get('ui',{})
@@ -159,7 +159,7 @@ async def test_preview_connect_preserves_snapshot_idempotency_and_expiry(monkeyp
         spec=data['draft']
         bad=await client.call_tool('prepare_research_workspace',{'selection_id':selection,'title':'Exact original','offset':10})
         assert bad.is_error
-        # Signed-in users still get an unsaved read-only preview; access is honored.
+        # Signed-in users still get a preview without an account project; access is honored.
         monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
         paid=await client.call_tool('prepare_research_workspace',{'selection_id':selection,'title':'Exact original','offset':10})
         assert not paid.is_error and paid.structured_content['result']['access']=='full'
@@ -206,3 +206,11 @@ async def test_precomputed_preview_cache_retains_exact_four_tables_without_creat
         assert 'prepared_selection' not in out
         assert payload_key(payload)==out['draft']['snapshot_key']
         assert payload==workspace_payload(store.get(token),'Exact cohort')
+        repeated=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'Exact cohort'})
+        assert not repeated.is_error
+        assert len(cached)==2
+        assert repeated.structured_content['saved'] is False
+        assert repeated.structured_content['draft']['preview_id']!=out['draft']['preview_id']
+        assert repeated.structured_content['draft']['cache_token']==cached[1]['token']
+        assert cached[0]['token']!=cached[1]['token']
+        assert cached[0]['snapshot_key']==cached[1]['snapshot_key']

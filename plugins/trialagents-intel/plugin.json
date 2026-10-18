@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "trialagents-intel",
-  "version": "0.7.20",
+  "version": "0.7.21",
   "description": "Find and compare CROs, clinical sites, principal investigators, and clinical trial protocols across Europe.",
   "author": {
     "name": "Atlas Consulting",
@@ -97,7 +97,7 @@
       },
       "publication": {
         "countries": [],
-        "release_notes": "Version 0.7.20 carries forward 0.7.19, including current tool names, five skills, final-result routing, publication retry metadata, recovery guidance, light-background contrast rules and complete saved Custom view links. Removes the private GitHub schema-source URL from schema discovery while retaining the complete bundled schema and version. Removes the legacy share-link recipe from model guidance; use only exact returned links, preserve query parameters and fragments, and use the embedded workspace when no URL is returned. Existing legacy routes and preview behavior are unchanged. Retains the original listing, three starter prompts, PNG branding, demo URL, commerce declaration, worldwide targeting and review expectations. Runtime definitions are served by the configured MCP endpoint."
+        "release_notes": "Version 0.7.21 carries forward 0.7.20 and corrects temporary-preview tool annotations: prepare_research_workspace is a non-destructive, non-idempotent write because it stores a private preview; recover_research_preview is a non-destructive, idempotent write that retains the original preview identity. Clarifies temporary backend storage in tool descriptions and workflow guidance. Preserves research, preview retention and recovery, account authorization, saved-project publication, Custom view rendering, exact returned links, current tool names, five skills, three starter prompts, original listing and branding, demo URL, commerce declaration, worldwide targeting and review cases. Runtime definitions are served by the configured MCP endpoint; host approvals remain in effect."
       }
     }
   }

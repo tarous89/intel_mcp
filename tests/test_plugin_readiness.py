@@ -33,9 +33,17 @@ async def test_publication_contract_preserves_tools_and_declares_real_effects():
         assert publication.destructive_hint is False
         assert publication.idempotent_hint is False
         assert publication.open_world_hint is False
+        # Temporary preview persistence is a write even when no account project
+        # is saved. Only recovery retains the original storage identity.
+        for name,idempotent in (('prepare_research_workspace',False),('recover_research_preview',True)):
+            hints=descriptors[name].annotations
+            assert hints.read_only_hint is False
+            assert hints.destructive_hint is False
+            assert hints.idempotent_hint is idempotent
+            assert hints.open_world_hint is False
         for name in ('save_project','save_project_view','create_research_account_handoff','claim_research_workspace'):
             assert descriptors[name].annotations.idempotent_hint is True
-        for name in ('search_research_trials','rank_research_entities','prepare_project_custom_view','list_trial_documents','open_project','read_project_custom_view'):
+        for name in ('search_research_trials','rank_research_entities','prepare_project_custom_view','list_trial_documents','open_project','read_project_custom_view','read_project_preview','get_research_workspace'):
             assert descriptors[name].annotations.read_only_hint is True
         for name in ('claim_research_workspace','revise_research_workspace','save_research_project'):
             assert 'resourceUri' not in descriptors[name].meta['ui']

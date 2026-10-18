@@ -36,7 +36,8 @@ def test_stream_protocol_preserves_exact_rows_profiles_and_checksum():
 
 
 @pytest.mark.anyio
-async def test_failed_storage_retains_identity_then_recovers_without_search(monkeypatch):
+@pytest.mark.parametrize('recovery_tool',['save_project','recover_research_preview'])
+async def test_failed_storage_retains_identity_then_recovers_without_search(monkeypatch,recovery_tool):
     monkeypatch.setattr('intel_mcp.research_workspace.current_oauth_subject',lambda:'owner')
     failed=True;uploads=[];operations=[]
     class Control:
@@ -63,11 +64,23 @@ async def test_failed_storage_retains_identity_then_recovers_without_search(monk
         async def no_search(*a,**k):raise AssertionError('recovery repeated search')
         monkeypatch.setattr(store,'search',no_search)
         failed=False
-        saved=await client.call_tool('save_project',{'preview':out['draft']})
-        assert saved.structured_content['saved'] is True
+        saved=await client.call_tool(recovery_tool,{'preview':out['draft']})
+        assert not saved.is_error
+        assert saved.structured_content['saved'] is (recovery_tool=='save_project')
         assert saved.structured_content['project_id']==out['project_id']
         assert uploads[0]==uploads[1]
-        assert [b['operation'] for b in operations]==['canonical_commit','canonical_read']
+        if recovery_tool=='save_project':
+            assert [b['operation'] for b in operations]==['canonical_commit','canonical_read']
+        else:
+            assert saved.structured_content['storage_status']=='ready'
+            assert saved.structured_content['draft']==out['draft']
+            assert [b['operation'] for b in operations]==['preview_read']
+            # A completed recovery is no longer pending; another call must not
+            # allocate another preview or write a second storage identity.
+            repeated=await client.call_tool(recovery_tool,{'preview':out['draft']})
+            assert repeated.is_error
+            assert len(uploads)==2 and len(operations)==1
+        assert engine.calls==1
 
 
 @pytest.mark.anyio
