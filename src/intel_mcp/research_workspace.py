@@ -22,13 +22,14 @@ from .research_presentation import public_cohort
 from .control_plane import ControlPlaneError
 from .prepared_selection import prepare_selection
 from .memory_work import json_digest, workspace_gate, run_cpu
+from .save_recovery import retry_storage, with_save_retries, transient_storage_error
 
 # A bundle change must change the resource identity: hosts can cache UI by URI.
 WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
 RESOURCE='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
 LEGACY_RESOURCE='ui://trialagents/workspace-v1'
 # Retain published host snapshots when the current bundle identity changes.
-COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-263a005fe3972424','ui://trialagents/workspace-c874f734c130ebdb','ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8')
+COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-263a005fe3972424','ui://trialagents/workspace-c874f734c130ebdb','ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8','ui://trialagents/workspace-9660022bf8278166')
 Kind=Literal['cros','sites','pis','trials']
 SHARED_EVIDENCE_FIELDS=('discovery_evidence','operational_findings')
 
@@ -159,11 +160,11 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         spec.cache_token = spec.cache_token or secrets.token_urlsafe(32)
         prepared = await run_cpu(prepare_selection, dataset)
         if stream:
-            await stream(spec.cache_token, spec.snapshot_key, payload, prepared)
+            await retry_storage(lambda: stream(spec.cache_token, spec.snapshot_key, payload, prepared))
         else:
             frozen = {**payload, 'prepared_selection': prepared}
             compressed = base64.b64encode(gzip.compress(json.dumps(frozen, separators=(',', ':')).encode(), compresslevel=1)).decode()
-            await legacy({'token': spec.cache_token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed})
+            await retry_storage(lambda: legacy({'token': spec.cache_token, 'snapshot_key': spec.snapshot_key, 'gzip': compressed}))
         pending_previews.pop(spec.preview_id, None)
         return True
 
@@ -182,9 +183,12 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             raise ToolError('PREVIEW_STORAGE_UNAVAILABLE: Retry this same preview; its research has not been replaced.') from error
 
     @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
+    @with_save_retries
     async def recover_research_preview(preview: PreviewSpec, kind: Kind='cros') -> dict[str, Any]:
         """Retry temporary backend storage of the exact failed preview, retaining its identity and selection. Does not save an account project or repeat research."""
-        spec = await recover_preview(preview)
+        # A prior upload may have succeeded while its read-back response was lost.
+        # Verify the existing capability instead of requiring another pending upload.
+        spec = await recover_preview(preview) if preview.preview_id in pending_previews else preview
         out = await read_project_preview(spec, kind)
         return {**out, 'storage_status': 'ready'}
 
@@ -196,7 +200,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         for detailed evidence. Free accounts are limited to the first ten results.
         Follow next_offset for additional paid pages; do not repeat the search.
         """
-        try:return with_workspace_destinations(await control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'limit':limit,'controls':controls or {}}))
+        try:return with_workspace_destinations(await retry_storage(lambda: control_factory().research_workspace({'operation':'preview_read','preview':preview.model_dump(mode='json'),'kind':kind,'offset':offset,'limit':limit,'controls':controls or {}})))
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
@@ -207,6 +211,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         except ControlPlaneError as error:raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**ui},annotations=overwrite,structured_output=True)
+    @with_save_retries
     async def save_project(
         preview:PreviewSpec,
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')]|None=None,
@@ -217,11 +222,25 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Synchronizes the exact cached results with the TrialAgents website without rerunning
         research. project_id and expected_revision together update an existing project;
         omitting both creates or attaches the preview's project. Returns verified saved state.
+        Retries transient storage failures up to twice within this call using the same identity.
         """
         if not current_oauth_subject():
             return connect_result()
+        retry_args={'preview':preview.model_dump(mode='json')}
+        if project_id is not None:retry_args.update(project_id=project_id,expected_revision=expected_revision)
+        def failed_save(error,storage_ready):
+            return {'project_id':project_id or preview.preview_id,
+                    **({} if project_id else {'draft':preview.model_dump(mode='json')}),
+                    'project_save_error':str(error),'save_status':'failed','automatic_retry_complete':True,
+                    'storage_status':'ready' if storage_ready else 'unavailable',
+                    'recovery':{'retry_tool':'save_project','arguments':retry_args,'draft_retained':True},
+                    'workspace_recovery':{'tool':'read_project','arguments':{'project_id':project_id}} if project_id else
+                        {'tool':'read_project_preview','arguments':{'preview':preview.model_dump(mode='json')}}}
         if preview.preview_id in pending_previews:
-            preview = await recover_preview(preview)
+            try:preview = await recover_preview(preview)
+            except ToolError as error:
+                if transient_storage_error(error.__cause__):return failed_save(error,False)
+                raise
         if not preview.cache_token:
             raise ToolError('PREVIEW_UNAVAILABLE: Retry storage of the original preview before saving.')
         if (project_id is None) != (expected_revision is None):
@@ -231,9 +250,11 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         if project_id is None:command['proposedProjectId']=preview.preview_id
         else:command.update(projectId=project_id,expectedRevision=expected_revision)
         try:
-            saved=await control_factory().research_workspace({'operation':'canonical_commit','input':command})
-            return with_workspace_destinations(await control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10}))
-        except ControlPlaneError as error:raise ToolError(str(error)) from error
+            saved=await retry_storage(lambda: control_factory().research_workspace({'operation':'canonical_commit','input':command}))
+            return with_workspace_destinations(await retry_storage(lambda: control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10})))
+        except ControlPlaneError as error:
+            if transient_storage_error(error):return failed_save(error,True)
+            raise ToolError(str(error)) from error
 
     @server.tool(meta={**oauth,**app_callable},annotations=read_annotations,structured_output=True)
     async def read_project(
@@ -340,6 +361,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
     @server.tool(meta={**mixed,**ui},annotations=publish_write,structured_output=True)
     @workspace_gate(store)
+    @with_save_retries
     async def prepare_research_workspace(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
         title:Annotated[str,Field(min_length=1,max_length=160)],
@@ -399,6 +421,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                 'expires_in_seconds':604800 if storage_ready else store.remaining_seconds(selection_id),'account':access,
                 'storage_status':'ready' if storage_ready else 'unavailable','storage_error':storage_error,
                 'recovery_tool':'recover_research_preview' if storage_error else None,
+                **({'automatic_retry_complete':True} if storage_error else {}),
                 'result':result,'recommendations':[r.model_dump(mode='json') for r in recommendations
                     if r.entity_type==kind and r.entity_id in visible],
                 'tables':[{'kind':s['entity_type'],'total':s['result']['total_entities']} for s in payload['sections']],
@@ -407,6 +430,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         except (SelectionError,ControlPlaneError) as e:raise ToolError(str(e)) from e
 
     @server.tool(meta={**mixed,**ui},annotations=publish_write,structured_output=True)
+    @with_save_retries
     async def publish_research_workspace(
         selection_id: Annotated[str,Field(min_length=40,max_length=64)],
         title: Annotated[str,Field(min_length=1,max_length=160)],
@@ -424,8 +448,10 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         For a connected account, repeating the same selection and publication inputs
         reuses the project. Anonymous calls keep independent private preview capabilities.
         Do not blindly repeat anonymous publication as a retry. When a draft was returned,
-        follow its recovery action: recover_research_preview for failed preview storage,
-        or save_project for a failed connected-account save. Keep the exact retained draft.
+        Transient storage failures receive up to two immediate retries within this call.
+        After automatic_retry_complete=true, leave the manual save control available;
+        do not start another automatic retry loop. A user-requested retry uses save_project
+        for connected publication, or recover_research_preview for a guest, with the same draft.
         Use a new operation_id only when intentionally creating a separate project
         from that same selection; reuse it on retries. It is not an access token.
         """
@@ -435,11 +461,16 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                                   [r.model_dump(mode='json') for r in recommendations],operation_id])
             preview_id=str(uuid5(NAMESPACE_URL,'trialagents:publish:'+identity))
         out=await prepare_research_workspace(selection_id,title,include_cro_contacts,recommendations,kind,preview_id=preview_id)
-        if not current_oauth_subject() or out.get('storage_status')!='ready':return out
+        if not current_oauth_subject():return out
+        if out.get('storage_status')!='ready':
+            return {**out,'recovery_tool':'save_project',
+                    'recovery':{'retry_tool':'save_project','draft_retained':True}}
         try:
-            return await save_project(PreviewSpec.model_validate(out['draft']))
+            saved=await save_project(PreviewSpec.model_validate(out['draft']))
+            return {**out,**saved} if saved.get('project_save_error') else saved
         except ToolError as error:
             return {**out,'project_save_error':str(error),'save_status':'failed',
+                    'automatic_retry_complete':True,
                     'recovery':{'retry_tool':'save_project','preview_available':True,'draft_retained':True}}
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)

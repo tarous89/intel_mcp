@@ -114,4 +114,67 @@ test('embedded tab navigation, context failure, pagination retry and saved proje
  assert.equal(openCalls.at(-1).url,'https://intel.trialagents.com/projects','successful account save opens Projects');
  await click('sites');assert.equal(calls.at(-1).name,'read_project','connected workspace no longer uses anonymous draft');
 
+ // Recovery is bounded server-side: rendering a failure must not start any write.
+ const failedProject={...data,account:{connected:true},storage_status:'unavailable',automatic_retry_complete:true,draft:{...data.draft,cache_token:'retained-synthetic-token'}};
+ const beforeNotice=calls.length;
+ await act(()=>incoming({structuredContent:failedProject}));
+ assert.equal(calls.length,beforeNotice);
+ assert.match(document.querySelector('[role="alert"]').textContent,/available only in this session/);
+ assert(!document.querySelector('[role="alert"]').textContent.includes('7 days'));
+ const storedFailure={...failedProject,storage_status:'ready',expires_in_seconds:604800,project_save_error:'Temporary failure',recovery:{retry_tool:'save_project'}};
+ await act(()=>incoming({structuredContent:storedFailure}));
+ assert.match(document.querySelector('[role="alert"]').textContent,/available for up to 7 days/);
+ assert.equal(document.querySelectorAll('[role="alert"] p').length,1);
+ await click('trials');
+ response={structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.sites,account:{connected:true}}};
+ await click('Save to TrialAgents');
+ assert.equal(shown(),'trials: trials row','saving must not reset the selected table');
+ assert.equal(document.querySelector('[role="alert"]'),null);
+ await click('sites');assert.equal(calls.at(-1).name,'read_project');
+ // A pending table read may complete after storage recovery, without losing saved status.
+ await act(()=>incoming({structuredContent:storedFailure}));
+ let finishSave;response=new Promise(resolve=>{finishSave=resolve;});
+ await click('Save to TrialAgents');
+ let finishPage;response=new Promise(resolve=>{finishPage=resolve;});
+ await click('Next');
+ await act(async()=>{finishSave({structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.sites}});await new Promise(resolve=>setTimeout(resolve,0));});
+ await act(async()=>{finishPage({structuredContent:{...guest,result:{...pages.cros,entities:[{name:'requested next page'}],access_info:{offset:10}}}});await new Promise(resolve=>setTimeout(resolve,0));});
+ assert.equal(shown(),'cros: requested next page');
+ assert.equal(document.querySelector('[role="alert"]'),null);
+ response={structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.sites}};
+ await click('sites');assert.equal(calls.at(-1).name,'read_project','late preview read must not revert saved status');
+ // Late save responses cannot replace newer research or a new model operation.
+ for(const supersede of ['result','input']){
+  await act(()=>incoming({structuredContent:failedProject}));
+  let finishRetry;response=new Promise(resolve=>{finishRetry=resolve;});
+  await click('Save to TrialAgents');
+  if(supersede==='result')await act(()=>incoming({structuredContent:{canonical:true,project_id:'00000000-0000-0000-0000-000000000002',revision:2,result:{...pages.cros,entities:[{name:'newer research'}]}}}));
+  else await act(()=>host.ontoolinput({arguments:{}}));
+  const expected=shown();
+  await act(async()=>{finishRetry({structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.sites}});await new Promise(resolve=>setTimeout(resolve,0));});
+  assert.equal(shown(),expected);
+  if(supersede==='input')assert(document.querySelector('[role="alert"]'),'new workflow retains the pending save notice');
+ }
+ // A Custom view failure has one top notice and reuses the retained payload ID.
+ await act(()=>incoming({structuredContent:data}));
+ await click('trials');
+ const customFailure={custom_view_saved:false,retry_id:'00000000-0000-0000-0000-000000000099',automatic_retry_complete:true,visualization_save_offer:{retry:true,title:'Cards'}};
+ await act(()=>incoming({structuredContent:customFailure}));
+ assert.equal(document.querySelectorAll('[role="alert"]').length,1);
+ assert.equal(document.querySelectorAll('[role="alert"] p').length,1);
+ response={structuredContent:{custom_view_saved:true,canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.sites,active_tab:'custom',custom_view:{id:'cards',version:1},custom_views:[{id:'cards',version:1}]}};
+ await click('Retry save');
+ assert.equal(calls.at(-1).name,'retry_project_custom_view');
+ assert.deepEqual(calls.at(-1).arguments,{retry_id:customFailure.retry_id});
+ assert.equal(shown(),'trials: trials row');
+ assert.equal(document.querySelector('[role="alert"]'),null);
+
+ // Explicit revision recovery carries the original revision guard and shows new rows.
+ const revisionArgs={preview:storedFailure.draft,project_id:data.project_id,expected_revision:1};
+ await act(()=>incoming({structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:1,result:pages.trials,project_save_error:'Temporary failure',recovery:{retry_tool:'save_project',arguments:revisionArgs}}}));
+ response={structuredContent:{canonical:true,saved:true,project_id:data.project_id,revision:2,result:{...pages.sites,entities:[{name:'revised cohort'}]}}};
+ await click('Save to TrialAgents');
+ assert.deepEqual(calls.at(-1).arguments,revisionArgs);
+ assert.equal(shown(),'sites: revised cohort','old rows must not be labelled as a newly saved cohort');
+
 });

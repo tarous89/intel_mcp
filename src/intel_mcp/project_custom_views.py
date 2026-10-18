@@ -13,6 +13,7 @@ from mcp.types import ToolAnnotations
 from mcp.server.mcpserver.exceptions import ToolError
 from .auth_context import current_oauth_subject
 from .control_plane import ControlPlaneError
+from .save_recovery import retry_storage, with_save_retries
 from .engine import EngineError
 from .research_workspace import PreviewSpec, RESOURCE, with_workspace_destinations
 
@@ -41,12 +42,16 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         if (project_id is None)==(preview is None):raise ToolError('Provide exactly one saved project_id or cached preview.')
         if not preview and not current_oauth_subject():raise ToolError('CONNECT_ACCOUNT_REQUIRED: Connect the project owner account.')
         body={'operation':operation,**({'preview':preview.model_dump(mode='json')} if preview else {'projectId':project_id}),**{k:v for k,v in kwargs.items() if v is not None}}
-        try:return await control_factory().research_workspace(body)
+        async def request():
+            if operation in ('report_save','report_read'):
+                return await retry_storage(lambda: control_factory().research_workspace(body))
+            return await control_factory().research_workspace(body)
+        try:return await request()
         except ControlPlaneError as error:
             if preview and recover_preview and error.code in ('INVALID_PREVIEW','PREVIEW_UNAVAILABLE'):
                 recovered=await recover_preview(preview)
                 body['preview']=CustomViewPreview.model_validate(recovered.model_dump(mode='json')).model_dump(mode='json')
-                try:return await control_factory().research_workspace(body)
+                try:return await request()
                 except ControlPlaneError as retry_error:raise ToolError(str(retry_error)) from retry_error
             raise ToolError(str(error)) from error
 
@@ -196,6 +201,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         return await read_custom_view_document(trial_id,document_name,part,project_id,preview,revision)
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
+    @with_save_retries
     async def save_project_custom_view(title:Annotated[str,Field(min_length=1,max_length=200)],query:Annotated[str,Field(min_length=1,max_length=10000)],summary:Annotated[str,Field(max_length=1200)],html:Annotated[str,Field(min_length=20,max_length=800000)],source_ids:Annotated[list[str],Field(max_length=1000)],dataset_id:str,revision:int,request_key:Annotated[str,Field(min_length=1,max_length=128)],project_id:str|None=None,preview:CustomViewPreview|None=None,
         artifact_kind:Literal['report','dashboard','chart','cards','table','form','tracker','calculator','visualization']='report',
         renderer:Literal['static','interactive']='static',evidence_basis:Literal['trial_evidence','project_tables','user_provided']='trial_evidence',
@@ -217,6 +223,9 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         the semantic HTML/SVG shell; incompatible styling is rejected before persistence.
         custom_view_saved=true means storage was read back successfully; failures return save_status,
         save_error and a retry_id for the retained payload.
+        Transient storage failures receive up to two immediate retries within this call.
+        After automatic_retry_complete=true, leave manual recovery available instead of
+        starting another automatic retry loop; reconcile conflicts before a corrected save.
         For website links, copy the returned custom_url (also url) exactly, including /custom.
         Never construct a project link from an ID. If no URL is returned, use the workspace.
         """
@@ -255,6 +264,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
             if 'STATIC_RENDERER_CUSTOM_CSS' in str(error):
                 return {'workspace_recovery':workspace_recovery(project_id,preview),
                         'report_saved':False,'save_status':'failed','save_error':'STATIC_RENDERER_CUSTOM_CSS',
+                        'automatic_retry_complete':True,
                         'retry_id':None,'visualization_save_offer':None,
                         'recovery':{'action':'reconcile','correction_tool':'save_project_custom_view',
                             'payload_retained':False,'verification_complete':False,
@@ -271,10 +281,12 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
                 pending_reports[retry_id]={'owner':current_oauth_subject(),'expires':now+1800,'args':retry_args}
             pending_reports[retry_id]['error']=str(error)
             return {**out,'pending_custom_view':{'title':title},'report_saved':False,'retry_id':retry_id,'retry_expires_in_seconds':1800,'save_error':str(error),'save_status':'unverified' if result else 'failed',
+                    'automatic_retry_complete':True,
                     'visualization_save_offer':{'title':title,'retry':True},
                     'recovery':{'action':'reconcile' if any(code in str(error) for code in ('REVISION_CHANGED','REPORT_SNAPSHOT_CHANGED','REPORT_VERSION_CHANGED','REPORT_SOURCE_NOT_AUTHORIZED')) else 'retry','retry_tool':'retry_project_custom_view','payload_retained':True,'correction_tool':'save_project_custom_view','verification_complete':False}}
 
     @server.tool(meta=ui,annotations=write,structured_output=True)
+    @with_save_retries
     async def retry_project_custom_view(retry_id: Annotated[str,Field(pattern=r'^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$')]) -> dict[str,Any]:
         """Recover a failed save using its retained visualization and original idempotency key.
 

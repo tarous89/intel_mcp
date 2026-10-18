@@ -174,7 +174,7 @@ test('report failures remain visible without tables and retry the retained paylo
    assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_custom_view').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_custom_view',arguments:{retry_id:failure.retry_id}}]);
    await page.getByRole('button',{name:'Retry save',exact:true}).waitFor(); // Wait for the asynchronous retry response, not just request dispatch.
    assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
-   assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
+   assert(await page.getByText('Your Custom view is not saved yet; save it to the TrialAgents app to access it at any time.',{exact:true}).isVisible());
    assert.equal(await page.evaluate(()=>window.__unsafe),undefined);
    assert.equal(await page.locator('iframe[title^="Unsaved preview"]').count(),0);
    if(withTable)assert.equal((await page.locator('nav button[aria-current=page]').innerText()).replace(/\s+/g,' '),'PIs 50');
