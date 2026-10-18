@@ -20,4 +20,6 @@ Apply the [main answering skill’s pending-approval rule](../answer-in-trialage
 3. Save with save_project_custom_view when the view is ready; its completed result opens Custom views. Do not add a redundant open call. If custom_view_saved=true but presentation_status=unavailable, use the returned presentation_recovery to open the saved view without saving again. Use custom_view_saved to distinguish verified storage from a retained draft.
 4. On failure, use the returned recovery information and the single retry control beside the unchanged workspace. Reconcile changed context or Custom view versions before a corrected save.
 
+When offering a website link, copy the returned custom_url (also url) exactly, including /custom. Never construct or shorten a link from a project ID. If no URL is returned, use the embedded workspace; temporary preview IDs are not account-project links.
+
 The HTML and generated content are stored. Existing interactive views may use the documented deliberate Save changes bridge; automatic input persistence is outside this workflow. ChatGPT can revise and save tracker content through the normal versioned save operation.

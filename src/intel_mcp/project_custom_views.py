@@ -63,8 +63,8 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         if 'reports' not in out:out.update(await call('report_list',project_id,preview))
         if custom_view_id:out['active_report_id']=custom_view_id
         out['active_tab']='custom'
-        if project_id and out.get('saved'):
-            out['custom_url']=f'https://intel.trialagents.com/projects/{out["project_id"]}/custom'
+        if out.get('canonical') and out.get('saved') and out.get('project_id'):
+            out['url']=out['custom_url']=f'https://intel.trialagents.com/projects/{out["project_id"]}/custom'
         return with_workspace_destinations(out)
 
     @server.tool(meta={**callable_meta,'ui':{'visibility':['model','app'],'resourceUri':FOLLOWUP_RESOURCE}},annotations=read_annotations,structured_output=True)
@@ -217,6 +217,8 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         the semantic HTML/SVG shell; incompatible styling is rejected before persistence.
         custom_view_saved=true means storage was read back successfully; failures return save_status,
         save_error and a retry_id for the retained payload.
+        For website links, copy the returned custom_url (also url) exactly, including /custom.
+        Never construct a project link from an ID. If no URL is returned, use the workspace.
         """
         args=dict(title=title,query=query,summary=summary,html=html,sourceIds=source_ids,datasetId=dataset_id,revision=revision,requestKey=request_key,
                   artifactKind=artifact_kind,renderer=renderer,evidenceBasis=evidence_basis,reportId=custom_view_id,expectedVersion=expected_version)
@@ -332,6 +334,10 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
 
     @server.tool(meta=ui,annotations=read_annotations,structured_output=True)
     async def open_project_custom_view(custom_view_id:str,project_id:str|None=None,preview:CustomViewPreview|None=None)->dict[str,Any]:
-        """Open an existing HTML Custom view and original question in the Custom tab."""
+        """Open an existing HTML Custom view and original question in the Custom tab.
+
+        For website links, copy returned custom_url (also url) exactly, including /custom.
+        If no URL is returned, use the workspace; never construct a link from an ID.
+        """
         report=await call('report_read',project_id,preview,reportId=custom_view_id)
         return {**await workspace(project_id,preview,custom_view_id),**report}
