@@ -49,7 +49,9 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
             if op=='report_save':return {'report':{'id':'saved-report','version':1,'html':'<p>Saved evidence report</p>'},'temporary':not connected,'project_id':project if connected else None}
             if op=='report_read':return {'report':{'id':'saved-report','version':1,'html':'<p>Saved evidence report</p>'}}
             if op=='report_list':return {'reports':[{'id':'saved-report','title':'Analysis'}]}
-            if op in ('preview_read','canonical_read'):return {'project_id':project,'draft':preview,'result':{'entity_type':'trials','entities':[]}}
+            if op in ('preview_read','canonical_read'):return {'project_id':project,'draft':preview,'canonical':connected,'saved':connected,
+                **({'url':f'https://intel.trialagents.com/projects/{project}/trials'} if connected else {}),
+                'result':{'entity_type':'trials','entities':[]}}
             return {'authorized':True}
     class Engine:
         async def get_document(self,**kwargs):
@@ -92,6 +94,7 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         assert saved.structured_content['active_custom_view_id']=='saved-report'
         assert saved.structured_content['custom_view_saved'] is True
         assert saved.structured_content['temporary_custom_view'] is True
+        assert 'url' not in saved.structured_content and 'custom_url' not in saved.structured_content
         assert calls[-4]['operation']=='report_save'
         assert calls[-3]['operation']=='report_read'
         opened=await client.call_tool('open_project_custom_view',{'preview':preview,'custom_view_id':'saved-report'})
@@ -106,8 +109,14 @@ async def test_report_tools_authorize_documents_before_fetch_and_open_saved_repo
         saved=await client.call_tool('save_project_custom_view',{'preview':preview,'title':'Analysis','query':'Compare the evidence','summary':'Stored version','html':'<h1>Evidence analysis</h1>','source_ids':['a'*64],'dataset_id':'snapshot','revision':1,'request_key':'report-2'})
         assert not saved.is_error
         assert saved.structured_content['temporary_custom_view'] is False
+        custom_url=f'https://intel.trialagents.com/projects/{project}/custom'
+        assert saved.structured_content['url']==saved.structured_content['custom_url']==custom_url
         assert calls[-2]['operation']=='canonical_read'
         assert calls[-2]['projectId']==project and 'preview' not in calls[-2]
+        # A preview can resolve to its now-saved canonical project after connection.
+        for context in ({'project_id':project},{'preview':preview}):
+            reopened=await client.call_tool('open_project_custom_view',{'custom_view_id':'saved-report',**context})
+            assert reopened.structured_content['url']==reopened.structured_content['custom_url']==custom_url
         before=len(calls)
         offered=await client.call_tool('offer_visualization_save',{'title':'Site tracker','project_id':project})
         assert offered.structured_content['visualization_save_offer']['title']=='Site tracker'
