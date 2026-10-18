@@ -22,8 +22,8 @@ def test_package_is_reproducible_and_excludes_unlisted_files(tmp_path, monkeypat
     with zipfile.ZipFile(first) as archive:
         assert set(archive.namelist()) == set(plugin_build.FILES)
         assert 'plugin.json' in archive.namelist()
-        assert 'skills/create-trial-report/references/report-guidance.md' in archive.namelist()
-        assert (source/'skills/create-trial-report/references/report-guidance.md').read_text() == (MODULE_PATH.parents[1]/'src/intel_mcp/report-guidance.md').read_text()
+        assert 'skills/create-custom-view/references/custom-view-guidance.md' in archive.namelist()
+        assert (source/'skills/create-custom-view/references/custom-view-guidance.md').read_text() == (MODULE_PATH.parents[1]/'src/intel_mcp/custom-view-guidance.md').read_text()
         assert all(b'DO_NOT_DISTRIBUTE' not in archive.read(n) for n in archive.namelist())
 
 
@@ -44,14 +44,14 @@ def test_package_rejects_symlink_payload(tmp_path, monkeypatch):
 def test_presentation_assets_match_runtime_and_package():
     runtime=MODULE_PATH.parents[1]/'src/intel_mcp'
     refs={
-        'design-patterns.md':'skills/create-trial-report/references/design-patterns.md',
-        'custom-view-examples.html':'skills/create-trial-report/assets/custom-view-examples.html',
+        'design-patterns.md':'skills/create-custom-view/references/design-patterns.md',
+        'custom-view-examples.html':'skills/create-custom-view/assets/custom-view-examples.html',
         'custom-style.md':'references/custom-style.md',
         'presentation-standard.md':'references/presentation-standard.md',
         'access-and-evidence.md':'references/access-and-evidence.md',
         'research-workflow.md':'references/research-workflow.md',
-        'report-guidance.md':'skills/create-trial-report/references/report-guidance.md',
-        'report-example.html':'skills/create-trial-report/assets/report-example.html',
+        'custom-view-guidance.md':'skills/create-custom-view/references/custom-view-guidance.md',
+        'custom-view-shell.html':'skills/create-custom-view/assets/custom-view-shell.html',
     }
     for name,source in refs.items():
         assert (plugin_build.PACKAGE/source).read_bytes() == (runtime/name).read_bytes()

@@ -10,12 +10,12 @@ All tools are confined to the TrialAgents catalogue and authorized account/previ
 | --- | --- | --- | --- |
 | Discovery, ranking, schema/inventory, current account/project/report reads, follow-up choices | true | false | Retrieval/computation; no saved user artifact is changed. |
 | prepare_research_workspace / recover_research_preview | true | false | Internal bounded query-preview caching, separate from a saved project. The existing 24-hour preview capability is not a promise of backend erasure. |
-| read_trial_profiles / read_report_evidence | false | false | Register frozen evidence sources used for report provenance. Additive and content-addressed. |
-| read_report_document / read_trial_document | false | false | Persist dated extracted-document source records. Repeated retrieval can add a record, so idempotentHint=false. |
+| read_trial_profiles / read_custom_view_evidence | false | false | Register frozen evidence sources used for report provenance. Additive and content-addressed. |
+| read_custom_view_document / read_trial_document | false | false | Persist dated extracted-document source records. Repeated retrieval can add a record, so idempotentHint=false. |
 | publish_research_workspace | false | false | Creates/attaches an owner's project; guests receive a cached preview. Stable operation identity makes retries reuse the original project. |
 | save_project / revise_research_workspace | false | true | Can replace the active project selection/title. Historical data or conflict checks do not justify a non-destructive declaration. |
 | save_project_view | false | true | Replaces stored table controls. |
-| save_project_report / retry_project_report | false | true | Create or overwrite a Custom view. An overwrite replaces its current HTML/content; a version counter is not an archive of old HTML. |
+| save_project_custom_view / retry_project_custom_view | false | true | Create or overwrite a Custom view. An overwrite replaces its current HTML/content; a version counter is not an archive of old HTML. |
 | save_visualization_state | false | true | Replaces deliberately saved form/tracker state under a version check. |
 | Legacy save/claim/handoff | false | false | Explicit account attachment, additive project save or connection handoff. Existing server authorization remains in place. |
 

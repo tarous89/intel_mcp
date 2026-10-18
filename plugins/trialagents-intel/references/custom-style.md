@@ -12,4 +12,4 @@ Use these defaults unless the user requests another style. Select useful section
 - For inline CSS/JS use the existing interactive renderer and self-contained HTML. Static rendering uses server-provided CSS and supported semantic classes only; the static shell remains a fallback. Never request network assets, alter sandbox policy or change MCP tools for styling.
 - Trackers use the existing state bridge and deliberate host Save changes action. Restore fields before calculating derived summaries; programmatic updates must update draft state. Never imply automatic persistence.
 
-Read the create-trial-report design patterns for chart selection, source rules and pre-save checks. The branded gallery demonstrates horizontal bars, a blue attrition funnel, a purple planning timeline and an editable tracker; the other SVG examples remain available for different questions.
+Read the create-custom-view design patterns for chart selection, source rules and pre-save checks. The branded gallery demonstrates horizontal bars, a blue attrition funnel, a purple planning timeline and an editable tracker; the other SVG examples remain available for different questions.

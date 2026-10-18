@@ -5,14 +5,15 @@ import argparse
 ROOT=Path(__file__).resolve().parents[1]
 PACKAGE=ROOT/'plugins/trialagents-intel'
 MIRRORS={
- 'design-patterns.md':'skills/create-trial-report/references/design-patterns.md',
- 'custom-view-examples.html':'skills/create-trial-report/assets/custom-view-examples.html',
+ 'server-instructions.md':'references/server-instructions.md',
+ 'design-patterns.md':'skills/create-custom-view/references/design-patterns.md',
+ 'custom-view-examples.html':'skills/create-custom-view/assets/custom-view-examples.html',
  'custom-style.md':'references/custom-style.md',
  'presentation-standard.md':'references/presentation-standard.md',
  'access-and-evidence.md':'references/access-and-evidence.md',
  'research-workflow.md':'references/research-workflow.md',
- 'report-guidance.md':'skills/create-trial-report/references/report-guidance.md',
- 'report-example.html':'skills/create-trial-report/assets/report-example.html',
+ 'custom-view-guidance.md':'skills/create-custom-view/references/custom-view-guidance.md',
+ 'custom-view-shell.html':'skills/create-custom-view/assets/custom-view-shell.html',
 }
 def sync(check=False):
  for target,source in MIRRORS.items():

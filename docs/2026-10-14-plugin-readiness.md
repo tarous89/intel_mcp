@@ -68,11 +68,11 @@ If that separation would require a broad rewrite, stop and present the narrower 
 
 **Unavoidable uncertainty:** ChatGPT controls approval presentation. Accurate overwrite/write annotations can affect its prompts. We cannot guarantee an identical number of host approvals or remove required consent. Test the actual effect before deciding that the UX must change.
 
-Likely technical owners: MCP research_workspace.py / project_reports.py / resource registration; App project-chat-reports.ts and combined-prepared-projects.ts only where necessary. Public tool contracts and existing saved evidence need compatibility checks if their implementation changes.
+Likely technical owners: MCP research_workspace.py / project_custom_views.py / resource registration; App project-chat-reports.ts and combined-prepared-projects.ts only where necessary. Public tool contracts and existing saved evidence need compatibility checks if their implementation changes.
 
 ### D. Complete structured-output metadata
 
-A fresh read-only tools/list check on 14 October confirmed three exposed legacy tools have no outputSchema: list_research_projects, save_research_project and get_saved_research_project. Their inspected implementations return structured_content. The current OpenAI reference directs tools returning structuredContent to declare outputSchema.
+A fresh read-only tools/list check on 14 October confirmed three exposed legacy tools have no outputSchema: get_account_access, save_research_project and get_saved_research_project. Their inspected implementations return structured_content. The current OpenAI reference directs tools returning structuredContent to declare outputSchema.
 
 Scope a schema declaration matching each existing response, including applicable success variants, without changing returned data, tool identity or UI behavior. Validate actual responses against it. This is an additional metadata correction, not a new feature or proven automatic rejection code. All 37 exposed tools already have explicit readOnlyHint, destructiveHint and openWorldHint booleans; their semantic accuracy remains the issue in C.
 

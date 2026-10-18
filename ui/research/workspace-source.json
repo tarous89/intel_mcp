@@ -1,13 +1,13 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "730bfaf3b51f6373455ed35d85cf452c97ca0f70",
+  "source_commit": "cd00fd2faec2ad7f7b77ff17af50037311c621a5",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/CustomViewRecovery.tsx": "f01966cc0cccc000110deed6da3d5cd8f9c9bf663d1d389b9d3545b74f1ff304",
     "app/components/ConfirmDelete.tsx": "77fcfbbddfdca882e33afc9fb316ffdf03ce66c69308469356569355865016e3",
     "app/research/InteractiveVisualization.tsx": "ecbf1f7ee938592e500c79c0d015234ed2348102d0b51a024e46f2e65495dfad",
     "app/research/WorkspaceAccessFooter.tsx": "aedcc6743901385950a0916b0279e319dc62d35b6b1d79549a7765e4ae367747",
-    "app/research/ProjectReports.tsx": "6abe88407f1dc27df96db7f9bdcd366085cdc1a648bcd9f68d3760004eb2ae04",
+    "app/research/ProjectReports.tsx": "e89b86896c53c0e9d95be9843c30b1e06508ed1f278abbaf61de16a94f5382f4",
     "public/trialagents-mark-white.png": "7b879c8cf3e472b6984291343e61fd988caf46676f1725dcd5d466bdbfc2f20c",
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
@@ -26,5 +26,6 @@
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "6920c71aaa79ba6e1aa9f968192c8534277cb145e6be79825df51cbb354fb842"
+  "bundle_sha256": "c211c7dde807e625598e79cc302186f0e0720c93920bef4920a6b7bb684fa75b"
 }
+

@@ -8,6 +8,20 @@ import tableStyles from '@/app/_site-agent/SiteAgentWorkspace.module.css';
 import {connectProject,openConnection,projectsUrl,ConnectionError,connectPreviewAccount,continueAccountConnection} from './connect-project';
 const app=new App({name:'TrialAgents Intel workspace',version:'0.2.0'},{availableDisplayModes:['fullscreen']});
 new OpenAIExtensions(app);
+
+// The shared app/storage contract remains compatible with existing saved views.
+function legacyWorkspaceEnvelope(value:any):any {
+ if(!value||typeof value!=='object')return value;
+ const out={...value};
+ const names:Record<string,string>={custom_view:'report',custom_views:'reports',custom_view_id:'report_id',active_custom_view_id:'active_report_id',custom_view_saved:'report_saved',temporary_custom_view:'temporary_report'};
+ for(const [current,legacy] of Object.entries(names))if(current in out){out[legacy]=out[current];delete out[current];}
+ return out;
+}
+async function callServerTool(request:Parameters<typeof app.callServerTool>[0]) {
+ const out=await app.callServerTool(request);
+ return {...out,structuredContent:legacyWorkspaceEnvelope(out.structuredContent)};
+}
+
 const root=createRoot(document.querySelector('main')!);
 // Keep host activity separate from the React workspace: pending calls never discard results.
 const activity=document.createElement('section');
@@ -38,20 +52,20 @@ function SaveNotice({data}:{data:any}){
  if(data.report_saved===false||(!storage&&!project))return null;
  async function retry(){setBusy(true);setError('');try{
   const call=storage?(data.account?.connected?{name:'save_project',arguments:{preview:data.draft}}:{name:'recover_research_preview',arguments:{preview:data.draft,kind:data.result?.entity_type??'cros'}}):
-   project?{name:'save_project',arguments:{preview:data.draft}}:{name:'retry_project_report',arguments:{retry_id:data.retry_id}};
-  const out=await app.callServerTool(call);
+   project?{name:'save_project',arguments:{preview:data.draft}}:{name:'retry_project_custom_view',arguments:{retry_id:data.retry_id}};
+  const out=await callServerTool(call);
   if(out.isError)throw Error('The retry could not complete. Your existing research and visualization have not been replaced.');
   receive(out.structuredContent);
  }catch(cause){setError(cause instanceof Error?cause.message:'The retry could not complete.');}finally{setBusy(false);}}
  return <section role="alert" style={{padding:'12px 20px',background:'#fff5e9',color:'#573a16',borderBottom:'1px solid #e6d5be'}}>
-  <p style={{margin:'0 0 8px'}}>{storage?'Your results are visible, but preview storage was interrupted. Retry storage before saving or creating a report.':project?'Your preview is ready, but we could not confirm the project save. Retry to verify it without creating another copy.':data.save_status==='unverified'?'The report save could not be verified. Retry the same save to check it without creating another copy.':'The visualization could not be saved. Your existing results have not been replaced.'}</p>
-  {(storage||project||data.retry_id)&&<button disabled={busy} onClick={retry}>{busy?'Retrying…':storage?(data.account?.connected?'Retry storage and save':'Retry storage'):project?'Retry project save':'Retry report save'}</button>}
+  <p style={{margin:'0 0 8px'}}>{storage?'Your results are visible, but preview storage was interrupted. Retry storage before saving or creating a Custom view.':project?'Your preview is ready, but we could not confirm the project save. Retry to verify it without creating another copy.':data.save_status==='unverified'?'The Custom view save could not be verified. Retry the same save to check it without creating another copy.':'The visualization could not be saved. Your existing results have not been replaced.'}</p>
+  {(storage||project||data.retry_id)&&<button disabled={busy} onClick={retry}>{busy?'Retrying…':storage?(data.account?.connected?'Retry storage and save':'Retry storage'):project?'Retry project save':'Retry Custom view save'}</button>}
   {error&&<p>{error}</p>}
  </section>;
 }
 function modelContext(data:any){
  // Context synchronization is optional host support, not a table-load dependency.
- try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,applied_view:data.view??null,matching_count:data.result.total_entities,visible_count:data.result.returned,view_scope:data.account?.fullAccess?'full_dataset':'accessible_preview',visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null,reports:data.reports??[],visualization_save_offer:data.visualization_save_offer??null,active_report_id:data.active_report_id??null,workspace_destinations:{tables:{tabs:['sites','pis','cros','trials'],uses:['new searches','query revisions','ranking','sorting','filtering','paging','record details']},custom:{label:'Custom views',uses:['visual analyses','alternative presentations','comparisons','charts','forms','trackers','reusable coded outputs'],save_tool:'save_project_report',open_tool:'open_project_report',active:data.active_tab==='custom'},chat:{uses:['ordinary explanations']}}}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
+ try{void Promise.resolve(app.updateModelContext({structuredContent:{project_id:data.project_id,saved:!data.draft,draft:data.draft,revision:data.revision,table:data.result.entity_type,applied_view:data.view??null,matching_count:data.result.total_entities,visible_count:data.result.returned,view_scope:data.account?.fullAccess?'full_dataset':'accessible_preview',visible_rows:data.result.entities,access:data.result.access_info,selection:data.result.selection_origin??null,custom_views:data.reports??[],visualization_save_offer:data.visualization_save_offer??null,active_custom_view_id:data.active_report_id??null,workspace_destinations:{tables:{tabs:['sites','pis','cros','trials'],uses:['new searches','query revisions','ranking','sorting','filtering','paging','record details']},custom:{label:'Custom views',uses:['visual analyses','alternative presentations','comparisons','charts','forms','trackers','reusable coded outputs'],save_tool:'save_project_custom_view',open_tool:'open_project_custom_view',active:data.active_tab==='custom'},chat:{uses:['ordinary explanations']}}}})).catch(()=>{});}catch{/* Keep rendered results usable if the host does not support context updates. */}
 }
 function preserveCustomRecovery(previous:any,next:any){
  if(previous.project_id!==next.project_id||!previous.visualization_save_offer||next.report_saved===true)return next;
@@ -74,7 +88,7 @@ function View({initial}:{initial:any}){
   if(!preserveView&&cached&&Date.now()-cached.at<30000){setBusy(false);setData((old:any)=>preserveCustomRecovery(old,cached.data));modelContext(cached.data);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
-  const out=await app.callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
+  const out=await callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
   if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();
   if(data.canonical&&offset&&data.view?.version!==undefined&&out.structuredContent.view?.version!==data.view.version){void page(kind,0,undefined,preserveView);return;}
@@ -90,7 +104,7 @@ function View({initial}:{initial:any}){
   const refresh=async()=>{
    const value=current.current;if(document.hidden||refreshing.current||(!value.canonical&&!value.draft?.cache_token))return;
    pageCache.current.clear();refreshing.current=true;const serial=requestSerial.current;
-   try{const out=await app.callServerTool(value.draft?{name:'read_project_preview',arguments:{preview:value.draft,kind:value.result.entity_type,offset:value.result.access_info.offset??0,controls:activeControls.current}}:{name:'open_project',arguments:{project_id:value.project_id,kind:value.result.entity_type,offset:value.result.access_info.offset??0}});
+   try{const out=await callServerTool(value.draft?{name:'read_project_preview',arguments:{preview:value.draft,kind:value.result.entity_type,offset:value.result.access_info.offset??0,controls:activeControls.current}}:{name:'open_project',arguments:{project_id:value.project_id,kind:value.result.entity_type,offset:value.result.access_info.offset??0}});
     if(serial===requestSerial.current&&!out.isError&&out.structuredContent?.result){setData((old:any)=>preserveCustomRecovery(old,out.structuredContent));modelContext(out.structuredContent);}
    }catch{/* Retain the visible snapshot; interactive reads surface retry errors. */}finally{refreshing.current=false;}
   };
@@ -101,17 +115,17 @@ function View({initial}:{initial:any}){
   if(!data.canonical){await page(data.result.entity_type,0,controls);return;}
   if(busy)return;setBusy(true);setError('');
   try{
-   const out=await app.callServerTool({name:'save_project_view',arguments:{project_id:data.project_id,kind:data.result.entity_type,controls,expected_version:data.view?.version??0,expected_revision:data.revision}});
+   const out=await callServerTool({name:'save_project_view',arguments:{project_id:data.project_id,kind:data.result.entity_type,controls,expected_version:data.view?.version??0,expected_revision:data.revision}});
    if(out.isError||!out.structuredContent?.view)throw Error();
    await page(data.result.entity_type,0);
   }catch{setError('Your filters could not be saved. Reopen the project to check the latest settings, then retry.');}
   finally{setBusy(false);}
  }
  async function readPage(kind:WorkspaceKind,offset:number,controls:any=undefined){
-  const out=await app.callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}});
+  const out=await callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}});
   if(out.isError||!out.structuredContent?.result)throw Error();return out.structuredContent;
  }
- async function profile(id:string){const out=await app.callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
+ async function profile(id:string){const out=await callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
  async function download(bytes:Uint8Array,name:string){let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const out=await app.downloadFile({contents:[{type:'resource',resource:{uri:'file:///'+name,mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',blob:btoa(binary)}}]});if(out.isError)throw Error();}
  async function continueConnection(){
   if(connecting.current)return;connecting.current=true;setBusy(true);
@@ -144,7 +158,7 @@ function View({initial}:{initial:any}){
  async function access(){try{await app.openLink({url:'https://intel.trialagents.com/dataset-access'});}catch{setError('About dataset access is available on the TrialAgents Intel website.');}}
 
  async function saveState(id:string,version:number,state:any){
-  const out=await app.callServerTool({name:'save_visualization_state',arguments:{report_id:id,expected_version:version,state,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});
+  const out=await callServerTool({name:'save_visualization_state',arguments:{custom_view_id:id,expected_version:version,state,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});
   if(out.isError||!out.structuredContent?.saved)throw Error();
   const result=out.structuredContent;setData((current:any)=>({...current,report:result.report,reports:current.reports.map((r:any)=>r.id===id?{...r,version:result.report.version,updated_at:result.report.updated_at}:r)}));return result;
  }
@@ -154,7 +168,7 @@ function View({initial}:{initial:any}){
   try{
    let value=data;
    if(data.retry_id){
-    const out=await app.callServerTool({name:'retry_project_report',arguments:{retry_id:data.retry_id}});
+    const out=await callServerTool({name:'retry_project_custom_view',arguments:{retry_id:data.retry_id}});
     if(out.isError)throw Error('The retained custom view could not be saved. Please retry.');
     value=out.structuredContent;receive(value);
     if(value?.recovery?.action!=='reconcile')return;
@@ -170,7 +184,7 @@ function View({initial}:{initial:any}){
   const result=await app.sendMessage({role:'user',content:[{type:'text',text:prompt+' Project: '+data.title+' ('+data.project_id+').'}]});
   if(result.isError)throw Error('Could not confirm delivery');
  }
- async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await app.callServerTool({name:'read_project_report',arguments:{report_id:id,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
+ async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await callServerTool({name:'read_project_custom_view',arguments:{custom_view_id:id,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
  return <><SaveNotice data={data}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&(connectionPending?<><button onClick={continueConnection}>Continue connection in ChatGPT</button> <button onClick={()=>connect(true)}>Save through website</button></>:<button onClick={()=>connect()}>{handoff.current?'Open account connection':'Retry account connection'}</button>)}</section>}<WorkspaceTables surface="extension" data={data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onCreateCustom={createCustom} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={()=>connect()} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
@@ -182,10 +196,11 @@ class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{fail
 }
 let mounted=false;
 function receive(data:any){
+ data=legacyWorkspaceEnvelope(data);
  if(!data)return;
  if(!data.project_id||!data.result){
   if(data.report_saved===false||data.storage_status==='unavailable'||data.project_save_error){
-   if(mounted)setIncoming(data);else if(data.report_saved===false)root.render(<section style={{padding:24}}><h2>Custom views</h2><CustomViewRecovery data={data} onSave={async()=>{const out=await app.callServerTool({name:'retry_project_report',arguments:{retry_id:data.retry_id}});if(out.isError)throw Error();receive(out.structuredContent);if(out.structuredContent?.recovery?.action==='reconcile'){const sent=await app.sendMessage({role:'user',content:[{type:'text',text:'Reconcile and save the retained custom view using the current project and latest version.'}]});if(sent.isError)throw Error();}}}/></section>);else root.render(<SaveNotice data={data}/>);
+   if(mounted)setIncoming(data);else if(data.report_saved===false)root.render(<section style={{padding:24}}><h2>Custom views</h2><CustomViewRecovery data={data} onSave={async()=>{const out=await callServerTool({name:'retry_project_custom_view',arguments:{retry_id:data.retry_id}});if(out.isError)throw Error();receive(out.structuredContent);if(out.structuredContent?.recovery?.action==='reconcile'){const sent=await app.sendMessage({role:'user',content:[{type:'text',text:'Reconcile and save the retained custom view using the current project and latest version.'}]});if(sent.isError)throw Error();}}}/></section>);else root.render(<SaveNotice data={data}/>);
   }return;
  }
  modelContext(data);if(mounted)setIncoming(data);else{flushSync(()=>root.render(<WorkspaceBoundary><View initial={data}/></WorkspaceBoundary>));mounted=true;}

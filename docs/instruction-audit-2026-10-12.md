@@ -5,21 +5,21 @@ Status: cleanup approved and implemented on 12 October. Active contradictions re
 ## Approved additions
 - Source/ID/link display is request-only in answers and reports; preserve source metadata and material limitations.
 - Executive summary, one section per question, one sentence (at most two) above a visualization, nuances below. Quantitative comparisons need graphs; qualitative questions need a matrix/diagram/cards, without fabricated values.
-- Matching semantic HTML/SVG example uses the existing App report renderer style. Returned by prepare_project_report as well as bundled with the skill; plain MCP connections therefore also receive it.
+- Matching semantic HTML/SVG example uses the existing App report renderer style. Returned by prepare_project_custom_view as well as bundled with the skill; plain MCP connections therefore also receive it.
 - One canonical shared answer/access standard replaces the temporary precedence workaround; report structure is owned by the report skill.
 
 ## Approved cleanup implemented
 
 | Item | Evidence and location | Proposed action |
 |---|---|---|
-| Visible citations required by default | skill SKILL.md “cite accessible entity/trial IDs”; report-guidance.md graph source references and final traceable sources; project_reports.py read_report_evidence docstring | Remove visible-citation requirements; retain internal source_ids and on-request references. |
-| Prose-only qualitative analyses and artificial section quotas | report-guidance.md “Two to four distinct useful analyses” and “table or prose” | Replace with one section per question and a qualitative visualization. Keep tables when they form meaningful comparison matrices. |
+| Visible citations required by default | skill SKILL.md “cite accessible entity/trial IDs”; custom-view-guidance.md graph source references and final traceable sources; project_custom_views.py read_custom_view_evidence docstring | Remove visible-citation requirements; retain internal source_ids and on-request references. |
+| Prose-only qualitative analyses and artificial section quotas | custom-view-guidance.md “Two to four distinct useful analyses” and “table or prose” | Replace with one section per question and a qualitative visualization. Keep tables when they form meaningful comparison matrices. |
 | Anonymous raw-profile denial and paid-only documents | references/tool-contract.md text predicate paragraph says raw sections are not exposed; final report paragraph says documents require paid access | Remove obsolete restrictions. Exact ten eligible trials have full content; other trials remain restricted. Compact entity-evidence responses still omit some narratives, which is a separate real contract. |
 | Old connect/save/paging flow in active MCP instructions | research_presentation.py RESEARCH_WORKFLOW instructs create_research_account_handoff, claim_research_workspace, revise_research_workspace and prepare again for paging | Replace model workflow with website Connect, read_project_preview, save_project and open_project. Keep compatibility tool implementations and persisted identifiers. |
 | Conflicting expiry instructions | RESEARCH_WORKFLOW equates prepared previews with selection expiry; SKILL.md says rerun original search and later says request a new selection | Distinguish short-lived search selections from 24-hour cached previews and persistent saved projects; no silent replacement of an expired snapshot. |
 | Stale plugin review expectations | plugin.json cases still say “no … Reports,” use legacy rank-first workflows, and deny raw profiles | Update review cases to current workspace, Reports and full eligible-trial content; keep negative access-bypass/security cases. |
 | Historical instructions accumulating as current guidance | PROJECT_CONTEXT.md includes incompatible dated blocks; CHATGPT_PLUGIN_RELEASE.md appends repeated releases, “covered project” access and unsupported-profile claims | Keep a concise current reference and move obsolete prose to an explicitly historical archive after approval. Preserve compatibility contracts, change history and evidence. |
-| Duplicate operational rules and report guidance copies | repeated counts, access, error, save, and report directions across workflow, skill and references; two manually maintained report-guidance.md copies | Consolidate authoritative text and generate/validate mirrors; keep standalone tool guidance sufficient when a host does not load skills. |
+| Duplicate operational rules and report guidance copies | repeated counts, access, error, save, and report directions across workflow, skill and references; two manually maintained custom-view-guidance.md copies | Consolidate authoritative text and generate/validate mirrors; keep standalone tool guidance sufficient when a host does not load skills. |
 
 ## Safeguards included or recorded for release
 - Add a drift check that fails when runtime and packaged presentation/report files differ (included for the new assets in this draft).

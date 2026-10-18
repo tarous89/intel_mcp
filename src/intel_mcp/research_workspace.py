@@ -132,7 +132,7 @@ def with_workspace_destinations(result):
         return result
     return {**result, 'workspace_destinations': {
         'tables': {'tabs': ['sites', 'pis', 'cros', 'trials'], 'uses': ['new searches', 'query revisions', 'ranking', 'sorting', 'filtering', 'paging', 'record details']},
-        'custom': {'label': 'Custom views', 'uses': ['visual analyses', 'alternative presentations', 'comparisons', 'charts', 'forms', 'trackers', 'reusable coded outputs'], 'save_tool': 'save_project_report', 'open_tool': 'open_project_report'},
+        'custom': {'label': 'Custom views', 'uses': ['visual analyses', 'alternative presentations', 'comparisons', 'charts', 'forms', 'trackers', 'reusable coded outputs'], 'save_tool': 'save_project_custom_view', 'open_tool': 'open_project_custom_view'},
         'chat': {'uses': ['ordinary explanations']},
     }}
 
@@ -245,7 +245,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Paid accounts choose limit 1–100: use 100 for broad analysis, fewer for
         detailed evidence. Free accounts get only the first ten results. Follow
         next_offset for further paid pages. Use open_project only to present the
-        final table, or save_project_report to present the final Custom view.
+        final table, or save_project_custom_view to present the final Custom view.
 
         Omit kind to open the most recently saved active table. Omit controls to use
         the owner's latest saved filters/ranking from either client. Supply controls
@@ -416,7 +416,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Storage depends on verified credentials.
         Guests receive a cached seven-day preview; connected owners receive a canonical
         saved project. Existing project revisions use save_project with expected_revision.
-        Custom view storage is a separate operation exposed by save_project_report.
+        Custom view storage is a separate operation exposed by save_project_custom_view.
         For a connected account, repeating the same selection and publication inputs
         reuses the project. Anonymous calls keep independent private preview capabilities.
         Use a new operation_id only when intentionally creating a separate project

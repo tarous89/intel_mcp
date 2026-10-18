@@ -13,6 +13,7 @@ from .auth_context import current_oauth_subject, set_oauth_subject, reset_oauth_
 from .selection import SelectionCriteria, SelectionError
 from .research_views import result_view, evidence_view, account_view
 from .followups import RESOURCE as FOLLOWUP_RESOURCE, HTML as FOLLOWUP_HTML
+from .custom_view_contract import custom_view_contract
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .research_cohort import CohortRefinement, candidate_trials
 from .research_workspace import register_workspace_tools, RESOURCE, LEGACY_RESOURCE, COMPATIBILITY_RESOURCES, WORKSPACE_HTML
@@ -63,7 +64,7 @@ def create_research_server(settings, engine_factory, control_factory):
                   "openai/widgetDomain":UI_DOMAIN,
                   "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
                   "openai/ui":{"preferredDisplayMode":"fullscreen","availableDisplayModes":["fullscreen"]}}))
-    server=MCPServer('TrialAgents Intel', extensions=[apps], middleware=[research_tool_security_schemes],
+    server=MCPServer('TrialAgents Intel', extensions=[apps], middleware=[research_tool_security_schemes, custom_view_contract],
                      instructions=RESEARCH_WORKFLOW)
 
     async def full_access(dataset=None, project_id=None, *, require=False):
@@ -241,11 +242,11 @@ def create_research_server(settings, engine_factory, control_factory):
             raise ToolError(str(e)) from e
 
     @server.tool(meta={**OAUTH, "ui": {"resourceUri": "ui://trialagents/research-v015"}},annotations=ANNOTATIONS,structured_output=True)
-    async def list_research_projects() -> dict[str, Any]:
-        """Show connected account capabilities and paid status. No project matching or purchases.
+    async def get_account_access() -> dict[str, Any]:
+        """Return the connected TrialAgents account's access status and research capabilities.
 
-        The historic tool name is retained for installed clients. Call when the user
-        requests full access or their account details; authentication is optional for free research.
+        If disconnected, return account connection guidance. Does not list projects,
+        change subscriptions or initiate purchases. Anonymous research remains available.
         """
         if not current_oauth_subject(): return connect_result()
         try:
@@ -316,8 +317,8 @@ def create_research_server(settings, engine_factory, control_factory):
         except ControlPlaneError as e: raise ToolError(str(e)) from e
 
     recover_preview=register_workspace_tools(server,store,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result)
-    from .project_reports import register_project_report_tools
-    register_project_report_tools(server,engine_factory,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result,recover_preview)
+    from .project_custom_views import register_project_custom_view_tools
+    register_project_custom_view_tools(server,engine_factory,control_factory,MIXED,OAUTH,ANNOTATIONS,connect_result,recover_preview)
 
     @server.custom_route('/.well-known/oauth-protected-resource',methods=['GET'])
     async def metadata(request):
@@ -336,9 +337,9 @@ class ResearchAuth:
         'recover_research_preview', 'read_project_preview',
         'describe_trial_profile_schema', 'list_trial_documents',
         'read_trial_profiles', 'read_trial_document',
-        'prepare_project_report', 'read_report_evidence', 'read_report_document',
-        'save_project_report', 'retry_project_report', 'show_research_followups',
-        'list_project_reports', 'read_project_report', 'open_project_report',
+        'prepare_project_custom_view', 'read_custom_view_evidence', 'read_custom_view_document',
+        'save_project_custom_view', 'retry_project_custom_view', 'show_research_followups',
+        'list_project_custom_views', 'read_project_custom_view', 'open_project_custom_view',
         'offer_visualization_save', 'save_visualization_state',
     })
 

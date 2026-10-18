@@ -34,4 +34,4 @@ Give form controls stable unique IDs or names. Initialize on DOMContentLoaded af
 - Check desktop and narrow layouts: centered content, consistent padding, readable 14px chart labels, no page overflow, and horizontally scrollable wide tables/timelines. Do not shrink a whole chart until labels are unreadable.
 - Use textual labels as well as colors; check contrast, keyboard focus, form labels and empty states. Recalculate geometry when data changes, including zero or missing totals.
 - Remove unused example sections, placeholder rows, demo reset buttons and design-specification notes from real outputs unless explicitly useful to the user.
-- Verify save through report_saved and the existing recovery procedure. A polished preview alone is not a saved Custom view.
+- Verify save through custom_view_saved and the existing recovery procedure. A polished preview alone is not a saved Custom view.

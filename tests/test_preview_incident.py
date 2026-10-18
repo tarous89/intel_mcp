@@ -72,7 +72,7 @@ async def test_failed_storage_retains_identity_then_recovers_without_search(monk
 
 @pytest.mark.anyio
 async def test_report_failure_retains_exact_payload_without_table_and_retries(monkeypatch):
-    owner='owner';monkeypatch.setattr('intel_mcp.project_reports.current_oauth_subject',lambda:owner)
+    owner='owner';monkeypatch.setattr('intel_mcp.project_custom_views.current_oauth_subject',lambda:owner)
     failed=True;calls=[]
     class Control:
         async def research_workspace(self,b):
@@ -87,16 +87,16 @@ async def test_report_failure_retains_exact_payload_without_table_and_retries(mo
     args={'preview':preview,'title':'Cards','query':'Compare labs','summary':'','html':'<h1>Exact cards</h1><p>Unverified capability</p>','source_ids':[],'dataset_id':'d'*64,'revision':1,'request_key':'original-key','artifact_kind':'cards','evidence_basis':'project_tables'}
     async with Client(server) as client:
         desc={t.name:t for t in (await client.list_tools()).tools}
-        assert 'selection_id' not in json.dumps(desc['save_project_report'].input_schema)
-        result=(await client.call_tool('save_project_report',args)).structured_content
-        assert result['report_saved'] is False and result['retry_id'] and 'result' not in result
+        assert 'selection_id' not in json.dumps(desc['save_project_custom_view'].input_schema)
+        result=(await client.call_tool('save_project_custom_view',args)).structured_content
+        assert result['custom_view_saved'] is False and result['retry_id'] and 'result' not in result
         assert 'selection_id' not in json.dumps(calls)
         original=calls[0]
         owner='other'
-        assert (await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).is_error
+        assert (await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).is_error
         assert len(calls)==1
         owner='owner';failed=False
-        retried=(await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).structured_content
-        assert retried['report_saved'] is True
+        retried=(await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).structured_content
+        assert retried['custom_view_saved'] is True
         assert calls[1]==original
-        assert (await client.call_tool('retry_project_report',{'retry_id':result['retry_id']})).is_error
+        assert (await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).is_error

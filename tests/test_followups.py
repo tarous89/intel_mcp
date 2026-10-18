@@ -45,7 +45,7 @@ async def test_question_tool_checks_scope_without_reading_or_saving_evidence(mon
         assert len(calls)==1
         denied=await client.call_tool('show_research_followups',{'questions':QUESTIONS,'project_id':'wrong-owner'})
         assert denied.is_error and len(calls)==1
-        monkeypatch.setattr('intel_mcp.project_reports.current_oauth_subject',lambda:'owner')
+        monkeypatch.setattr('intel_mcp.project_custom_views.current_oauth_subject',lambda:'owner')
         denied=await client.call_tool('show_research_followups',{'questions':QUESTIONS,'project_id':'wrong-owner'})
         assert denied.is_error
         resource=await client.read_resource(RESOURCE)
