@@ -141,6 +141,9 @@ async def test_retained_retry_reconciles_conflicts_without_blind_overwrite(monke
     async with Client(server) as client:
         failed=(await client.call_tool('save_project_custom_view',args)).structured_content
         assert 'active_tab' not in failed
+        expected_target={'tool':'read_project','arguments':{'project_id':project}} if case=='canonical_revision' else {'tool':'read_project_preview','arguments':{'preview':preview}}
+        assert failed['workspace_recovery']==expected_target
+        assert [c['operation'] for c in calls]==['report_save'], 'Restoration must be lazy and read-only in the widget'
         assert 'html' not in failed['pending_custom_view']
         retried=(await client.call_tool('retry_project_custom_view',{'retry_id':failed['retry_id']})).structured_content
         writes=[c for c in calls if c['operation']=='report_save']
@@ -151,6 +154,7 @@ async def test_retained_retry_reconciles_conflicts_without_blind_overwrite(monke
         else:
             assert retried['recovery']['action']=='reconcile' and len(writes)==1
             assert retried['current_context']['revision']==1
+            assert retried['workspace_recovery']==expected_target
 
 @pytest.mark.anyio
 @pytest.mark.parametrize('failure',['version','content','display'])

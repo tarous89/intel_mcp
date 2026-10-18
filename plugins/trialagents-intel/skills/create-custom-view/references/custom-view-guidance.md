@@ -1,5 +1,7 @@
 # Custom view procedure
 
+An explicit request to create or revise a Custom view includes saving it. Do not ask an additional conversational permission question; respect actual host approvals and explicit chat-only requests.
+
 1. Call prepare_project_custom_view for the current project or preview. Keep dataset_id, revision and access_scope. For previews use custom_view_preview exactly (preview_id, snapshot_key, cache_token). Set include_template=true when the rendering reference/template is needed; evidence-only preparation stays concise.
 2. For an existing view, recover its content, custom_view_id and expected_version with list_project_custom_views/read_project_custom_view. Keep the existing workspace visible during revision; use open_project_custom_view only when the user asks to display an already-saved view. Revisions update that view; an explicitly requested copy creates another.
 3. Use authorized table data, user-provided content, or registered trial/document evidence. Gather table data with read_project/read_project_preview, not workspace navigation. Paid reads allow limit 1–100; prefer 100 for broad counts, follow next_offset, and honor the free first-ten boundary. Retrieve profiles/documents with the evidence skill where needed. Keep source_ids and follow all document parts for complete retrieval.

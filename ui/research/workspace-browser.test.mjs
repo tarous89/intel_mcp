@@ -209,3 +209,60 @@ test('empty Custom tab sends one contextual request only on click and offers a f
  }
  }finally{await browser.close();}
 });
+test('fresh recovery restores authorized tables once without saving and ignores late reads',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
+  for(const mode of ['canonical','preview','mounted','denied','late']){
+   const page=await browser.newPage({viewport:{width:1200,height:900}});
+   const target=mode==='preview'?{tool:'read_project_preview',arguments:{preview:{preview_id:'00000000-0000-0000-0000-000000000001',snapshot_key:'a'.repeat(64),cache_token:'b'.repeat(43)}}}:{tool:'read_project',arguments:{project_id:data.project_id}};
+   const failure={custom_view_saved:false,save_status:'failed',save_error:'REVISION_CHANGED',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'ADC comparison',retry:true},recovery:{action:'reconcile'},workspace_recovery:target,pending_custom_view:{title:'ADC comparison'}};
+   await page.addInitScript(({initial,failure,mode})=>{
+    window.__calls=[];window.__messages=[];
+    const deliver=(id,result)=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id,result}}));
+    window.postMessage=msg=>{
+     let result;
+     if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Recovery fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};
+     else if(msg.method==='ui/notifications/initialized'){
+      setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:mode==='mounted'?initial:failure}}})),0);return;
+     }else if(msg.method==='tools/call'){
+      window.__calls.push(msg.params);
+      result=mode==='denied'?{isError:true,content:[{type:'text',text:'Access unavailable'}]}:{structuredContent:initial};
+      if(mode==='late'){window.__finishRead=()=>deliver(msg.id,result);return;}
+     }else if(msg.method==='ui/message'){window.__messages.push(msg.params);result={};}
+     else if(msg.id!==undefined)result={};else return;
+     setTimeout(()=>deliver(msg.id,result),0);
+    };
+   },{initial:data,failure,mode});
+   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
+   if(mode==='mounted'){
+    await page.locator('nav[aria-label="Project tables"]').waitFor();
+    await page.evaluate(failure=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:failure}}})),failure);
+   }
+   if(mode==='late'){
+    await page.waitForFunction(()=>!!window.__finishRead);
+    await page.evaluate(initial=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...initial,project_id:'new-project',title:'Newer results'}}}})),data);
+    await page.getByText('Newer results',{exact:true}).first().waitFor();
+    await page.evaluate(()=>window.__finishRead());
+    // Flush the response handler before checking it did not overwrite newer results.
+    await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,50)));
+    assert(await page.getByText('Newer results',{exact:true}).first().isVisible());
+    assert.equal(await page.getByRole('button',{name:'Review and save',exact:true}).count(),0);
+   }else{
+    await page.getByRole('button',{name:'Review and save',exact:true}).waitFor();
+    if(mode==='denied'){
+     assert(await page.getByRole('button',{name:'Restore workspace',exact:true}).isVisible());
+     assert.equal(await page.locator('nav[aria-label="Project tables"]').count(),0);
+    }else{
+     assert(await page.locator('nav[aria-label="Project tables"]').isVisible());
+     assert.equal((await page.locator('nav button[aria-current=page]').innerText()).replace(/\s+/g,' '),'PIs 50');
+    }
+   }
+   assert.deepEqual(await page.evaluate(()=>window.__calls.map(({name,arguments:args})=>({name,arguments:args}))),mode==='mounted'?[]:[{name:target.tool,arguments:target.arguments}]);
+   assert.deepEqual(await page.evaluate(()=>window.__messages),[],'restoration does not request a save or send a user message');
+   if(mode==='canonical'){await mkdir('/tmp/workspace-design',{recursive:true});await page.screenshot({path:'/tmp/workspace-design/restored-recovery.png',fullPage:true});}
+   assert.equal(await page.locator('iframe[title^="Unsaved preview"]').count(),0);
+   await page.close();
+  }
+ }finally{await browser.close();}
+});
