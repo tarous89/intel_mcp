@@ -85,10 +85,11 @@ async def test_publish_lost_response_retry_preserves_full_commit_identity(monkey
     args={'selection_id':token,'title':'Synthetic retry case'}
     async with Client(server) as client:
         first=(await client.call_tool('publish_research_workspace',args)).structured_content
-        assert first['save_status']=='failed' and first['recovery']['draft_retained']
+        assert first['saved'] is True, 'The lost response must recover within the original call'
+        assert len([c for c in calls if c['operation']=='canonical_commit'])==2
         second=(await client.call_tool('publish_research_workspace',args)).structured_content
         assert second['saved'] is True
-        assert second['project_id']==first['draft']['preview_id']
+        assert second['project_id']==first['project_id']
         assert len(receipts)==1
         # Retries, including a harmless tab change, retain the canonical project.
         third=(await client.call_tool('publish_research_workspace',{**args,'kind':'sites'})).structured_content

@@ -59,6 +59,7 @@ async def test_failed_storage_retains_identity_then_recovers_without_search(monk
         out=first.structured_content
         assert not first.is_error and out['storage_status']=='unavailable'
         assert out['saved'] is False and out['draft']['cache_token']
+        assert out['automatic_retry_complete'] is True and len(uploads)==3
         assert operations==[]
         # No new search is allowed during any recovery.
         async def no_search(*a,**k):raise AssertionError('recovery repeated search')
@@ -68,18 +69,18 @@ async def test_failed_storage_retains_identity_then_recovers_without_search(monk
         assert not saved.is_error
         assert saved.structured_content['saved'] is (recovery_tool=='save_project')
         assert saved.structured_content['project_id']==out['project_id']
-        assert uploads[0]==uploads[1]
+        assert all(upload==uploads[0] for upload in uploads)
         if recovery_tool=='save_project':
             assert [b['operation'] for b in operations]==['canonical_commit','canonical_read']
         else:
             assert saved.structured_content['storage_status']=='ready'
             assert saved.structured_content['draft']==out['draft']
             assert [b['operation'] for b in operations]==['preview_read']
-            # A completed recovery is no longer pending; another call must not
-            # allocate another preview or write a second storage identity.
+            # A completed recovery verifies existing storage; another call must
+            # not allocate another preview or write a second storage identity.
             repeated=await client.call_tool(recovery_tool,{'preview':out['draft']})
-            assert repeated.is_error
-            assert len(uploads)==2 and len(operations)==1
+            assert not repeated.is_error
+            assert len(uploads)==4 and len(operations)==2
         assert engine.calls==1
 
 
@@ -107,9 +108,9 @@ async def test_report_failure_retains_exact_payload_without_table_and_retries(mo
         original=calls[0]
         owner='other'
         assert (await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).is_error
-        assert len(calls)==1
+        assert len(calls)==3 and all(c==original for c in calls)
         owner='owner';failed=False
         retried=(await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).structured_content
         assert retried['custom_view_saved'] is True
-        assert calls[1]==original
+        assert calls[3]==original
         assert (await client.call_tool('retry_project_custom_view',{'retry_id':result['retry_id']})).is_error
