@@ -5,7 +5,7 @@ import {chromium} from 'playwright';
 const metrics={therapeuticAreaTrials:12,recentActivityTrials:3,sponsors:[{name:'Example sponsor',trials:2}],evidence:[]};
 const rows={sites:{id:'site',rank:1,name:'Example hospital',country:'DE',contact:{name:'Example contact',email:'contact@example.test'},metrics},pis:{id:'pi',rank:1,name:'Example investigator',department:'Oncology department',email:'pi@example.test',sites:[{id:'site',name:'Example hospital',country:'DE',trials:12}],metrics},cros:{id:'cro',rank:1,name:'Example CRO',country:'DE',trialCount:12,functionCounts:{1:3},organisationTypes:[],sourceNames:[],unresolvedFunctions:[]},trials:{id:'2026-000001-00-00',title:'Example trial',phase:[3],status:'Recruiting',countries:['DE'],subgroups:[],listedSiteCount:4}};
 const pages=Object.fromEntries(Object.entries(rows).map(([kind,row])=>[kind,{entity_type:kind,entities:Array.from({length:10},(_,i)=>({...row,id:row.id+'-'+i,workspace_row:{...row,id:row.id+'-'+i}})),returned:10,total_entities:50,next_offset:null,access_info:{offset:0},cohort:{counts:{base:12}},ranking_criteria:{therapeutic_areas:[],disease_terms:[],countries:[]}}]));
-const data={project_id:'synthetic-project',title:'Research workspace',draft:{cache_token:'synthetic'},tables:Object.keys(pages).map(kind=>({kind,total:50})),preview_tables:pages,result:pages.pis,reports:[{id:'report-1',title:'Protocol comparison',summary:'Evidence comparison from the accessible preview.',access_scope:'preview',storage_status:'temporary',created_at:'2026-10-11T12:00:00Z'}]};
+const data={project_id:'synthetic-project',title:'Research workspace',draft:{cache_token:'synthetic'},tables:Object.keys(pages).map(kind=>({kind,total:50})),preview_tables:pages,result:pages.pis,custom_views:[{id:'report-1',title:'Protocol comparison',summary:'Evidence comparison from the accessible preview.',access_scope:'preview',storage_status:'temporary',created_at:'2026-10-11T12:00:00Z'}]};
 test('shipped workspace has compact controls and reachable rightmost columns',async()=>{
  await mkdir('/tmp/workspace-design',{recursive:true});
  const browser=await chromium.launch({headless:true});
@@ -14,7 +14,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  for(const width of [1280,760,420]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(data=>{
-   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_report')result={structuredContent:{report:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',storage_status:'temporary',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
+   window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_custom_view')result={structuredContent:{custom_view:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',storage_status:'temporary',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
   },data);
   await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
   await page.getByRole('button',{name:'Open TrialAgents account',exact:true}).waitFor();
@@ -113,7 +113,7 @@ test('interactive visualization is isolated, saves state only on click, and expl
   const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
   const report={id:'tracker',title:'Site tracker',artifact_kind:'tracker',renderer:'interactive',version:1,created_at:'2026-10-12T12:00:00Z',access_scope:'preview',state:{form:{status:'Draft'}},html:`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; frame-src 'none'; form-action 'none'"><style>body{font:16px system-ui;padding:24px}label{display:block;margin:20px 0}</style></head><body><h1>Site tracker</h1><label>Status<input id="status"></label><p id="isolation"></p><script>try{parent.document.body;document.getElementById('isolation').textContent='unsafe';}catch{document.getElementById('isolation').textContent='isolated';}</script></body></html>`};
   for(const connected of [false,true]){
-   const storedReport={...report,storage_status:connected?'account':'temporary'};const initial={...data,account:{connected,fullAccess:false},active_report_id:'tracker',reports:[storedReport],report:storedReport};
+   const storedReport={...report,storage_status:connected?'account':'temporary'};const initial={...data,account:{connected,fullAccess:false},active_custom_view_id:'tracker',custom_views:[storedReport],report:storedReport};
    const page=await browser.newPage({viewport:{width:420,height:900}});
    await page.addInitScript(data=>{
     window.__writes=[];
@@ -155,7 +155,7 @@ test('report failures remain visible without tables and retry the retained paylo
   const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
   for(const withTable of [false,true]){
    const page=await browser.newPage({viewport:{width:1200,height:900}});
-   const failure={storage_status:'unavailable',active_tab:'custom',pending_custom_view:{title:'Lab cards',html:'<h1>Retained comparison</h1><script>parent.__unsafe=true</script>'},report_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
+   const failure={storage_status:'unavailable',active_tab:'custom',pending_custom_view:{title:'Lab cards',html:'<h1>Retained comparison</h1><script>parent.__unsafe=true</script>'},custom_view_saved:false,save_status:'failed',save_error:'PREVIEW_STORAGE_UNAVAILABLE',retry_id:'00000000-0000-0000-0000-000000000099',visualization_save_offer:{title:'Lab cards',retry:true}};
    await page.addInitScript(({initial,failure,withTable})=>{
     window.__calls=[];window.postMessage=msg=>{
      let result;
@@ -170,8 +170,8 @@ test('report failures remain visible without tables and retry the retained paylo
    await page.route('https://synthetic.invalid/',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://synthetic.invalid/');
    if(withTable){await page.locator('nav[aria-label="Project tables"]').waitFor();await page.evaluate(failure=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:failure}}})),failure);}
    await page.getByRole('button',{name:'Retry save',exact:true}).click();
-   await page.waitForFunction(()=>window.__calls.filter(c=>c.name==='retry_project_report').length===1);
-   assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_report').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_report',arguments:{retry_id:failure.retry_id}}]);
+   await page.waitForFunction(()=>window.__calls.filter(c=>c.name==='retry_project_custom_view').length===1);
+   assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c.name==='retry_project_custom_view').map(({name,arguments:args})=>({name,arguments:args}))),[{name:'retry_project_custom_view',arguments:{retry_id:failure.retry_id}}]);
    await page.getByRole('button',{name:'Retry save',exact:true}).waitFor(); // Wait for the asynchronous retry response, not just request dispatch.
    assert.equal(await page.getByRole('button',{name:'Retry save',exact:true}).count(),1);
    assert(await page.getByText('This custom view is retained, but its save has not been confirmed.',{exact:true}).isVisible());
@@ -192,7 +192,7 @@ test('empty Custom tab sends one contextual request only on click and offers a f
   await page.addInitScript(({initial,denied})=>{
    window.__sent=[];window.postMessage=msg=>{let result={};
     if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};
-    else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...initial,reports:[]}}}})),0);return;}
+    else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:{...initial,custom_views:[]}}}})),0);return;}
     else if(msg.method==='ui/message'){window.__sent.push(msg.params);result={isError:denied};}
     else if(msg.id===undefined)return;
     setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);

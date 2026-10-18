@@ -1,7 +1,7 @@
 interface:
   display_name: "Create a custom view"
   short_description: "Save charts, comparisons and reusable custom views"
-  default_prompt: "Use $create-trial-report for my TrialAgents research."
+  default_prompt: "Use $create-custom-view for my TrialAgents research."
 dependencies:
   tools:
     - type: "mcp"

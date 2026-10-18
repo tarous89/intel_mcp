@@ -21,12 +21,12 @@ async def test_publication_contract_preserves_tools_and_declares_real_effects():
         for tool in descriptors.values():
             assert tool.output_schema and tool.output_schema['type']=='object', tool.name
             assert all(isinstance(getattr(tool.annotations,key),bool) for key in ('read_only_hint','destructive_hint','open_world_hint'))
-        for name in ('read_trial_profiles','read_report_evidence','read_report_document','read_trial_document'):
+        for name in ('read_trial_profiles','read_custom_view_evidence','read_custom_view_document','read_trial_document'):
             hints=descriptors[name].annotations
             assert hints.read_only_hint is False and hints.destructive_hint is False
-        for name in ('save_project','save_project_view','revise_research_workspace','save_project_report','retry_project_report','save_visualization_state'):
+        for name in ('save_project','save_project_view','revise_research_workspace','save_project_custom_view','retry_project_custom_view','save_visualization_state'):
             assert descriptors[name].annotations.destructive_hint is True
-        for name in ('search_research_trials','rank_research_entities','prepare_project_report','list_trial_documents','open_project','read_project_report'):
+        for name in ('search_research_trials','rank_research_entities','prepare_project_custom_view','list_trial_documents','open_project','read_project_custom_view'):
             assert descriptors[name].annotations.read_only_hint is True
         for name in ('claim_research_workspace','revise_research_workspace','save_research_project'):
             assert 'resourceUri' not in descriptors[name].meta['ui']
@@ -108,10 +108,10 @@ async def test_legacy_schema_preserves_structured_response_and_oauth_challenge(m
     token,_=await store.search(criteria())
     async with Client(server) as client:
         tools={t.name:t for t in (await client.list_tools()).tools}
-        auth=await client.call_tool('list_research_projects',{})
+        auth=await client.call_tool('get_account_access',{})
         assert auth.is_error and auth.meta['mcp/www_authenticate']
         monkeypatch.setattr('intel_mcp.research_server.current_oauth_subject',lambda:'synthetic-owner')
-        for name,args in [('list_research_projects',{}),('save_research_project',{'selection_ids':[token],'title':'Synthetic save'})]:
+        for name,args in [('get_account_access',{}),('save_research_project',{'selection_ids':[token],'title':'Synthetic save'})]:
             result=await client.call_tool(name,args)
             assert not result.is_error and result.structured_content['view']
             validate(result.structured_content,tools[name].output_schema)

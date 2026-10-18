@@ -67,9 +67,9 @@ async def test_public_mcp_surface_and_project_entitlement_rechecks():
         resource=await client.read_resource('ui://trialagents/research-v015')
         assert resource.contents[0].mime_type=='text/html;profile=mcp-app'
         assert 'TrialAgents research' in resource.contents[0].text
-        assert names=={'recover_research_preview','publish_research_workspace','retry_project_report','offer_visualization_save','save_visualization_state','show_research_followups','describe_trial_profile_schema','read_trial_profiles','list_trial_documents','read_trial_document','prepare_project_report','read_report_evidence','read_report_document','save_project_report','list_project_reports','open_project_report','read_project_report','read_workspace_trial','save_project','save_project_view','open_project','read_project','list_projects','read_project_preview','search_research_trials','rank_research_entities','get_research_entity_evidence','list_research_projects','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','create_research_account_handoff','open_research_workspace'}
+        assert names=={'recover_research_preview','publish_research_workspace','retry_project_custom_view','offer_visualization_save','save_visualization_state','show_research_followups','describe_trial_profile_schema','read_trial_profiles','list_trial_documents','read_trial_document','prepare_project_custom_view','read_custom_view_evidence','read_custom_view_document','save_project_custom_view','list_project_custom_views','open_project_custom_view','read_project_custom_view','read_workspace_trial','save_project','save_project_view','open_project','read_project','list_projects','read_project_preview','search_research_trials','rank_research_entities','get_research_entity_evidence','get_account_access','save_research_project','get_saved_research_project','inspect_research_trials','refine_research_cohort','prepare_research_workspace','get_research_workspace','revise_research_workspace','claim_research_workspace','create_research_account_handoff','open_research_workspace'}
         assert next(t for t in listed if t.name=='read_workspace_trial').meta['ui']['visibility']==['app']
-        linking=await client.call_tool('list_research_projects',{})
+        linking=await client.call_tool('get_account_access',{})
         assert linking.is_error and linking.meta['mcp/www_authenticate']
         search=await client.call_tool('search_research_trials',{'criteria':criteria().model_dump(mode='json')})
         assert not search.is_error
@@ -158,7 +158,7 @@ with TestClient(app) as client:
     assert 'access_info.message' in descriptors['rank_research_entities']['description']
     for name, tool in descriptors.items():
         expected=[{'type':'oauth2','scopes':['mcp:tools']}]
-        if name not in {'list_research_projects','save_research_project','get_saved_research_project','claim_research_workspace','save_project','save_project_view','open_project','read_project','list_projects'}:
+        if name not in {'get_account_access','save_research_project','get_saved_research_project','claim_research_workspace','save_project','save_project_view','open_project','read_project','list_projects'}:
             expected.insert(0,{'type':'noauth'})
         assert tool['securitySchemes']==expected,tool
         assert tool['_meta']['securitySchemes']==expected,tool
@@ -196,7 +196,7 @@ async def test_expired_connection_can_only_continue_public_guest_operations():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://example.test',headers={'Authorization':'Bearer expired'}) as client:
         for method in ('initialize','tools/list','resources/list'):
             assert (await client.post('/mcp',json={'jsonrpc':'2.0','id':1,'method':method})).status_code==200
-        for name in ('search_research_trials','publish_research_workspace','read_project_preview','save_project_report'):
+        for name in ('search_research_trials','publish_research_workspace','read_project_preview','save_project_custom_view'):
             assert (await client.post('/mcp',json={'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':name,'arguments':{}}})).status_code==200
         for name,args in [('save_project',{}),('open_project',{}),('list_projects',{}),('publish_research_workspace',{'project_id':'private-project'}),('read_project_preview',{'projectId':'private-project'})]:
             response=await client.post('/mcp',json={'jsonrpc':'2.0','id':3,'method':'tools/call','params':{'name':name,'arguments':args}})

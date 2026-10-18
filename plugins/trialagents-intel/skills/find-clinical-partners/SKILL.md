@@ -1,6 +1,6 @@
 ---
 name: find-clinical-partners
-description: Discover and shortlist CROs, sites, principal investigators or trials for a clinical study, and refine the research cohort. Use for new partner searches and clinically justified changes to selection criteria, not for reading an already selected protocol or saving a report.
+description: "Discover and shortlist CROs, sites, principal investigators or trials for a clinical study, and refine the research cohort. Use for new partner searches and clinically justified changes to selection criteria, not for reading an already selected protocol or saving a report."
 ---
 
 # Find clinical partners

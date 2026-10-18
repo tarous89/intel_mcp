@@ -4,8 +4,7 @@ from importlib.resources import files
 
 
 
-RESEARCH_WORKFLOW = "\n\n".join(files("intel_mcp").joinpath(name).read_text() for name in (
-    "presentation-standard.md", "access-and-evidence.md", "research-workflow.md"))
+RESEARCH_WORKFLOW = files("intel_mcp").joinpath("server-instructions.md").read_text()
 
 
 def inline_schema(schema):

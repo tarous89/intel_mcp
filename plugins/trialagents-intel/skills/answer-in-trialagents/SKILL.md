@@ -1,6 +1,6 @@
 ---
 name: answer-in-trialagents
-description: Start here for TrialAgents questions. Route discovery, table operations, requested or alternative visualizations, reusable forms and trackers, revisions, and account actions to the appropriate specialist and workspace destination.
+description: "Start here for TrialAgents questions. Route discovery, table operations, requested or alternative visualizations, reusable forms and trackers, revisions, and account actions to the appropriate specialist and workspace destination."
 ---
 
 # Answer in TrialAgents
@@ -20,10 +20,10 @@ Use this routing table for the current request and project state. Load the relev
 | Initial discovery or a new selection | Standard tables → [find clinical partners](../find-clinical-partners/SKILL.md) |
 | Filter, sort, page, inspect or reopen results | Existing tables → [manage projects](../manage-research-projects/SKILL.md) |
 | Evidence question needing profiles or documents | [Analyze evidence](../analyze-trial-evidence/SKILL.md); present according to the requested format |
-| Chart, distribution, comparison cards, custom table, dashboard, or “show this differently” | Custom views → [create a custom view](../create-trial-report/SKILL.md) |
-| Reusable coded output, form, tracker, checklist, calculator, or editable content | Custom views → [create a custom view](../create-trial-report/SKILL.md) |
-| Revise an existing custom view | Update that view → [create a custom view](../create-trial-report/SKILL.md) |
+| Chart, distribution, comparison cards, custom table, dashboard, or “show this differently” | Custom views → [create a custom view](../create-custom-view/SKILL.md) |
+| Reusable coded output, form, tracker, checklist, calculator, or editable content | Custom views → [create a custom view](../create-custom-view/SKILL.md) |
+| Revise an existing custom view | Update that view → [create a custom view](../create-custom-view/SKILL.md) |
 | Account or project management | [Manage projects](../manage-research-projects/SKILL.md) |
 | Ordinary explanation or simple text/list answer | Concise chat |
 
-Creating a custom view includes saving it with save_project_report in the same turn. Its result already opens Custom views; do not call open_project_report again after a successful save. Use the returned save status. Guests have temporary storage; connected owners have account storage. The specialist covers saving and recovery. Read the [answer standard](../../references/presentation-standard.md) for interpretation and useful next steps.
+Creating a custom view includes saving it with save_project_custom_view in the same turn. Its result already opens Custom views; do not call open_project_custom_view again after a successful save. Use the returned save status. Guests have temporary storage; connected owners have account storage. The specialist covers saving and recovery. Read the [answer standard](../../references/presentation-standard.md) for interpretation and useful next steps.
