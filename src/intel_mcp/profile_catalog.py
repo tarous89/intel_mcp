@@ -5,7 +5,6 @@ import json
 from .profiles import PROFILE_SECTION_FIELDS, PROFILE_SECTIONS, project_profile
 
 SCHEMA_VERSION = "11.0.0"
-SCHEMA_SOURCE = "https://github.com/tarous89/intel-agent/blob/eac271a51f6b97c8a8489412c8dff8352feb1d9a/src/intel_agent/trial_profile/schemas/trial_profile_v11_0_0.json"
 SCHEMA = json.loads(files("intel_mcp").joinpath("schemas/trial_profile_v11_0_0.json").read_text())
 DESCRIPTIONS = {
     "overview": "Trial title, acronym, diseases, therapeutic areas, phase and key flags.",
@@ -39,7 +38,7 @@ def profile_catalog(sections=None):
                     if field in source.get("required", []) and field not in target["required"]:
                         target["required"].append(field)
     return {
-        "profile_schema_version": SCHEMA_VERSION, "schema_source": SCHEMA_SOURCE,
+        "profile_schema_version": SCHEMA_VERSION,
         "sections": [{"name": s, "description": DESCRIPTIONS[s],
                       "paths": [root + "." + field for root, fields in PROFILE_SECTION_FIELDS[s].items() for field in fields]
                                + [root for root, fields in PROFILE_SECTION_FIELDS[s].items() if not fields]}
