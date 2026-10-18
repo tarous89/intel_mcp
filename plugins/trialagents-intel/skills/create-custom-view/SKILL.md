@@ -9,6 +9,8 @@ Follow [the save procedure and renderer contract](references/custom-view-guidanc
 
 For polished charts, dashboards, journeys and trackers, read [design patterns and checks](references/design-patterns.md) and adapt the relevant sections of [the branded interactive gallery](assets/custom-view-examples.html). Start with the user's title; choose only sections that answer the request. Use the gallery's inline CSS with renderer=interactive. Treat all example content as synthetic; replace it with authorized data or explicit user inputs. Keep the existing save and recovery procedure below unchanged.
 
+Default to light backgrounds and explicitly contrasting text for headings, metrics, chart labels, tables and controls. Avoid dark surfaces unless requested. Follow the [contrast rules](../../references/custom-style.md#text-and-background-contrast) before the first save; colors remain flexible.
+
 For an explicit request to create or revise a Custom view, proceed through preparation and saving without asking for an additional conversational confirmation. Respect actual host approvals and explicit chat-only requests.
 
 Apply the [main answering skill’s pending-approval rule](../answer-in-trialagents/SKILL.md#pending-approval) when a host approval is pending.

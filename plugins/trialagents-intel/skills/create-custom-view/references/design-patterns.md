@@ -32,6 +32,6 @@ Give form controls stable unique IDs or names. Initialize on DOMContentLoaded af
 
 - Check arithmetic, denominators, units, legends, scale geometry, source scope and missing data. Retain precise source references; never invent citations.
 - Check desktop and narrow layouts: centered content, consistent padding, readable 14px chart labels, no page overflow, and horizontally scrollable wide tables/timelines. Do not shrink a whole chart until labels are unreadable.
-- Use textual labels as well as colors; check contrast, keyboard focus, form labels and empty states. Recalculate geometry when data changes, including zero or missing totals.
+- Apply the [text/background contrast rules](../../../references/custom-style.md#text-and-background-contrast): light surfaces by default, explicit foregrounds for every text role, at least 4.5:1 text contrast and 3:1 for essential marks/control boundaries. Check actual local backgrounds, including labels inside colored marks and control states; do not rely on body-color inheritance. Use textual labels as well as colors, visible keyboard focus, form labels and empty states. Recalculate geometry when data changes, including zero or missing totals.
 - Remove unused example sections, placeholder rows, demo reset buttons and design-specification notes from real outputs unless explicitly useful to the user.
 - Verify save through custom_view_saved and the existing recovery procedure. A polished preview alone is not a saved Custom view.
