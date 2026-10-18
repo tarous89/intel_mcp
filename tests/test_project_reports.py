@@ -6,6 +6,32 @@ from intel_mcp.research_server import create_research_server
 from intel_mcp.control_plane import ControlPlaneError
 
 @pytest.mark.anyio
+async def test_renderer_mismatch_requires_correction_without_write_verification_or_retry():
+    calls=[]
+    class Control:
+        async def research_workspace(self,body):
+            calls.append(body['operation'])
+            raise ControlPlaneError('STATIC_RENDERER_CUSTOM_CSS','Static renderer would discard CSS',400)
+    settings=SimpleNamespace(mcp_public_resource_url='https://mcp.synthetic.invalid/mcp',oauth_authorization_server_url='https://app.synthetic.invalid')
+    server,*_=create_research_server(settings,lambda:None,lambda:Control())
+    async with Client(server) as client:
+        result=await client.call_tool('save_project_custom_view',{
+            'preview':{'preview_id':'00000000-0000-0000-0000-000000000001','snapshot_key':'a'*64,'cache_token':'b'*43},
+            'title':'Synthetic chart','query':'Compare synthetic groups','summary':'Synthetic data',
+            'html':'<style>.bar{width:50%}</style><h1>Synthetic chart</h1>',
+            'source_ids':[],'evidence_basis':'project_tables','dataset_id':'snapshot','revision':1,'request_key':'css-mismatch'})
+        out=result.structured_content
+        assert not result.is_error
+        assert out['custom_view_saved'] is False
+        assert out['save_error']=='STATIC_RENDERER_CUSTOM_CSS'
+        assert out['retry_id'] is None
+        assert out['visualization_save_offer'] is None
+        assert out['recovery']['action']=='reconcile'
+        assert 'renderer=interactive' in out['recovery']['message']
+        assert 'fresh request_key' in out['recovery']['message']
+        assert calls==['report_save']
+
+@pytest.mark.anyio
 async def test_report_tools_authorize_documents_before_fetch_and_open_saved_report(monkeypatch):
     calls=[]
     allowed=False

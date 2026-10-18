@@ -205,6 +205,9 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         dataset_id and revision come from prepare_project_custom_view. trial_evidence requires
         registered source_ids; project_tables and user_provided accept an empty source list.
         Interactive HTML runs in an isolated renderer without external network or account access.
+        Custom CSS (style blocks/attributes), styled cards and CSS-based charts require
+        renderer=interactive even without controls or JavaScript. Static supports only
+        the semantic HTML/SVG shell; incompatible styling is rejected before persistence.
         custom_view_saved=true means storage was read back successfully; failures return save_status,
         save_error and a retry_id for the retained payload.
         """
@@ -240,6 +243,12 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
                     'visualization_save_offer':None,'pending_custom_view':None,'retry_id':None,'recovery':None,
                     'save_message':'Saved temporarily. Connect your account to keep this project and its visualizations.' if result['temporary'] else 'Saved to your TrialAgents account.'}
         except ToolError as error:
+            if 'STATIC_RENDERER_CUSTOM_CSS' in str(error):
+                return {'report_saved':False,'save_status':'failed','save_error':'STATIC_RENDERER_CUSTOM_CSS',
+                        'retry_id':None,'visualization_save_offer':None,
+                        'recovery':{'action':'reconcile','correction_tool':'save_project_custom_view',
+                            'payload_retained':False,'verification_complete':False,
+                            'message':'Static mode would discard custom CSS. Resubmit the complete self-contained HTML with renderer=interactive and a fresh request_key, or rebuild using the supported static HTML/SVG shell. Preserve the existing view ID/version. Inline external stylesheets; network assets are unavailable. Do not retry the unchanged payload.'}}
             # Do not lose the rendered conversation artifact or claim success on an uncertain write.
             out={}  # Retain the current workspace rather than reopening a failed draft.
             now=time.monotonic()
