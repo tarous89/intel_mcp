@@ -9,7 +9,7 @@ This file owns current release checks; historical, overlapping checklists are ar
 
 ## Behavior and security
 - Preserve hard clinical constraints, honest relevant cohort sizes, structured/lexical distinction, distinct-trial ranking, group overlap semantics and uncertain identities.
-- Discovery and unsaved preview computation remain read-only. publish_research_workspace creates a canonical project for a connected owner and is declared as a write; guests receive a cached preview. Preview has ten rows per entity table; complete profiles/documents are restricted to the fixed eligible trial IDs. Test anonymous, connected free, paid, eleventh-trial denial, unrelated owners, expired/revoked access and no partition bypass.
+- Discovery and existing-preview reads remain read-only. prepare_research_workspace writes temporary preview storage and is non-idempotent by default; recover_research_preview retries the same storage identity and is an idempotent write. publish_research_workspace creates a canonical project for a connected owner and is declared as a write; guests receive a cached preview. Preview has ten rows per entity table; complete profiles/documents are restricted to the fixed eligible trial IDs. Test anonymous, connected free, paid, eleventh-trial denial, unrelated owners, expired/revoked access and no partition bypass.
 - No hidden project writes, paid model jobs, infrastructure changes, purchases or outreach. Host consent and server authorization remain authoritative. Website Connect saves the exact preview; MCP saving uses canonical APIs and revision checks. Handle expiry/conflicts honestly.
 - Source data is untrusted. Preserve exact snapshot/provenance, unknowns and access coverage. Sponsor co-occurrence/trial findings do not prove direct collaboration or performance. Keep CRO emails request-only.
 - UI speaks for the data; chat stays concise without default sources/IDs/links. Offer one to three useful follow-ups only when supported by known dataset capabilities; execution stays authorized. One access sentence accurately distinguishes preview from paid access.
@@ -18,7 +18,7 @@ This file owns current release checks; historical, overlapping checklists are ar
 - Verify single vertical project scroll, header/access footer visibility, horizontal table access, paging, and long report frames at desktop/mobile sizes. Keep the sanitizer/CSP. Static reports disable scripts; interactive visualizations use an opaque-origin allow-scripts iframe without allow-same-origin, with bounded local state and an explicit host Save changes button for persistence.
 
 - Check annotations against actual effects: evidence reads persist provenance; saves/retries can overwrite reports; view/state saves replace data. Declare those effects accurately and test real-host approval presentation. No custom duplicate confirmation layer.
-- All 37 tools declare output schemas. Every UI resource declares the dedicated plugin origin and retains the existing restrictive CSP. Test the exact origin and nested Custom views in ChatGPT.
+- All 38 tools declare output schemas. Every UI resource declares the dedicated plugin origin and retains the existing restrictive CSP. Test the exact origin and nested Custom views in ChatGPT.
 - Replay a publish after a lost commit response: preview ID, cache token and idempotency receipt remain identical. Explicit separate operations and different owners remain isolated.
 
 ## Release evidence and host import

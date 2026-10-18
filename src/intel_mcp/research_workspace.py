@@ -181,9 +181,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         except (ControlPlaneError, SelectionError, OSError) as error:
             raise ToolError('PREVIEW_STORAGE_UNAVAILABLE: Retry this same preview; its research has not been replaced.') from error
 
-    @server.tool(meta={**mixed,**ui},annotations=read_annotations,structured_output=True)
+    @server.tool(meta={**mixed,**ui},annotations=write,structured_output=True)
     async def recover_research_preview(preview: PreviewSpec, kind: Kind='cros') -> dict[str, Any]:
-        """Retry storage of the exact failed preview, retaining its identity and selection. Does not save an account project or repeat research."""
+        """Retry temporary backend storage of the exact failed preview, retaining its identity and selection. Does not save an account project or repeat research."""
         spec = await recover_preview(preview)
         out = await read_project_preview(spec, kind)
         return {**out, 'storage_status': 'ready'}
@@ -338,7 +338,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             {'operation': 'create', 'previewToken': token, 'payload': payload})
         return out['project_id'], token
 
-    @server.tool(meta={**mixed,**ui},annotations=read_annotations,structured_output=True)
+    @server.tool(meta={**mixed,**ui},annotations=publish_write,structured_output=True)
     @workspace_gate(store)
     async def prepare_research_workspace(
         selection_id:Annotated[str,Field(min_length=40,max_length=64)],
@@ -352,8 +352,9 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
 
         Use only for deliberately unsaved exploration. For final new results use
         publish_research_workspace, which also saves for a connected account.
-        No account project or project job is created here, even for connected users. Prepared query
-        results may be cached internally for 7 days, separately from user projects.
+        Writes temporary backend preview storage for 7 days, separately from user projects.
+        No account project or project job is created here, even for connected users.
+        Calls without preview_id create separate private previews; do not blindly repeat them as retries.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Commit saved-project refinements with save_project using project_id and expected_revision. Keep chat to concise insights.
         Four tables are available immediately. Account access controls pagination and evidence.
