@@ -23,3 +23,6 @@ Synthetic MCP tests cover account omission, category-only envelopes, nonmutation
 
 For the later ZIP revision: package the synchronized canonical guidance and current tool schemas; update review examples/screenshots for Load and Show contact details; describe omission of account email and structured trial contacts; rerun package validation. No ZIP or submission metadata is changed in this release.
 
+## Existing CI assertion correction
+
+The App MCP-entry check still expected the old footer label `MCP`, while baseline main already renders `Intel MCP`. Update that assertion only; public labels and runtime behavior are unchanged. This was discovered by the release gate, not introduced by disclosure controls.

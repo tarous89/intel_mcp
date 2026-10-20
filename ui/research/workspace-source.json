@@ -1,6 +1,6 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "748dc29cd26b4370fe52f0318603b981e96adb1b",
+  "source_commit": "a1a3af16dbf8eec22cb8f7ed867732d23383c90c",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/CustomViewRecovery.tsx": "f01966cc0cccc000110deed6da3d5cd8f9c9bf663d1d389b9d3545b74f1ff304",
