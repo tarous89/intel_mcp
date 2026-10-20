@@ -74,7 +74,7 @@ async def test_search_to_workspace_with_malformed_contact_data():
         out=await client.call_tool('prepare_research_workspace',{'selection_id':token,'title':'PI workspace','kind':'pis'})
         assert not out.is_error
         data=out.structured_content
-        assert set(data['preview_tables'])=={'sites','pis','cros','trials'}
+        assert set(data['preview_tables'])=={'pis'}
         assert data['result']['returned']==4 and data['saved'] is False
         assert data['draft']['cache_token'] and len(control.cached)==1
         assert (await client.read_resource(RESOURCE)).contents[0].mime_type=='text/html;profile=mcp-app'

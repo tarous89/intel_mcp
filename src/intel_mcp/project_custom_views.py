@@ -6,6 +6,7 @@ import time
 from uuid import uuid4
 from collections import OrderedDict
 from .profiles import ProfileSection, project_profile
+from .disclosure import mask_contacts
 from .followups import RESOURCE as FOLLOWUP_RESOURCE, followup_payload
 from .profile_catalog import profile_catalog
 from pydantic import Field, BaseModel, ConfigDict
@@ -109,7 +110,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
         additive write, not a change to the underlying clinical-trial catalogue.
         No login needed for the fixed eligible ten preview trials. Use prepare_project_custom_view
         to discover eligible_trial_ids and scope; no report generation or saving is required.
-        Full profiles include all nested sites/investigators and document names. Sections:
+        Structured personal contacts are masked; sites and document names remain. Sections:
         overview, population, trial_design, interventions, eligibility, objectives, endpoints,
         sponsor_and_organizations, contacts, countries, sites, documents, lifecycle, results.
         Ordinary profiles return structured profile. Large profiles return profile_json_part:
@@ -121,7 +122,7 @@ def register_project_custom_view_tools(server,engine_factory,control_factory,mix
             evidence=await call('report_evidence',project_id,preview,trialIds=[trial_id],revision=revision)
             source=evidence['sources'][0]
             detail=source['data']
-            profile=project_profile(detail['profile'],sections or [])
+            profile=mask_contacts(project_profile(detail['profile'],sections or []))
             raw=json.dumps(profile,ensure_ascii=False,separators=(',',':'))
             size=20000
             total=max(1,(len(raw)+size-1)//size)

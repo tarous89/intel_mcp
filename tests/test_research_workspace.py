@@ -85,7 +85,7 @@ async def test_workspace_preview_without_cache_backend_does_not_create_account_p
             assert not out.is_error
             assert out.structured_content['saved'] is False
             assert out.structured_content['draft']['selection_id']==token
-            assert set(out.structured_content['preview_tables'])=={'cros','sites','pis','trials'}
+            assert set(out.structured_content['preview_tables'])=={'cros'}
             assert out.structured_content['presentation']['supporting_trials']=='only_on_explicit_request'
             assert 'url' not in out.structured_content
         assert control.calls==[]

@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: ui/research/package-lock.json
       - run: npm ci --ignore-scripts --prefix ui/research
       - run: npx --prefix ui/research playwright install --with-deps chromium
-      - run: node --test ui/research/workspace-browser.test.mjs
+      - run: node --test ui/research/workspace-browser.test.mjs ui/research/disclosure-browser.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

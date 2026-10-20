@@ -14,6 +14,7 @@ from .selection import SelectionCriteria, SelectionError
 from .research_views import result_view, evidence_view, account_view
 from .followups import RESOURCE as FOLLOWUP_RESOURCE, HTML as FOLLOWUP_HTML
 from .custom_view_contract import custom_view_contract
+from .disclosure import disclosure_boundary
 from .research_access import ResearchStore, public_ranking, public_evidence
 from .research_cohort import CohortRefinement, candidate_trials
 from .research_workspace import register_workspace_tools, RESOURCE, LEGACY_RESOURCE, COMPATIBILITY_RESOURCES, WORKSPACE_HTML
@@ -64,7 +65,7 @@ def create_research_server(settings, engine_factory, control_factory):
                   "openai/widgetDomain":UI_DOMAIN,
                   "openai/widgetCSP":{"redirect_domains":["https://intel.trialagents.com"]},
                   "openai/ui":{"preferredDisplayMode":"fullscreen","availableDisplayModes":["fullscreen"]}}))
-    server=MCPServer('TrialAgents Intel', extensions=[apps], middleware=[research_tool_security_schemes, custom_view_contract],
+    server=MCPServer('TrialAgents Intel', extensions=[apps], middleware=[research_tool_security_schemes, disclosure_boundary, custom_view_contract],
                      instructions=RESEARCH_WORKFLOW)
 
     async def full_access(dataset=None, project_id=None, *, require=False):

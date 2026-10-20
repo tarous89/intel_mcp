@@ -28,7 +28,7 @@ test('explicit connection saves exact preview and accepts only verified workspac
  const before=JSON.stringify(data);let call;
  const saved={canonical:true,result:{entities:[]},project_id:draft.preview_id};
  assert.deepEqual(await connectPreviewAccount({callServerTool:async x=>{call=x;return {structuredContent:saved}}},data),{status:'saved',data:saved});
- assert.deepEqual(call,{name:'save_project',arguments:{preview:data.draft}});
+ assert.deepEqual(call,{name:'save_project',arguments:{preview:data.draft,kind:'cros'}});
  assert.equal(JSON.stringify(data),before);
  for(const host of [{callServerTool:async()=>({isError:true})},{callServerTool:async()=>{throw Error('cancelled')}},{callServerTool:async()=>({structuredContent:{saved:true}})}]){
   assert.deepEqual(await connectPreviewAccount(host,data),{status:'pending'});
