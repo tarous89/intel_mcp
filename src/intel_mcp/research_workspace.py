@@ -29,7 +29,7 @@ WORKSPACE_HTML=files('intel_mcp').joinpath('ui/workspace-v1.html').read_text()
 RESOURCE='ui://trialagents/workspace-'+hashlib.sha256(WORKSPACE_HTML.encode()).hexdigest()[:16]
 LEGACY_RESOURCE='ui://trialagents/workspace-v1'
 # Retain published host snapshots when the current bundle identity changes.
-COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-263a005fe3972424','ui://trialagents/workspace-c874f734c130ebdb','ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8','ui://trialagents/workspace-9660022bf8278166')
+COMPATIBILITY_RESOURCES=('ui://trialagents/workspace-26fbc5d6b198f243','ui://trialagents/workspace-263a005fe3972424','ui://trialagents/workspace-c874f734c130ebdb','ui://trialagents/workspace-17ca07c3bf878f04','ui://trialagents/workspace-db4093082aae2be8','ui://trialagents/workspace-9660022bf8278166')
 Kind=Literal['cros','sites','pis','trials']
 SHARED_EVIDENCE_FIELDS=('discovery_evidence','operational_findings')
 
@@ -193,7 +193,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         return {**out, 'storage_status': 'ready'}
 
     @server.tool(meta={**mixed,**app_callable},annotations=read_annotations,structured_output=True)
-    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,limit:Annotated[int,Field(ge=1,le=100)]=10)->dict[str,Any]:
+    async def read_project_preview(preview:PreviewSpec,kind:Kind='sites',offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,limit:Annotated[int,Field(ge=1,le=100)]=10,include_contacts:Annotated[bool,Field(description='True only for an explicit request to show professional contact details.')]=False)->dict[str,Any]:
         """Read an existing preview without opening or changing the workspace.
 
         Paid accounts may choose limit 1–100; use 100 for broad analysis and fewer
@@ -216,6 +216,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         preview:PreviewSpec,
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')]|None=None,
         expected_revision:Annotated[int,Field(ge=1)]|None=None,
+        kind:Kind='cros',
     )->dict[str,Any]:
         """Store a finalized research preview in an authenticated owner's canonical project.
 
@@ -226,7 +227,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         """
         if not current_oauth_subject():
             return connect_result()
-        retry_args={'preview':preview.model_dump(mode='json')}
+        retry_args={'preview':preview.model_dump(mode='json'),'kind':kind}
         if project_id is not None:retry_args.update(project_id=project_id,expected_revision=expected_revision)
         def failed_save(error,storage_ready):
             return {'project_id':project_id or preview.preview_id,
@@ -251,7 +252,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         else:command.update(projectId=project_id,expectedRevision=expected_revision)
         try:
             saved=await retry_storage(lambda: control_factory().research_workspace({'operation':'canonical_commit','input':command}))
-            return with_workspace_destinations(await retry_storage(lambda: control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':'sites','offset':0,'limit':10})))
+            return with_workspace_destinations(await retry_storage(lambda: control_factory().research_workspace({'operation':'canonical_read','projectId':saved['project_id'],'kind':kind,'offset':0,'limit':10})))
         except ControlPlaneError as error:
             if transient_storage_error(error):return failed_save(error,True)
             raise ToolError(str(error)) from error
@@ -261,6 +262,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         kind:Kind|None=None,offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
         limit:Annotated[int,Field(ge=1,le=100)]=10,
+        include_contacts:Annotated[bool,Field(description='True only for an explicit request to show professional contact details.')]=False,
     )->dict[str,Any]:
         """Read the latest canonical project without opening or changing the workspace.
 
@@ -288,6 +290,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
     async def open_project(
         project_id:Annotated[str,Field(pattern=r'^[a-f0-9-]{36}$')],
         kind:Kind|None=None,offset:Annotated[int,Field(ge=0)]=0,controls:dict[str,str]|None=None,
+        include_contacts:Annotated[bool,Field(description='True only for an explicit request to show professional contact details.')]=False,
     )->dict[str,Any]:
         """Present a canonical project's table in the workspace as the final display step.
 
@@ -379,14 +382,15 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         Calls without preview_id create separate private previews; do not blindly repeat them as retries.
         Reuse this tool with updated selection/title/recommendations to refine an unsaved preview.
         Commit saved-project refinements with save_project using project_id and expected_revision. Keep chat to concise insights.
-        Four tables are available immediately. Account access controls pagination and evidence.
+        Return only the requested category. Other tabs load on explicit request.
+        Contact details require an explicit request. Account access controls pagination and evidence.
         For cached previews, Connect first attempts save_project through host account authorization.
         If needed, the user can continue in ChatGPT or choose website import. Website login
         does not establish MCP OAuth. Older previews retain their website connection path.
         The cached import expires after 7 days; never claim a preview is already a saved project.
         """
         try:
-            payload=await run_cpu(workspace_payload,store.get(selection_id),title,include_cro_contacts,recommendations)
+            payload=await run_cpu(workspace_payload,store.get(selection_id),title,True,recommendations)
             access=await preview_access()
             full=access.get('fullAccess') is True
             pages={k:preview_page(payload,k,0,full) for k in ('cros','sites','pis','trials')}
@@ -395,7 +399,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
                     raise SelectionError('ENTITY_ACCESS_REQUIRED')
             result=preview_page(payload,kind,offset,full)
             visible={e['id'] for e in result['entities']}
-            spec=PreviewSpec(preview_id=preview_id or str(uuid4()),selection_id=selection_id,title=title,include_cro_contacts=include_cro_contacts,
+            spec=PreviewSpec(preview_id=preview_id or str(uuid4()),selection_id=selection_id,title=title,include_cro_contacts=True,
                              recommendations=recommendations,snapshot_key=payload_key(payload))
             if preview_id:
                 # Bind the token to the original operation, owner and content with
@@ -466,7 +470,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
             return {**out,'recovery_tool':'save_project',
                     'recovery':{'retry_tool':'save_project','draft_retained':True}}
         try:
-            saved=await save_project(PreviewSpec.model_validate(out['draft']))
+            saved=await save_project(PreviewSpec.model_validate(out['draft']),kind=kind)
             return {**out,**saved} if saved.get('project_save_error') else saved
         except ToolError as error:
             return {**out,'project_save_error':str(error),'save_status':'failed',
@@ -479,6 +483,7 @@ def register_workspace_tools(server,store,control_factory,mixed,oauth,read_annot
         preview_token:Annotated[str,Field(pattern=r'^[A-Za-z0-9_-]{43}$')]|None=None,
         kind:Kind='cros',offset:Annotated[int,Field(ge=0)]=0,
         revision:Annotated[int,Field(ge=1)]|None=None,
+        include_contacts:Annotated[bool,Field(description='True only for an explicit request to show professional contact details.')]=False,
     )->dict[str,Any]:
         """Open/paginate a SAVED project table or read a previous revision under current access.
 

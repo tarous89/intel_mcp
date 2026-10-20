@@ -100,6 +100,9 @@ function View({initial}:{initial:any}){
  const [data,setData]=useState(initial),[dataset,setDataset]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retryPage,setRetryPage]=useState<{kind:WorkspaceKind;offset:number}|null>(null),[connectionError,setConnectionError]=useState(false);
  const [connectionStatus,setConnectionStatus]=useState('');
  const [connectionPending,setConnectionPending]=useState(false);
+ const [pendingKind,setPendingKind]=useState<WorkspaceKind|undefined>();
+ const loadedKinds=useRef(new Set<WorkspaceKind>([initial.result.entity_type,...Object.keys(initial.preview_tables??{}) as WorkspaceKind[]]));
+ const contactKinds=useRef(new Set<WorkspaceKind>());
  const pageCache=useRef(new Map<string,{at:number;data:any}>());
  const requestSerial=useRef(0),activeControls=useRef<any>({});
  const mutationSerial=useRef(0);
@@ -109,23 +112,29 @@ function View({initial}:{initial:any}){
   return recovery&&sameRecoveryTarget(source,recovery.source)?mergeRecoveryResult(value,recovery.result):value;
  }
  const connecting=useRef(false),handoff=useRef<{url:string;expires:number;project:string}|null>(null);
- setIncoming=value=>{if(value?.report_saved===false){const notice=Object.fromEntries(['visualization_save_offer','pending_custom_view','report_saved','retry_id','save_status','save_error','recovery'].map(key=>[key,value[key]]));setData((old:any)=>({...old,...notice}));return;}if(!value?.result){setData((old:any)=>({...old,...value}));if(value?.active_tab==='custom'){setReportsView(true);setDataset(false);}return;}recoveredStorage.current=null;pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;const changedProject=value.project_id!==data.project_id;setData(value);if(changedProject||value.active_tab||value.active_report_id){setReportsView(value.active_tab==='custom'||!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);}setError('');setRetryPage(null);setConnectionError(false);};
+ setIncoming=value=>{if(value?.report_saved===false){const notice=Object.fromEntries(['visualization_save_offer','pending_custom_view','report_saved','retry_id','save_status','save_error','recovery'].map(key=>[key,value[key]]));setData((old:any)=>({...old,...notice}));return;}if(!value?.result){setData((old:any)=>({...old,...value}));if(value?.active_tab==='custom'){setReportsView(true);setDataset(false);}return;}recoveredStorage.current=null;pageCache.current.clear();requestSerial.current++;setBusy(false);setConnectionStatus('');handoff.current=null;const changedProject=value.project_id!==data.project_id;if(changedProject){loadedKinds.current.clear();contactKinds.current.clear();}loadedKinds.current.add(value.result.entity_type);for(const kind of Object.keys(value.preview_tables??{}))loadedKinds.current.add(kind as WorkspaceKind);setPendingKind(undefined);setData(value);if(changedProject||value.active_tab||value.active_report_id){setReportsView(value.active_tab==='custom'||!!value.active_report_id);setActiveReport(value.active_report_id);setDataset(false);}setError('');setRetryPage(null);setConnectionError(false);};
  async function page(kind:WorkspaceKind,offset:number,controls:any=undefined,preserveView=false){activeControls.current=controls;const serial=++requestSerial.current;if(!preserveView){setDataset(false);setReportsView(false);}setError('');setRetryPage(null);setConnectionError(false);
-  if(!preserveView&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setBusy(false);setData(next);modelContext(next);return;}
-  const cacheKey=JSON.stringify([data.project_id,data.revision,kind,offset,controls??null,data.account?.fullAccess]);
+  if(!preserveView&&!contactKinds.current.has(kind)&&!data.canonical&&offset===0&&!Object.values(controls??{}).some(Boolean)&&data.preview_tables?.[kind]){const next={...data,result:data.preview_tables[kind],view:{table:kind,controls:{},version:0,source:'preview'}};setBusy(false);loadedKinds.current.add(kind);setPendingKind(undefined);setData(next);modelContext(next);return;}
+  const cacheKey=JSON.stringify([data.project_id,data.revision,kind,offset,controls??null,data.account?.fullAccess,contactKinds.current.has(kind)]);
   const cached=pageCache.current.get(cacheKey);
-  if(!preserveView&&cached&&Date.now()-cached.at<30000){setBusy(false);setData((old:any)=>preserveCustomRecovery(old,cached.data));modelContext(cached.data);return;}
+  if(!preserveView&&cached&&Date.now()-cached.at<30000){setBusy(false);setPendingKind(undefined);setData((old:any)=>preserveCustomRecovery(old,cached.data));modelContext(cached.data);return;}
   setBusy(true);setError('');try{
   const {snapshot_key,cache_token,...previewArgs}=data.draft??{};
-  const out=await callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset}});
+  const out=await callServerTool(data.draft?(cache_token?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls,include_contacts:contactKinds.current.has(kind)}}:{name:'prepare_research_workspace',arguments:{...previewArgs,kind,offset}}):data.canonical?{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls,include_contacts:contactKinds.current.has(kind)}}:{name:'get_research_workspace',arguments:{project_id:data.project_id,preview_token:data.preview_token,kind,offset,include_contacts:contactKinds.current.has(kind)}});
   if(serial!==requestSerial.current)return;
   if(out.isError||!out.structuredContent?.result)throw Error();
   if(data.canonical&&offset&&data.view?.version!==undefined&&out.structuredContent.view?.version!==data.view.version){void page(kind,0,undefined,preserveView);return;}
   const next=preserveRecoveredStorage(data,out.structuredContent);
+  loadedKinds.current.add(kind);setPendingKind(undefined);
   if(pageCache.current.size>=12)pageCache.current.delete(pageCache.current.keys().next().value!);
   pageCache.current.set(cacheKey,{at:Date.now(),data:next});
   setData((old:any)=>preserveCustomRecovery(old,next));modelContext(next);
  }catch{if(serial!==requestSerial.current)return;setRetryPage({kind,offset});setError('This table could not be loaded. Your current results are still shown. Retry, or reopen the preview from the conversation if it has expired.');}finally{if(serial===requestSerial.current)setBusy(false);}}
+ function selectPage(kind:WorkspaceKind,offset:number,controls:any=undefined){
+  if(!loadedKinds.current.has(kind)){requestSerial.current++;setBusy(false);setPendingKind(kind);setReportsView(false);setDataset(false);setError('');return;}
+  void page(kind,offset,controls);
+ }
+ function showContacts(){contactKinds.current.add(data.result.entity_type);pageCache.current.clear();void page(data.result.entity_type,data.result.access_info.offset??0,activeControls.current);}
  // Recheck account/project state only on return to this workspace. Do not poll
  // immutable datasets or block controls while the user is inspecting a table.
  const current=useRef(data);current.current=data;
@@ -145,7 +154,7 @@ function View({initial}:{initial:any}){
   const refresh=async()=>{
    const value=current.current;if(document.hidden||refreshing.current||(!value.canonical&&!value.draft?.cache_token))return;
    pageCache.current.clear();refreshing.current=true;const serial=requestSerial.current;
-   try{const out=await callServerTool(value.draft?{name:'read_project_preview',arguments:{preview:value.draft,kind:value.result.entity_type,offset:value.result.access_info.offset??0,controls:activeControls.current}}:{name:'open_project',arguments:{project_id:value.project_id,kind:value.result.entity_type,offset:value.result.access_info.offset??0}});
+   try{const out=await callServerTool(value.draft?{name:'read_project_preview',arguments:{preview:value.draft,kind:value.result.entity_type,offset:value.result.access_info.offset??0,controls:activeControls.current,include_contacts:contactKinds.current.has(value.result.entity_type)}}:{name:'open_project',arguments:{project_id:value.project_id,kind:value.result.entity_type,offset:value.result.access_info.offset??0,include_contacts:contactKinds.current.has(value.result.entity_type)}});
     if(serial===requestSerial.current&&!out.isError&&out.structuredContent?.result){const next=preserveRecoveredStorage(value,out.structuredContent);setData((old:any)=>preserveCustomRecovery(old,next));modelContext(next);}
    }catch{/* Retain the visible snapshot; interactive reads surface retry errors. */}finally{refreshing.current=false;}
   };
@@ -164,7 +173,7 @@ function View({initial}:{initial:any}){
   finally{setBusy(false);}
  }
  async function readPage(kind:WorkspaceKind,offset:number,controls:any=undefined){
-  const out=await callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls}}:{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls}});
+  const out=await callServerTool(data.draft?{name:'read_project_preview',arguments:{preview:data.draft,kind,offset,controls,include_contacts:contactKinds.current.has(kind)}}:{name:'read_project',arguments:{project_id:data.project_id,kind,offset,controls,include_contacts:contactKinds.current.has(kind)}});
   if(out.isError||!out.structuredContent?.result)throw Error();return out.structuredContent;
  }
  async function profile(id:string){const out=await callServerTool({name:'read_workspace_trial',arguments:{trial_id:id,...(data.draft?{preview:data.draft}:{project_id:data.project_id,revision:data.revision})}});if(out.isError||!out.structuredContent?.profile)throw Error();return out.structuredContent;}
@@ -229,7 +238,7 @@ function View({initial}:{initial:any}){
  async function readReport(id:string){if(data.report?.id===id&&(!data.reports?.find((r:any)=>r.id===id)?.version||data.reports.find((r:any)=>r.id===id).version===data.report.version))return {report:data.report};const out=await callServerTool({name:'read_project_custom_view',arguments:{custom_view_id:id,...(data.draft?{preview:reportPreview(data.draft)}:{project_id:data.project_id})}});if(out.isError||!out.structuredContent?.report)throw Error();modelContext({...data,active_report_id:id});return out.structuredContent;}
 
  if(!data)return <p role="alert">{error}</p>;
- return <><SaveNotice data={data} onRetry={retryRetained}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&(connectionPending?<><button onClick={continueConnection}>Continue connection in ChatGPT</button> <button onClick={()=>connect(true)}>Save through website</button></>:<button onClick={()=>connect()}>{handoff.current?'Open account connection':'Retry account connection'}</button>)}</section>}<WorkspaceTables surface="extension" data={data.report_saved===false?{...data,visualization_save_offer:null}:data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onCreateCustom={createCustom} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} onPage={page} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={()=>connect()} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
+ return <><SaveNotice data={data} onRetry={retryRetained}/>{connectionStatus&&<section aria-label="Account connection" style={{padding:'12px 16px',borderBottom:'1px solid currentColor'}}><p role={connectionError?'alert':'status'}>{connectionStatus}</p>{!busy&&(connectionPending?<><button onClick={continueConnection}>Continue connection in ChatGPT</button> <button onClick={()=>connect(true)}>Save through website</button></>:<button onClick={()=>connect()}>{handoff.current?'Open account connection':'Retry account connection'}</button>)}</section>}<WorkspaceTables surface="extension" data={data.report_saved===false?{...data,visualization_save_offer:null}:data} reportsView={reportsView} activeReportId={activeReport} onReports={()=>{setReportsView(true);setDataset(false);}} onCreateCustom={createCustom} onReportRead={readReport} onReportStateSave={saveState} onSaveVisualization={requestSave} pendingKind={pendingKind} onLoad={()=>pendingKind&&void page(pendingKind,0)} onContacts={showContacts} onPage={selectPage} onApply={applyView} onRead={readPage} onProfile={profile} onDownload={download} onAccount={()=>connect()} onDataset={()=>{setDataset(true);setReportsView(false);}} dataset={dataset} onAccess={access} busy={busy} error={error}/>{retryPage&&<p><button onClick={()=>page(retryPage.kind,retryPage.offset)} disabled={busy}>Retry loading table</button></p>}</>;
 }
 class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
  state={failed:false};

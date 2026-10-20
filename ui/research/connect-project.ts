@@ -30,7 +30,7 @@ export async function connectProject(app:any,data:any,onReady:(url:string)=>void
 export async function connectPreviewAccount(app:any,data:any){
  if(!data.draft?.cache_token)return {status:'website' as const};
  try{
-  const out=await app.callServerTool({name:'save_project',arguments:{preview:data.draft}});
+  const out=await app.callServerTool({name:'save_project',arguments:{preview:data.draft,kind:data.result?.entity_type??'cros'}});
   const saved=out.structuredContent;
   if(!out.isError&&saved?.canonical&&saved?.result)return {status:'saved' as const,data:saved};
  }catch{/* Host authorization can be unavailable/cancelled; retain the preview. */}
