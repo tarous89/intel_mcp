@@ -54,6 +54,11 @@ class SelectionCriteria(Contract):
     function_code: Annotated[int, Field(strict=True, ge=1, le=15)] | None = None
     cro_identity: Literal["reviewed_group", "legal_entity"] = "reviewed_group"
     include_broader: bool = False
+    max_recent_trials: int | None = Field(default=None, ge=1, le=800, description=(
+        "Optional newest-first cap for a bounded evidence comparison. Sort matching trials by "
+        "latest country submission or approval date, newest first, undated last, and EU number for ties. "
+        "Omit for the normal complete selection (up to 1,000 trials)."
+    ))
     as_of: date = Field(description="Explicit reference date for recent-authorization metrics; not recruitment capacity.")
 
     @model_validator(mode="after")
@@ -187,7 +192,9 @@ class SelectionDataset:
     def summary(self):
         counts = Counter(self.buckets.values())
         return CohortSummary(snapshot=self.snapshot, criteria=self.criteria,
-            counts={"base": len(self.records), **{bucket: counts[bucket] for bucket in BUCKETS}}, limitations=LIMITATIONS,
+            counts={"base": len(self.records), **{bucket: counts[bucket] for bucket in BUCKETS}}, limitations=LIMITATIONS + (
+                [f"This comparison is limited to the latest {self.criteria.max_recent_trials} matching trials by latest country submission or approval date (undated last; ties by EU trial number). Older matching trials may be excluded."]
+                if self.criteria.max_recent_trials is not None else []),
             subgroups=[{"id": g.id, "label": g.label, "bucket": g.bucket,
                         "count": sum(bool(tags) and tags[0] == g.id for tags in self.groups.values()),
                         "overlapping_count": sum(g.id in tags for tags in self.groups.values())}
