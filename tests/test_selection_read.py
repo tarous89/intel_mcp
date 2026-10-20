@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 from intel_mcp.engine_read.selection import read_selection
 from intel_mcp.selection import MAX_COHORT, SelectionError
 from test_selection import criteria, record
@@ -43,6 +44,22 @@ def test_query_reuses_validated_filters_and_single_statement_snapshot():
     assert params[-1] == MAX_COHORT + 1
     assert "report_profiles" not in sql
     assert 'phase' in sql
+
+
+def test_latest_eight_hundred_cap_applies_before_full_profile_load():
+    c = Connection([dbrow()])
+    chosen = criteria(max_recent_trials=800)
+    result = read_selection(c, chosen.model_dump(mode='json'))
+    sql, params = c.calls[0]
+    assert 'ORDER BY p.latest_country_submission_or_approval_date DESC NULLS LAST, p.eu_number ASC' in sql
+    assert params[-1] == 800
+    assert result.summary().counts['base'] == 1
+    assert 'latest 800' in ' '.join(result.summary().limitations)
+    assert result.criteria.max_recent_trials == 800
+    with pytest.raises(ValidationError):
+        criteria(max_recent_trials=801)
+    with pytest.raises(ValidationError):
+        criteria(max_recent_trials=0)
 
 
 def test_never_return_partial_or_ambiguous_cohort():
