@@ -68,3 +68,11 @@ def test_never_return_partial_or_ambiguous_cohort():
                         ([(dbrow()[0], '10.0.0', {}, None, True, False)], 'UNSUPPORTED_PROFILE')):
         with pytest.raises(SelectionError, match=error):
             read_selection(Connection(rows), criteria().model_dump(mode='json'))
+
+def test_optional_cap_preserves_uncapped_serialization():
+    assert "max_recent_trials" not in criteria().model_dump(mode="json")
+    assert "max_recent_trials" not in criteria(max_recent_trials=None).model_dump(mode="json")
+    assert criteria(max_recent_trials=800).model_dump(mode="json")["max_recent_trials"] == 800
+    for invalid in (True, 1.5, "800"):
+        with pytest.raises(ValidationError):
+            criteria(max_recent_trials=invalid)
