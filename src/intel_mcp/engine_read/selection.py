@@ -86,6 +86,12 @@ def read_selection(connection, request):
         group_columns.append(f", COALESCE(({sql}), FALSE) AS subgroup_{len(group_columns)}")
         group_params.extend(params)
     records = []
+    # The optional comparison cap is applied in SQL before loading large profile
+    # payloads. A presentation-only slice would not prevent cohort byte errors.
+    recent_limit = criteria.max_recent_trials
+    candidate_order = ("p.latest_country_submission_or_approval_date DESC NULLS LAST, p.eu_number ASC"
+                       if recent_limit is not None else "p.eu_number")
+    candidate_limit = recent_limit if recent_limit is not None else MAX_COHORT + 1
     with connection.cursor(name="selection_profiles") as cursor:
         cursor.execute(f"""
             WITH candidates AS MATERIALIZED (
@@ -95,7 +101,7 @@ def read_selection(connection, request):
             FROM mcp_serving.profile_filter_v1 p
             JOIN mcp_serving.selection_search_v1 search ON search.profile_id = p.id
             WHERE {base}
-            ORDER BY p.eu_number
+            ORDER BY {candidate_order}
             LIMIT %s
             )
             SELECT c.eu_number, source.schema_version, source.profile_json, source.ctis_data,
@@ -109,7 +115,7 @@ def read_selection(connection, request):
                 OFFSET 0
             ) source ON TRUE
             ORDER BY c.eu_number
-            """, [*direct_params, *related_params, *group_params, *base_params, MAX_COHORT + 1])
+            """, [*direct_params, *related_params, *group_params, *base_params, candidate_limit])
         while batch := cursor.fetchmany(10):
             for tid, schema, profile, ctis, direct_match, related_match, *matches in batch:
                 if len(records) >= MAX_COHORT:

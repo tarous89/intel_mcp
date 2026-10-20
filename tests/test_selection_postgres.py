@@ -18,7 +18,7 @@ def connection():
         if conn.execute("SELECT to_regnamespace('mcp_serving')").fetchone()[0] is not None:
             pytest.fail('Refusing to use a database with an existing mcp_serving schema')
         conn.execute('CREATE SCHEMA mcp_serving')
-        conn.execute('CREATE TABLE mcp_serving.profile_filter_v1 (id integer, eu_number text, approval_status text, phase integer[])')
+        conn.execute('CREATE TABLE mcp_serving.profile_filter_v1 (id integer, eu_number text, approval_status text, phase integer[], latest_country_submission_or_approval_date date)')
         conn.execute('CREATE TABLE mcp_serving.approved_profiles_v1 (eu_number text, schema_version text, profile_json jsonb, ctis_data jsonb)')
         conn.execute('CREATE TABLE mcp_serving.selection_search_v1 (profile_id integer, eu_number text, title text, diseases text, population text, stages text, settings text, inclusion text, exclusion text)')
         yield conn
@@ -29,7 +29,7 @@ def insert(conn, i, title, phase=None, population=''):
     row = record(i)
     row['profile']['classification_variables'].update(trial_title=title, target_population_summary=population)
     row['profile']['filtering_variables']['phase'] = phase
-    conn.execute('INSERT INTO mcp_serving.profile_filter_v1 VALUES (%s,%s,%s,%s)', (i, row['trial_id'], 'approved', phase))
+    conn.execute('INSERT INTO mcp_serving.profile_filter_v1 (id,eu_number,approval_status,phase) VALUES (%s,%s,%s,%s)', (i, row['trial_id'], 'approved', phase))
     conn.execute('INSERT INTO mcp_serving.selection_search_v1 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)', (i,row['trial_id'],title,'Lung cancer',population,'','','',''))
     conn.execute('INSERT INTO mcp_serving.approved_profiles_v1 VALUES (%s,%s,%s,NULL)', (row['trial_id'], '11.0.0', Jsonb(row['profile'])))
 
@@ -72,3 +72,27 @@ def test_cross_field_terms_deduplicate_and_preserve_exclusions(connection, opera
     })
     dataset = read_selection(connection, request.model_dump(mode='json'))
     assert list(dataset.records) == [f'2024-{i:06d}-00-00' for i in expected]
+
+def test_latest_800_filters_before_limit_and_uses_dates(connection):
+    from datetime import date, timedelta
+    for i in range(1, 806):
+        insert(connection, i, 'Lung cancer trial', [3] if i < 805 else [2])
+        connection.execute(
+            'UPDATE mcp_serving.profile_filter_v1 SET latest_country_submission_or_approval_date=%s WHERE id=%s',
+            (date(2020, 1, 1) + timedelta(days=i), i))
+    request = criteria(base={'phase': {'values': [3]}},
+                       base_text={'fields': ['title'], 'terms': ['Lung']},
+                       max_recent_trials=800)
+    dataset = read_selection(connection, request.model_dump(mode='json'))
+    assert list(dataset.records) == [f'2024-{i:06d}-00-00' for i in range(5, 805)]
+    assert dataset.summary().criteria.max_recent_trials == 800
+
+
+def test_recent_cap_null_dates_last_and_eu_number_ties(connection):
+    for i in (4, 3, 2, 1):
+        insert(connection, i, 'Lung cancer trial', [3])
+    connection.execute("UPDATE mcp_serving.profile_filter_v1 SET latest_country_submission_or_approval_date='2026-10-20' WHERE id IN (2,3,4)")
+    request = criteria(base={}, base_text={'fields': ['title'], 'terms': ['Lung']},
+                       max_recent_trials=2)
+    dataset = read_selection(connection, request.model_dump(mode='json'))
+    assert list(dataset.records) == ['2024-000002-00-00', '2024-000003-00-00']
