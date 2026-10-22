@@ -1,6 +1,6 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "a1a3af16dbf8eec22cb8f7ed867732d23383c90c",
+  "source_commit": "c03424a0d5b340496eee78b8c4ccdd5ed07ac72f",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/CustomViewRecovery.tsx": "f01966cc0cccc000110deed6da3d5cd8f9c9bf663d1d389b9d3545b74f1ff304",
@@ -12,7 +12,7 @@
     "app/lib/workspace-xlsx.ts": "b73853fd46766e200243d84852e1f3fbf6631117c155ed1adf952116b0be104b",
     "app/preview/combined/CombinedTrialProfile.tsx": "f980555189acf0ed4e4de48f6e05c626feb90471b12541636289d2081cac17c7",
     "app/lib/research-table-rows.ts": "99f550bf75beb58305cfffa8351c997165431fec55834b464da2686875d1b6ea",
-    "app/research/WorkspaceTables.tsx": "07d8d6f375d50ed3e7d56263f92d2ea17d0207d97f3b72fcdd9d1e94a1eb492c",
+    "app/research/WorkspaceTables.tsx": "faf62560701bf1746a800091ceaa15953844e278e7e39f0e000c3eedc99827ba",
     "app/research/workspace.css": "fede09ab7c88913bde5588c6301c3f586cc60d43d36b2091d7acdce44ac1ee17",
     "app/preview/combined/SharedProjectFrame.tsx": "cb4026c178912cacccec916e2e24b8df7953a0d213f6508293aa4634c1b04eb5",
     "app/components/workspace/workspace-shell.css": "b129b3625b27a6f6fd9cf755f212d602f29c9fa47a70b17aaf6f649a8fbfa36c",
@@ -26,5 +26,5 @@
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "a5d531e9eddaea3b6343d80a0645c884058ff232b103ff98ba6c4bd9eacc24de"
+  "bundle_sha256": "c5279c06a312281df9972e8f0670e568a103e0d65eea7027f900412249ce4d77"
 }
