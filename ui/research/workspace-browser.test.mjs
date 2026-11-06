@@ -11,7 +11,7 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
  const browser=await chromium.launch({headless:true});
  try{
  const html=await readFile(new URL('../../src/intel_mcp/ui/workspace-v1.html',import.meta.url),'utf8');
- for(const width of [1280,760,420]){
+ for(const width of [1280,900,760,420]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(data=>{
    window.postMessage=msg=>{let result;if(msg.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostInfo:{name:'Browser fixture',version:'1'},hostCapabilities:{},hostContext:{theme:'light',displayMode:'fullscreen'}};else if(msg.method==='ui/notifications/initialized'){setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}})),0);return;}else if(msg.method==='tools/call'&&msg.params.name==='read_project_preview')result={structuredContent:data};else if(msg.method==='tools/call'&&msg.params.name==='read_project_custom_view')result={structuredContent:{custom_view:{id:'report-1',title:'Protocol comparison',query:'How do endpoints differ?',access_scope:'preview',storage_status:'temporary',revision:1,created_at:'2026-10-11T12:00:00Z',html:'<h1>Evidence comparison</h1><p>Accessible preview evidence.</p>'+('<p>Long report content for vertical scrolling.</p>'.repeat(100))}}};else if(msg.id!==undefined)result={};else return;setTimeout(()=>window.dispatchEvent(new MessageEvent('message',{source:window,data:{jsonrpc:'2.0',id:msg.id,result}})),0);};
@@ -31,6 +31,14 @@ test('shipped workspace has compact controls and reachable rightmost columns',as
    await page.locator('[class*="tableViewport"]').waitFor();
    await page.locator('[class*="tableViewport"]').evaluate(v=>v.scrollLeft=0);
    await page.screenshot({path:`/tmp/workspace-design/${width}-${label}.png`,fullPage:true});
+   const geometry=await page.locator('[class*="tableViewport"]').evaluate(v=>{
+    const h=v.querySelector('[class*="listHeader"]'),r=v.querySelector('article');
+    const cells=[...r.children].map(c=>c.getBoundingClientRect());
+    return {header:getComputedStyle(h).display,height:r.getBoundingClientRect().height,aligned:cells.every(c=>c.top<cells[0].bottom&&c.bottom>cells[0].top)};
+   });
+   assert.equal(geometry.header,'grid',`${width}/${label}: headers must remain visible`);
+   assert(geometry.aligned,`${width}/${label}: cells must share a single row`);
+   assert(geometry.height<150,`${width}/${label}: rows must not become cards`);
    const headers=await page.locator('[class*="listHeader"]').innerText();assert(!headers.includes('Recent activity'));assert(!headers.includes('Department'));
    const footer=await page.locator('.workspace-access').boundingBox();assert(footer.y>=0&&footer.y+footer.height<=900,`${width}/${label}: access banner outside viewport`);
    const layout=await page.locator('.workspace-access').evaluate(f=>{const c=document.querySelector('.workspace-content'),m=document.querySelector('.app-workspace');return {position:getComputedStyle(f).position,contentBottom:c.getBoundingClientRect().bottom,top:f.getBoundingClientRect().top,left:f.getBoundingClientRect().left-m.getBoundingClientRect().left,right:m.getBoundingClientRect().right-f.getBoundingClientRect().right,bottom:innerHeight-f.getBoundingClientRect().bottom};});

@@ -1,6 +1,6 @@
 {
   "source_repository": "tarous89/intel_agent_app",
-  "source_commit": "c03424a0d5b340496eee78b8c4ccdd5ed07ac72f",
+  "source_commit": "744e322e23a5660da295e9e06464f61618b78ece",
   "status": "Draft shared preview; real-host acceptance pending",
   "files": {
     "app/research/CustomViewRecovery.tsx": "f01966cc0cccc000110deed6da3d5cd8f9c9bf663d1d389b9d3545b74f1ff304",
@@ -19,12 +19,12 @@
     "app/globals.css": "b7cadb43d253dfa93566b4c2f7b3d3f1f59db1a0791edfd9619b541a226a679e",
     "app/trialagents-theme.css": "f3410d5b8501ed22303f89e1b762652442e6f68f3285755ebea142ffd10c1c97",
     "app/_site-agent/SiteResultsTable.tsx": "22d8a5dd9a46c8d1eef8a705eeb349586c3f7ba947c7fa6524df5d11e935d554",
-    "app/_site-agent/SiteAgentWorkspace.module.css": "c1676e8ef8f8147ec3c248708c8aa1cf6eee153fe559e579a60cf17b2dacd140",
-    "app/preview/combined/CombinedEntityTable.tsx": "3ff9a654229aaac9f6c8352182e8da732adc46c9c903452f61e1c4a3eba36de4",
-    "app/preview/combined/combined-workspace.css": "2ee0b294c3d53f2b1707f300c30b3af939930bad31d42ef65d4a8002135d47ca",
+    "app/_site-agent/SiteAgentWorkspace.module.css": "df196ea76da179588c087614c4e50c27b7a398b6a40c1a696eae3117b8c25d97",
+    "app/preview/combined/CombinedEntityTable.tsx": "75b931816ffb622c950e73fe3895d1f0ef679aef78ed4b900e71067f39a97951",
+    "app/preview/combined/combined-workspace.css": "7847d0c4fe57126bdf8edf6c3195840a946d9292348a85f9b925de23f6d36335",
     "app/components/TrialEvidence.tsx": "ee0e77740d0c073463da8f77165fcbb8ee31459ab1d76c04e35612ddb0a69c74",
     "app/lib/combined-cro-functions.ts": "387e0afe975a984d5d0c70eea6244e8cfd5242d7cbf0706b42e4dcf498483c11",
     "app/app-icon.tsx": "30004c06e1743b06483ffab1431b94d6a3d7148b9cb5f29b534e87bdde497df9"
   },
-  "bundle_sha256": "c5279c06a312281df9972e8f0670e568a103e0d65eea7027f900412249ce4d77"
+  "bundle_sha256": "9140a94fbfdd959c19adb55a5db9151df2731c5f0672a0252edb42b7f978b525"
 }
