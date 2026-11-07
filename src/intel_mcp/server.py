@@ -1142,12 +1142,21 @@ def build_app():
         research, ResearchAuth, research_store, research_resource, research_challenge = create_research_server(
             settings, engine_client, control_plane_client)
         research_http = research.streamable_http_app(stateless_http=True, transport_security=transport_security)
+        # Claude endpoint (/claude/mcp): separate instance, off unless MCP_CLAUDE_ENABLED=true.
+        import os
+        claude_routes, claude_http = [], None
+        if os.getenv("MCP_CLAUDE_ENABLED", "false").strip().lower() == "true":
+            from intel_mcp.claude_research import claude_routes as build_claude_routes
+            claude_routes, claude_http = build_claude_routes(
+                settings, engine_client, control_plane_client, research_store, transport_security)
     
         @asynccontextmanager
         async def lifespan(application):
             async with AsyncExitStack() as stack:
                 await stack.enter_async_context(legacy_http.router.lifespan_context(legacy_http))
                 await stack.enter_async_context(research_http.router.lifespan_context(research_http))
+                if claude_http is not None:
+                    await stack.enter_async_context(claude_http.router.lifespan_context(claude_http))
                 yield
     
         async def research_metadata(_request):
@@ -1164,6 +1173,7 @@ def build_app():
             Route('/internal/research-snapshot', snapshot_endpoint(research_store, settings.app_service_token), methods=['POST']),
             Route('/.well-known/oauth-protected-resource/research/mcp', research_metadata, methods=['GET']),
             Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
+            *claude_routes,
             Mount('/', app=app),
         ], lifespan=lifespan)
     return app
