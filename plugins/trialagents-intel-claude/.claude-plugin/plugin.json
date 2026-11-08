@@ -1,7 +1,7 @@
 {
   "name": "trialagents",
   "displayName": "TrialAgents - European Clinical Trial Intelligence",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Find and compare clinical sites, principal investigators and CROs across Europe, review trial protocols, and build charts and reports in an interactive workspace inside Claude.",
   "icon": ".claude-plugin/icon.png",
   "author": {
@@ -11,6 +11,9 @@
   },
   "homepage": "https://trialagents.com/intel-agent",
   "privacyPolicyUrl": "https://trialagents.com/privacy-policy",
+  "termsOfServiceUrl": "https://trialagents.com/terms-of-service",
+  "supportUrl": "https://intel.trialagents.com/support/intel",
+  "documentationUrl": "https://intel.trialagents.com/mcp",
   "repository": "https://github.com/tarous89/intel_mcp",
   "license": "Proprietary",
   "keywords": [
