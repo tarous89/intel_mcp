@@ -1,11 +1,11 @@
 {
   "name": "trialagents",
   "displayName": "TrialAgents - European Clinical Trial Intelligence",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Find and compare clinical sites, principal investigators and CROs across Europe, review trial protocols, and build charts and reports in an interactive workspace inside Claude.",
   "icon": ".claude-plugin/icon.png",
   "author": {
-    "name": "Atlas Consulting",
+    "name": "TrialAgents",
     "email": "intel@trialagents.com",
     "url": "https://trialagents.com"
   },
