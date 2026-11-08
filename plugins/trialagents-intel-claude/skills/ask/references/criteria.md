@@ -16,7 +16,7 @@ Required: `base` (structured hard filters), `entity_type` (`cros`, `sites`, `pis
 
 `function_code` applies only to cros: 1 monitoring; 2 investigator recruitment; 3 IRT; 4 laboratory; 5 project management; 6 data management; 7 EDC; 8 safety; 9 QA; 10 statistics; 11 medical writing; 12 regulatory; 13 medical expertise; 14 medicinal product management; 15 other. “CROs/providers” can include laboratories/vendors; do not claim all are full-service CROs.
 
-`max_recent_trials` (1–800) keeps the newest matching trials by latest country submission or approval date (undated last, ties by EU trial number). Leave it unset for the default behaviour: complete selection up to 800 trials, otherwise the latest 800 with `recent_cap` in the result. Set it when the user asks for a specific number of latest trials.
+`max_recent_trials` (1–800) keeps the newest matching trials by latest country submission or approval date (undated last, ties by EU trial number). Leave it unset for the default behaviour: complete selection up to 800 trials, otherwise the latest 800 with `recent_cap` in the result (600, 400 or 250 when 800 trial records exceed the 16 MB selection size limit). Set it when the user asks for a specific number of latest trials.
 
 ## Example: exploratory mHSPC phase III landscape
 
@@ -27,7 +27,7 @@ The text engine cannot combine (hormone-sensitive OR hormone-naive) AND metastat
 ## Search results
 
 - `discovery_guidance` reports the trial count and whether it is within the exploratory range.
-- `recent_cap` appears when more than 800 trials matched: `max_recent_trials` (800), `matching_trials` (null when more than 1,000) and `matching_trials_label`. The cohort limitations also state the newest-first cap.
+- `recent_cap` appears when more than 800 trials matched or the records were too large: `max_recent_trials` (the cap used), `matching_trials` (null when more than 1,000) and `matching_trials_label`. The cohort limitations also state the newest-first cap.
 - `cohort.coverage=complete_available_profile_selection` describes the matching available TrialAgents profiles; it is not a census of every CTIS study.
 - `access_info` gives total matching, returned and the access message. A result with six available entities is six of six, not a hidden ten.
 - Search construction is concurrency-limited: run entity categories one after another. Selections expire after `expires_in_seconds`.

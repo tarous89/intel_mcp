@@ -25,7 +25,7 @@ Every request also follows [access and evidence rules](references/access-and-evi
 
 ## Always come back with a list
 
-- Do not stop to ask the user to narrow a search because of its size. When more than 800 trials match, the search keeps the latest 800 by latest country submission or approval date and reports recent_cap. Publish that selection and say in one sentence that it covers the latest 800 of the matching trials (state the count from recent_cap.matching_trials_label), adding that narrower criteria give a complete selection.
+- Do not stop to ask the user to narrow a search because of its size. When more than 800 trials match, the search keeps the latest 800 by latest country submission or approval date (600, 400 or 250 when 800 trial records are too large for one selection) and reports recent_cap. Publish that selection and say in one sentence that it covers the latest recent_cap.max_recent_trials of the matching trials (recent_cap.matching_trials_label), adding that narrower criteria give a complete selection.
 - For a request that names a size ("latest 500 trials"), set criteria.max_recent_trials to that number (1–800).
 - Ask a clarifying question only when the clinical question itself is missing, not when the cohort is large.
 - Preserve explicit must and only constraints from the user. Report small or empty results honestly.
