@@ -1,3 +1,7 @@
+# Claude plugin author — 2026-11-08
+
+Owner chose author.name "TrialAgents" for the Claude plugin (0.1.9); the README still names Atlas Consulting as operator. ChatGPT plugin publisher (Atlas Consulting) unchanged.
+
 # Claude plugin icon re-encoded — 2026-11-08
 
 After stripping metadata, the portal still flagged a download-and-run pattern in icon.png: the 871 KB grainy PNG contained random byte runs ($(, sh, …) read as shell syntax. 0.1.8 uses a 512 px, 7-colour palette version of the same logo (3.4 KB, brand colours navy/white/green, transparent corners) with no such runs; a test guards it. The ChatGPT plugin's logo is unchanged.
