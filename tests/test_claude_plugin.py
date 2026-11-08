@@ -40,3 +40,13 @@ def test_chatgpt_plugin_still_points_to_research_endpoint():
     servers = json.loads((CHATGPT / 'mcp.json').read_text())['mcpServers']
     assert servers['trialagents-research']['url'] == 'https://mcp.trialagents.com/research/mcp'
     assert len(list((CHATGPT / 'skills').glob('*/SKILL.md'))) == 5
+
+
+def test_listing_icon_is_a_square_png_within_limits():
+    import struct
+    manifest = json.loads((CLAUDE / '.claude-plugin/plugin.json').read_text())
+    icon = CLAUDE / manifest['icon']
+    data = icon.read_bytes()
+    assert data[:8] == b'\x89PNG\r\n\x1a\n' and len(data) < 2 * 1024 * 1024
+    width, height = struct.unpack('>II', data[16:24])
+    assert width == height and 512 <= width <= 2048
