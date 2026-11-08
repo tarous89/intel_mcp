@@ -1,3 +1,7 @@
+# Claude skill name — 2026-11-08
+
+Owner requested the Claude plugin skill be named for TrialAgents: `ask` is renamed `ask-trialagents` (Ask TrialAgents, `/trialagents:ask-trialagents`). Content unchanged. Claude plugin 0.1.3. No server change.
+
 # Claude cap order for tool timeouts — 2026-11-08
 
 Live check after the step-down: an uncapped over-limit attempt followed by 800 and 600 took more than 60 seconds (about 25 seconds per large load), so the tool call timed out. The Claude endpoint now searches with the 800 cap first; fewer than 800 trials returns the uncapped search instead (same trials, no cap limitation), and the size-limit step-down follows. recent_cap reports "at least N" because the exact total is not counted. Shared limits, ChatGPT endpoint and App unchanged. Claude plugin 0.1.2.

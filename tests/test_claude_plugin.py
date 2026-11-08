@@ -17,10 +17,10 @@ def test_manifest_and_endpoint():
 
 def test_single_user_facing_skill():
     skills = sorted(p.parent.name for p in (CLAUDE / 'skills').glob('*/SKILL.md'))
-    assert skills == ['ask']
-    text = (CLAUDE / 'skills/ask/SKILL.md').read_text()
+    assert skills == ['ask-trialagents']
+    text = (CLAUDE / 'skills/ask-trialagents/SKILL.md').read_text()
     front = re.match(r'---\nname: (.+)\ndescription: "(.+)"\n---\n', text)
-    assert front and front.group(1) == 'ask' and len(front.group(2)) <= 1024
+    assert front and front.group(1) == 'ask-trialagents' and len(front.group(2)) <= 1024
 
 
 def test_links_resolve_and_no_chatgpt_wording():

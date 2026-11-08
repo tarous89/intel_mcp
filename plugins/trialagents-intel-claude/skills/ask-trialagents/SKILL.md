@@ -1,5 +1,5 @@
 ---
-name: ask
+name: ask-trialagents
 description: "Ask TrialAgents about European clinical trials: find and compare clinical sites, principal investigators (PIs) and CROs for a study, explore trial landscapes, read protocols, eligibility and endpoints, build charts, reports, comparisons or trackers from the results, and open or save TrialAgents research projects. Use for any TrialAgents, CTIS, site selection, investigator search or CRO selection request."
 ---
 
