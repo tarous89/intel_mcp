@@ -1,3 +1,7 @@
+# Claude plugin listing icon — 2026-11-08
+
+Claude plugin 0.1.6 adds .claude-plugin/icon.png (a copy of the TrialAgents logo from the ChatGPT plugin assets; the original is unchanged) because the directory takes the listing icon from the plugin only at the first submission. Plugin folder and its test only.
+
 # Claude plugin directory readiness — 2026-11-08
 
 Claude plugin 0.1.5 for directory submission: user-facing README (the listing page) with what the plugin does, access, and a data and privacy disclosure naming the only destination (mcp.trialagents.com/claude/mcp), and displayName "TrialAgents - European Clinical Trial Intelligence" chosen by the owner. Plugin folder only; ChatGPT plugin, server and App unchanged. Submit from tarous89/intel_mcp (public) with plugin path plugins/trialagents-intel-claude.
