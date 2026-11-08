@@ -1,3 +1,8 @@
+# Static HTML shell
+
+HTML template for TrialAgents Custom views. Copy the relevant sections into the view's HTML and replace the synthetic example content with authorised data or user inputs.
+
+```html
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Custom view template</title></head><body><main>
 <h1>View title</h1><p class="summary">Executive summary: replace with one or two sentences about the supplied data.</p>
@@ -8,3 +13,4 @@
 <section><h2>Table section title</h2><p>Optional one-sentence interpretation.</p><div class="table-scroll"><table><thead><tr><th>Item</th><th>Measure</th><th>Notes</th></tr></thead><tbody><!-- Populate authorized rows here. --></tbody></table></div></section>
 <section><h2>Tracker section title</h2><p>Update this tracker through Claude and save its revised version.</p><div class="table-scroll"><table><thead><tr><th>Item</th><th>Status</th><th>Next step</th></tr></thead><tbody><!-- Populate user-provided tracker entries here. --></tbody></table></div></section>
 </main></body></html>
+```

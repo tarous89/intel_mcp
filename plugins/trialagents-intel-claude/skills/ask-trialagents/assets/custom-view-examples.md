@@ -1,3 +1,8 @@
+# Branded interactive gallery
+
+HTML template for TrialAgents Custom views. Copy the relevant sections into the view's HTML and replace the synthetic example content with authorised data or user inputs.
+
+```html
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Custom view examples</title>
 <style>
@@ -45,3 +50,4 @@ document.addEventListener('DOMContentLoaded',()=>{
  update();
 });
 </script></body></html>
+```

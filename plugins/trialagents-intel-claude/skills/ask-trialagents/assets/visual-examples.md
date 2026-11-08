@@ -1,3 +1,8 @@
+# SVG chart examples
+
+HTML template for TrialAgents Custom views. Copy the relevant sections into the view's HTML and replace the synthetic example content with authorised data or user inputs.
+
+```html
 <!doctype html><html><head><meta charset="utf-8"><title>Visual layout examples</title></head><body><main>
 <h1>Visual layout examples</h1><p class="summary">Illustrative placeholders only. Reuse the relevant section, replacing labels, geometry, values and interpretation with authorized data. The main shell supplies tables and trackers.</p>
 <section><h2>Stacked comparison</h2><p>Use one shared scale across comparable rows; totals and units remain explicit.</p>
@@ -39,3 +44,4 @@
 </svg><figcaption>Illustrative event dates; replace with the actual time unit and scope.</figcaption></figure></section>
 <section><h2>Comparison cards</h2><p>Use the same fields for each item.</p><section><h3>Example A</h3><p><strong>Measure:</strong> —</p><p><strong>Interpretation:</strong> Replace with the supported finding.</p></section><section><h3>Example B</h3><p><strong>Measure:</strong> —</p><p><strong>Interpretation:</strong> Replace with the supported finding.</p></section></section>
 </main></body></html>
+```
