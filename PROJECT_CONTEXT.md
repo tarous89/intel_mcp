@@ -1,3 +1,7 @@
+# Claude cap order for tool timeouts — 2026-11-08
+
+Live check after the step-down: an uncapped over-limit attempt followed by 800 and 600 took more than 60 seconds (about 25 seconds per large load), so the tool call timed out. The Claude endpoint now searches with the 800 cap first; fewer than 800 trials returns the uncapped search instead (same trials, no cap limitation), and the size-limit step-down follows. recent_cap reports "at least N" because the exact total is not counted. Shared limits, ChatGPT endpoint and App unchanged. Claude plugin 0.1.2.
+
 # Approved Claude cap step-down — 2026-11-08
 
 Live check after deployment: 800 Phase 2 oncology records exceeded the shared 16 MB selection size limit (COHORT_BYTES_EXCEEDED). To keep the owner-approved "always return a list" behaviour, the Claude endpoint now steps the newest-first cap down to 600, 400 and 250 when the size limit is exceeded, and treats an uncapped size-limit error like an over-1,000 search. recent_cap reports the cap used. The shared limits, ChatGPT endpoint and App are unchanged. Claude plugin 0.1.1.

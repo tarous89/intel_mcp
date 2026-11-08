@@ -1,6 +1,6 @@
 {
   "name": "trialagents",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Ask TrialAgents about European clinical trials: find and compare clinical sites, principal investigators and CROs, read protocols, and build charts and reports from the results.",
   "author": {
     "name": "Atlas Consulting",

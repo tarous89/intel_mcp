@@ -225,20 +225,19 @@ def _search_ctx(criteria):
                                                         'arguments': {'criteria': criteria}})
 
 
-def _ok(count):
-    payload = {'selection_id': f's{count}', 'cohort': {'counts': {'base': count}}}
+def _ok(count, cap=None):
+    payload = {'selection_id': f's{count}-{cap}', 'cohort': {'counts': {'base': count}}}
     return {'structuredContent': payload, 'content': [{'type': 'text', 'text': json.dumps(payload)}]}
 
 
 TOO_LARGE = {'isError': True, 'content': [{'type': 'text', 'text': 'Error executing tool search_research_trials: '
                                            'COHORT_TOO_LARGE: Narrow base criteria; no partial ranking was produced.'}]}
-
-
 BYTES = {'isError': True, 'content': [{'type': 'text', 'text': 'Error executing tool search_research_trials: '
                                        'COHORT_BYTES_EXCEEDED: Narrow the cohort; no partial ranking was produced.'}]}
 
 
-def _run_cap(first, criteria=CRITERIA, too_big=()):
+def _run_cap(matching, criteria=CRITERIA, fits=1000):
+    """Fake shared engine: `matching` trials, of which at most `fits` fit the size limit."""
     import dataclasses
     calls = []
 
@@ -248,45 +247,68 @@ def _run_cap(first, criteria=CRITERIA, too_big=()):
         params: dict
 
     async def call_next(ctx):
-        calls.append(ctx.params['arguments']['criteria'])
-        cap = ctx.params['arguments']['criteria'].get('max_recent_trials')
-        if cap in too_big:
-            return BYTES
-        return _ok(cap) if cap else first
+        crit = ctx.params['arguments']['criteria']
+        calls.append(crit.get('max_recent_trials'))
+        cap = crit.get('max_recent_trials')
+        n = min(matching, cap) if cap else matching
+        if n > 1000:
+            return TOO_LARGE
+        return BYTES if n > fits else _ok(n, cap)
     ctx = Ctx(**vars(_search_ctx(criteria)))
     return asyncio.run(claude_research.claude_recent_cap(ctx, call_next)), calls
 
 
-def test_over_limit_claude_search_returns_latest_800():
-    result, calls = _run_cap(TOO_LARGE)
-    assert calls == [CRITERIA, {**CRITERIA, 'max_recent_trials': 800}]
+def test_large_claude_search_returns_latest_800_in_one_search():
+    result, calls = _run_cap(1621)
+    assert calls == [800]
     cap = result['structuredContent']['recent_cap']
     assert cap['applied'] is True and cap['max_recent_trials'] == 800 and cap['matching_trials'] is None
-    assert cap['matching_trials_label'] == 'more than 1,000'
-    assert not result.get('isError') and result['structuredContent']['selection_id'] == 's800'
+    assert cap['matching_trials_label'] == 'at least 800'
+    assert not result.get('isError') and result['structuredContent']['selection_id'] == 's800-800'
     assert json.loads(result['content'][0]['text'])['recent_cap'] == cap
 
 
-def test_claude_search_between_800_and_1000_is_capped_with_count():
-    result, calls = _run_cap(_ok(950))
-    assert calls[-1]['max_recent_trials'] == 800 and len(calls) == 2
-    assert result['structuredContent']['recent_cap']['matching_trials'] == 950
-    assert '950 trials matched' in result['structuredContent']['recent_cap']['description']
+def test_claude_search_of_exactly_800_is_reported_as_capped():
+    result, calls = _run_cap(800)
+    assert calls == [800] and result['structuredContent']['recent_cap']['max_recent_trials'] == 800
 
 
-@pytest.mark.parametrize('first', [_ok(800), _ok(12)])
-def test_claude_search_within_800_is_unchanged(first):
-    result, calls = _run_cap(first)
-    assert result is first and calls == [CRITERIA]
+@pytest.mark.parametrize('matching', [12, 799])
+def test_claude_search_below_800_returns_the_uncapped_selection(matching):
+    result, calls = _run_cap(matching)
+    assert calls == [800, None]
+    assert result['structuredContent']['selection_id'] == f's{matching}-None'
+    assert 'recent_cap' not in result['structuredContent']
+
+
+def test_cap_steps_down_when_800_records_exceed_the_size_limit():
+    result, calls = _run_cap(1621, fits=650)
+    assert calls == [800, 600]
+    cap = result['structuredContent']['recent_cap']
+    assert cap['max_recent_trials'] == 600 and result['structuredContent']['selection_id'] == 's600-600'
+    assert 'latest 600' in cap['description'] and 'exceeded the size limit' in cap['description']
+
+
+def test_every_cap_over_the_size_limit_returns_the_error():
+    result, calls = _run_cap(1621, fits=100)
+    assert result is BYTES and calls == [800, 600, 400, 250]
 
 
 def test_explicit_recent_cap_and_other_errors_are_unchanged():
     criteria = {**CRITERIA, 'max_recent_trials': 500}
-    result, calls = _run_cap(_ok(500), criteria)
-    assert calls == [criteria] and 'recent_cap' not in result['structuredContent']
+    result, calls = _run_cap(1621, criteria)
+    assert calls == [500] and 'recent_cap' not in result['structuredContent']
+
+    async def busy(_ctx):
+        return other
     other = {'isError': True, 'content': [{'type': 'text', 'text': 'RESEARCH_BUSY: retry shortly.'}]}
-    result, calls = _run_cap(other)
-    assert result is other and len(calls) == 1
+    import dataclasses
+
+    @dataclasses.dataclass
+    class Ctx:
+        method: str
+        params: dict
+    assert asyncio.run(claude_research.claude_recent_cap(Ctx(**vars(_search_ctx(CRITERIA))), busy)) is other
 
 
 def test_chatgpt_search_still_rejects_over_limit_without_rerun():
@@ -314,7 +336,7 @@ def test_chatgpt_search_still_rejects_over_limit_without_rerun():
     client, call = _http(claude)
     with client:
         call('tools/call', {'name': 'search_research_trials', 'arguments': {'criteria': CRITERIA}})
-    assert criteria_seen == [None, 800]
+    assert criteria_seen == [800]
 
 
 def _chatgpt_with_store(store):
@@ -325,22 +347,3 @@ def _chatgpt_with_store(store):
     finally:
         research_server.ResearchStore = original
 
-
-def test_cap_steps_down_when_800_records_exceed_the_size_limit():
-    result, calls = _run_cap(TOO_LARGE, too_big=(800, 600))
-    assert [c.get('max_recent_trials') for c in calls] == [None, 800, 600, 400]
-    cap = result['structuredContent']['recent_cap']
-    assert cap['max_recent_trials'] == 400 and result['structuredContent']['selection_id'] == 's400'
-    assert 'latest 400' in cap['description'] and 'exceeded the size limit' in cap['description']
-
-
-def test_uncapped_size_limit_error_is_also_capped():
-    result, calls = _run_cap(BYTES)
-    assert [c.get('max_recent_trials') for c in calls] == [None, 800]
-    cap = result['structuredContent']['recent_cap']
-    assert cap['matching_trials'] is None and cap['matching_trials_label'] == 'more than fit in one selection'
-
-
-def test_every_cap_over_the_size_limit_returns_the_error():
-    result, calls = _run_cap(TOO_LARGE, too_big=claude_research.RECENT_CAP_STEPS)
-    assert result is BYTES and [c.get('max_recent_trials') for c in calls] == [None, 800, 600, 400, 250]
