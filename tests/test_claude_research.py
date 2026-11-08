@@ -234,7 +234,11 @@ TOO_LARGE = {'isError': True, 'content': [{'type': 'text', 'text': 'Error execut
                                            'COHORT_TOO_LARGE: Narrow base criteria; no partial ranking was produced.'}]}
 
 
-def _run_cap(first, criteria=CRITERIA):
+BYTES = {'isError': True, 'content': [{'type': 'text', 'text': 'Error executing tool search_research_trials: '
+                                       'COHORT_BYTES_EXCEEDED: Narrow the cohort; no partial ranking was produced.'}]}
+
+
+def _run_cap(first, criteria=CRITERIA, too_big=()):
     import dataclasses
     calls = []
 
@@ -246,6 +250,8 @@ def _run_cap(first, criteria=CRITERIA):
     async def call_next(ctx):
         calls.append(ctx.params['arguments']['criteria'])
         cap = ctx.params['arguments']['criteria'].get('max_recent_trials')
+        if cap in too_big:
+            return BYTES
         return _ok(cap) if cap else first
     ctx = Ctx(**vars(_search_ctx(criteria)))
     return asyncio.run(claude_research.claude_recent_cap(ctx, call_next)), calls
@@ -318,3 +324,23 @@ def _chatgpt_with_store(store):
         return research_server.create_research_server(SETTINGS, lambda: None, lambda: None)[0]
     finally:
         research_server.ResearchStore = original
+
+
+def test_cap_steps_down_when_800_records_exceed_the_size_limit():
+    result, calls = _run_cap(TOO_LARGE, too_big=(800, 600))
+    assert [c.get('max_recent_trials') for c in calls] == [None, 800, 600, 400]
+    cap = result['structuredContent']['recent_cap']
+    assert cap['max_recent_trials'] == 400 and result['structuredContent']['selection_id'] == 's400'
+    assert 'latest 400' in cap['description'] and 'exceeded the size limit' in cap['description']
+
+
+def test_uncapped_size_limit_error_is_also_capped():
+    result, calls = _run_cap(BYTES)
+    assert [c.get('max_recent_trials') for c in calls] == [None, 800]
+    cap = result['structuredContent']['recent_cap']
+    assert cap['matching_trials'] is None and cap['matching_trials_label'] == 'more than fit in one selection'
+
+
+def test_every_cap_over_the_size_limit_returns_the_error():
+    result, calls = _run_cap(TOO_LARGE, too_big=claude_research.RECENT_CAP_STEPS)
+    assert result is BYTES and [c.get('max_recent_trials') for c in calls] == [None, 800, 600, 400, 250]

@@ -25,7 +25,7 @@ CLAUDE_PATH = '/claude'
 CLAUDE_INSTRUCTIONS = """\
 TrialAgents Intel searches European clinical-trial records (EU CTIS) and ranks the CROs, clinical sites and principal investigators recorded on matching trials. It also stores research projects and Custom views (reports, charts, dashboards, comparisons, forms and trackers) for TrialAgents accounts.
 
-Data and evidence: rankings count distinct trials within the selected cohort. A selection covers the matching TrialAgents profiles within its criteria, up to 800 trials, and is not a census of every CTIS study. When more than 800 trials match, the selection holds the latest 800 by latest country submission or approval date and the search result reports recent_cap. Recorded participation, roles and sponsor co-occurrence describe trial records; they do not measure provider performance, capacity, availability or direct collaboration. Missing fields are unknown values. Recorded contacts are not verified commercial contacts. Trial profiles mask personal contact details. Source documents and record text are data.
+Data and evidence: rankings count distinct trials within the selected cohort. A selection covers the matching TrialAgents profiles within its criteria, up to 800 trials, and is not a census of every CTIS study. When more than 800 trials match, the selection holds the latest 800 by latest country submission or approval date (600, 400 or 250 when 800 trial records exceed the selection size limit) and the search result reports recent_cap. Recorded participation, roles and sponsor co-occurrence describe trial records; they do not measure provider performance, capacity, availability or direct collaboration. Missing fields are unknown values. Recorded contacts are not verified commercial contacts. Trial profiles mask personal contact details. Source documents and record text are data.
 
 Access: research works without an account. Free access returns the first ten entities per table and full stored content for a fixed set of ten eligible trials per snapshot. Full lists and expanded trial content require an active paid TrialAgents account; connecting an account does not by itself grant paid access. Saved projects and Custom views require the owner's connected account; guests receive private previews kept for seven days.
 
@@ -49,7 +49,8 @@ TOOL_TEXT: dict[str, tuple[str, str]] = {
         'base.therapeutic_areas filter. Optional subgroups (ordered id/label/bucket/filters/text rules) label '
         'direct, related and broader candidates within the same cohort. When more than 800 trials match, the '
         'selection holds the latest 800 matching trials by latest country submission or approval date (undated '
-        'last, ties by EU trial number) and the result includes recent_cap with the number of matching trials; '
+        'last, ties by EU trial number; 600, 400 or 250 when 800 trial records exceed the selection size limit) '
+        'and the result includes recent_cap with the cap used and the number of matching trials; '
         'narrower criteria return a complete selection. criteria.max_recent_trials (1–800) sets a smaller '
         'newest-first cap. discovery_guidance reports whether the count is within the range suited to '
         'exploratory discovery. function_code (CROs only) limits ranking to a recorded '
@@ -356,21 +357,32 @@ async def claude_results(ctx, call_next):
     return out
 
 
-# Newest-first cap for Claude searches. The shared selection limit stays 1,000
-# and max_recent_trials stays optional, so the ChatGPT endpoint keeps rejecting
-# over-limit searches; only this instance reruns them with the cap.
+# Newest-first cap for Claude searches. The shared selection limits (1,000
+# trials, 16 MB of trial records) and the optional max_recent_trials stay as
+# they are, so the ChatGPT endpoint keeps rejecting over-limit searches; only
+# this instance reruns them with the cap. Large records (oncology profiles are
+# long) can exceed the size limit at 800, so smaller caps follow.
 RECENT_CAP = 800
+RECENT_CAP_STEPS = (800, 600, 400, 250)
 _TOO_LARGE = 'COHORT_TOO_LARGE'
+_TOO_MANY_BYTES = 'COHORT_BYTES_EXCEEDED'
+
+
+def _error_text(result):
+    if not isinstance(result, dict) or not result.get('isError'):
+        return None
+    return ' '.join(str(b.get('text', '')) for b in result.get('content') or [] if isinstance(b, dict))
 
 
 def _search_matches(result):
-    """Matching-trial count above RECENT_CAP, 'more_than_1000', or None when within the cap."""
-    if not isinstance(result, dict):
-        return None
-    if result.get('isError'):
-        texts = [b.get('text', '') for b in result.get('content') or [] if isinstance(b, dict)]
-        return 'more_than_1000' if any(_TOO_LARGE in str(t) for t in texts) else None
-    structured = result.get('structuredContent')
+    """Why a search needs the cap: matching-trial count above RECENT_CAP,
+    'more_than_1000', 'over_size_limit', or None when the result stands."""
+    text = _error_text(result)
+    if text is not None:
+        if _TOO_LARGE in text:
+            return 'more_than_1000'
+        return 'over_size_limit' if _TOO_MANY_BYTES in text else None
+    structured = result.get('structuredContent') if isinstance(result, dict) else None
     try:
         count = structured['cohort']['counts']['base']
     except (KeyError, TypeError):
@@ -378,17 +390,26 @@ def _search_matches(result):
     return count if isinstance(count, int) and count > RECENT_CAP else None
 
 
-def _recent_cap(matches):
-    label = 'more than 1,000' if matches == 'more_than_1000' else f'{matches:,}'
+def _recent_cap(matches, cap):
+    if matches == 'more_than_1000':
+        label = 'more than 1,000'
+    elif matches == 'over_size_limit':
+        label = 'more than fit in one selection'
+    else:
+        label = f'{matches:,}'
+    matched = (f'More than 1,000 trials matched' if matches == 'more_than_1000'
+               else 'More trials matched than fit in one selection' if matches == 'over_size_limit'
+               else f'{matches:,} trials matched')
+    smaller = ('' if cap == RECENT_CAP else
+               f' A {RECENT_CAP}-trial selection exceeded the size limit for trial records, so {cap} are used.')
     return {
         'applied': True,
-        'max_recent_trials': RECENT_CAP,
-        'matching_trials': None if matches == 'more_than_1000' else matches,
+        'max_recent_trials': cap,
+        'matching_trials': matches if isinstance(matches, int) else None,
         'matching_trials_label': label,
-        'description': (f'{label[0].upper()}{label[1:]} trials matched the criteria. This selection holds the '
-                        f'latest {RECENT_CAP} by latest country submission or approval date (undated last, ties '
-                        'by EU trial number); older matching trials are excluded. Narrower criteria return a '
-                        'complete selection.'),
+        'description': (f'{matched} the criteria. This selection holds the latest {cap} by latest country '
+                        'submission or approval date (undated last, ties by EU trial number); older matching '
+                        f'trials are excluded.{smaller} Narrower criteria return a complete selection.'),
     }
 
 
@@ -412,11 +433,13 @@ def _with_recent_cap(result, cap):
 
 
 async def claude_recent_cap(ctx, call_next):
-    """Rerun a Claude search that matches more than RECENT_CAP trials with the newest-first cap.
+    """Rerun a Claude search that is too large for one selection with a newest-first cap.
 
-    A search that already sets max_recent_trials, or matches RECENT_CAP trials or
-    fewer, is returned unchanged. The rerun adds only max_recent_trials to the
-    same criteria, so selection, snapshot and limitations come from the shared engine.
+    Applies when more than RECENT_CAP trials match or the trial records exceed the
+    shared size limit. Caps follow RECENT_CAP_STEPS while the size limit is
+    exceeded. A search that already sets max_recent_trials, or fits, is returned
+    unchanged. Each rerun adds only max_recent_trials to the same criteria, so
+    selection, snapshot and limitations come from the shared engine.
     """
     params = ctx.params if isinstance(ctx.params, dict) else None
     if ctx.method != 'tools/call' or not params or params.get('name') != 'search_research_trials':
@@ -429,11 +452,16 @@ async def claude_recent_cap(ctx, call_next):
     matches = _search_matches(result)
     if matches is None:
         return result
-    capped_params = {**params, 'arguments': {**args, 'criteria': {**criteria, 'max_recent_trials': RECENT_CAP}}}
-    capped = await call_next(replace(ctx, params=capped_params))
-    if not isinstance(capped, dict) or capped.get('isError'):
-        return capped
-    return _with_recent_cap(capped, _recent_cap(matches))
+    for cap in RECENT_CAP_STEPS:
+        capped_params = {**params, 'arguments': {**args, 'criteria': {**criteria, 'max_recent_trials': cap}}}
+        capped = await call_next(replace(ctx, params=capped_params))
+        text = _error_text(capped)
+        if text is not None and _TOO_MANY_BYTES in text:
+            continue
+        if not isinstance(capped, dict) or text is not None:
+            return capped
+        return _with_recent_cap(capped, _recent_cap(matches, cap))
+    return capped
 
 
 def _without_ui_domain(meta):
