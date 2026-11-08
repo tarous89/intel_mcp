@@ -19,9 +19,19 @@ Every request also follows [access and evidence rules](references/access-and-evi
 
 ## How results reach the user
 
-- Show results in the workspace, not as a bare link. publish_research_workspace, prepare_research_workspace, open_project, open_research_workspace, save_project_custom_view and open_project_custom_view display the workspace inline. A successful publish or Custom view save already displays its result, so no extra open call is needed.
+- Show results in the workspace, not as a bare link. publish_research_workspace, prepare_research_workspace, open_project, open_research_workspace, save_project_custom_view and open_project_custom_view display the workspace, which opens full screen when it is ready.
+- Open the workspace with every answer about TrialAgents research, so the interface appears after each query. A successful publish or Custom view save already displays it. Otherwise, after answering (for example an evidence question or a chat-only summary), display the current results once at the end of the turn: open_project for a saved project or open_research_workspace for a preview, with the table kind the answer is about. Skip this only when there are no results yet (clarifying question, empty search, failure) or the user asks for chat only.
 - Keep chat short: scope, cohort size, whether the newest-first cap applied, total and visible entities, the access note when material, and two or three useful observations. Do not repeat workspace tables in chat.
-- Add a website link only when it helps, copying the returned url or custom_url exactly. Never build a link from a project or preview ID.
+
+## End every answer with the same footer
+
+After each answer that has results, end the message with these lines, in this order:
+
+1. **Website link.** For a saved project, the url returned by the latest tool result, copied exactly, for example `[Open in TrialAgents](https://intel.trialagents.com/projects/…/sites)`; for a Custom view, its custom_url. Never build a link from an ID. For an unsaved guest preview, do not show its returned url, because it carries the private preview capability; write instead: "Connect your TrialAgents account to save this project and get a link."
+2. **Reopen.** "Say \"show the workspace\" to reopen it here." When the user says this, call open_project or open_research_workspace for the current results; both are read-only.
+3. **Full screen.** "The workspace opens full screen when ready. Use the X in its header to return to the chat; if Claude asks for an approval while it is open, close it to see the approval."
+
+Keep the footer to these three short lines and do not repeat them elsewhere in the message.
 
 ## Always come back with a list
 
