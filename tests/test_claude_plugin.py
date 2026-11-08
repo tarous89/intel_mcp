@@ -50,3 +50,17 @@ def test_listing_icon_is_a_square_png_within_limits():
     assert data[:8] == b'\x89PNG\r\n\x1a\n' and len(data) < 2 * 1024 * 1024
     width, height = struct.unpack('>II', data[16:24])
     assert width == height and 512 <= width <= 2048
+
+
+def test_icon_has_only_image_chunks_and_plugin_has_no_html_files():
+    # Metadata chunks (C2PA, text) can trip the directory's download-and-run scan;
+    # .html files will only be accepted from Verified organizations.
+    import struct
+    data = (CLAUDE / '.claude-plugin/icon.png').read_bytes()
+    chunks, i = set(), 8
+    while i < len(data):
+        n, = struct.unpack('>I', data[i:i + 4])
+        chunks.add(data[i + 4:i + 8])
+        i += 12 + n
+    assert chunks <= {b'IHDR', b'PLTE', b'tRNS', b'IDAT', b'IEND'}
+    assert not list(CLAUDE.rglob('*.html'))

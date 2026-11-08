@@ -1,6 +1,6 @@
 # Branded Custom views
 
-Use these patterns with assets/custom-view-examples.html. The gallery is an example library, not a required four-section report. Preserve the existing MCP save procedure and tool names.
+Use these patterns with assets/custom-view-examples.md. The gallery is an example library, not a required four-section report. Preserve the existing MCP save procedure and tool names.
 
 ## Choose and adapt
 
@@ -18,7 +18,7 @@ Use these patterns with assets/custom-view-examples.html. The gallery is an exam
 | Plan work or show recorded milestones | Purple timeline | Equal-width time intervals; actual dates or clearly user-provided/planned durations. Distinguish a plan from observed trial timings. |
 | Assign owners and track actions | Editable table, orange progress | User-provided project tasks, stable field names and explicit statuses. No patient records. Completion derives from current rows. |
 
-Use other suitable charts from visual-examples.html when the question warrants them. Apply the same typography and surfaces; do not force unrelated data into these four patterns. Use tables when exact comparisons are clearer than graphs.
+Use other suitable charts from visual-examples.md when the question warrants them. Apply the same typography and surfaces; do not force unrelated data into these four patterns. Use tables when exact comparisons are clearer than graphs.
 
 ## Rendering and persistence
 

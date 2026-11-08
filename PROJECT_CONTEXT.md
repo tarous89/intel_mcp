@@ -1,3 +1,7 @@
+# Claude plugin portal validation fixes — 2026-11-08
+
+Portal validation of 0.1.6 warned that icon.png contains a download-and-run pattern (C2PA content-credential metadata in a caBX chunk: CBOR "url" keys read as "curl" next to certificate URLs) and that .html files will later be accepted only from Verified organizations. 0.1.7 strips the icon to IHDR/IDAT/IEND (pixels unchanged), converts the three Custom view HTML templates to Markdown with the HTML in fenced blocks (content unchanged), and adds privacyPolicyUrl. Claude plugin folder and its test only; the ChatGPT plugin's logo and templates are unchanged.
+
 # Claude plugin listing icon — 2026-11-08
 
 Claude plugin 0.1.6 adds .claude-plugin/icon.png (a copy of the TrialAgents logo from the ChatGPT plugin assets; the original is unchanged) because the directory takes the listing icon from the plugin only at the first submission. Plugin folder and its test only.
