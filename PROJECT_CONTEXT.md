@@ -1,3 +1,7 @@
+# Claude plugin icon re-encoded — 2026-11-08
+
+After stripping metadata, the portal still flagged a download-and-run pattern in icon.png: the 871 KB grainy PNG contained random byte runs ($(, sh, …) read as shell syntax. 0.1.8 uses a 512 px, 7-colour palette version of the same logo (3.4 KB, brand colours navy/white/green, transparent corners) with no such runs; a test guards it. The ChatGPT plugin's logo is unchanged.
+
 # Claude plugin portal validation fixes — 2026-11-08
 
 Portal validation of 0.1.6 warned that icon.png contains a download-and-run pattern (C2PA content-credential metadata in a caBX chunk: CBOR "url" keys read as "curl" next to certificate URLs) and that .html files will later be accepted only from Verified organizations. 0.1.7 strips the icon to IHDR/IDAT/IEND (pixels unchanged), converts the three Custom view HTML templates to Markdown with the HTML in fenced blocks (content unchanged), and adds privacyPolicyUrl. Claude plugin folder and its test only; the ChatGPT plugin's logo and templates are unchanged.
