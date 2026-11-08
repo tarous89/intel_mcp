@@ -1,3 +1,7 @@
+# Claude workspace after every answer — 2026-11-08
+
+Owner chose: the workspace opens (and goes full screen when ready, unchanged UI behaviour) after every TrialAgents answer, and every answer ends with a footer: the returned website link for saved projects (never a guest preview url, which carries the preview capability), "Say \"show the workspace\" to reopen it here", and how to close full screen to see approvals. Permission prompts are handled by the owner in Claude's tool permission settings; tool annotations are unchanged. Claude plugin skill text only (0.1.4); no server, workspace bundle, ChatGPT or App change.
+
 # Claude skill name — 2026-11-08
 
 Owner requested the Claude plugin skill be named for TrialAgents: `ask` is renamed `ask-trialagents` (Ask TrialAgents, `/trialagents:ask-trialagents`). Content unchanged. Claude plugin 0.1.3. No server change.
