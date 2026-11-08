@@ -64,3 +64,14 @@ def test_icon_has_only_image_chunks_and_plugin_has_no_html_files():
         i += 12 + n
     assert chunks <= {b'IHDR', b'PLTE', b'tRNS', b'IDAT', b'IEND'}
     assert not list(CLAUDE.rglob('*.html'))
+
+
+def test_icon_is_small_and_has_no_shell_like_byte_runs():
+    # A large, noisy PNG contains random byte runs that the directory's
+    # download-and-run scan reads as shell syntax; a flat-palette icon has none.
+    import re
+    data = (CLAUDE / '.claude-plugin/icon.png').read_bytes()
+    assert len(data) < 16 * 1024
+    for pattern in (rb'(curl|wget|iwr|irm|iex|powershell|bash)', rb'\|\s*(ba|z|da|k)?sh', rb'\bsh\b',
+                    rb'sh\s*-c', rb'\$\(', rb'https?:', rb'/bin/', rb'eval', rb'exec', rb'base64', rb'chmod'):
+        assert not re.search(pattern, data, re.I), pattern
