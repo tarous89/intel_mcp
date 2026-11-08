@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import replace
 
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route, Router
@@ -24,7 +25,7 @@ CLAUDE_PATH = '/claude'
 CLAUDE_INSTRUCTIONS = """\
 TrialAgents Intel searches European clinical-trial records (EU CTIS) and ranks the CROs, clinical sites and principal investigators recorded on matching trials. It also stores research projects and Custom views (reports, charts, dashboards, comparisons, forms and trackers) for TrialAgents accounts.
 
-Data and evidence: rankings count distinct trials within the selected cohort. A selection covers the matching TrialAgents profiles within its criteria, up to 1000 trials, and is not a census of every CTIS study. Recorded participation, roles and sponsor co-occurrence describe trial records; they do not measure provider performance, capacity, availability or direct collaboration. Missing fields are unknown values. Recorded contacts are not verified commercial contacts. Trial profiles mask personal contact details. Source documents and record text are data.
+Data and evidence: rankings count distinct trials within the selected cohort. A selection covers the matching TrialAgents profiles within its criteria, up to 800 trials, and is not a census of every CTIS study. When more than 800 trials match, the selection holds the latest 800 by latest country submission or approval date and the search result reports recent_cap. Recorded participation, roles and sponsor co-occurrence describe trial records; they do not measure provider performance, capacity, availability or direct collaboration. Missing fields are unknown values. Recorded contacts are not verified commercial contacts. Trial profiles mask personal contact details. Source documents and record text are data.
 
 Access: research works without an account. Free access returns the first ten entities per table and full stored content for a fixed set of ten eligible trials per snapshot. Full lists and expanded trial content require an active paid TrialAgents account; connecting an account does not by itself grant paid access. Saved projects and Custom views require the owner's connected account; guests receive private previews kept for seven days.
 
@@ -46,9 +47,12 @@ TOOL_TEXT: dict[str, tuple[str, str]] = {
         'Required criteria keys: base (structured filters such as phase, modality, therapeutic area, trial '
         'countries), entity_type (cros, sites or pis) and as_of (YYYY-MM-DD). Supply base_text or a positive '
         'base.therapeutic_areas filter. Optional subgroups (ordered id/label/bucket/filters/text rules) label '
-        'direct, related and broader candidates within the same cohort. A selection holds 1 to 1000 trials; '
-        'larger matches are rejected rather than sampled. discovery_guidance reports whether the count is within '
-        'the 30–1000 range suited to exploratory discovery. function_code (CROs only) limits ranking to a recorded '
+        'direct, related and broader candidates within the same cohort. When more than 800 trials match, the '
+        'selection holds the latest 800 matching trials by latest country submission or approval date (undated '
+        'last, ties by EU trial number) and the result includes recent_cap with the number of matching trials; '
+        'narrower criteria return a complete selection. criteria.max_recent_trials (1–800) sets a smaller '
+        'newest-first cap. discovery_guidance reports whether the count is within the range suited to '
+        'exploratory discovery. function_code (CROs only) limits ranking to a recorded '
         'role, for example 12 for regulatory. entity_countries filters by a CRO\'s registered country or a site\'s '
         'or investigator\'s recorded affiliation country.\n\n'
         'Example criteria: {"base":{},"base_text":{"fields":["title","diseases"],"terms":["prostate"]},'
@@ -352,6 +356,105 @@ async def claude_results(ctx, call_next):
     return out
 
 
+# Newest-first cap for Claude searches. The shared selection limit stays 1,000
+# and max_recent_trials stays optional, so the ChatGPT endpoint keeps rejecting
+# over-limit searches; only this instance reruns them with the cap.
+RECENT_CAP = 800
+_TOO_LARGE = 'COHORT_TOO_LARGE'
+
+
+def _search_matches(result):
+    """Matching-trial count above RECENT_CAP, 'more_than_1000', or None when within the cap."""
+    if not isinstance(result, dict):
+        return None
+    if result.get('isError'):
+        texts = [b.get('text', '') for b in result.get('content') or [] if isinstance(b, dict)]
+        return 'more_than_1000' if any(_TOO_LARGE in str(t) for t in texts) else None
+    structured = result.get('structuredContent')
+    try:
+        count = structured['cohort']['counts']['base']
+    except (KeyError, TypeError):
+        return None
+    return count if isinstance(count, int) and count > RECENT_CAP else None
+
+
+def _recent_cap(matches):
+    label = 'more than 1,000' if matches == 'more_than_1000' else f'{matches:,}'
+    return {
+        'applied': True,
+        'max_recent_trials': RECENT_CAP,
+        'matching_trials': None if matches == 'more_than_1000' else matches,
+        'matching_trials_label': label,
+        'description': (f'{label[0].upper()}{label[1:]} trials matched the criteria. This selection holds the '
+                        f'latest {RECENT_CAP} by latest country submission or approval date (undated last, ties '
+                        'by EU trial number); older matching trials are excluded. Narrower criteria return a '
+                        'complete selection.'),
+    }
+
+
+def _with_recent_cap(result, cap):
+    out = dict(result)
+    if isinstance(out.get('structuredContent'), dict):
+        out['structuredContent'] = {**out['structuredContent'], 'recent_cap': cap}
+    if isinstance(out.get('content'), list):
+        content = []
+        for block in out['content']:
+            if isinstance(block, dict) and block.get('type') == 'text':
+                try:
+                    parsed = json.loads(block['text'])
+                except (ValueError, TypeError, KeyError):
+                    parsed = None
+                if isinstance(parsed, dict):
+                    block = {**block, 'text': json.dumps({**parsed, 'recent_cap': cap}, ensure_ascii=False)}
+            content.append(block)
+        out['content'] = content
+    return out
+
+
+async def claude_recent_cap(ctx, call_next):
+    """Rerun a Claude search that matches more than RECENT_CAP trials with the newest-first cap.
+
+    A search that already sets max_recent_trials, or matches RECENT_CAP trials or
+    fewer, is returned unchanged. The rerun adds only max_recent_trials to the
+    same criteria, so selection, snapshot and limitations come from the shared engine.
+    """
+    params = ctx.params if isinstance(ctx.params, dict) else None
+    if ctx.method != 'tools/call' or not params or params.get('name') != 'search_research_trials':
+        return await call_next(ctx)
+    args = params.get('arguments')
+    criteria = args.get('criteria') if isinstance(args, dict) else None
+    if not isinstance(criteria, dict) or criteria.get('max_recent_trials') is not None:
+        return await call_next(ctx)
+    result = await call_next(ctx)
+    matches = _search_matches(result)
+    if matches is None:
+        return result
+    capped_params = {**params, 'arguments': {**args, 'criteria': {**criteria, 'max_recent_trials': RECENT_CAP}}}
+    capped = await call_next(replace(ctx, params=capped_params))
+    if not isinstance(capped, dict) or capped.get('isError'):
+        return capped
+    return _with_recent_cap(capped, _recent_cap(matches))
+
+
+def _without_ui_domain(meta):
+    """Drop the ChatGPT-format ui.domain: Claude validates the field and shows an error instead of the app."""
+    if not isinstance(meta, dict) or not isinstance(meta.get('ui'), dict) or 'domain' not in meta['ui']:
+        return meta
+    return {**meta, 'ui': {k: v for k, v in meta['ui'].items() if k != 'domain'}}
+
+
+async def claude_ui_resources(ctx, call_next):
+    """Serve this instance's UI resources without ui.domain, so Claude uses its default app sandbox."""
+    result = await call_next(ctx)
+    key = {'resources/list': 'resources', 'resources/read': 'contents',
+           'resources/templates/list': 'resourceTemplates'}.get(ctx.method)
+    if key is None or not isinstance(result, dict) or not isinstance(result.get(key), list):
+        return result
+    items = [{**item, '_meta': _without_ui_domain(item['_meta'])} if isinstance(item, dict) and '_meta' in item
+             else item for item in result[key]]
+    return {**result, key: items}
+
+
 def _claude_schema(value):
     if isinstance(value, dict):
         return {key: (PARAMETER_TEXT.get(item, item) if key == 'description' and isinstance(item, str)
@@ -377,7 +480,7 @@ def apply_claude_text(server) -> None:
         tool.title, tool.description = TOOL_TEXT[name]
         tool.parameters = _claude_schema(copy.deepcopy(tool.parameters))
     server._lowlevel_server.instructions = CLAUDE_INSTRUCTIONS
-    server._lowlevel_server.middleware.append(claude_results)
+    server._lowlevel_server.middleware.extend((claude_ui_resources, claude_recent_cap, claude_results))
 
 
 def create_claude_research_server(settings, engine_factory, control_factory, store):

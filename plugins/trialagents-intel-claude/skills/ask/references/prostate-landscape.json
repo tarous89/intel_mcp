@@ -1,0 +1,11 @@
+{
+  "base": {},
+  "base_text": {"fields": ["title", "diseases"], "terms": ["prostate"], "operator": "any"},
+  "entity_type": "cros",
+  "as_of": "2026-10-06",
+  "include_broader": true,
+  "subgroups": [
+    {"id": "mhspc_phase3_candidates", "label": "Phase III mHSPC terminology candidates", "bucket": "direct", "filters": {"phase": {"values": [3]}}, "phase_title_fallback": true, "text": {"fields": ["title", "diseases", "population", "settings"], "terms": ["mhspc", "mcspc", "metastatic hormone-sensitive", "metastatic hormone sensitive", "metastatic castration-sensitive", "metastatic castration sensitive"], "operator": "any"}},
+    {"id": "other_phase3_prostate", "label": "Other phase III prostate candidates", "bucket": "related", "filters": {"phase": {"values": [3]}}, "phase_title_fallback": true}
+  ]
+}

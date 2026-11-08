@@ -1,0 +1,10 @@
+# Trial evidence
+
+Use for questions about the trials behind current results: complete profiles, protocol text, eligibility, endpoints, timelines, sponsor co-occurrence, country coverage and recorded operational findings.
+
+1. Resolve the current preview or owned project. read_project (kind and controls omitted for the latest saved view) and read_project_preview read data without changing the visible workspace; use them rather than reopening tables. Paid reads accept limit 1–100: use 100 for broad counts and comparisons, smaller pages for detailed records, and follow next_offset. Free access is the first ten rows.
+2. When trial profiles or documents are needed, call prepare_project_custom_view for the authorised trial scope and eligible trial IDs. Use only eligible IDs from that context. On TRIAL_NOT_IN_PREVIEW, refresh the context and choose eligible IDs. Free access covers the fixed set of ten eligible trials.
+3. Call describe_trial_profile_schema before interpreting unfamiliar fields. read_trial_profiles returns complete profiles (omit sections) or selected sections: overview, population, trial_design, interventions, eligibility, objectives, endpoints, sponsor_and_organizations, contacts, countries, sites, documents, lifecycle, results. Follow next_part for large profiles.
+4. list_trial_documents gives exact extracted document names; read_trial_document returns their text in parts until next_part is null. Unavailable documents stay unavailable. Retrieval dates can differ from frozen profile dates; mention this when material.
+5. Calculate only from records actually read. Show denominators and unknowns, keep overlapping groups separate, and state the analysed scope when coverage is partial. For a full-cohort claim, read every relevant authorised page of the counted entity (a site-country count needs Sites pages). Trial-level operational findings do not prove an entity's responsibility or performance.
+6. Answer in concise chat. Multi-part comparisons and visual analyses go to [Custom views](custom-views.md).

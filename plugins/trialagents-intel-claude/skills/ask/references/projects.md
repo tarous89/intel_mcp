@@ -1,0 +1,11 @@
+# Projects
+
+Use to open, page, filter, save or revise TrialAgents research projects, or to connect an account to an existing preview. New clinical discovery goes to [Find partners](find-partners.md).
+
+- list_projects lists the connected account's saved projects, including those created on the TrialAgents website or in other assistants. read_project reads a table for analysis without changing the display; omitted kind and controls read the latest saved view, explicit controls are a read-only override, {} means unfiltered.
+- open_project displays a requested table, page or record view inline. Use it to present results, not to collect data for analysis.
+- Previews are read with read_project_preview and displayed again with open_research_workspace; tab changes never repeat the search.
+- publish_research_workspace presents and saves new final results. save_project with project_id and expected_revision commits a revision; prepare_research_workspace displays exploration that is not saved to an account project. On REVISION_CONFLICT, read the latest project with read_project and reconcile before revising. save_project_view saves filters and ranking only, with the returned view.version and revision.
+- The workspace Connect action requests account authorisation and saves the exact preview with save_project; existing Custom views are attached. If in-workspace authorisation is unavailable, the user can continue in chat: call save_project with that preview's retained draft and present the returned workspace. Website import is a fallback and does not connect the MCP account. Preview capabilities stay in tool arguments, never in chat text.
+- Storage calls retry transient failures twice. After automatic_retry_complete=true, leave manual recovery available; on the user's request use the returned recovery: save_project for a connected publication or revision (keep project_id and expected_revision), recover_research_preview for temporary storage. Repeating a guest publication creates a separate preview.
+- Confirm saved only on saved=true. Quote the seven-day availability only for confirmed temporary storage. A connected free account can save projects; connecting does not by itself grant paid access.

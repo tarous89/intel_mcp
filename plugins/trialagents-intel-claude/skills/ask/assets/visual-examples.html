@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Visual layout examples</title></head><body><main>
+<h1>Visual layout examples</h1><p class="summary">Illustrative placeholders only. Reuse the relevant section, replacing labels, geometry, values and interpretation with authorized data. The main shell supplies tables and trackers.</p>
+<section><h2>Stacked comparison</h2><p>Use one shared scale across comparable rows; totals and units remain explicit.</p>
+<figure class="bar-chart" aria-label="Illustrative stacked comparison">
+<div class="bar-row"><span class="bar-label">Example A</span><div class="bar-track"><svg viewBox="0 0 100 12" preserveAspectRatio="none"><rect width="40" height="12" fill="#1e3a8a"/><rect x="40" width="20" height="12" fill="#60a5fa"/></svg></div><span class="bar-value">60 units</span></div>
+<div class="bar-row"><span class="bar-label">Example B</span><div class="bar-track"><svg viewBox="0 0 100 12" preserveAspectRatio="none"><rect width="20" height="12" fill="#1e3a8a"/><rect x="20" width="20" height="12" fill="#60a5fa"/></svg></div><span class="bar-value">40 units</span></div>
+<svg viewBox="0 0 320 32" aria-label="Series legend"><rect x="0" y="10" width="12" height="12" rx="2" fill="#1e3a8a"/><text x="20" y="21" font-size="14">Series 1</text><rect x="150" y="10" width="12" height="12" rx="2" fill="#60a5fa"/><text x="170" y="21" font-size="14">Series 2</text></svg>
+<figcaption>Illustrative scale: 0–100 units. Replace with the shared maximum for the real data.</figcaption></figure></section>
+<section><h2>Trend</h2><p>Replace the points and axis labels together; retain real intervals.</p><figure>
+<svg viewBox="0 0 320 170" role="img" aria-label="Illustrative line chart">
+<path d="M40 20V130H300" fill="none" stroke="#dce2e5"/>
+<text x="4" y="25" font-size="14">100</text><text x="20" y="135" font-size="14">0</text>
+<path d="M40 108L160 75L280 42" fill="none" stroke="#0e849b" stroke-width="3"/>
+<circle cx="40" cy="108" r="4" fill="#0e849b"/><circle cx="160" cy="75" r="4" fill="#0e849b"/><circle cx="280" cy="42" r="4" fill="#0e849b"/>
+<text x="32" y="157" font-size="14">T1</text><text x="152" y="157" font-size="14">T2</text><text x="272" y="157" font-size="14">T3</text>
+</svg><figcaption>Illustrative values: 20, 50, 80 units across three equally spaced periods.</figcaption></figure></section>
+<section><h2>Relationship</h2><p>Use independent numeric axes and identify the units for each.</p><figure>
+<svg viewBox="0 0 320 180" role="img" aria-label="Illustrative scatter plot">
+<path d="M40 20V130H290" fill="none" stroke="#dce2e5"/>
+<text x="0" y="16" font-size="14">Y units</text><text x="4" y="35" font-size="14">100</text><text x="20" y="135" font-size="14">0</text>
+<circle cx="90" cy="100" r="5" fill="#c65b13"/><circle cx="165" cy="60" r="5" fill="#c65b13"/><circle cx="240" cy="80" r="5" fill="#c65b13"/>
+<text x="37" y="155" font-size="14">0</text><text x="275" y="155" font-size="14">10</text><text x="120" y="176" font-size="14">X units</text>
+</svg><figcaption>Illustrative points: (2, 30), (5, 70), (8, 50).</figcaption></figure></section>
+<section><h2>Matrix</h2><p>Use a single ordered scale and print values as well as shades.</p><figure>
+<svg viewBox="0 0 320 175" role="img" aria-label="Illustrative heatmap">
+<text x="120" y="20" font-size="14">X</text><text x="230" y="20" font-size="14">Y</text>
+<text x="0" y="65" font-size="14">Row A</text><text x="0" y="115" font-size="14">Row B</text>
+<rect x="80" y="30" width="100" height="45" rx="3" fill="#bfdbfe"/><text x="120" y="59" fill="#243238" font-size="14">25</text>
+<rect x="190" y="30" width="100" height="45" rx="3" fill="#2563eb"/><text x="230" y="59" fill="#ffffff" font-size="14">75</text>
+<rect x="80" y="80" width="100" height="45" rx="3" fill="#2563eb"/><text x="120" y="109" fill="#ffffff" font-size="14">75</text>
+<rect x="190" y="80" width="100" height="45" rx="3" fill="#bfdbfe"/><text x="230" y="109" fill="#243238" font-size="14">25</text>
+<rect x="80" y="145" width="12" height="12" fill="#bfdbfe"/><text x="100" y="156" font-size="14">25 units</text><rect x="190" y="145" width="12" height="12" fill="#2563eb"/><text x="210" y="156" font-size="14">75 units</text>
+</svg><figcaption>Illustrative discrete scale. For continuous data, define shared value ranges and label them.</figcaption></figure></section>
+<section><h2>Timeline</h2><p>Position events by their actual dates on one shared time axis.</p><figure>
+<svg viewBox="0 0 320 100" role="img" aria-label="Illustrative timeline">
+<path d="M30 50H290" fill="none" stroke="#b0e3ec" stroke-width="3"/>
+<circle cx="50" cy="50" r="5" fill="#0e849b"/><circle cx="270" cy="50" r="5" fill="#0e849b"/>
+<text x="18" y="25" font-size="14">Event A</text><text x="235" y="25" font-size="14">Event B</text><text x="24" y="82" font-size="14">Day 0</text><text x="240" y="82" font-size="14">Day 10</text>
+</svg><figcaption>Illustrative event dates; replace with the actual time unit and scope.</figcaption></figure></section>
+<section><h2>Comparison cards</h2><p>Use the same fields for each item.</p><section><h3>Example A</h3><p><strong>Measure:</strong> —</p><p><strong>Interpretation:</strong> Replace with the supported finding.</p></section><section><h3>Example B</h3><p><strong>Measure:</strong> —</p><p><strong>Interpretation:</strong> Replace with the supported finding.</p></section></section>
+</main></body></html>
