@@ -1150,11 +1150,18 @@ def build_app():
             claude_routes, claude_http = build_claude_routes(
                 settings, engine_client, control_plane_client, research_store, transport_security)
     
+        pipeline_routes, pipeline_http = [], []
+        if os.getenv("PIPELINE_MCP_ENABLED", "false").lower() == "true":
+            from intel_mcp.pipeline import pipeline_routes as build_pipeline_routes
+            pipeline_routes, pipeline_http = build_pipeline_routes(settings, control_plane_client, transport_security)
+
         @asynccontextmanager
         async def lifespan(application):
             async with AsyncExitStack() as stack:
                 await stack.enter_async_context(legacy_http.router.lifespan_context(legacy_http))
                 await stack.enter_async_context(research_http.router.lifespan_context(research_http))
+                for http in pipeline_http:
+                    await stack.enter_async_context(http.router.lifespan_context(http))
                 if claude_http is not None:
                     await stack.enter_async_context(claude_http.router.lifespan_context(claude_http))
                 yield
@@ -1174,6 +1181,7 @@ def build_app():
             Route('/.well-known/oauth-protected-resource/research/mcp', research_metadata, methods=['GET']),
             Mount('/research', app=ResearchAuth(research_http, control_plane_client, research_resource, research_challenge)),
             *claude_routes,
+            *pipeline_routes,
             Mount('/', app=app),
         ], lifespan=lifespan)
     return app
