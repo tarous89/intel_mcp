@@ -16,6 +16,8 @@ def test_chatgpt_and_claude_transport(monkeypatch):
                 return {"active":True,"sub":"member","scope":"mcp:tools","resource":base+"/"+token+"/mcp"}
         async def call(self,request):
             assert pipeline.TOKEN.get() in ("pipeline","pipeline-claude")
+            if request["op"]=="records.read":
+                return {"total":0,"records":[]}
             return {"title":"One","workspace":"w","revision":1,"role":"reader","workspaces":[],"tabs":[],"views":[],"items":[],"accent":"#112233"}
         monkeypatch.setattr(pipeline.PipelineGateway,"call",call)
         routes,apps=pipeline.pipeline_routes(settings,Auth,TransportSecuritySettings(allowed_hosts=["mcp.trialagents.com"]))

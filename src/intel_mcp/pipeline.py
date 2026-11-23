@@ -23,7 +23,7 @@ OAUTH = {"securitySchemes": [{"type": "oauth2", "scopes": ["mcp:tools"]}]}
 READ = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False)
 VISIBLE = {**OAUTH, "ui": {"resourceUri": RESOURCE}, "openai/outputTemplate": RESOURCE}
-WIDGET_OPS = {"bootstrap", "items.save", "attachment.get", "view.list", "view.save", "view.remove", "logs",
+WIDGET_OPS = {"bootstrap", "view.read", "items.save", "attachment.get", "view.list", "view.save", "view.remove", "logs",
               "preferences.save", "settings.save", "design.save", "team.list", "team.invite", "team.revoke",
               "team.member"}
 
@@ -74,18 +74,13 @@ def pipeline_server(gateway):
 
     @server.tool(meta=OAUTH, annotations=READ)
     async def read_pipeline(workspace: str | None = None, search: str = "", record_type: str = "",
-                            record_id: str = "", offset: int = 0, limit: int = 25) -> CallToolResult:
+                            record_id: str = "", view_id: str = "", offset: int = 0, limit: int = 25) -> CallToolResult:
         """List available workspaces, roles, views and matching records. Use record_id for one complete record."""
-        snap = await gateway.call({"op": "bootstrap", "workspace": workspace})
-        rows = [r for r in snap["items"] if (not record_id or r["id"] == record_id)
-                and (not record_type or r["type"] == record_type) and search.casefold() in r["name"].casefold()]
-        offset, limit = max(0, offset), min(100, max(1, limit))
-        fields = ("id", "type", "name", "status", "risk", "start", "end", "owner", "budget", "parents", "deps")
-        page = rows[offset:offset+limit]
-        return result(f"{len(rows)} matching records.", {"workspace": snap["workspace"], "revision": snap["revision"],
-            "role": snap["role"], "workspaces": snap["workspaces"], "views": snap["views"], "tabs": snap["tabs"],
-            "accent": snap["accent"], "title":snap["title"], "total":len(rows),
-            "records": page if record_id else [{k:r[k] for k in fields if k in r} for r in page]})
+        if view_id:
+            return result("Saved view.", await gateway.call({"op":"view.read","workspace":workspace,"input":{"id":view_id}}))
+        data = await gateway.call({"op":"records.read","workspace":workspace,
+            "input":{"id":record_id,"type":record_type,"search":search,"offset":max(0,offset),"limit":min(100,max(1,limit))}})
+        return result(f"{data['total']} matching records.",data)
 
     @server.tool(meta=OAUTH, annotations=WRITE)
     async def save_pipeline_records(workspace: str, revision: int, request_id: str,
@@ -97,10 +92,10 @@ def pipeline_server(gateway):
 
     @server.tool(meta=OAUTH, annotations=WRITE)
     async def save_pipeline_view(workspace: str, revision: int, request_id: str, title: str,
-                                 filters: dict[str, str], chart: str = "", view_id: str | None = None) -> CallToolResult:
-        """Save an editor-authored view to Custom views. Filters include program ID, owner, type, status, risk, budget, from, until and search. Optional chart groups by type, owner or status."""
+                                 filters: dict[str, str], chart: str = "", view_id: str | None = None, presentation_html: str | None = None) -> CallToolResult:
+        """Save an editor-authored view to Custom views. Filters include program ID, owner, type, status, risk, budget, from, until and search. Optional chart groups by type, owner or status. Supply presentation_html for a curated static HTML/SVG figure, table or narrative based on authorized records."""
         data = await gateway.call({"op":"view.save","workspace":workspace,"revision":revision,"requestId":request_id,
-            "input":{"id":view_id,"title":title,"filters":filters,"chart":chart}})
+            "input":{"id":view_id,"title":title,"filters":filters,"chart":chart,"presentation":presentation_html}})
         return result("Saved custom view.",data)
 
     @server.tool(meta=OAUTH, annotations=WRITE)
