@@ -73,6 +73,8 @@ register_report_dataset(server.mcp, server.settings, _authorized)
 # server.app is built before this module registers the routes. Rebuild the ASGI app
 # so the production entrypoint contains the public MCP and private app boundaries.
 app = server.build_app()
+from .ctis_ingress import CtisIngress
+app = CtisIngress(app)
 
 
 def main() -> None:
